@@ -1,0 +1,137 @@
+# מודל ההרצה: V8, services, quotas, scopes
+
+Apps Script נראה כמו JavaScript ורוב הזמן הוא באמת. מה שונה זה סביבת הריצה, המנוע שמריץ את הקוד, הספריות שהוא חושף, המגבלות שהוא אוכף, ומערכת ההרשאות שמפקחת על הכל. תקלטו את זה בשיעור 2 והשאר של ה-Track מפסיק להפתיע.
+
+## V8 לעומת Rhino
+
+ל-Apps Script יש שני מנועים:
+
+| Runtime | תקופה | מה מקבלים |
+|---|---|---|
+| Rhino | 2009–2020 | דיאלקט ישן של ECMAScript 5.x. בלי `let`/`const`, בלי arrow functions, בלי template literals, בלי destructuring, בלי `async`/`await`. |
+| V8 | 2020–היום | אותו מנוע שמריץ את Chrome. ECMAScript מודרני עם כל מה שהשאר של אקוסיסטם ה-JavaScript מניח שקיים. |
+
+השדה `runtimeVersion` ב-manifest בוחר. **V8 הוא ברירת המחדל והבחירה הנכונה היחידה ל-projects חדשים.** הסיבה ש-Rhino עדיין קיים היא backward compatibility עם workbooks שיש להם triggers בני עשור שעדיין יורים. אם יורשים project של Rhino, המעבר הוא עריכה אחת של manifest (`"runtimeVersion": "V8"`) ועוד בדיקות, אי-תאימויות נדירות הן סביב binding של `this` בתוך callbacks וכמה סמלים גלובליים מורשת ש-Rhino חשף (`importPackage` וכו').
+
+בפועל, V8 אומר שכותבים Apps Script עם אותו JavaScript שכותבים בכל מקום אחר:
+
+```js
+// Template literals, destructuring, optional chaining, הכול native:
+function summarize(campaign) {
+  const { buyer, vertical, spend } = campaign;
+  return `${buyer} on ${vertical}: $${spend?.toFixed(2) ?? "0.00"}`;
+}
+```
+
+המטלה של השיעור הזה מכריחה אתכם להשתמש ב-template literal במפורש, זו תכונה של V8 בלבד שכנראה תנשך אתכם הכי הרבה אם בטעות תיפלו ל-project של Rhino.
+
+## Services
+
+הספרייה הסטנדרטית של Apps Script מאורגנת ב-**services**, אובייקטים ברמה העליונה שקוראים להם methods. אלה ש-workbook אדטק טיפוסי משתמש בהם:
+
+| Service | בשימוש ל |
+|---|---|
+| `SpreadsheetApp` | קריאה וכתיבה של תאים, ranges, גיליונות. ה-service הכי נוגעים בו. |
+| `DriveApp` | רישום, יצירה, העברה, שיתוף של קבצים. הדרך שמוצאים sheets ל-IMPORTRANGE. |
+| `UrlFetchApp` | HTTP יוצא. ככה הפולים הליליים של Taboola/Outbrain קורים. |
+| `MailApp` / `GmailApp` | שליחת אימייל. ה-mailer של "spend חרג מהתקציב". |
+| `CalendarApp` | קריאה וכתיבה של אירועי יומן. פחות נפוץ באדטק. |
+| `ScriptApp` | ניהול triggers, deployments, ה-metadata של ה-script עצמו. |
+| `Session` | המשתמש הפעיל. `Session.getActiveUser().getEmail()` מחזיר מי מריץ את זה. |
+| `Utilities` | עיצוב תאריכים, base64, טיפול ב-blobs, sleep. עוזרים שלא מתאימים לאף מקום אחר. |
+| `CacheService` / `PropertiesService` | אחסון key/value פר-script. Cache קצר חיים; Properties קבוע. |
+| `LockService` | mutex כששתי הרצות trigger יכולות להתנגש. חובה ל-batch jobs ליליים. |
+
+יש עוד (ה-"Advanced services" שמפעילים תחת Resources מאפשרים לקרוא ל-Sheets API ברמה נמוכה יותר, ל-BigQuery API, ל-Admin SDK וכו'), אבל ל-90% של קוד workbook חיים בטבלה למעלה.
+
+קריאה ל-service היא שרשרת methods:
+
+```js
+const sheet = SpreadsheetApp.getActiveSpreadsheet()
+  .getSheetByName("Aggregator");
+const lastRow = sheet.getLastRow();
+const data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
+```
+
+כל קריאת method היא round-trip לשרתי Google. השיעור על `SpreadsheetApp` (שיעור 4) מכסה איך לבצע batch של קריאות וכתיבות כדי שלא תשלמו על round-trip לכל תא.
+
+## Quotas
+
+Apps Script אוכף שלושה סוגי מגבלות:
+
+**Timeout פר-הרצה.** הרצה בודדת של script לא יכולה להימשך לנצח:
+
+| סוג חשבון | זמן הרצה מקסימלי |
+|---|---|
+| צרכני (gmail.com) | 6 דקות |
+| Workspace | 30 דקות |
+
+script שמגיע לזה נהרג באמצע כתיבה. התיקון הוא לחלק jobs ארוכים לחתיכות ולהפעיל מחדש דרך `ScriptApp.newTrigger(...).timeBased().at(...)`, המתכון לעבד 200,000 שורות קמפיינים הוא חתיכה של 50,000 שורות על trigger שמתאזרר מחדש.
+
+**Quotas יומיים פר-service.** לכל service יש cap יומי משלו. אלה שכואבים הכי הרבה:
+
+| Service | Quota חינמי | Quota של Workspace |
+|---|---|---|
+| `UrlFetchApp` | 20,000/יום | 100,000/יום |
+| `MailApp.sendEmail` | 100/יום | 1,500/יום |
+| זמן ריצה כולל של triggers | 90 דקות/יום | 6 שעות/יום |
+| Calls של custom function ב-Sheets API | 30,000/יום | 30,000/יום (אותו דבר) |
+
+המספרים זזים עם הזמן; הנוכחיים חיים ב-`developers.google.com/apps-script/guides/services/quotas`. שני דפוסים רלוונטיים:
+
+- **trigger לילי אחד שעושה 20,000 קריאות UrlFetchApp רווי את ה-quota החינמי.** אם צריך יותר, מקבילים על פני כמה projects של Apps Script (כל אחד מקבל bucket משלו ב-quota), או עוברים לחשבון Workspace בתשלום.
+- **המגבלה של 100/יום ב-MailApp היא פר-script, לא פר-משתמש.** script יחיד ששולח מייל לכל חבר צוות יומית על הקמפיינים שלו רווי במהירות. משתמשים ב-`GmailApp.sendEmail` (1,500/יום בחינמי, 10,000 ב-Workspace) למיילים בנפח גבוה יותר.
+
+**מגבלות rate פר-דקה.** רוב ה-services יש גם מגבלת burst פר-דקה, `UrlFetchApp` מאפשר בערך 600/דקה. אם פוגעים בזה מקבלים exception של `Service invoked too many times in a short time`. החוכמה ב-Apps Script היא `Utilities.sleep(100)` בין קריאות ב-batch, ביטוח זול.
+
+## OAuth scopes
+
+כל קריאה ל-service דורשת אישור הרשאה. ה-manifest מצהיר על scopes במפורש:
+
+```json
+"oauthScopes": [
+  "https://www.googleapis.com/auth/spreadsheets.currentonly",
+  "https://www.googleapis.com/auth/script.container.ui",
+  "https://www.googleapis.com/auth/script.external_request"
+]
+```
+
+| Scope | מה הוא פותח |
+|---|---|
+| `spreadsheets.currentonly` | קריאה/כתיבה של ה-spreadsheet הפעיל בלבד. ה-scope הצר ביותר השימושי. |
+| `spreadsheets` | קריאה/כתיבה של כל spreadsheet שלמשתמש יש גישה אליו. |
+| `drive.file` | קריאה/כתיבה של קבצים שה-app הזה יצר או שהמשתמש פתח איתו במפורש. |
+| `drive` | גישה מלאה ל-Drive. ה-scope הכי מפחיד לבקש. |
+| `script.container.ui` | הצגת sidebars, dialogs, תפריטים מותאמים. |
+| `script.external_request` | קריאה ל-`UrlFetchApp`. |
+| `userinfo.email` | קריאה של המייל של המשתמש הפעיל. |
+
+**מעדיפים תמיד scopes צרים.** script bound שצריך רק את ה-workbook הפעיל צריך להשתמש ב-`spreadsheets.currentonly`, אף פעם לא ב-`spreadsheets`. שתי סיבות:
+
+1. **ה-auth prompt נראה פחות מפחיד.** משתמשים נוטשים scripts שמבקשים "Manage your spreadsheets in Drive" כש-"Manage just this spreadsheet" זה מה שהם באמת עושים.
+2. **נזק אם ה-script נחטף תחום.** script עם scope של `drive` שמושב יכול להוציא כל קובץ. script עם `drive.file` יכול לגעת רק בקבצים שהוא יצר.
+
+בהרצה הראשונה, המשתמש רואה מסך הסכמה שמפרט כל scope. הוא מאשר או מסרב. מוסיפים קריאה לשירות חדש מאוחר יותר? Apps Script מרחיב את רשימת ה-scopes אוטומטית, ההרצה הבאה תבקש שוב. זה מעצבן למשתמש אבל ככה חוזה ההרשאות נשאר מפורש.
+
+## עכשיו לעבודה אמיתית
+
+ל-project המקושר של השיעור הזה יש קובץ `Lesson.gs` עם stub של `quotaSummary(perDay, perMinute)`. שתי משימות:
+
+1. עורכים את הגוף שיחזיר את ה-template literal `` `${perDay} per day, ${perMinute} per minute` ``. Template literals הם V8 בלבד, זה ה-hook של השיעור.
+2. בתא **A1**, קוראים `=quotaSummary(20000, 600)`. אלה ה-quota של UrlFetchApp לחשבון צרכני וה-rate פר-דקה, אז התא בסוף קורא "20000 per day, 600 per minute", המגבלות האמיתיות שתתכננו סביבן כשתכתבו פולים ליליים בשיעור 11.
+
+## נפוץ בשטח
+
+projects אמיתיים של Apps Script ב-workbooks של הצוות:
+
+- **`appsscript.json` נושא 4–6 scopes מקסימום.** משהו יותר זה או over-scoping או יותר מדי דברים ב-project אחד, מחלקים ל-script פר-concern.
+- **`Utilities.sleep(100)` בין כל `UrlFetchApp.fetch`.** חגורה ושלייקס נגד ה-throttle הפר-דקתי.
+- **mailer יומי של סיכום שמחולק לשתי functions.** האחת שואלת את ה-workbook על הנתונים; השנייה מעצבת ושולחת. ה-quota של `MailApp.sendEmail` נבדק בתחילת ה-function השנייה, אם נגמר, רושמים את זה ל-Aggregator ומדלגים על המייל בלילה.
+
+## מלכודות מקצועיות
+
+- **"ה-script שלי רץ אתמול אבל היום הוא מבקש הרשאה שוב."** הוספתם קריאה לשירות חדש שצריך scope חדש. Apps Script הרחיב את סט ה-scopes אוטומטית, ההרצה הבאה מבקשת מחדש.
+- **ה-timeout של 6 דקות שמסתתר מאחורי triggers.** trigger לילי שמצליח חודשים על נתונים קטנים מתחיל להיכשל בשקט ביום שהנתונים גדלים מעל המגבלה. רושמים את זמן ההתחלה בראש כל function ארוכת ריצה ואת זמן הסיום בסוף; כשהמרווח מתקרב ל-5 דקות, יודעים שצריך לעשות refactor.
+- **`UrlFetchApp.fetch` מחזיר את אותה תגובה פעמיים.** ה-cache עבור קריאות עם `muteHttpExceptions: false` תוקפני. מעבירים `muteHttpExceptions: true` וקוראים את קוד התגובה בעצמכם, או מוסיפים פרמטר cache-busting ל-URL.
+- **custom function שצורכת quota של UrlFetchApp.** שיעור 3 מכסה caching מצד התא; הנה צד ה-quota. כל זוג ארגומנטים שונה ל-`=fetchSomething(x, y)` הוא קריאה אחת. spreadsheet עם 50,000 תאים שקוראים ל-custom function מבוססת UrlFetchApp ירווה את ה-quota היומי בפתיחה אחת.
+- **כמה triggers שמתחרים על אותם נתונים.** trigger A של ליל ראשון רץ מחדש כי ההרצה הקודמת קרסה; הרצה ידנית B מתחילה בבוקר שני למלא לאחור. שניהם כותבים ל-Aggregator בו-זמנית. משתמשים ב-`LockService.getScriptLock().tryLock(30 * 1000)` בראש כל trigger שמשנה state משותף.

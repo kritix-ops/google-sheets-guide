@@ -1,0 +1,126 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# לוגיקה מותנית: IF, IFS, SWITCH, AND, OR
+
+`IF` הופיע בקצרה בשיעור 3. הסיפור המלא רחב יותר: `IF`-ים מקוננים קורסים מהר תחת המשקל של עצמם, `IFS` מסדר אותם, `SWITCH` מטפל בהשוואות שוויון, ו-`AND`/`OR`/`NOT` מרכיבים כל תנאי שאפשר לתאר במילים. השיעור הזה מכסה את אוצר המילים המלא דרך המקרה היומיומי באדטק: חלוקה של קמפיינים לסלים לפי ROI, ותרגום של שמות פלטפורמות לקטגוריות.
+
+## IF מקונן: היכן זה נשבר
+
+אפשר לקנן `IF` אחד בתוך הסלוט של ערך-אם-שקר של אחר כדי לבנות שרשרת. שני סלים: קל. חמישה סלים: סיוט של ספירת סוגריים. השוו את אותה לוגיקה: תיוג של כל קמפיין בתווית ביצועים על בסיס ROI.
+
+<Compare>
+  <ComparePanel label="IF מקונן: קשה לקריאה" tone="negative">
+    <pre className="mt-1 overflow-x-auto rounded-md bg-surface-elevated p-3 font-mono text-xs">
+{`=IF(F2/E2>=2,"Star",
+  IF(F2/E2>=1.2,"Profitable",
+    IF(F2/E2>=0.9,"Break-even",
+      "Loss")))`}
+    </pre>
+  </ComparePanel>
+  <ComparePanel label="IFS: לינארי, סריק" tone="positive">
+    <pre className="mt-1 overflow-x-auto rounded-md bg-surface-elevated p-3 font-mono text-xs">
+{`=IFS(F2/E2>=2,"Star",
+     F2/E2>=1.2,"Profitable",
+     F2/E2>=0.9,"Break-even",
+     TRUE,"Loss")`}
+    </pre>
+  </ComparePanel>
+</Compare>
+
+שתי הנוסחאות מתייגות את הקמפיין הראשון (ROI = 487.30/342.18 ≈ 1.42) כ-`Profitable`. הגרסה עם IFS קלה יותר לכתיבה, לקריאה ולשינוי. ה-`TRUE, "Loss"` בסוף הוא ענף ברירת המחדל. `TRUE` תמיד מתאים, אז זה ה-catch-all לכל מה שלא נפל על תנאי קודם.
+
+## IFS: תנאי, ערך, תנאי, ערך...
+
+`IFS` מקבל זוגות: תנאי וערך, חוזר על עצמו. הוא מחזיר את הערך של **התנאי הראשון** שהוא TRUE. אם אף אחד לא מתאים, הוא מחזיר `#N/A`. תמיד מסיימים עם `TRUE` כ-catch-all כדי להימנע מזה.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=IFS(F2/E2>=2,"Star",F2/E2>=1.2,"Profitable",F2/E2>=0.9,"Break-even",TRUE,"Loss")'
+  task={<>חלקו את ה-ROI של הקמפיין הראשון לסל: <code>Star</code> אם ROI ≥ 2, <code>Profitable</code> אם ≥ 1.2, <code>Break-even</code> אם ≥ 0.9, אחרת <code>Loss</code>. התוצאה צריכה להיות <code>Profitable</code>.</>}
+  hint={<>ארבעה זוגות של תנאי-ערך. התנאי הוא <code>F2/E2 {">"}= ...</code> לכל סף. סיימו עם <code>TRUE, "Loss"</code> כ-catch-all.</>}
+  answer={<>IFS בודק תנאים מימין לשמאל בקריאת הקוד (ובסדר הכתיבה משמאל לימין) ומחזיר את הערך שמשולב עם הראשון שהוא TRUE. הסדר חשוב: <code>F2/E2 {">"}= 0.9</code> נכון לקמפיין הראשון (ROI ≈ 1.42), אבל הוא לא ההתאמה הראשונה. <code>F2/E2 {">"}= 1.2</code> גם נכון ומופיע מוקדם יותר ברשימה. הסדר צריך לרוץ מהמחמיר ביותר לרך ביותר. ה-catch-all של <code>TRUE</code> מבטיח התאמה לכל קלט שלא תפס תנאי קודם. בעבודת אדטק אמיתית, סלי ROI כאלה מניעים החלטות סקיילינג: Stars מקבלים יותר תקציב, Losses מושהים.</>}
+/>
+
+## SWITCH: השוואות שוויון
+
+`SWITCH` הוא `IFS` להשוואות שוויון. מעבירים ביטוי, ואז זוגות מתחלפים של התאמה-החזרה, עם default אופציונלי בסוף.
+
+השימוש הקלאסי באדטק: תרגום של שמות פלטפורמות לקטגוריות רחבות יותר, ככה שה-dashboards יכולים להציג סך כולל של "Native מול Social מול Search" בלי לפרט כל פלטפורמה בנפרד.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H3"
+  expectedFormula='=SWITCH(D2,"Taboola","Native","Outbrain","Native","MediaGo","Native","Poppin","Native","Facebook","Social","TikTok","Social","Google","Search","Other")'
+  task={<>תרגמו את הפלטפורמה של הקמפיין הראשון (Google) לקטגוריה רחבה. השתמשו ב-SWITCH עם הזוגות האלה: Taboola/Outbrain/MediaGo/Poppin → Native; Facebook/TikTok → Social; Google → Search; default → Other. התוצאה צריכה להיות <code>Search</code>.</>}
+  hint={<>הארגומנט הראשון הוא הערך שמשתווה (D2). אז זוגות של שם פלטפורמה וקטגוריה. הארגומנט האחרון לבד הוא ה-default לכל מה שלא תאם.</>}
+  answer={<>SWITCH מטפל רק בהשוואות שוויון. אי אפשר לכתוב <code>{">"}=80</code> בענף של SWITCH. לבדיקות טווח כמו סלי ROI, השתמשו ב-IFS. SWITCH מבריק בתרגום של ערכים בדידים: פלטפורמה → קטגוריה, קוד מצב → תווית, אזור → מנהל, מטבע → שער המרה. ה-default תופס כל פלטפורמה חדשה שתתווסף בעתיד, ככה שהנוסחה לא מחזירה <code>#N/A</code> כששם לא מוכר מופיע דרך IMPORTRANGE. בפרודקשן, המפה של פלטפורמה-לקטגוריה לעיתים קרובות יושבת בגיליון "Config" נפרד ונמשכת דרך XLOOKUP. אותו רעיון כמו SWITCH אבל data-driven.</>}
+/>
+
+## AND, OR, NOT: הרכבת תנאים
+
+תנאי יכול להיות יותר מהשוואה אחת. `AND(...)` הוא TRUE אם כל ארגומנט הוא TRUE. `OR(...)` הוא TRUE אם לפחות אחד הוא. `NOT(x)` הופך boolean.
+
+<QuickCheck
+  question="איזה ביטוי מתייג שורות כ-'Scale candidate' כש-revenue גובר על spend וגם spend הוא לפחות $200 (שורות רווחיות בנפח גבוה)?"
+  options={[
+    {
+      id: "a",
+      label: <code>=IF(F2{">"}E2, "Scale candidate", "")</code>,
+      correct: false,
+      explanation: "זה מתייג כל קמפיין רווחי, כולל אלו עם spend של $50. צריך את שני התנאים.",
+    },
+    {
+      id: "b",
+      label: <code>=IF(AND(F2{">"}E2, E2{">"}=200), "Scale candidate", "")</code>,
+      correct: true,
+      explanation: "שני הגבולות נאכפים. AND דורש שכל ארגומנט יהיה TRUE.",
+    },
+    {
+      id: "c",
+      label: <code>=IF(OR(F2{">"}E2, E2{">"}=200), "Scale candidate", "")</code>,
+      correct: false,
+      explanation: "OR מתיר מדי. קמפיין מפסיד עם spend של $1000 עדיין יתאים לזרוע השנייה. AND זה מה שצריך.",
+    },
+  ]}
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H4"
+  expectedFormula='=IF(AND(F2>E2,E2>=200),"Scale candidate","Other")'
+  task={<>תייגו את הקמפיין הראשון כ-<code>Scale candidate</code> אם הוא גם רווחי (revenue {">"} spend) וגם בנפח גבוה (spend {">"}= 200). אחרת <code>Other</code>. (קמפיין ראשון: spend 342.18, revenue 487.30, אז התוצאה אמורה להיות <code>Scale candidate</code>.)</>}
+  hint={<>השתמשו ב-<code>AND</code> בתוך <code>IF</code> כדי לשלב שתי השוואות.</>}
+  answer={<>התנאי דורש את שני הקצוות של הקריטריון, אז <code>AND(F2{">"}E2, E2{">"}=200)</code> דורש מ-revenue לגבור על spend וגם מ-spend להיות לפחות 200. עבור הקמפיין הראשון, שניהם נכונים (487.30 {">"} 342.18 וגם 342.18 {">"}= 200), אז IF מחזיר <code>"Scale candidate"</code>. השילובים הטיפוסיים האחרים: <code>AND(profitable, low_spend)</code> ל"מנצחי בדיקה ששווה לסקייל", <code>OR(losing, very_low_volume)</code> ל"מועמדים להשהיה", <code>AND(high_roi, NOT(low_volume))</code> ל"קמפיינים שצריך לחגוג ב-QBR".</>}
+/>
+
+## איך בוחרים
+
+| תבנית | מתי משתמשים |
+|---|---|
+| כן/לא יחיד | `IF(תנאי, כן, לא)` |
+| 3+ ספים מדורגים | `IFS(תנאי1, ערך1, תנאי2, ערך2, ..., TRUE, default)` |
+| Lookup של ערך בדיד | `SWITCH(ביטוי, התאמה1, ערך1, ..., default)` או `XLOOKUP` מול טבלת config |
+| שילוב של כמה תנאים | `AND(...)`, `OR(...)`, או קינון שלהם |
+| הפיכת תנאי | `NOT(...)` או פשוט להפוך את ההשוואה |
+
+ברגע ש-IFS בארגז הכלים, תכתבו רק לעיתים נדירות יותר משני IF-ים מקוננים. ברגע שיש SWITCH, IFS-עם-שוויון מפסיק להיות דבר. וברגע ש-SWITCH צומח מעבר ל-10 ענפים בערך, מעבירים אותו לטבלת config ועוברים ל-XLOOKUP. קל יותר לתחזוקה כשהצוות מוסיף פלטפורמות או verticals חדשים.
+
+## נפוץ בשטח
+
+ב-spreadsheets האמיתיים של הצוות:
+
+- **סלי ROI מניעים החלטות סקיילינג.** עמודת IFS מתייגת כל קמפיין כ-Star/Profitable/Break-even/Loss. ה-dashboard אז עושה SUMIFS על spend לפי סל כדי להראות "כמה מהתקציב שלנו על Stars לעומת Losses".
+- **SWITCH/XLOOKUP של פלטפורמה → קטגוריה מזין את שורת הסכומים של Native/Social/Search** בכל dashboard.
+- **תנאי AND על מטריקות מרובות מניעים את רשימות "מועמד לסקייל" / "מועמד להשהיה".** שילוב של סף ROI וגם סף spend וגם פילטר טווח תאריכים זה הצורה הטיפוסית.
+
+## מלכודות מקצועיות
+
+- **`#N/A` מ-IFS** אומר שאף אחד מהתנאים שלכם לא תאם. תמיד מסיימים עם `TRUE, ערך_default`.
+- **`#N/A` מ-SWITCH** אומר שאין התאמה ולא הועבר default. תמיד מעבירים default כארגומנט האחרון.
+- **הסדר חשוב ב-IFS.** התנאי המחמיר ביותר ראשון, הרך ביותר אחרון (או catch-all עם `TRUE`). סדר הפוך מחזיר בשקט את הסל הלא נכון.
+- **השוואה של טקסט מיובא למספר** לא נכשלת בשגיאה אבל תמיד מחזירה FALSE. אם revenue מגיע דרך IMPORTRANGE כמחרוזת ("487.30" ולא 487.30), <code>F2 {">"} E2</code> אף פעם לא מתאים. המירו עם `VALUE(F2)` או `F2*1`.
+
+## עכשיו לעבודה אמיתית
+
+לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים. תכתבו שלוש נוסחאות: `IFS` לסל ה-ROI, `SWITCH` לקטגוריית הפלטפורמה, ו-`IF` עם `AND` לדגל מועמד-לסקייל.

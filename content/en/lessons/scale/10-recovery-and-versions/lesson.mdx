@@ -1,0 +1,109 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Recovering from breakage: version history and named-version strategy
+
+Something breaks. A formula gets deleted, a tab gets renamed, a paste overwrites the wrong cells, an `IMPORTRANGE` gets pointed at a stale source. The workbook now shows wrong numbers. The team finds out twenty minutes later when the morning ROI report doesn't match yesterday's. The question is not "who did it" but "what was the workbook five minutes before the break, and how do I get back there without losing the work since."
+
+Google Sheets keeps an automatic version history of every workbook. Used well, it's a save-game system. Used badly, it's a giant list of "2:14 PM, 2:18 PM, 2:22 PM" timestamps you have to scroll through hoping to spot the right one.
+
+## How automatic versioning works
+
+Every time the workbook gets edited, Google bundles the changes into a version. The bundling is opportunistic: rapid edits within a minute or two get rolled into one version, longer gaps create new versions. You don't control the exact bundling frequency, but a busy workbook ends up with one version every five to fifteen minutes, and a quiet one with one every few hours.
+
+Where they live: **File > Version history > See version history**, or `Ctrl/Cmd + Alt + Shift + H`. The right panel shows the list of versions, newest first, with the timestamp and the editor who made the last change in that version. Click a version and the main canvas shows the workbook as it was at that moment.
+
+What the list does not tell you on its own:
+
+- **Which edits are in this version.** You see "2:18 PM Roni Levi" but not "Roni changed J1 from `=SUM(F2:F61)` to `0`." If you need to compare two versions, expand them with the **Show changes** toggle at the top of the panel and Sheets highlights the modified cells.
+- **Why the edit happened.** That's the gap named versions fill.
+- **Which version was the last "known good" state.** Same gap. Without named versions, you guess by timestamp.
+
+## Naming versions: the team's save-game pattern
+
+A named version is one you explicitly label. **File > Version history > Name current version** lets you pin a label to "right now." Named versions are highlighted in the list and are also pinned (they never expire, even after the auto-versioning archive cycle).
+
+The team's actual naming convention, used on every shared workbook:
+
+| When you name | Label format |
+|---|---|
+| Before month-end roll-up | `PreMonthEnd-2026-04` |
+| Before a risky bulk edit | `PreBigRefactor-2026-05-09-pivot-rebuild` |
+| After a clean state worth pinning | `PostFix-2026-05-11-imported-broken` |
+| Before adding new tabs that touch dashboards | `PreNewTab-2026-05-11-mediago` |
+
+The prefix is the *kind* of moment; the date is `YYYY-MM-DD`; the suffix is a short hint. The kind-prefix makes the version list sortable in plain text: all the `PreMonthEnd` versions cluster together. The date makes the version self-locating. The suffix makes the version self-describing two months later when you've forgotten what `PreBigRefactor` referred to.
+
+Without a convention, the team gets one of two failure modes:
+
+- **No names at all.** When something breaks, recovery is twenty minutes of clicking through timestamps trying to spot the version where the broken cell still looks right.
+- **Ad-hoc names that don't sort.** Names like `before pivot`, `before pivot 2`, `actually before pivot`, `before pivot final`. The version list is now a story nobody can read.
+
+## The recovery flow
+
+When you discover a break, the steps are:
+
+1. **Don't keep editing.** Every edit creates a new auto-version. You're not losing data by stopping; you're stopping the noise that buries the right version under "5 minutes ago, 3 minutes ago, 1 minute ago."
+2. **Open version history** (`Ctrl/Cmd + Alt + Shift + H`).
+3. **Scan for the named version before the break.** If the team named one, you'll see `PreMonthEnd-2026-04` highlighted in the list. Click it and the canvas shows that snapshot.
+4. **Decide between restore-the-whole-version and copy-cells-back.**
+   - **Restore the whole version** (the **Restore this version** button at the top of the panel) replaces the *entire workbook* with that snapshot. Everything edited after that version is gone. Use when the break is catastrophic and recent.
+   - **Copy specific cells back.** While viewing the old version, copy the cells you want, click **Back** to return to the live version, then paste. Use when the break is small and isolated and you don't want to lose unrelated edits made since.
+5. **Name a recovery version.** After you restore, name the new state (`PostFix-2026-05-11-imported-broken`) so the next person can find it.
+
+## When not to restore the whole version
+
+Restoring the whole workbook is destructive in a specific way: it overwrites the live state with the old state, including any `IMPORTRANGE` outputs that have refreshed since. The live workbook had today's Taboola data; the restored snapshot has yesterday's. After the restore, you have to wait for the next `IMPORTRANGE` refresh or force one. For a workbook where multiple people have made unrelated edits in the last hour, restoring also rolls back their work. That's how a single restore creates a second incident.
+
+The cell-by-cell copy approach sidesteps all of this. It costs more clicks but only touches the cells that were actually broken.
+
+## Make a copy of an old version
+
+A third option, useful when you want to compare or salvage selectively: **Make a copy** from the version-history panel creates a new workbook from the old snapshot. The live workbook is untouched. You can then open both side-by-side and copy specific ranges across. The copy lives in your Drive as a separate file (named `Copy of [original] - [timestamp]`); rename it for what it is (`Recovery-2026-05-11-from-PreMonthEnd-2026-04`) and archive it once the recovery is done.
+
+This is the right move when:
+
+- You're not sure which cells need recovering.
+- The break is spread across multiple tabs.
+- You want a second person to review the diff before changes hit the live file.
+
+## What automatic versioning doesn't cover
+
+A few things the version-history panel won't help with:
+
+- **Edits inside a single auto-version.** If a buyer made the breaking edit five seconds before the prior auto-version was created, the prior version already contains the bug. Granularity is opportunistic, not per-keystroke.
+- **Bound script changes.** Apps Script projects have their own version history (inside the Apps Script editor, **File > See revision history**). Edits to the bound script aren't in the Sheets version history.
+- **Drive metadata.** Sharing-permission changes (someone removed an editor's access) don't appear in the workbook version history. They're in the Drive activity log.
+- **Connected data refreshes.** A `IMPORTRANGE` that started returning different data because the source workbook changed: the version history shows the *output* shifting but not the source change.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The dashboard cell J1 was seeded with a broken `0`. Restore it with the right SUM formula, then write the team's version-naming convention and the recovery flow into J3 and J5."
+/>
+
+Click **Start lesson** to provision the 60-row campaign log on a Campaigns tab. J1 is pre-seeded with a flat `0` (representing the broken state someone left behind). Three tasks:
+
+1. **J1: restore the correct total Spend.** Replace the seeded `0` with `=SUM(F2:F61)`. The value should match the actual total of the spend column.
+2. **J3: write the team's version-naming convention.** A string like `PreMonthEnd-YYYY-MM` (the literal substring `PreMonthEnd` or `pre-month-end` is what the grader checks for; the date placeholder is yours to format).
+3. **J5: describe the recovery process in one sentence.** The description has to name both the **version history** surface and the **restore** action. Something like `Open File > Version history, find the right named version, then Restore this version`.
+
+The point of cells 3 and 5 is the muscle memory. When the next break hits at 4 PM on a Friday, the recovery is mechanical: open version history, find a named version, restore or copy-back, name the new state. No flailing.
+
+## Used in the wild
+
+The team's monthly ritual: on the first of every month, the buyer who owns the master aggregator opens the workbook, makes one tiny edit (a comment in a never-touched cell does the job), then names the version `PreMonthEnd-2026-04` (with the prior month's date). The named version sits in the history forever as the canonical "everything looked right at the end of April" snapshot.
+
+The actual recovery story that made the team adopt this: someone was tidying the Buyer-Vertical dashboard and deleted column F (a hidden helper column with the `SUMIFS` denominators). The dashboard's ROI cells started reading `#REF!`. The fix took three minutes because the prior `PreMonthEnd-2026-03` version had the helper column intact: the recovering buyer opened the version, copied column F's formulas across, pasted them into the live workbook, and the dashboard recomputed. Without a named version, the same fix would have started with five minutes of "which 4:00 PM was it?"
+
+A second story, less happy: a buyer restored an entire workbook to a two-week-old version to recover one accidentally-deleted formula. The restore wiped out two weeks of `IMPORTRANGE` refresh results from three platforms. The dashboard now showed two-week-old numbers. Re-refreshing the IMPORTRANGEs took an hour because the source workbooks had to be touched. The lesson: cell-by-cell copy beats whole-workbook restore in 80% of cases.
+
+## Pro pitfalls
+
+- **The auto-version that already contains the break.** If the edit that broke the cell happened five seconds before the auto-snapshot, the snapshot has it. Look one version further back. The Show changes toggle helps here: expand the prior version and see what the diff was.
+- **Restoring a version that's older than today's IMPORTRANGE refreshes.** The restored snapshot has yesterday's IMPORTRANGE outputs. Force a refresh (or wait for the next scheduled one) after the restore, and document this in the recovery name.
+- **Named versions disappearing from the auto-history list.** They get filed into a "Named versions" sub-section. They are not deleted, but the panel might collapse them by default. Click **Only show named versions** to surface them.
+- **Naming after the fact.** If you forgot to name a known-good version yesterday, you can still name an old auto-version today: open it in the history panel, click the three-dot menu, choose **Name this version**. The timestamp doesn't move.
+- **Forgetting that the bound Apps Script has its own history.** Restoring the spreadsheet does not restore the bound script. The script's history lives separately in the Apps Script editor.
+- **A "Make a copy" recovery copy that never gets archived.** The Drive root fills up with `Recovery-...` workbooks from past incidents. Move them to a `Recovery-archive` folder once the live workbook is fixed; otherwise the next search for the live workbook surfaces three half-broken recovery copies first.
+- **Restoring on a workbook other people are actively editing.** The restore replaces their work in progress. If the workbook is shared and live, post in the team channel before you restore.

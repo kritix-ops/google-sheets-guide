@@ -1,0 +1,63 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# SPLIT, JOIN, TEXTJOIN, FLATTEN
+
+These four turn arrays into strings and strings into arrays. They're the bridge between text data and column data: exactly what you need for parsing the campaign codes that show up packed with metadata, or for serializing arrays back into legible strings for export.
+
+## SPLIT: one cell to many
+
+`SPLIT(text, delimiter, [split_by_each], [remove_empty])` breaks a string into an array of cells. The delimiter can be a single character or a multi-character string.
+
+```
+=SPLIT("Taboola_UsedCarsPR_DesktopUS_2026-05", "_")
+```
+
+Returns 4 cells: "Taboola", "UsedCarsPR", "DesktopUS", "2026-05". The team's campaign codes follow this shape; SPLIT extracts the parts in one formula.
+
+<TryIt
+  data={[["Taboola_UsedCarsPR_DesktopUS_2026-05", "", "", "", ""]]}
+  inputCell="B1"
+  expectedFormula='=SPLIT(A1,"_")'
+  task={<>Split the campaign code in <code>A1</code> by the underscore. Should spill into <code>B1:E1</code> with the four parts.</>}
+  hint={<><code>SPLIT(text, delimiter)</code>. The delimiter is a quoted string.</>}
+  answer={<>SPLIT defaults to splitting by <strong>each character</strong> in the delimiter. With "_" that's fine. With ", " (comma-space) it splits on commas AND spaces: usually wrong. Pass <code>FALSE</code> as the third argument to treat the delimiter as a single multi-character separator. Pass <code>TRUE</code> as the fourth (remove_empty) to skip blank entries from consecutive delimiters.</>}
+/>
+
+## JOIN and TEXTJOIN: many cells to one
+
+`JOIN(delimiter, range)` is the reverse of SPLIT. `TEXTJOIN(delimiter, ignore_empty, range)` is the modern version with the option to skip empty cells.
+
+```
+=JOIN(", ", A2:A4)              → "Yoav, Sarah, David"
+=TEXTJOIN(", ", TRUE, A2:A4)    → same, but skips empty cells
+```
+
+TEXTJOIN is what you'll reach for in production. JOIN is the older, simpler version.
+
+## FLATTEN: arrays to one column
+
+`FLATTEN(range)` turns a 2D range into a single column. Useful when you have a grid and need to feed it into a function that expects one column (like UNIQUE).
+
+```
+=FLATTEN(A1:C10)
+```
+
+Returns a 30-cell column with all the values from the 3×10 grid in row-major order. Typical adtech use: deduping a wide pivot of buyer-vertical pairs.
+
+## Used in the wild
+
+- **Parsing campaign codes** with SPLIT to break "platform_vertical_audience_period" into 4 columns. Often combined with INDEX to extract just one part: `=INDEX(SPLIT(A2, "_"), 2)`.
+- **TEXTJOIN for stitched lists** like "buyers on this platform: Yoav, Sarah, David" with `=TEXTJOIN(", ", TRUE, UNIQUE(B2:B13))`.
+- **FLATTEN for cross-platform unique counts** when the dashboard has a grid of buyer-vs-platform values and you want to count unique combinations.
+
+## Pro pitfalls
+
+- **`SPLIT` with `split_by_each = TRUE`** (the default) splits by EVERY character of the delimiter, not the delimiter as a whole. `SPLIT("a,b,c", ",")` works (single char), but `SPLIT("a; b; c", "; ")` does the wrong thing: splits on `;` AND `space` separately.
+- **`SPLIT` empty result skipped by default.** `SPLIT(",,a", ",")` returns just `"a"` unless you pass `FALSE` as the fourth argument.
+- **`JOIN` errors on a 2D range.** Use TEXTJOIN if you need to flatten and join in one step.
+- **TEXTJOIN with very long results hits cell-size limits.** A cell holds up to 50,000 characters; TEXTJOIN over a huge range can exceed it.
+- **FLATTEN preserves blank cells.** Combine with `FILTER(FLATTEN(...), FLATTEN(...){"<"}{">"}"")` to drop blanks.
+
+## Now do it for real
+
+Click **Start lesson** to provision a sheet with sample campaign codes. You'll write three formulas: a SPLIT to break a code apart, a TEXTJOIN to stitch buyer names into a comma-list, and a FLATTEN to turn a 2D range into a single column.

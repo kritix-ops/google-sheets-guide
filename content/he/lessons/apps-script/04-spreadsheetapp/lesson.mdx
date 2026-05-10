@@ -1,0 +1,154 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# SpreadsheetApp: קריאה וכתיבה ל-spreadsheet מהקוד
+
+שיעור 3 הראה איך custom function קוראת את הארגומנטים שלה מתא. זה המסלול הזול והמהיר, ה-function לא יודעת שום דבר על שאר ה-spreadsheet ולא יכולה לכתוב חזרה. ברגע שצריך לעדכן תאים, להעתיק ערכים בין tabs, או לעבור על גיליון שלם, יוצאים מה-sandbox של custom function ועוברים לעבוד ישירות מול **`SpreadsheetApp`**. זה ה-service ששאר Track 3 נשען עליו עבור menus, macros ו-triggers, אז הצורה של ה-API שלו ומודל הביצועים שלו חשובים.
+
+## ההיררכיה של שלושת ה-objects
+
+`SpreadsheetApp` היא נקודת הכניסה. קריאה אליה מחזירה objects נמוכים יותר בעץ:
+
+```js
+const ss     = SpreadsheetApp.getActiveSpreadsheet(); // Spreadsheet (כל הקובץ)
+const sheet  = ss.getSheetByName("Campaigns");         // Sheet (tab אחד)
+const range  = sheet.getRange("F2:F61");               // Range (מלבן של תאים)
+const values = range.getValues();                      // array דו-ממדי של CellValue
+```
+
+| Object | מה הוא מייצג | מה עושים איתו |
+|---|---|---|
+| `Spreadsheet` | הקובץ כולו (מה שיש לו URL ב-Drive). | מציגים רשימת גיליונות, מוסיפים גיליון, מגדירים את שם ה-spreadsheet. |
+| `Sheet` | tab אחד בתוך הקובץ. | מקבלים את מספר השורות, מקפיאים שורות, קובעים את הגיליון הפעיל, מקבלים range מה-tab הזה. |
+| `Range` | מלבן של תאים בגיליון. | קוראים או כותבים ערכים, קובעים number formats, מחילים conditional formatting, מנקים תוכן. |
+
+ערבוב ביניהם הוא הטעות הראשונה של מתחילים. `sheet.setValue(...)` לא קיים, רק ל-`Range` יש `setValue`. גם `range.getSheetByName(...)` לא קיים, `getSheetByName` שייך ל-`Spreadsheet`. הודעת השגיאה ("TypeError: sheet.setValue is not a function") מצביעה על ה-object הלא נכון, לא על הלוגיקה הלא נכונה.
+
+## קריאה וכתיבה של תא בודד
+
+ה-round-trip הקטן ביותר האפשרי:
+
+```js
+const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+const cell  = sheet.getRange("J1");
+cell.setValue(12345);            // כותב
+const back = cell.getValue();    // קורא, מחזיר 12345
+```
+
+שתי עובדות שיעקצו אתכם בהמשך:
+
+1. **כל קריאה ל-method הולכת לשרתי Google.** Apps Script לא רץ מקומית ליד ה-spreadsheet שלכם. הסקריפט חי על תשתית Google, ה-spreadsheet חי על תשתית Google, וכל `getValue` / `setValue` היא קריאת רשת ביניהם. תא-תא על מאה תאים זה מאה round-trips. על אלף זה תקיעה מורגשת.
+2. **`getValue()` מחזיר את מה שיש בתא.** מספרים חוזרים כ-JS numbers, מחרוזות כ-strings, תאריכים כ-`Date` objects, booleans כ-booleans, תאים ריקים כמחרוזת ריקה. האחרון הוא ההפתעה: תא ריק הוא `""`, לא `null` או `undefined`.
+
+## קריאות וכתיבות ב-batch
+
+הדרך הנכונה לקרוא או לכתוב יותר מתא אחד בכל פעם היא לתפוס **`Range`** שמכסה את כולם ולהשתמש בצורות הרבים:
+
+```js
+const range  = sheet.getRange("F2:F61");      // 60 תאים, עמודה F
+const values = range.getValues();              // round-trip אחד
+// values הוא array דו-ממדי בצורה [60][1]:
+// [[412.5], [285.3], [612.0], ...]
+
+let total = 0;
+for (const row of values) total += row[0];
+
+sheet.getRange("J1").setValue(total);          // round-trip אחד
+```
+
+זהו. שני round-trips לבצע את העבודה של 120 (`getValue` × 60 קריאות + `setValue` × 60 כתיבות אם הייתם כותבים את זה בצורה התמימה). על גיליון של 50,000 שורות ההבדל הוא בין סקריפט שמסיים בשלוש שניות ל-timeout של שש דקות.
+
+הצורה של `getValues()` היא המלכודת שאף אחד לא מזהיר עליה: **תמיד array דו-ממדי, גם לעמודה אחת או לשורה אחת.** קריאה של עמודה אחת מחזירה `[[v1], [v2], [v3], ...]`. קריאה של שורה אחת מחזירה `[[v1, v2, v3, ...]]`. קריאה של תא בודד דרך `getRange("J1").getValues()` מחזירה `[[v]]`. הצורה עקבית כדי שאותה לולאה תעבוד בכל מקרה, אבל בפעם הראשונה שתנסו לסכם `range.getValues()` ישירות עם `.reduce((a, b) => a + b, 0)` תקבלו ערימה של string-concatenation כי כל `b` הוא בעצמו array.
+
+## `getRange` וה-overloads שלו
+
+`getRange` מקבל או מחרוזת A1 או ארבעה integers:
+
+```js
+sheet.getRange("F2:F61");        // צורת A1
+sheet.getRange(2, 6, 60, 1);     // (startRow, startCol, numRows, numCols)
+```
+
+שניהם מתייחסים לאותה פרוסה של 60 תאים בעמודה. **הצורה של integers היא 1-indexed.** `getRange(2, 6, ...)` מתחיל בשורה 2, עמודה 6 (F). המוסכמה של 1-indexed תואמת לאותיות העמודות בכתובות התאים (A = 1, B = 2, ...) אבל היא חולקת על שאר JavaScript, שם arrays הם 0-indexed. טעות נפוצה היא לכתוב `sheet.getRange(0, 0, ...)` ולקבל exception על range לא חוקי.
+
+צורת ארבעת ה-integers משתלמת כשמחשבים את הגבולות באופן דינמי:
+
+```js
+const lastRow = sheet.getLastRow();             // השורה האחרונה עם תוכן
+const lastCol = sheet.getLastColumn();          // העמודה האחרונה עם תוכן
+const all = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+```
+
+זה קורא כל תא מאוכלס חוץ מהכותרת ב-round-trip אחד. ה-function הלילית של הצוות לאגרגציה היא בדיוק הצורה הזו: `getValues()` אחת לכל tab מקור, נורמליזציה ו-join ב-JavaScript בזיכרון, `setValues()` אחת ל-tab הפלט.
+
+## `getLastRow`, `getLastColumn`, ומלכודת השורות הריקות שנשארות
+
+`getLastRow()` מחזיר את מספר השורה של התא האחרון שיש בו תוכן כלשהו. המלכודת: "יש בו תוכן" דביק. אם פעם הקלדתם משהו בשורה 5000 ומחקתם, הגיליון זוכר, `getLastRow()` יכול להחזיר 5000 גם כשהדאטה הנראה מסתיים בשורה 200.
+
+שתי דרכים שזה עוקץ:
+
+```js
+// מצפים ל-60 שורות דאטה אבל הגיליון "זוכר" שורה ישנה 5000:
+const range = sheet.getRange(2, 1, sheet.getLastRow() - 1, 7);
+const values = range.getValues();
+// values הוא עכשיו 4999 שורות, רובן [""].
+```
+
+התיקון הוא אחד מהשניים:
+
+1. **קוראים את עמודת הדאטה האמיתית כדי למצוא את השורה האחרונה האמיתית שלה** (למשל סורקים את עמודה A עד התא הלא-ריק האחרון), או
+2. **גוזמים שורות-רפאים על ידי סימון שלהן, לחיצה ימנית → Delete rows.** זה באמת מסיר אותן מספירת השורות של הגיליון, לא רק מנקה אותן.
+
+ב-spreadsheet רב-גיליונות שמושך דאטה דרך `IMPORTRANGE` מ-spreadsheet של שותף, `getLastRow` על הגיליון המייבא יכול להחזיר יותר ממה ש-IMPORTRANGE הפיק אם הגיליון היעד היה גדול יותר בעבר. תמיד מוודאים מול עמודת הדאטה שבאמת אכפת לכם ממנה, לא רק מול `getLastRow()`.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 8)}
+  caption="לוג ה-Campaigns תופס את A1:G61. Spend נמצא בעמודה F. המשימה: לקרוא את כל 60 ערכי ה-spend ב-round-trip אחד, לסכם אותם ב-JavaScript, ולכתוב את הסכום ל-J1."
+/>
+
+קובץ ה-starter `Lesson.gs` מצהיר על `function recomputeSpend()` עם TODO ריק. שלושה שלבים:
+
+1. מקבלים את הגיליון Campaigns דרך `SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns")`.
+2. קוראים את F2:F61 בקריאה אחת: `const values = sheet.getRange("F2:F61").getValues();`. זוכרים את הצורה הדו-ממדית, כל איבר הוא בעצמו array של איבר אחד.
+3. מסכמים את המספרים וכותבים את הסכום ל-J1: `sheet.getRange("J1").setValue(total);`.
+
+זו לא custom function. Custom functions לא יכולות לכתוב חזרה לגיליון (שיעור 3 כיסה למה). `recomputeSpend` רץ מהתפריט הנפתח Run בעורך Apps Script, או מפריט תפריט שמחברים לו בשיעור 5, או מ-trigger מבוסס-זמן שמגדירים בשיעור 7. בינתיים: פותחים את Apps Script, מדביקים את הגוף, לוחצים Run, ו-J1 צריך להציג את הסכום.
+
+## נפוץ בשטח
+
+ה-function הלילית של הצוות לאגרגציה היא הדוגמה הקנונית:
+
+```js
+function aggregateNightly() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sources = ["Taboola raw", "Outbrain raw", "MediaGo raw", "TikTok raw"];
+  const rows = [];
+  for (const name of sources) {
+    const sheet = ss.getSheetByName(name);
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) continue;
+    const data = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
+    for (const row of data) rows.push([...row, name]);  // מתייגים בפלטפורמה
+  }
+  const out = ss.getSheetByName("Aggregator");
+  out.getRange(2, 1, rows.length, rows[0].length).setValues(rows);  // כתיבה אחת
+}
+```
+
+ארבע קריאות `getValues()` (אחת לכל מקור) ועוד קריאת `setValues()` אחת בסך הכל. חמישה round-trips, ללא קשר אם המקורות מחזיקים 100 או 100,000 שורות בסך הכל. גרסה של זה שכתובה תא-תא תיתקע ב-timeout ברגע שהדאטה תחצה בערך 20,000 שורות.
+
+אותה צורה מופיעה ב:
+
+- **ה-macro של "העתקה מ-staging ל-production"** שה-buyer לוחץ עליו בימי שני אחרי שעבר על נתוני סוף השבוע.
+- **batch job של נורמליזציה של verticals** שקורא כל שם קמפיין, גוזם רווחים, מתקן אותיות גדולות וקטנות, מוודא את הסיומת " PR", וכותב את הערכים הנקיים חזרה.
+- **ה-archiver של סוף החודש** שמעתיק את ה-tab של ה-Aggregator של החודש הנוכחי לגיליון גיבוי עם חותמת תאריך.
+
+## מלכודות מקצועיות
+
+- **`getValues` מחזיר `Date` objects לתאי תאריך, לא strings.** אם אחרי זה תעשו `setValues` על ה-array הזה לתוך גיליון אחר, והפורמט של תא היעד הוא "plain text", התאריך יגיע בצורת `toString()` של ה-JS Date (`"Tue May 11 2026 00:00:00 GMT+0300"`), לא ה-`2026-05-11` המקורי. מעצבים את עמודת היעד כתאריך קודם, או ממירים עם `Utilities.formatDate(...)` לפני הכתיבה.
+- **off-by-one עם `getLastRow`.** רצון לכל שורות הדאטה חוץ מהכותרת זה `getRange(2, 1, lastRow - 1, lastCol)`, ה-`- 1` הוא כאב הראש. שוכחים אותו והשורה האחרונה נכללת פעמיים עם שורה ריקה בתחתית הפלט.
+- **`setValue` עם array בשקט שם את ה-string-form של ה-array בתא אחד.** התא בסוף נראה `"412.5,285.3,612"`. ה-method שרציתם הוא `setValues` (לשון רבים), והצורה של ה-array חייבת להתאים למימדים של ה-range.
+- **`setValues` נופל עם "The number of rows in the data does not match".** הצורה של ה-array הדו-ממדי והצורה של ה-range לא תואמות. כותבים את המימדים הצפויים של ה-range בהערה ליד הקריאה (`// expects 60x1`), הבאג צץ מהר יותר.
+- **`SpreadsheetApp.getActive()` מחזיר `null` בתוך custom function.** Custom functions רצות ב-auth context מצומצם שאין לו גישה ל-spreadsheet הפעיל לכתיבות. ה-exception שמופיע מטעה, התיקון הוא להעביר את הקוד ל-function רגילה שנקראת מ-menu או מ-trigger.
+- **שורות מקור של `IMPORTRANGE` משתנות תחת הסקריפט שלכם.** אם הסקריפט קורא `Aggregator!A2:H` והתוכן של הגיליון הזה מגיע מ-`IMPORTRANGE`, ספירת השורות יכולה לזוז בין הרגע שבו קוראים ל-`getLastRow()` לרגע שבו קוראים ל-`getValues()`. לקריאות קריטיות לוקחים snapshot אחד של `getValues()` בראש ה-function ועובדים מול ה-snapshot.

@@ -1,0 +1,83 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Data validation: רשימות, תנאים, נוסחאות מותאמות
+
+spreadsheet בלי validation הוא פרויקט ניקוי נתונים שמחכה לקרות. מישהו מקליד `Yoav Chen` במקום `Yoav Cohen`. מישהו מכניס `Tabolla` בעמודת הפלטפורמה. למישהו האצבע מחליקה ומקליד spend של `-3850`. כל אחד מאלה מכרסם בשקט בכל pivot, lookup ו-SUMIFS במורד הזרם, עד שמישהו מגלה את זה שבועות אחר כך. data validation הוא התיקון הזול שאתם שמים פעם אחת והוא עוצר את כל המחלקה הזו של באגים לתמיד.
+
+## שלוש תבניות, תפריט אחד
+
+`Data → Data validation` הוא איפה זה גר. הדיאלוג נותן שלוש תבניות שמכסות כמעט כל מקרה אמיתי:
+
+| תבנית | מתי משתמשים | סוג ב-Sheets API |
+|---|---|---|
+| Dropdown (list of values) | אוצרי מילים קטנים וקבועים: פלטפורמות, סטטוסים, אזורים | `ONE_OF_LIST` |
+| Dropdown (from a range) | רשימות שמשתנות בזמן: רוסטר ה-media buyers, שמות verticals, IDs של חשבונות | `ONE_OF_RANGE` |
+| Custom formula | כל השאר: `Spend > 0`, `Date >= start_of_quarter`, `LEN(name) > 1` | `CUSTOM_FORMULA` |
+
+יש עוד: number-between, date-after, text-contains, אבל בפועל מושיטים יד לשלוש האלה. עץ ההחלטה הוא: האם הערך מגיע מרשימה סגורה (dropdown) או שהוא צריך לקיים כלל (custom formula)?
+
+## Strict מול warning: בוחרים strict
+
+לדיאלוג של ה-validation יש מתג בשם `On invalid data → Reject input` מול `Show warning`. ברירת המחדל של הצוות היא **strict (Reject input)**, עם חריגה אחת: כללים שמזהירים על משהו *לא רגיל* אבל לא *לא נכון*.
+
+- **strict לאוצרי מילים סגורים.** שם media buyer, פלטפורמה, vertical: אין ערך תקין אחר. דוחים.
+- **strict לכללי סימן.** spend, revenue, ספירת clicks: מספרים שליליים לא צריכים להגיע לגיליון בכלל. דוחים.
+- **warning לגבולות רכים.** "spend מעל $1000 נראה גבוה, בטוחים?" זאת אזהרה, לא דחייה, כי spend של $1500 לא *לא נכון*, רק לא רגיל.
+
+המלכודת: **אזהרה שמתעלמים ממנה ב-5 בערב היא נתונים**. אם הכלל באמת חשוב, הופכים אותו ל-strict.
+
+## Dropdown מטווח מול רשימה inline
+
+שתי הדרכים מייצרות את אותה ממשק dropdown. ההבדל הוא איפה הרשימה גרה.
+
+**רשימה inline (`ONE_OF_LIST`)** היא הבחירה הנכונה כשהרשימה לא הולכת להשתנות: 7 פלטפורמות, 6 קודי סטטוס, 4 סוגי מודעות. עדכון הרשימה אומר עריכה של כלל ה-validation על כל תא שמשתמש בה. זה בסדר כשהרשימה רק לעיתים נדירות משתנה.
+
+**רשימה מטווח (`ONE_OF_RANGE`)** היא הבחירה הנכונה כשהרשימה דינמית: רוסטר ה-media buyers גדל, verticals באים והולכים, רשימת המדינות מתרחבת. הרשימה גרה בגיליון `Buyers` או `Verticals` וה-validation קורא משם. רשומות חדשות מופיעות בכל dropdown אוטומטית ברגע שמוסיפים אותן לטווח המקור. זאת ברירת המחדל של הצוות לכל מה שנמשך מגיליון config.
+
+המלכודת: אם מצביעים `ONE_OF_RANGE` על טווח קבוע קטן כמו `Buyers!A2:A9`, ואז מוסיפים את `Maya Goldberg` לשורה 10, היא לא תופיע ב-dropdown עד שמרחיבים את טווח ה-validation. משתמשים בגבול נדיב (`A2:A1000`), או יותר טוב, בנמד range שאפשר להרחיב במקום אחד.
+
+## Custom formula: פתח המילוט
+
+כששתי תבניות ה-dropdown לא מתאימות, custom formula מטפל בשאר. הכלל מעריך את הנוסחה בהקשר של התא הנוכחי, והנוסחה מחזירה `TRUE` (לאשר) או `FALSE` (לדחות).
+
+תבניות אמיתיות מ-spreadsheets של הצוות:
+
+| כלל | נוסחה |
+|---|---|
+| Spend חייב להיות חיובי | `=B3>0` |
+| Date חייב להיות ברבעון הנוכחי | `=AND(B3>=DATE(2026,4,1), B3<DATE(2026,7,1))` |
+| שדה שם media buyer לא יכול להיות ריק | `=LEN(TRIM(B3))>0` |
+| Vertical חייב להסתיים ב-" PR" | `=RIGHT(B3,3)=" PR"` |
+| Campaign id חייב להתאים לפורמט | `=REGEXMATCH(B3,"^[a-z]{2}-[a-z]{2}-[mda]-[a-z]{4}\d{4}[a-z]{2}-[a-z]{3}-\d+-\d{6}-")` |
+
+ה-reference לתא (`B3`) בתוך custom formula מתייחס *לתא שמתבצע עליו validation*. כשמעתיקים את ה-validation על פני `B3:B100`, הנוסחה הופכת אוטומטית ל-`B4>0`, `B5>0` וכן הלאה, בדיוק כמו reference יחסי רגיל.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns גר ב-A1:G61. תוסיפו גיליון Inputs נפרד לשדות קלט עם validation."
+/>
+
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. ואז יוצרים גיליון בשם `Inputs` ומוסיפים שלושה תאים עם validation:
+
+- **`B1`**: dropdown ממקור `Campaigns!B2:B61` (רוסטר ה-media buyers), strict.
+- **`B2`**: dropdown inline שמפרט את כל 7 הפלטפורמות, strict.
+- **`B3`**: כלל custom-formula `=B3>0` עבור spend, strict.
+
+ה-grader קורא כל כלל וחוזר ובודק שיש לו את הצורה הנכונה. אם מחליפים כלל ל-warning בלבד, ה-grader תופס גם את זה.
+
+## נפוץ בשטח
+
+ב-spreadsheets האמיתיים של הצוות:
+
+- **כל גיליון config הוא מקור האמת ל-dropdown במקום כלשהו.** גיליון `Buyers` מזין את ה-dropdown של ה-media buyers בכל dashboard. הוספה של media buyer חדש היא עריכה אחת, לא 14.
+- **כללי validation מתועדים ב-cell notes.** cell note שאומר "must match Buyers!A:A" נקרא על ידי האדם הבא שירש את ה-spreadsheet ומסביר למה הכלל מה שהוא.
+- **לתאי spend / revenue יש validation של `>0` כברירת מחדל.** מספרים שליליים מטעות הקלדה או טעות העתק-הדבק הופכים בשקט כל חישוב ROI, וכלל ה-validation תופס אותם בהקלדה.
+
+## מלכודות מקצועיות
+
+- **`ONE_OF_RANGE` על טווח קטן מדי.** `Buyers!A2:A9` מכסה 8 media buyers. media buyer 9 לא יראה את עצמו. או משתמשים בגבול נדיב או מצביעים על named range.
+- **Validation שלא הולכת אחריכם כשמעתיקים נוסחה.** validation מועתקת עם paste, אבל `Paste special → Values only` משאירה אותה מאחור. אם בונים spreadsheet על ידי הדבקה ממקום אחר, מחילים שוב את ה-validation על טווח היעד.
+- **מצב strict שלא חוסם בפועל את IMPORTRANGE.** validation דוחה הקלדה ידנית אבל מקבלת כל מה ש-IMPORTRANGE כותב. אם נתונים מיובאים צריכים validation, עושים את זה בגיליון `Cleaned` עם נוסחאות, לא דרך כללי validation.
+- **Custom formulas שמפנות לתא הלא נכון.** `=$B$3>0` נעול לשורה 3 גם כשה-validation מוחלת על `B3:B100`. מורידים את סימני ה-dollar.

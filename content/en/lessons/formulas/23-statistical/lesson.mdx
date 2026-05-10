@@ -1,0 +1,130 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Statistical functions: see past the average
+
+`AVERAGE` is the laziest statistic: a single outlier moves it, a skewed distribution hides behind it. This lesson covers the functions that paint a more honest picture: median and mode for "typical," percentile and quartile for distribution shape, STDEV and VAR for spread, RANK and LARGE for "where in the order," and CORREL/TREND for relationships between variables.
+
+In adtech, the data is almost always skewed: a few mega-campaigns drive most of the spend, a handful of bad days drag the mean. Statistical functions are how you separate "what's normal" from "what's noisy."
+
+## Center: MEDIAN, MODE
+
+`MEDIAN(range)` is the middle value when sorted. Unlike AVERAGE, it ignores outliers.
+
+```
+=MEDIAN(E2:E13)        → typical campaign spend
+=AVERAGE(E2:E13)       → mean campaign spend (skewed by big spends)
+```
+
+If the median is much smaller than the mean, you have a long-tail distribution: a few large campaigns are pulling the average up. Useful diagnostic before quoting "average campaign spend" in a report.
+
+`MODE(range)` returns the most frequent value (or `#N/A` if all values are unique). Rarely useful for continuous data like spend; more useful for categorical-coded numerics ("most common bid amount" if everyone uses round numbers).
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula="=MEDIAN(E2:E13)"
+  task={<>Compute the median Spend across the campaign log. Compare it later to AVERAGE: they tell different stories.</>}
+  hint={<>MEDIAN takes a range. Just <code>=MEDIAN(E2:E13)</code>.</>}
+  answer={<>The median is around 307 (sorted middle of the 12 spends). The mean is around 327. Close in this dataset, but in a real month with one $5,000 campaign, the gap would be huge: and the median would still be the better "typical" number.</>}
+/>
+
+## Spread: STDEV, VAR, MIN, MAX, range
+
+`STDEV(range)` is the sample standard deviation. `VAR(range)` is the variance (STDEV squared). High STDEV means values are spread out; low means they cluster around the mean.
+
+```
+=STDEV(E2:E13) / AVERAGE(E2:E13)    → coefficient of variation
+```
+
+The coefficient of variation (STDEV/MEAN) is unitless: useful for comparing spread across metrics with different scales. CV of 0.3 means "values typically vary ±30% from the mean."
+
+`MIN(range)` and `MAX(range)` give the extremes. `MAX - MIN` is the range. Combined with median, you get a 5-number summary: min, Q1, median, Q3, max.
+
+## Distribution shape: PERCENTILE, QUARTILE
+
+`PERCENTILE(range, p)` returns the value at percentile `p` (between 0 and 1). `PERCENTILE(E2:E13, 0.9)` is the 90th-percentile spend: 90% of campaigns spend less than this.
+
+```
+=PERCENTILE(E2:E13, 0.9)    → 90th percentile spend
+=PERCENTILE(E2:E13, 0.1)    → 10th percentile spend
+```
+
+`QUARTILE(range, q)` is the same idea but with `q` as 0/1/2/3/4: minimum, Q1, median, Q3, maximum. `QUARTILE(E2:E13, 3)` is the 75th percentile.
+
+The classic distribution check:
+
+| Statistic | Formula | What it tells you |
+|---|---|---|
+| Min | `MIN(E2:E13)` | Worst case |
+| Q1 (25th) | `QUARTILE(E2:E13, 1)` | Bottom quarter cutoff |
+| Median (50th) | `MEDIAN(E2:E13)` | Typical |
+| Q3 (75th) | `QUARTILE(E2:E13, 3)` | Top quarter cutoff |
+| Max | `MAX(E2:E13)` | Best case |
+| 90th | `PERCENTILE(E2:E13, 0.9)` | Outlier threshold |
+
+Build this 6-row summary on every dashboard. It takes 60 seconds and tells you more than 5 different "average" numbers.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=PERCENTILE(F2:F13,0.9)"
+  task={<>Compute the 90th-percentile Revenue. This is the threshold above which the top 10% of campaigns sit.</>}
+  hint={<>PERCENTILE(range, p). p is between 0 and 1.</>}
+  answer={<>The 90th percentile is roughly 1083. Anything above this counts as a top-decile campaign: useful as an automatic "winners" filter that updates as the data grows.</>}
+/>
+
+## Position: RANK, LARGE, SMALL
+
+`RANK(value, range)` returns the position of `value` in `range` (1 = highest). Useful for "where does this campaign rank?"
+
+```
+=RANK(F2, F$2:F$13)     → row 2's revenue rank, descending
+=RANK(F2, F$2:F$13, 1)  → ascending instead (third arg is order)
+```
+
+`LARGE(range, n)` returns the `n`th-largest value. `LARGE(F2:F13, 1)` is the max; `LARGE(F2:F13, 2)` is the second-highest. `SMALL` is the same but ascending.
+
+A common adtech pattern: top-3 by revenue without having to sort the whole list:
+
+```
+=LARGE(F2:F13, 1)    → highest revenue
+=LARGE(F2:F13, 2)    → second-highest
+=LARGE(F2:F13, 3)    → third-highest
+```
+
+## Relationships: CORREL, TREND, SLOPE
+
+`CORREL(range1, range2)` is the Pearson correlation between two parallel ranges. Returns a value between -1 and 1.
+
+```
+=CORREL(E2:E13, F2:F13)
+```
+
+How strongly does spend predict revenue? `0.6+` is strong; `0.3` is weak; near 0 is no relationship; negative is "more spend, less revenue." The team uses this to validate a hypothesis: "Does our scaling rule actually work? If we spent more, did we earn more?"
+
+`TREND` and `SLOPE` fit a linear regression. `SLOPE(known_y, known_x)` returns the slope; useful for "how much extra revenue per extra dollar of spend."
+
+`FORECAST(x, known_y, known_x)` extrapolates: given the regression of `known_y` on `known_x`, what y-value corresponds to `x`?
+
+## Used in the wild
+
+- **Median vs mean comparison** to detect outlier-heavy distributions. The team tracks both for spend, revenue, and ROI on every dashboard.
+- **5-number distribution summaries** (MIN/Q1/MEDIAN/Q3/MAX) for every metric, as the second tab of every dashboard. Tells leadership the shape, not just the average.
+- **Percentile thresholds** for automatic "winners" / "losers" filters. Top-decile and bottom-decile campaigns get flagged for review.
+- **CORREL between spend and revenue per buyer.** Buyers with high correlation are reliable scalers; buyers with low correlation either pick winners (great when wins land, but not predictable) or are randomly profitable (less of an answer than a question).
+- **STDEV / MEAN coefficient of variation** as a "stability" metric for buyers and verticals. Stable buyers are predictable; unstable ones need bigger budgets to absorb variance.
+- **LARGE / SMALL** for top-N and bottom-N reports. Often combined with INDEX/MATCH to find which campaign hit the top spot, not just the value.
+
+## Pro pitfalls
+
+- **STDEV vs STDEVP.** `STDEV` is the *sample* standard deviation (divides by n-1); `STDEVP` is the *population* (divides by n). For samples (most adtech data is a sample from a larger population of possible outcomes), use STDEV. Same distinction for VAR / VARP.
+- **PERCENTILE has variants.** `PERCENTILE.INC` (default `PERCENTILE`) includes endpoints; `PERCENTILE.EXC` excludes. They give slightly different values; for most reporting it doesn't matter, but if you're benchmarking against a tool that uses one or the other, match it.
+- **MEDIAN of an even-sized range averages the middle two.** With 12 campaigns, MEDIAN is the average of the 6th and 7th sorted values. Not a "real" data point.
+- **CORREL on tiny samples is misleading.** With 5 data points, a correlation of 0.7 might be noise. Need at least 20-30 paired observations before correlation is meaningful.
+- **CORREL doesn't tell you direction of causation.** Spend and revenue might correlate because spend causes revenue, OR because we spend more on already-promising campaigns, OR both. Use as a hypothesis check, not a causal claim.
+- **RANK ties give the same rank, then skip.** Two campaigns tied for 1st both rank 1; the next is rank 3, not rank 2. `RANK.AVG` averages tied ranks (e.g., two tied for 1st both get 1.5). Pick the variant that matches your team's reporting convention.
+- **PERCENTILE of `0` and `1`** are min and max. Useful when you want a one-formula MIN/MAX call, but not how most people use the function.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log. You'll build a distribution summary: median spend, 90th-percentile revenue, and the spend-revenue correlation. The result is a 3-cell mini-dashboard that surfaces what the average can't see.

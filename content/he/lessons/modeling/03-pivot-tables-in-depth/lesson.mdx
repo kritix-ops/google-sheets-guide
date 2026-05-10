@@ -1,0 +1,100 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Pivot tables לעומק: filters, multi-value, calculated fields
+
+שיעור 2 כיסה את ארבעת הסלוטים ב-Pivot editor: Rows, Columns, Values, Filters. זה מספיק ל-dashboards הפשוטים. ברגע שצריך לצמצם pivot למדינה אחת, לערום שלושה מספרים בכל תא, או לאחד תאריכים לרבעונים, יוצאים מהבסיס. השיעור הזה הוא כל מה ש-media buyer מנוסה משתמש בו ב-spreadsheet אמיתי כל יום.
+
+## Filters: by values מול by condition
+
+הסלוט Filters מצמצם את המקור **לפני** שה-pivot מבצע אגרגציה. שני סוגים:
+
+| סוג | מה הוא עושה | מתי מושיטים יד |
+|---|---|---|
+| **Filter by values** | רשימה מפורשת של ערכים גלויים | כשיודעים את הסט המדויק: `Country in {DE, UK}`, `Platform in {Google, Facebook}` |
+| **Filter by condition** | תנאי שהשורה במקור צריכה לקיים | `Spend > 200`, `Vertical contains "PR"`, `Date is after 2026-04-15` |
+
+ב-Sheets API, by-values מופיע כרשימת `visibleValues`. by-condition מופיע כ-`BooleanCondition` עם type (`NUMBER_GREATER`, `TEXT_CONTAINS`, `DATE_AFTER`, `CUSTOM_FORMULA`, …) ועם `conditionValues` תואמים. שניהם נצמדים לעמודת מקור אחת בכל פעם. ה-grader של השיעור הזה קורא את הצורה של by-values.
+
+הבחירה המקצועית ביניהם: **by-values** לרשימה יציבה (המדינות שבאמת רצים בהן, ארבעת ה-media buyers בצוות), **by-condition** לכל דבר דינמי (טווח התאריכים של החודש הנוכחי, ספי ROI, חיפושי טקסט אד-הוק). לא מבזבזים filter של by-values על רשימה שגדלה כל שבוע.
+
+## Slicers: filters עם ממשק על הגיליון
+
+slicer הוא filter של pivot עטוף בפקד שיושב על הגיליון. אותה השפעה על ה-pivot, השפעה אחרת לגמרי על הצוות. עורכים עם הרשאות filter משנים את הסלוט Filters בתוך ה-Pivot editor; צופים לא יכולים. slicer מציג dropdown ישירות על הגיליון, אז צופה שיכול רק לקרוא את ה-spreadsheet עדיין יכול ללחוץ "Country: DE" ולראות את ה-pivot מחושב מחדש.
+
+מוסיפים slicer דרך `Data → Slicer`, מצביעים על טווח המקור של ה-pivot, ובוחרים עמודה. הבחירה ב-slicer היא state עצמאי, נפרד מהסלוט Filters של ה-pivot. כששניהם מוגדרים, הם נחתכים זה עם זה.
+
+מתי מוסיפים slicer: לכל dashboard שגורם הצופה יסתכל עליו, כשרוצים שיוכל להחליף מדינה, media buyer, או פלטפורמה בלי ללמוד את ה-editor. לא מוסיפים slicer ל-pivot שרק אתם נוגעים בו, זה רק מצפיף את הגיליון.
+
+## Multi-value pivots: ערימה של SUM, AVERAGE, COUNTA
+
+הסלוט Values מקבל יותר מ-value אחד. ערמו `SUM Spend`, `SUM Revenue`, `COUNTA Date` (ספירת קמפיינים), `AVERAGE ROI` באותו pivot, וכל תא `Row × Column` יציג את כולם זה ליד זה, או נערמים, תלוי ב-`valueLayout`.
+
+שתי פריסות:
+
+- **HORIZONTAL** (ברירת מחדל). כל value מקבל עמודה משלו תחת כל קבוצת Column. עם קבוצת Column אחת "Platform" (7 פלטפורמות) ושלושה values, מקבלים 21 עמודות תוצאה. עוד נסבל. עם שתי קבוצות Columns זה מתפוצץ.
+- **VERTICAL**. ה-values נערמים כשורות תחת כל קבוצת Row. עם Buyer ב-Rows ושלושה values, כל media buyer מקבל שלוש שורות, והעמודות נשארות צרות.
+
+ברירת המחדל של הצוות ל-**3 values ומעלה היא VERTICAL**. ה-pivot נקרא מלמעלה למטה כמו דוח רגיל, וספירת העמודות מפסיקה להתפוצץ כשמוסיפים value רביעי.
+
+## Custom date groupings: שנים, רבעונים, חודשים בלחיצה
+
+עמודת Date ב-Rows או ב-Columns מציגה כל תאריך מובחן כקבוצה משלו, וזה כמעט אף פעם לא מה שרוצים. כדי לאחד: לוחצים ימני על קבוצת השורה של התאריך בפלט ה-pivot, בוחרים `Create pivot group rule → Group by date`, ובוחרים גרנולריות. שנה, year-quarter, year-month, year-month-day, יום בשבוע, שעה. כלל הקיבוץ חי על הגדרת ה-pivot, לא על נתוני המקור, אז עמודת המקור נשארת גולמית.
+
+הקיבוץ הנפוץ באדטק הוא **year-quarter** לסקירות פיננסיות ו-**year-month** ל-dashboards של מגמה חודשית. נמנעים מקיבוץ לפי `Quarter` גולמי (בלי השנה): Q1 של 2025 ו-2026 קורסים לקבוצה אחת ומאבדים את הסיפור של year-over-year.
+
+## Calculated fields, לעומק
+
+שיעור 2 הציג את calculated fields כפתח המילוט כשאף אחת מפונקציות summarize הסטנדרטיות לא מכסה את הצורך. התחביר המלא: סלוט Values שה-summarize שלו הוא `CUSTOM`, עם מחרוזת `formula` שמפנה לכותרות מקור בגרשיים יחידים:
+
+```
+= ('Revenue' - 'Spend') / 'Spend'
+```
+
+שתי צורות מייצרות אותו ROI:
+
+```
+= ('Revenue' - 'Spend') / 'Spend'
+= 'Revenue' / 'Spend' - 1
+```
+
+ה-grader של השיעור הזה מקבל את שתיהן, על ידי בדיקה שהנוסחה מכילה גם `'Revenue'` וגם `'Spend'`.
+
+המלכודת: שמות עמודות הם **case-sensitive** וחייבים להתאים בדיוק לטקסט של כותרת המקור. `'revenue'` (אותיות קטנות) ייכשל בשקט. `'Total Spend'` הוא שם שונה מ-`'Total spend'`. אם calculated field מחזיר `#REF!` או ריק, ה-reference לעמודה הוא הדבר הראשון לבדוק.
+
+המלכודת השנייה: הנוסחה מוערכת אחרי ה-SUM המשתמע כברירת מחדל, אז `'Revenue' / 'Spend'` לכל תא הוא `SUM(Revenue) / SUM(Spend)` עבור השורות באותו תא, וזה היחס של ה**פורטפוליו**. זה כמעט תמיד מה שרוצים ל-ROI, ROAS, או CPC משוקלל. אם דווקא רוצים את הממוצע של יחסי פר-שורה, מחשבים את היחס בעמודת מקור ומבצעים אגרגציה עליה.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="60 שורות של נתוני קמפיינים ממלאות את A1:G61. ה-pivot ב-K1 ימשוך שלושה values לכל media buyer, עבור שתי מדינות (DE ו-UK)."
+/>
+
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. ואז עוגנים pivot table ב-`K1` עם:
+
+- **טווח מקור**: `Campaigns!A1:G61`.
+- **Rows**: Buyer.
+- **Values** (שלושה):
+  - SUM של Spend
+  - SUM של Revenue
+  - calculated field ל-ROI: `=('Revenue' - 'Spend') / 'Spend'` (או `='Revenue'/'Spend' - 1`).
+- **Filter**: Country, by values, משאירים DE ו-UK בלבד.
+- **Value layout**: As rows (VERTICAL).
+
+התוצאה היא פירוט Spend / Revenue / ROI ברמת media buyer לשני השווקים האנגלוסקסיים הגדולים של הצוות. ה-grader קורא את הגדרת ה-pivot חזרה ומאמת כל חלק.
+
+## נפוץ בשטח
+
+ב-spreadsheets האמיתיים של הצוות:
+
+- **ה-pivot של dashboard לפי מדינה**: slicer על Country בראש הגיליון, pivot מתחתיו עם SUM Spend, SUM Revenue, calculated ROI על Rows = Buyer. הצופה מחליף DE → UK → US וה-pivot מחושב מחדש. ל-pivot עצמו אין סלוט Filters מוגדר; ה-slicer הוא ה-filter היחיד, כך שעורכים יכולים לשנות אותו בלי לגעת ב-config של ה-pivot.
+- **לוח התוצאות של media buyers**: Rows = Buyer, Values = SUM Spend, SUM Revenue, COUNTA Date, calculated ROI, calculated `'Revenue' - 'Spend'` לרווח פורטפוליו. חמישה values, פריסת VERTICAL, מסך אחד.
+- **התצוגה הרבעונית של geo**: Rows = Country, Columns = Date מקובץ לפי year-quarter, Values = SUM Spend. הקצאת geo רבעונית לפיננסים, ב-pivot אחד, בלי עמודות עזר.
+
+## מלכודות מקצועיות
+
+- **Filters שזזות כשמכניסים או מסירים עמודות במקור**. ה-`sourceColumn` של ה-filter הוא offset לתוך טווח המקור, לא שם של כותרת. מכניסים עמודה באמצע המקור וכל filter מעבר לנקודת ההכנסה זז בשקט לעמודה הלא נכונה. אותה מלכודת ל-calculated fields שמפנים לכותרות עמודה אם גם משנים שם של כותרת.
+- **calculated field עם כותרת מקור ששמה השתנה**. משנים את השם של `Revenue` ל-`Revenue (USD)` בשורה 1, וכל calculated field שמפנה ל-`'Revenue'` מחזיר `#REF!` עד שעורכים גם את הנוסחה. אין הפצה אוטומטית של שינוי שם.
+- **פריסת VERTICAL בלי "Show totals"**. ה-pivot נקרא מלמעלה למטה אבל אם ה-totals כבויים, לעין אין שורת עוגן לכל media buyer. מפעילים Rows → Show totals ב-pivots עם קיבוץ; שורת ה-totals היא מה שעושה את הפריסה קריאה.
+- **slicers שלא נראים לצופים**. slicer הוא אובייקט צף על הגיליון. אם ה-pivot נכנס בתוך מסגרת מוטבעת קטנה, ה-slicer גולש מחוץ לתצוגה והצופים רואים pivot סטטי שאי אפשר לשנות. ממקמים את ה-slicer מעל או לצד ה-pivot, אף פעם לא מתחת.
+- **filter by-condition עם ערך מתיישן**. filter "Date is after 2026-04-15" בסדר באפריל. שישה חודשים אחר כך הוא עדיין אומר 2026-04-15 וה-pivot שותק ולא מסנן כלום. לתאריכים דינמיים, משתמשים ב-CUSTOM_FORMULA filter שמפנה ל-`TODAY()`, או מעבירים את טווח התאריכים ל-slicer שהצוות באמת מתחזק.

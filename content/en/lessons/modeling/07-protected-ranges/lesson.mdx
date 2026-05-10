@@ -1,0 +1,72 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Protected ranges and sheet-level protection
+
+Lesson 1 made the case that raw stays raw. Validation in lesson 4 kept bad values out at entry. Protected ranges are the policy version of the same idea: the cells that should not be edited are wrapped in a rule, and Sheets enforces it. Without protection, anyone with edit access who clicks the wrong row at 5 PM nukes a number that feeds eight downstream formulas. With protection, the same click triggers a confirm dialog or an outright reject, and the data stays whole.
+
+## Two protection modes
+
+`Data → Protect sheets and ranges` opens a side panel where every protected range gets one of two behaviors when somebody tries to edit it.
+
+| Mode | What happens on edit | When to use |
+|---|---|---|
+| **Strict** (`Restrict who can edit this range`) | The edit is rejected. Only listed editors can change the range. | Raw data tabs, header rows on derived tabs, formula cells in dashboards, anything where a bad edit silently corrupts downstream output. |
+| **Warning** (`Show a warning when editing this range`) | The edit goes through after a confirm dialog. Anyone can override. | Soft conventions. "This column is a status code, please keep it short." Headers on tabs where the rest of the team should still be able to fix a typo. |
+
+The trap most people walk into: warning mode feels like the friendlier choice, so they pick it for everything. Then somebody clicks through the warning at 5 PM and the raw log has a $4.32 in the wrong row. Strict is the default. Warning is for the cases where blocking the edit would create more friction than the bad edit itself.
+
+## Range-level vs sheet-level
+
+There are two scopes you can protect.
+
+**Range-level** protects a specific A1 range on a sheet. `A1:G61` covers the raw log; `A1:G1` covers just the header; `J1:J4` covers the summary block. Multiple range protections can coexist on the same sheet, each with its own description, mode, and editor allowlist.
+
+**Sheet-level** protects an entire tab. The whole `Raw - Taboola` sheet is locked and you optionally exempt specific cells via the `Except certain cells` checkbox. This is the right shape for raw-import tabs where the entire tab is downstream from `IMPORTRANGE` and nothing on it should be hand-edited.
+
+The decision rule the team uses: **if the whole tab is one logical unit, protect the sheet.** If the tab has a mix of read-only data and editable inputs (a config tab with a `Buyers` list at the top and a `Notes` column at the bottom that's allowed to grow), use range-level protection so the editable part stays editable.
+
+## Editor allowlists
+
+Strict protection accepts an explicit list of editor emails. The owner is always in the list; you can add specific teammates by email. Anyone not on the list sees the edit rejected.
+
+In practice the team uses three patterns:
+
+- **Owner only.** Raw-import tabs and the upstream `Buyers` / `Verticals` config tabs. Only the workbook owner edits these. Everyone else reads.
+- **Owner + a deputy.** Headers and dashboard layout. The workbook owner plus one team lead can rearrange columns; nobody else.
+- **Whole team minus interns.** Operational columns (`Status`, `Notes`) where most people should be able to edit but the interns shouldn't. Allowlist is the team minus the new hires.
+
+## Description: the message future-you reads
+
+Every protected range carries a description string. It shows up in the side panel and in the rejection dialog. **Write the description as the explanation a teammate needs in three months.** Not `Protected`, not `Don't edit`: something like `Raw - Taboola pull, IMPORTRANGE source, do not hand-edit` or `Header row for the Aggregator, sheet schema is downstream`. The description is how the rule explains itself when the original author has moved on.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns lives in A1:G61. You'll wrap two protections around it: strict on the whole log, warning on the header row."
+/>
+
+Click **Start lesson** to provision the campaign log on a `Campaigns` tab. Then open `Data → Protect sheets and ranges` and add two protected ranges:
+
+- **Strict protection on the raw log.** Range `A1:G61`, description includes the word `Raw` (e.g. `Raw campaign log, do not hand-edit`), mode set to `Restrict who can edit this range` (warningOnly: false).
+- **Warning protection on the header row.** Range `A1:G1`, description includes the word `header` (e.g. `Header row, schema is downstream`), mode set to `Show a warning when editing this range` (warningOnly: true).
+
+The grader reads each protection back through the Sheets API and checks the range, the description, and the mode. Strict mode that's been switched to warning, or a missing protection, gets caught.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **Every `Raw - *` tab is sheet-level strict-protected**, owner-only. The IMPORTRANGE keeps writing to it (the server is doing the write, not a user, so protection doesn't block the import), and humans can't accidentally type over a row.
+- **The Aggregator tab is read-only via strict protection.** Its formulas are the schema for every dashboard downstream; an accidental edit silently breaks every chart. Owner plus one team lead can edit; everyone else is locked out.
+- **Dashboard chart cells get warning-protection.** The chart anchor cell and the title cell are warning-protected so an accidental click doesn't shift the chart into a wrong row, but a deliberate edit (relabeling a quarter, fixing a typo) goes through after a single confirm.
+- **The protected-range description is the institutional memory.** The next person to inherit the workbook reads `Raw - Taboola, IMPORTRANGE from /1aB2c.../Sheet3, do not hand-edit. If you need to fix a value, fix it upstream.` and the rule explains itself.
+
+## Pro pitfalls
+
+- **`IMPORTRANGE` writes through protection.** Protection blocks human edits, not server writes. If you're worried about the imported data being wrong, the fix is in the upstream sheet, not in adding more protection on the destination.
+- **Copy-paste loses protection on paste.** When somebody copies a protected cell and pastes it into a new tab, the destination is unprotected. The protection is a property of the range, not a property of the value. Re-apply protection on the destination if it matters.
+- **Warning-only is just a warning.** Anyone can click through it. If a rule actually matters for data integrity, it has to be strict; warning-only is a speed bump, not a wall.
+- **Sheet-level protection plus `Except certain cells` is fragile.** When somebody adds a column to the tab, the "except" range doesn't expand. Either re-edit the protection when the schema changes or split the tab so the unprotected region is its own range.
+- **Renaming the sheet doesn't break range-level protection** (Sheets tracks it by sheet ID), but it does break any cross-sheet references that point at the protected range by name. Protection survives the rename; downstream formulas might not.
+- **A protected range with no editor allowlist except the owner blocks the owner's collaborators on a shared workbook.** If two people own the workbook jointly and only one is listed as the protected-range editor, the other one is locked out of that range even though they're a workbook editor.

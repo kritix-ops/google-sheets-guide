@@ -1,0 +1,87 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# When NOT to use AI in Sheets
+
+The previous five lessons taught what AI in Sheets can do. This one teaches when to leave it alone. Both halves matter. A team that uses AI for everything ships dashboards with quiet, expensive errors. A team that avoids AI entirely loses an hour a day to work AI would have done well. The skill is calibrated trust: AI is appropriate for some classes of problem and inappropriate for others. Knowing the difference is what separates senior use from rookie use.
+
+This lesson is a decision framework. Four hard categories where AI does not belong, and a rule of thumb for everything else.
+
+## The four hard "don't use" categories
+
+### 1. Audit-trail-sensitive calculations
+
+If the calculation must be reproducible by another person at another time, AI is the wrong tool. Outputs are non-deterministic between calls. The cell looks like any other cell, so a reader can't tell whether it was AI-generated or hand-typed. There is no formula trace.
+
+Examples where this matters: month-end currency totals, board reports, regulatory filings, anything that has to match another report. If you'd be embarrassed to have a $14,387.22 line item turn into $14,401.50 on the next refresh, don't use AI for it. Use a `SUM`.
+
+### 2. Anything that must be reproducible
+
+Adjacent to audit, broader in scope. Reconciliation between two reports requires that the same input produces the same output. AI's non-determinism breaks this contract. If the dashboard is read by two people on different days and the numbers should match, AI is the wrong source.
+
+If you need ongoing AI classification but also reproducibility, the pattern is: run AI, paste-as-values to freeze, then report from the frozen values. The frozen column is reproducible because it's no longer AI; it's a literal copy.
+
+### 3. PII or sensitive data
+
+Gemini's data handling depends on your Workspace plan. Some plans treat prompts as private (not used for training, not retained beyond a short window). Others have weaker guarantees. The right person to ask is your Workspace admin, and the right time to ask is before you put PII in an `=AI()` prompt.
+
+What counts as PII in adtech: customer email addresses, user IDs that link back to identifiable people, GDPR-scoped consumer data, anything subject to a regional privacy regime. The team's rule of thumb: if you wouldn't paste it into a random vendor's web form, don't paste it into an AI prompt without checking.
+
+### 4. Deterministic transforms
+
+If a formula can do it, use the formula. `SUBSTITUTE("Used Cars PR", " PR", "")` extracts the stem of a vertical name reproducibly, for free, in microseconds. `=AI("Remove the PR suffix from: " & C2)` does the same thing more slowly, less reliably, and at a cost per call.
+
+The deterministic toolbox: `SUBSTITUTE`, `REGEXEXTRACT`, `REGEXREPLACE`, `LEFT`, `RIGHT`, `MID`, `TRIM`, `PROPER`, `UPPER`, `LOWER`, `SPLIT`, `JOIN`. If your transformation can be expressed in these, AI is overkill.
+
+## A decision tree for the rest
+
+For everything that doesn't fall into the four hard "don't" categories, ask in order:
+
+1. **Is the answer required to be reproducible across runs?** If yes, don't use AI.
+2. **Is the data subject to privacy constraints?** If yes, check the Workspace plan before using AI.
+3. **Can a deterministic formula do the job?** If yes, use the formula.
+4. **Is the volume high (thousands of rows)?** If yes, estimate the AI cost first. AI per row at scale gets expensive fast.
+
+If you get past all four and the task is fuzzy classification, sentiment, summary, or exploration, AI is the right tool.
+
+## Calibrated trust in practice
+
+The team's working rule: AI is for the column that gets reviewed weekly. The column that gets read every five seconds (currency totals, ROI scorecards) is for formulas. The column that gets read once a quarter at the bottom of a deck (customer-feedback themes) is for AI.
+
+The risk model: AI's 95% success rate sounds high until you do the math on a 50,000-row column. That's 2,500 wrong cells. If those cells feed a dashboard that drives spending decisions, you have a 2,500-cell silent quality problem. If those cells feed a "themes from customer feedback" exec summary, the 5% error rate is a footnote.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The campaign log lives in C1:I61 of the Decisions tab. Column A is where you write the four decision rules; column B has the labels."
+/>
+
+Click **Start lesson** to provision the campaign log. Four literal rules to write in column A:
+
+- **A1**: when NOT to use AI for audit-sensitive calculations. Must contain `audit` and either `reproducible` or `trail`.
+- **A2**: when NOT to use AI on high-volume rows. Must contain `quota` or `cost`, and the word `row`.
+- **A3**: when NOT to use AI on PII. Must contain `PII` and one of `privacy`, `Workspace`, or `plan`.
+- **A4**: when NOT to use AI for deterministic transforms. Must contain `deterministic` or `formula`, and one of `SUBSTITUTE`, `REGEXEXTRACT`, or the phrase `specific formula`.
+
+The exercise is to write the team's policy in cells the team will reference. Each rule is one sentence. The grader checks for the operational keywords that make the rule actionable.
+
+## Used in the wild
+
+The team's actual policy doc, condensed:
+
+- **Currency totals: never AI.** Always `SUM`, always bounded ranges.
+- **Vertical classification: AI weekly, frozen with paste-as-values, then dashboarded.** The frozen column is the reproducible artifact.
+- **Customer feedback sentiment: AI() column, never frozen.** Sentiment is fuzzy enough that drift is acceptable.
+- **Campaign name parsing: never AI.** The format is deterministic; `REGEXEXTRACT` does it for free.
+- **Exec summary paragraphs: AI draft, human edit.** The edit is what makes the paragraph usable.
+
+The team learned this the hard way. There was an audit-trail incident in 2025-Q4: an AI() in a "Total this month" cell drifted between two reports filed two days apart, by $14 in opposite directions. The investigation took two weeks. The cell was rewritten as a `SUM`. The policy doc was written the week after.
+
+## Pro pitfalls
+
+- **The "but it usually works" trap.** AI's 95% success rate means 5% silent wrong answers in production. On any column that matters, 5% is too much. Measure the rate; don't trust the vibe.
+- **The "we'll catch it in review" trap.** 5% of 50,000 rows is 2,500 errors. Nobody catches 2,500 errors in a review. The catch-it-later plan is a plan to ship the errors.
+- **Shadow AI usage.** A teammate adds `=AI()` to a dashboard without telling anyone. Your monthly totals shift between Monday and Tuesday. By the time you find the AI cell, you've already filed the wrong report.
+- **Chained AI() calls.** One cell's AI output feeds the next cell's prompt. Each call has its own non-determinism; the chain compounds it. Two AI() cells in series can produce a 10x larger variance than one alone.
+- **AI for currency conversion.** `=AI("Convert " & F2 & " USD to ILS")` works most of the time. It also uses whatever exchange rate Gemini has in its training data on that call, which is not your bank's. Use `GOOGLEFINANCE` or a real rate table.
+- **AI for date parsing.** "What's the day of week for 2026-04-15?" `=TEXT(DATE(2026,4,15), "dddd")` is free, instant, and exactly right. AI is none of those things.

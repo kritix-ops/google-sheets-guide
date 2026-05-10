@@ -1,0 +1,126 @@
+import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
+
+# Advanced lookups: two-way, dynamic, and beyond VLOOKUP
+
+Lesson 4 covered VLOOKUP, INDEX/MATCH, and XLOOKUP for the ordinary "find the value in a table" case. This lesson covers the messier real-world variants: two-way lookups (find the cell at row X and column Y), dynamic column selection (lookup column changes based on user input), pivot-style "give me the cell at this buyer × this vertical" queries, and approximate/range matching.
+
+## Two-way lookups: INDEX(MATCH, MATCH)
+
+A pivot-style report has buyers down rows and verticals across columns. To find "Yoav Cohen's spend on Used Cars PR" you need to look up *both* the row (by buyer name) and the column (by vertical name) and return the cell at their intersection.
+
+```
+=INDEX($B$2:$F$10, MATCH("Yoav Cohen", $A$2:$A$10, 0), MATCH("Used Cars PR", $B$1:$F$1, 0))
+```
+
+Three pieces:
+
+1. The data array: `$B$2:$F$10` (the body of the pivot, no headers).
+2. The row index: `MATCH("Yoav Cohen", $A$2:$A$10, 0)`: find Yoav's row in the buyer column.
+3. The column index: `MATCH("Used Cars PR", $B$1:$F$1, 0)`: find the vertical's column in the header row.
+
+INDEX returns the cell at that intersection. The `0` in each MATCH means exact match (lesson 4 covered this).
+
+This pattern is the workhorse of every pivot-vs-pivot comparison report the team builds.
+
+## XLOOKUP with a return-array trick
+
+XLOOKUP can return a whole row or column, not just a single cell. Combine two XLOOKUPs to get a two-way lookup:
+
+```
+=XLOOKUP("Used Cars PR", $B$1:$F$1, XLOOKUP("Yoav Cohen", $A$2:$A$10, $B$2:$F$10))
+```
+
+The inner XLOOKUP finds Yoav's row and returns the entire row. The outer XLOOKUP looks for "Used Cars PR" in the column headers and picks the value from that row.
+
+Functionally identical to INDEX/MATCH. Slightly more readable because each step "looks up" something, instead of computing positions and indexing.
+
+<TryIt
+  data={[
+    ["Buyer / Vertical", "Used Cars PR", "Solar Panels PR", "Pet Insurance PR"],
+    ["Yoav Cohen", 660, 0, 0],
+    ["Sarah Levi", 0, 0, 0],
+    ["David Mizrahi", 0, 1124.6, 0],
+    ["Maya Goldberg", 0, 0, 245.8],
+  ]}
+  inputCell="F1"
+  expectedFormula='=INDEX(B2:D5,MATCH("David Mizrahi",A2:A5,0),MATCH("Solar Panels PR",B1:D1,0))'
+  task={<>Look up David Mizrahi's Solar Panels PR revenue from the pivot. Use INDEX with two MATCHes (one for the row, one for the column).</>}
+  hint={<>INDEX(array, row_num, col_num). Find David in column A, find Solar Panels PR in row 1.</>}
+  answer={<>The result is 1124.6. INDEX/MATCH/MATCH is the canonical two-way lookup. The same effect with XLOOKUP-of-XLOOKUP is one character shorter and slightly clearer to read; both are fine. Stick with whichever your team uses consistently.</>}
+/>
+
+## Dynamic column selection: VLOOKUP + MATCH
+
+Common adtech case: a dropdown lets the user pick which metric to show (Spend, Revenue, ROI). VLOOKUP needs a column index: but the index changes based on the dropdown.
+
+```
+=VLOOKUP($A2, $A$2:$F$13, MATCH($G$1, $A$1:$F$1, 0), FALSE)
+```
+
+The third argument (`MATCH($G$1, ...)`) computes the column index dynamically. If `G1` says "Revenue", MATCH returns 6; VLOOKUP returns the Revenue column. If `G1` changes to "Spend", MATCH returns 5; VLOOKUP automatically returns Spend.
+
+Without this trick, you'd write `=IF(G1="Spend", VLOOKUP(...,5,...), IF(G1="Revenue", VLOOKUP(...,6,...), ...))`: a nested IF that grows as columns are added. With MATCH, one formula handles all metrics.
+
+## Approximate and range matching
+
+XLOOKUP and MATCH support a fourth argument for match mode. The big use cases:
+
+**Tier lookup with a range table.** Define tier thresholds in a small table:
+
+| Min Spend | Tier |
+|---|---|
+| 0 | T3 |
+| 1000 | T2 |
+| 5000 | T1 |
+| 25000 | Whale |
+
+To classify a buyer with $3,400 spend:
+
+```
+=XLOOKUP(3400, A2:A5, B2:B5, "n/a", -1)
+```
+
+The `-1` match mode is "exact match or next smaller item": finds 1000 (T2). With `1` it would find next larger; with `2` it does wildcard matching (a separate use case).
+
+Equivalent with VLOOKUP: pass `TRUE` (or omit) as the fourth argument and ensure the lookup column is sorted ascending. **VLOOKUP with `TRUE` requires sorted data; XLOOKUP with `-1` does not.** This is one reason XLOOKUP is now the default recommendation.
+
+## Lookups against IMPORTRANGE
+
+IMPORTRANGE returns a 2D range from another sheet. You can wrap it in any lookup:
+
+```
+=XLOOKUP(A2, IMPORTRANGE("...", "campaigns!B:B"), IMPORTRANGE("...", "campaigns!F:F"), "Not found")
+```
+
+Two IMPORTRANGEs, both expensive. **Wrap them in a single LET** (lesson 20) to compute the import once:
+
+```
+=LET(
+  imported, IMPORTRANGE("...", "campaigns!A:F"),
+  XLOOKUP(A2, INDEX(imported, , 2), INDEX(imported, , 6), "Not found")
+)
+```
+
+One import, used twice via INDEX to slice columns. Half the network round-trips.
+
+## Used in the wild
+
+- **Pivot drill-downs.** "Buyers × Verticals → revenue" pivots are everywhere; INDEX/MATCH/MATCH or XLOOKUP-of-XLOOKUP picks any cell from any pivot.
+- **Dropdown-driven dashboards.** A single lookup formula whose return column is selected by a dropdown: change the dropdown, change the metric, no formula edits.
+- **Tier classifications.** Spend → tier, ROI → verdict band, days-since-launch → cohort. Range-mode lookups against small threshold tables.
+- **Cross-sheet "as-of" lookups.** XLOOKUP into a periods sheet to fetch the latest exchange rate, the latest budget, the latest goal. Often combined with sorting the periods sheet descending and using `1` for "first match" to get the most-recent.
+- **Two-way reconciliations.** Compare "what we tracked" vs "what the platform reported." Two pivots, INDEX/MATCH/MATCH on each, subtract.
+
+## Pro pitfalls
+
+- **Lock the lookup ranges with `$`.** `INDEX($B$2:$F$10, ...)` fills cleanly across rows and columns; `INDEX(B2:F10, ...)` shifts when you fill, breaking the lookup.
+- **MATCH returns `#N/A` if not found.** Wrap in `IFNA(MATCH(...), "Unknown")` or `IFERROR` (lesson 9): and check that you actually want a fallback, not a silent failure.
+- **`MATCH(value, range, 0)` is exact-match.** Forgetting the third argument defaults to `1` (approximate), which silently returns the wrong row when data isn't sorted.
+- **VLOOKUP requires the lookup column to be the first column of the range.** XLOOKUP and INDEX/MATCH have no such restriction. If you find yourself rearranging columns to make VLOOKUP work, switch to XLOOKUP.
+- **XLOOKUP `if_not_found` is silent on type mismatches.** Looking up a number against a column of text-formatted numbers ("0042" vs 42) returns "if_not_found" instead of erroring. Coerce types upfront with VALUE() or TEXT().
+- **Wildcard matching (`MATCH(..., ..., 2)`) treats `*` and `?` as wildcards.** Surprising when your lookup value contains a literal `*` (e.g., a campaign code with `*`). Escape with `~*`.
+- **Two-way lookups can't easily handle "any row, any column."** If both axes can be fuzzy, INDEX/MATCH/MATCH gets ugly fast. At that point, consider a QUERY (lesson 12) or melting the pivot into a long table first.
+
+## Now do it for real
+
+Click **Start lesson** to provision a buyer × vertical pivot. You'll write three lookups: a two-way INDEX/MATCH/MATCH for one buyer × vertical cell, a dynamic-column VLOOKUP that responds to a dropdown, and a range-mode XLOOKUP for tier classification.

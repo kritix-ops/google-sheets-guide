@@ -1,0 +1,111 @@
+import { MESSY_CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Data cleanup recipes
+
+Every `IMPORTRANGE` pull, every form submission, every CSV upload from a vendor lands in your sheet slightly dirty. Trailing whitespace from a copy-paste. A buyer name in ALL CAPS because someone shouted into a Slack message. Numbers stored as text because the export wrapped them in quotes. Mixed date formats because the platform localized to the user's machine. Duplicates because someone clicked "Submit" twice while the page was loading. The fix is rarely glamorous: a small stack of formulas you write once and reach for everywhere. This lesson covers the five you'll use the most.
+
+## The five fundamental dirt patterns
+
+Every cleanup task you'll ever do is some combination of these:
+
+1. **Whitespace.** Leading or trailing spaces invisible to the eye, fatal to `=A1=B1` and `VLOOKUP`.
+2. **Casing drift.** `"yoav cohen"`, `"Yoav Cohen"`, `"YOAV COHEN"` count as three different people to `UNIQUE`.
+3. **Numbers as text.** A column that looks numeric but contains `"187.25"` (with quotes) silently breaks `SUM`.
+4. **Mixed date formats.** `"2026-05-03"`, `"5/3/2026"`, `"May 3, 2026"` all mean the same day; only the first sorts correctly.
+5. **Duplicates.** Same row twice, sometimes with one cell different. Inflates counts, double-counts spend.
+
+Real workbooks hit all five at once. The discipline is to identify which patterns your raw data has and apply the matching recipe before you do any analysis.
+
+## TRIM and LOWER: the two-line cleanup
+
+The single most useful pair you can wrap around any text column you intend to compare:
+
+```
+=LOWER(TRIM(A2))                                     one cell
+=ARRAYFORMULA(LOWER(TRIM(B2:B14)))                    whole column
+```
+
+`TRIM` strips leading and trailing whitespace AND collapses internal runs of spaces into one. `LOWER` (or `UPPER`, or `PROPER`) normalizes case. Wrap both around any column you'll join on, count distinct values from, or compare against a hardcoded string. The team has been bitten by `"Dina Dayan"` vs `" Dina Dayan"` (look at the leading space) enough times that we just always do it.
+
+When you only care about counting distinct values, the same pattern carries lesson 13's recipe forward:
+
+```
+=COUNTA(UNIQUE(LOWER(TRIM(B2:B14))))                  distinct buyers
+```
+
+## VALUE and IFERROR: numbers stored as text
+
+CSV imports and form free-text fields routinely produce `"187.25"` (text) instead of `187.25` (number). `SUM` silently skips text cells, so the total comes out wrong by the amount of text-typed values without a single error showing. The catch:
+
+```
+=SUMPRODUCT(IFERROR(VALUE(E2:E14),0))                 force-coerce, default to 0
+```
+
+`VALUE("187.25")` returns the number `187.25`. `VALUE("hello")` returns `#VALUE!`. The `IFERROR(...,0)` swap makes the bad cells contribute zero rather than poison the sum. `SUMPRODUCT` is what makes `VALUE` work over a range without an `ARRAYFORMULA` wrapper.
+
+For currency-prefixed strings like `"$380.20"`, `VALUE` is smart enough to strip the `$` on most locales. When it isn't, fall back to `=VALUE(SUBSTITUTE(F2,"$",""))`.
+
+## DATEVALUE and TO_DATE: mixed date formats
+
+`DATEVALUE("2026-05-03")` returns the date serial for May 3. `DATEVALUE("5/3/2026")` does too: but interprets the slashes per the spreadsheet's locale, which on a US locale means May 3, and on most of the rest of the world means March 5. This is the single most subtle bug in this whole lesson.
+
+```
+=IFERROR(DATEVALUE(A2), A2)                          coerce text date, fall back to original
+=DATE(2026, 5, 3)                                    locale-proof: explicit components
+```
+
+When you control the source, write `DATE(YEAR, MONTH, DAY)` from explicit components and the formula reads the same in every locale. When you don't (you're cleaning what someone else dumped into the sheet), wrap `DATEVALUE` in `IFERROR` so a row that fails to parse leaves the original value in place rather than blanking the cell.
+
+## SUBSTITUTE: fixing the recurring typo
+
+A vendor's CSV always exports `"Solar Systems and Panels PR"` instead of your team's `"Solar Systems & Panels PR"`. Until they fix it on their end, you fix it on import:
+
+```
+=SUBSTITUTE(C2, " and ", " & ")
+```
+
+Note: `SUBSTITUTE` is **case-sensitive**. `SUBSTITUTE("Hello", "hello", "Hi")` returns `"Hello"` unchanged. When you need case-insensitive replacement, reach for `REGEXREPLACE` (covered in lesson 16) which can use a case-insensitive flag.
+
+## The typo-catcher pattern
+
+A common cleanup task: find rows where the vertical name doesn't end in `" PR"` (team convention says every vertical does). One cell, one COUNTIF:
+
+```
+=COUNTIF(C2:C14, "Senior Living P")                  exact match for the typo
+=ARRAYFORMULA(SUM(IF(RIGHT(C2:C14, 3)<>" PR", 1, 0))) any vertical missing PR
+```
+
+The first surfaces a known bad value. The second sweeps the column for any value that doesn't end in the expected suffix. Run both periodically against your aggregator tab and you'll catch the moment a buyer fat-fingers a vertical name.
+
+## Now do it for real
+
+<MiniGrid
+  data={MESSY_CAMPAIGNS.slice(0, 6)}
+  caption="The Raw tab has 13 rows of intentionally dirty data. The cleanup block lives in column I on the same tab."
+/>
+
+Click **Start lesson** to provision a `Raw` tab seeded with 13 messy campaign rows in `A1:F14`. Fill in column I:
+
+- **`I1`**: total raw row count via `COUNTA` on the Date column.
+- **`I2`**: unique buyers after normalization with `LOWER + TRIM + UNIQUE`.
+- **`I3`**: count of rows with the vertical typo `"Senior Living P"` (note the missing R).
+- **`I4`**: SUM of Spend with `VALUE` coercion to handle the text-string row.
+
+The grader checks each formula's shape AND its computed value, so swapping `SUMPRODUCT` for `SUM(ARRAYFORMULA(...))` is fine, but skipping `VALUE` on the spend column or `LOWER` on the buyer column is not.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **The Aggregator tab runs `TRIM(LOWER(...))` on every IMPORTRANGE'd text column.** Source workbooks come from different buyers, each with their own copy-paste habits. The aggregator wraps every join key (Buyer, Vertical, Country) in the cleanup pair before any lookup or count runs against it. The cost is one extra ARRAYFORMULA per column. The benefit is no phone calls about wrong totals.
+- **Vendor CSV imports get a "Cleaned" tab.** A vendor like Tonic exports campaign performance to CSV, the team pastes it into a `Raw_Tonic` tab unchanged, and a sibling `Cleaned_Tonic` tab applies the recipes: trim text, coerce numbers with `VALUE+IFERROR`, normalize dates with `DATEVALUE+IFERROR`, fix known typos with `SUBSTITUTE`. The dashboards read from `Cleaned_Tonic`, never from `Raw_Tonic` directly.
+- **The vertical typo-catcher runs as a single COUNTIFS on every aggregator.** `=ARRAYFORMULA(SUMPRODUCT(IF(RIGHT(C:C,3)<>" PR",1,0)))` lives in a "Sanity checks" block at the top of every aggregator tab. When that count goes above zero, conditional formatting paints the cell red and someone goes hunting for the bad row.
+
+## Pro pitfalls
+
+- **`VALUE("")` returns 0, not an error.** So `IFERROR(VALUE(E2),0)` and a blank cell both produce zero, which is usually what you want. But if you needed to distinguish "missing value" from "value of zero" (e.g., a campaign that ran with zero spend versus a row that's missing the spend cell entirely), `VALUE` will collapse them. Use `IF(E2="", "missing", VALUE(E2))` if you need to keep the distinction.
+- **`DATEVALUE("5/1/2026")` is May 1 on a US locale and January 5 on most others.** When you control the source, force ISO with `=DATE(YEAR, MONTH, DAY)` from explicit components. When you don't, document which locale your sheet runs in and check that imported date formats match.
+- **`SUBSTITUTE` is case-sensitive.** `SUBSTITUTE("ACME Corp", "acme", "Acme")` returns `"ACME Corp"` unchanged. For case-insensitive replacement, use `REGEXREPLACE(C2, "(?i)acme", "Acme")`.
+- **`COUNTA` skips empty cells, but counts cells with `""` (empty string).** If your source has formula-produced empty strings (like `=IF(condition, "", value)`), `COUNTA` will count them as filled. Use `COUNTIF(A2:A14, "<>")` if you need a stricter "non-empty AND non-empty-string" count.
+- **Double-wrapping `LOWER(LOWER(...))` is harmless but slow on large ranges.** Recalculation runs every formula every time the sheet recalcs. On a 50,000-row aggregator that pulls from three IMPORTRANGEs, redundant text functions stack up. When in doubt, wrap once at the top of the chain, not at every call site.
+- **`UNIQUE` on a column with mixed casing returns BOTH cases.** Always `LOWER` (or `UPPER`/`PROPER`) before `UNIQUE` on any text column where case is presentational, not semantic. Same rule, slightly different wording, every team eventually internalizes.

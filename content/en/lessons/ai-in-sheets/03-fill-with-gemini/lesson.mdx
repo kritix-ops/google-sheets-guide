@@ -1,0 +1,84 @@
+import { MESSY_CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Fill with Gemini
+
+Fill with Gemini is a UI action, not a formula. You select a range, right-click, choose **Fill with Gemini**, type a natural-language instruction, and Gemini proposes a column of literal values. You review the proposal, then apply or discard. There's no formula, no `=AI()`, no spilling array. The cells are populated with plain values, the same way as if you'd typed them yourself.
+
+It feels magic the first time. It also disagrees with itself between runs, occasionally fills cells outside your selection, and leaves no audit trail of what it changed. Used correctly it saves an hour on a cleanup task that used to take an hour. Used carelessly it introduces silent bugs the team finds two weeks later.
+
+## How it works in practice
+
+1. Select the destination range (the column you want filled).
+2. Right-click and choose **Fill with Gemini**.
+3. Type the instruction in plain English: `Standardize each vertical name to Title Case and ensure it ends with PR`.
+4. Gemini reads the *neighboring* columns of your selection to understand context. It shows you a proposal in a preview pane.
+5. You hit **Apply** to commit the literal values into the cells, or **Discard**.
+
+The Apply step is what differs from `=AI()`. AI() leaves a formula behind that recomputes on demand. Fill with Gemini writes static values once and walks away. Both have their place.
+
+## When Fill with Gemini beats Smart Fill
+
+Smart Fill (the older Sheets feature) learns from two or three example rows you type in. It works when the transformation is deterministic: extract a first name, capitalize a column, pull a country code out of a campaign name. If you can describe the transform with a regex or a `LEFT`/`MID` formula, Smart Fill probably does it too.
+
+Fill with Gemini wins when the transformation is fuzzy:
+
+- **Normalizing inconsistent text.** "used cars pr", "Used Cars PR", "USEDCARSPR" all collapse to "Used Cars PR" with a single instruction.
+- **Classification of free text.** "Categorize this customer note as: complaint, question, compliment, other."
+- **Multi-step transformations.** "Pull the city out, capitalize it, and standardize country codes to 2 letters."
+
+Smart Fill needs examples. Fill with Gemini needs an instruction. When the rule is hard to demonstrate by example but easy to state in words, Fill with Gemini is the better tool.
+
+| Task | Smart Fill | Fill with Gemini |
+|---|---|---|
+| Extract first name | Wins. Deterministic, free, no review needed. | Overkill. |
+| Capitalize column | Wins. | Overkill. |
+| Standardize 12 variants of "Used Cars PR" | Slow (needs many examples) and fragile. | Wins. One instruction. |
+| Classify customer notes | Cannot do it. | Wins. |
+| Extract `card9999` from a 14-segment campaign name | Wins if the format is consistent. | Wins too, but costs a Gemini call per row. |
+
+The rule of thumb: if a formula or Smart Fill can do it, use those. Reserve Fill with Gemini for the cases that need natural-language judgment.
+
+## The proposal review step
+
+The proposal panel is the most important and most-skipped step. The proposal shows you the cells Gemini would write. Always check three things before applying:
+
+1. **Is every cell in the proposal what you expected?** Spot-check ten of them.
+2. **Did Gemini fill cells you did not select?** Occasionally the proposal extends beyond the original selection if Gemini decides additional derived columns are useful. Reject the apply if so.
+3. **Did Gemini reorder rows?** Rare but real. The proposal preview usually keeps the original order; verify.
+
+The Apply step is not always a clean single-undo unit. If you apply and then catch a mistake, Ctrl+Z may revert only some of the cells. Treat apply as commit-and-move-forward, not as a free preview.
+
+## Now do it for real
+
+<MiniGrid
+  data={MESSY_CAMPAIGNS.slice(0, 6)}
+  caption="MESSY_CAMPAIGNS has 12 rows with inconsistent vertical names: lowercase, whitespace, the typo 'Senior Living P'. Your job is to produce the canonical 'Title Case PR' form in column H."
+/>
+
+Click **Start lesson** to provision the messy campaign log on a Cleanup tab. Three tasks:
+
+- **Column H, rows 2 to 14**: fill in the cleaned canonical vertical name for each row as a literal value. The grader spot-checks H2, H5, and H10 against the canonical forms. Every value should end in " PR" and be Title Case.
+- **J1**: write the natural-language prompt you would use in Fill with Gemini. Include the words `standardize` (or `normalize`), `vertical`, and `PR`.
+- **No formulas** in column H. Fill with Gemini produces literal values, not formulas, and the grader enforces that.
+
+You're simulating the post-Apply state. In a real workbook you'd select column H, right-click, and run Fill with Gemini with the prompt you wrote in J1.
+
+## Used in the wild
+
+The team faces this exact mess every week. The Taboola export sends vertical names in 12 different casings and three spellings. Until Fill with Gemini, the cleanup was a 20-minute weekly ritual: paste into the aggregator, run a `SUBSTITUTE` chain, manually fix the typos the substitutions missed. Now the workflow is:
+
+- Paste the export into the staging tab.
+- Select the Vertical column.
+- Fill with Gemini, prompt: `Standardize each vertical name to Title Case and ensure it ends with PR. The known verticals are: Car Deals, Bathroom Remodeling, Cruises, ...`
+- Review the proposal. Apply.
+- The remaining deterministic cleanups (whitespace trim, the date format) run through `TRIM` and `TEXT` formulas on the next column over.
+
+The combination is faster than either tool alone: Gemini handles the fuzzy normalization, formulas handle the rest.
+
+## Pro pitfalls
+
+- **No formula trace.** The cells after apply look exactly like cells you typed. Two weeks later, nobody can tell which were AI-generated and which were manual. The fix: add a sibling column with the original value preserved, so a future reader can see the diff.
+- **Lossy normalization.** If your prompt is "Standardize to canonical Title Case PR form" and Gemini sees "Senior Living P" (a typo), Gemini will guess "Senior Living PR" and may be right or wrong depending on whether the team has a "Senior Living" or a "Seniors" vertical. Always include the allowed list in the prompt if you have one.
+- **Proposal that extends beyond your selection.** Gemini occasionally proposes derived columns alongside the main fill. The apply will write all of them. Inspect the preview carefully.
+- **Apply is not a clean undo unit.** Ctrl+Z after apply may revert partially. Treat apply like a commit; save a snapshot of the workbook first if the stakes are high.
+- **The "looks right but is wrong" trap.** Fill with Gemini's proposal looks confident. On a 200-row column, three rows being subtly wrong (a name capitalized inconsistently, a typo Gemini guessed wrong) is invisible at a glance. Spot-check 10 random rows in every apply, especially for fields that downstream `SUMIFS` or pivots will group on.

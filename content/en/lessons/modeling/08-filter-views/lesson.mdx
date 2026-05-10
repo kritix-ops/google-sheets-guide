@@ -1,0 +1,63 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Filter views: per-user filters that don't disturb collaborators
+
+A regular filter rearranges what *everyone* sees. The moment you toggle "Buyer = Yoav Cohen" on a shared Campaigns tab, Dina loses her rows too, Maya loses hers, the dashboard pulling from this tab quietly returns three rows instead of sixty, and somebody Slacks "did you break the sheet?" Filter views fix this. Each user gets their own active filter view; switching views never affects anyone else; the views themselves are saved with names, so the next time you need "just Yoav's losing campaigns this week" you click a name instead of rebuilding the filter.
+
+## What a filter view actually is
+
+`Data → Create a filter view` opens a striped black header above the data and a panel where you name the view. From the user's seat, it looks like a regular filter. Mechanically, two things are different:
+
+| Behavior | Regular filter | Filter view |
+|---|---|---|
+| Visible to other users | Yes, your filter rearranges their screen too | No, each user sees their own active view, or no view at all |
+| Persists by name | No, there's only ever one regular filter | Yes, saved by name, listed in `Data → Filter views`, switchable in one click |
+| Survives a copy-paste of the data | Filter doesn't transfer | Filter view doesn't transfer either |
+
+The team default is **always use a filter view, never a regular filter** in any shared workbook. Regular filters are for solo workbooks where nobody else is looking. The moment a sheet is shared with one other editor, the regular-filter button is a footgun.
+
+## Naming conventions: pick names other people will recognize
+
+A filter view named `YC test 3` is invisible to everyone but the person who made it. Three months later, even that person can't remember what it does. The names other people on the team can use are the ones that pay rent. Patterns the team relies on:
+
+- **Per-buyer:** `Yoav only`, `Dina only`, `Maya only`. Every dashboard built on the Campaigns tab has one of these per buyer. New media buyer joins, you add a new view named after them.
+- **Per-time-window:** `This week`, `Last week`, `MTD`, `Q2 2026`. Date filters expressed once and reused.
+- **Diagnostic:** `Spend > $500 with no revenue`, `Verticals never run before`, `Losses to investigate`. Each one captures a question someone asks regularly.
+
+The rule of thumb: if a teammate looking at the panel for the first time can't tell what the view does from the name, the name is wrong. Rename it.
+
+## Sorting inside a filter view: the trap
+
+Filtering inside a filter view is local to your view. **Sorting inside a filter view sorts the underlying data for everyone.** This bites people who think the filter view is a sandbox. It isn't, not for sort. If you click `Sort A→Z` on the Buyer column inside `Yoav only`, Sheets reorders the Campaigns tab for the entire team.
+
+The workaround: sort with `SORT(...)` in a separate analysis tab, not inside a filter view. Or duplicate the data into a `Working copy` tab where reordering is fine. Treat the filter view itself as read-only for sort.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns lives in A1:G61. You'll create two filter views on this tab."
+/>
+
+Click **Start lesson** to provision the campaign log. Then create two filter views on the Campaigns tab via `Data → Create a filter view`:
+
+- **Filter view 1**: title it exactly `Yoav only`. Inside the view, filter column B (Buyer) to `Yoav Cohen` only. Save and exit the view.
+- **Filter view 2**: title it exactly `Profitable only`. Inside the view, add a filter on column G (Revenue) using `Filter by condition → Custom formula is` `=G2>F2`. Save and exit.
+
+The grader reads the filter-view titles back via `sheet.filterViewTitles("Campaigns")` and checks both names exist, exact case-sensitive match. The actual filter conditions inside each view aren't graded by the runner (the API doesn't expose them yet), but the team rule is that the name has to mean what the filter does. `yoav only` lowercase is rejected because the team's naming convention is title-case.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **Per-buyer filter views on every dashboard.** The Campaigns tab in the master dashboard has eight filter views, one per active buyer. Daily standup: each buyer clicks their own view, sees their own rows, never touches what anyone else is looking at.
+- **Date-range views for the same data.** `This week`, `Last week`, `MTD`, `QTD`. Built once with `Filter by condition → Date is between`, named clearly, reused every morning. The alternative, typing the dates in each time, is where buyers waste five minutes per session and sometimes pull the wrong week.
+- **Diagnostic views as saved questions.** `Spend > $500 with no revenue` is the view the team manager opens on Friday afternoons to find the campaigns that need a kill decision. The view is the question. The question lives in the workbook, not in someone's head.
+
+## Pro pitfalls
+
+- **Regular filter and filter view active at the same time.** If a regular filter is on, opening a filter view layers them confusingly. Different users see different combinations. Rule: in a shared workbook, remove the regular filter (`Data → Remove filter`) before anyone creates filter views.
+- **Sort inside a filter view reorders for everyone.** The filter is local; the sort is global. If you find yourself reaching for `Sort A→Z` inside a view, stop and use a `SORT(...)` formula in an analysis tab instead.
+- **Filter views don't survive copy-paste to a new sheet.** Duplicate the tab and the filter views go with it. Copy-paste the *cells* into a fresh tab and the filter views stay behind. If you're cloning a tab as a starting point, use `Duplicate` from the tab menu, not paste.
+- **`IMPORTRANGE` breaks filter views silently.** Filter views reference column letters and row counts. When the source workbook adds a column or the destination's `IMPORTRANGE` range expands, the saved filter on column G might now be sitting on the wrong column. The view still loads; the filter just no longer means what you thought. Audit filter views after any `IMPORTRANGE` source change.
+- **Private codes in view names.** `YC v3 test final FINAL2` is invisible to your team. Rename anything cryptic to a sentence a teammate would recognize.

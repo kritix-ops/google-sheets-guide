@@ -1,0 +1,121 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Array formulas: ARRAYFORMULA basics
+
+`ARRAYFORMULA` was introduced in lesson 2 as the Sheets workaround for Excel's auto-spilling. This lesson goes deep on when to reach for it, when not to, and how to use it without bringing your sheet to its knees on big data. In adtech work, ARRAYFORMULA is how you keep computed columns (profit, ROI, EPC, normalized names) maintainable across a dataset that grows every day: one formula at the top, no fill-down required.
+
+## What it does and why you need it
+
+In Excel 365, `=B2:B13 - A2:A13` spills into 12 cells automatically. Sheets returns only the first value. Wrapping in `ARRAYFORMULA` tells Sheets to broadcast the operation across the whole range.
+
+<MiniGrid
+  data={CAMPAIGNS}
+  caption="The campaign log. Spend in column E, revenue in column F. We'll compute profit (F − E) for every row from one cell."
+  highlight={["E2", "F2"]}
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="G1"
+  expectedFormula="=ARRAYFORMULA(F2:F13-E2:E13)"
+  task={<>Compute profit (revenue minus spend) for every campaign at once. A single formula in <code>G1</code> should fill <code>G1:G12</code> with each campaign's profit.</>}
+  hint={<>Wrap <code>F2:F13-E2:E13</code> in <code>ARRAYFORMULA(...)</code> so it spills.</>}
+  answer={<>The plain expression <code>F2:F13-E2:E13</code> returns just the first value (487.30 − 342.18 = 145.12). Wrapping in ARRAYFORMULA tells Sheets to compute the subtraction element-wise across the whole pair of ranges. The result spills into G1 through G12. If you typed this in real Sheets, you'd notice you can't edit any of G2-G12 individually: they're "spill cells" controlled by the master formula in G1. To change the formula, edit G1.</>}
+/>
+
+## Functions that already spill
+
+A handful of Sheets functions are array-aware on their own and don't need `ARRAYFORMULA`:
+
+- `FILTER`, `SORT`, `UNIQUE`
+- `QUERY`
+- `SEQUENCE`, `RANDARRAY`
+- `SPLIT`, `TRANSPOSE`, `FLATTEN`
+
+Anything else: including basic operators (`+`, `-`, `*`, `/`), comparisons (`>`, `=`), text functions (`LEFT`, `UPPER`, `&`), and most other functions when applied to a range: needs the wrapper.
+
+<QuickCheck
+  question="Which of these does NOT need ARRAYFORMULA to fill multiple cells?"
+  options={[
+    {
+      id: "a",
+      label: <code>=UPPER(B2:B13)</code>,
+      correct: false,
+      explanation: "UPPER on a range returns just the first uppercased value unless wrapped. Needs ARRAYFORMULA.",
+    },
+    {
+      id: "b",
+      label: <code>=FILTER(F2:F13, B2:B13 = "Yoav Cohen")</code>,
+      correct: true,
+      explanation: "FILTER is array-aware. So are SORT, UNIQUE, QUERY, SEQUENCE, RANDARRAY, SPLIT, TRANSPOSE, and FLATTEN.",
+    },
+    {
+      id: "c",
+      label: <code>=F2:F13/E2:E13</code>,
+      correct: false,
+      explanation: "Plain division between ranges returns only the first cell. Needs ARRAYFORMULA.",
+    },
+  ]}
+/>
+
+## Don't wrap what's already array-aware
+
+Wrapping `FILTER`, `QUERY`, etc. in `ARRAYFORMULA` doesn't error: it's just redundant. But it can confuse readers and adds noise. The convention: wrap only what needs wrapping.
+
+```
+=FILTER(F2:F13, B2:B13 = "Yoav Cohen")           ✓ clean
+=ARRAYFORMULA(FILTER(F2:F13, B2:B13 = "Yoav Cohen"))  ✗ noisy
+```
+
+## The "open-ended range" pattern
+
+In real adtech work, you don't know how many campaigns will be added. Hardcoding the range to `E2:E13` works for today, but next week you'll have rows 14, 15, 16... and your ARRAYFORMULA stops covering them.
+
+The pattern: use an open-ended range like `E2:E` (everything from E2 to the bottom of the column) or set a high upper bound like `E2:E10000`. With `ARRAYFORMULA`, this means "compute for every row that has data, and stop".
+
+```
+=ARRAYFORMULA(IF(E2:E="", "", F2:F - E2:E))
+```
+
+The `IF(E2:E="", "", ...)` guard suppresses output for empty rows. Without it, the formula spills "0" or "#DIV/0!" all the way down to row 1 million. With it, the spilled values stop where the data stops.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="G1"
+  expectedFormula='=ARRAYFORMULA(IF(E2:E="","",F2:F-E2:E))'
+  task={<>Build a profit column that handles arbitrary new rows. Use <code>E2:E</code> (open-ended) and guard against empty rows with IF.</>}
+  hint={<>Wrap the whole thing in ARRAYFORMULA. Inside, use <code>IF(E2:E="", "", F2:F - E2:E)</code>: return empty string for rows with no spend, otherwise compute profit.</>}
+  answer={<>The open-ended range <code>E2:E</code> covers every row from E2 to the bottom of the sheet. ARRAYFORMULA broadcasts the IF/subtract over the whole range. The IF guard returns empty for rows where E is empty, so the spilled output stops at the last data row instead of filling all 1,000,000 rows with errors. This is THE pattern for any computed column in a sheet that grows over time. Without the guard, the bottom of column G would be filled with #DIV/0! or 0s, which slows the sheet and confuses downstream lookups.</>}
+/>
+
+## ARRAYFORMULA + IF: branching across rows
+
+`IF` works inside `ARRAYFORMULA` to apply different logic per row. The condition can be a comparison against a range, and both branches can be expressions involving other ranges.
+
+The classic adtech use: a "Status" column that labels each campaign's profitability. One formula at the top, fills the whole column.
+
+```
+=ARRAYFORMULA(IF(F2:F-E2:E > 0, "Profit", "Loss"))
+```
+
+Same idea with IFS: bucket every row by ROI in one formula. (Note: IFS inside ARRAYFORMULA works in Sheets but can be slower than the equivalent nested IF on huge sheets.)
+
+## Used in the wild
+
+- **Computed columns at the top of every campaign sheet.** Profit, ROI, EPC, profit margin: each is a single ARRAYFORMULA at row 1 or 2 that fills the whole column. New campaigns paste in below and the computed columns extend automatically.
+- **Normalization columns.** A clean buyer-name column built from the raw column with `ARRAYFORMULA(TRIM(LOWER(B2:B)))` so downstream lookups don't fail on whitespace or case.
+- **Status flags.** "Profitable", "Star", "Loss" labels in one formula instead of one per row.
+- **Cohort keys.** A single ARRAYFORMULA building "2026-05" from a launch_date column for cohort-based grouping.
+
+## Pro pitfalls
+
+- **Open-ended ranges (`E2:E`) without an empty-row guard fill the whole sheet.** A million rows of "#DIV/0!" or "0" will slow the sheet to a crawl. Always guard with `IF(E2:E="", "", ...)`.
+- **ARRAYFORMULA can hide bugs in individual rows.** If row 50 is malformed, you'll get an error in the spilled cell but you can't fix it directly: only by editing the master formula.
+- **IF inside ARRAYFORMULA evaluates BOTH branches for every row.** If one branch is expensive (an XLOOKUP, a regex), it runs even when not chosen. Cost compounds on big data.
+- **Some functions DON'T work inside ARRAYFORMULA.** Aggregators like SUM, AVERAGE, COUNT: wrapping a range with SUM inside ARRAYFORMULA returns the total, not row-by-row totals. Use `SUMIFS` per row or restructure.
+- **You can't edit spill cells individually.** If the team is used to overwriting a cell to manually fix a value, ARRAYFORMULA breaks that workflow. Communicate the change.
+- **Spill ranges can collide.** If G1 has an ARRAYFORMULA spilling into G1:G12 and someone types in G5, the whole formula errors with `#REF!`. The error message points to G1, but the cause is wherever the conflict is.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log. You'll write three ARRAYFORMULAs: a fixed-range profit column, an open-ended profit column with an empty-row guard, and a status flag column with IF inside ARRAYFORMULA.

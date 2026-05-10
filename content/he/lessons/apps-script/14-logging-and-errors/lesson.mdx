@@ -1,0 +1,139 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Logging, טיפול בשגיאות, וסיפור Cloud Logging
+
+שלושה-עשר השיעורים הראשונים ב-Track 3 כיסו קוד שעושה עבודה: custom functions, תפריטים, macros, triggers, ה-surface של `SpreadsheetApp`. השיעור הזה מכסה את החלק שאף אחד לא חושב עליו עד שמשהו נשבר בשתיים בלילה: איך רואים מה הקוד עשה, ואיך שורדים כשמשהו משתבש. ה-Taboola pull הלילי של הצוות, ה-trigger שמרענן את ה-dashboard לכל media buyer, ה-trigger שמטפל ב-fallback של IMPORTRANGE, לכל אחד מהם צריך logs כדי לענות "האם זה רץ?" וטיפול בשגיאות כדי ששורה גרועה אחת לא תפיל את כל ה-batch.
+
+## שני surfaces של logging, בחירה אחת שפויה
+
+ל-Apps Script יש שתי דרכים להדפיס:
+
+```js
+console.log("Read spend: " + spend);   // המודרני. משתמשים בזה.
+Logger.log("Read spend: " + spend);    // הישן. עדיין עובד.
+```
+
+שתי השורות מופיעות באותו מקום. פותחים את עורך Apps Script, לוחצים על אייקון ה-**Executions** בסרגל השמאלי (השעון עם החץ), וכל ריצה אחרונה מופיעה עם ה-logs שלה מצורפים. `console.log` הוא ה-surface שלאחר 2020; `Logger.log` הוא הישן יותר, מלפני האינטגרציה עם Cloud Logging של Google.
+
+שני הבדלים שווה להכיר:
+
+| | `console.log` | `Logger.log` |
+|---|---|---|
+| רמות חומרה | `info`, `warn`, `error`, `debug` דרך `console.log/warn/error/debug` | רמה אחת (info). |
+| צורת ארגומנטים | מקבל מספר ארגומנטים ו-object literals, מעוצב כ-JSON. | מחרוזת בודדת. מספר ארגומנטים מחוברים בפסיקים. |
+| פילטור ב-Cloud Logging | חומרות מסננות native (`severity=ERROR`). | כל הרשומות נוחתות ברמת info. |
+| המלצה | מעדיפים את זה לכל קוד חדש. | משאירים קוד קיים בשקט; לא מוסיפים קריאות חדשות. |
+
+ברירת המחדל היא `console.log`. הזמן היחיד ש-`Logger.log` עדיין מנצח הוא כשמטליאים קוד legacy ורוצים להתאים לסגנון מסביב.
+
+## חומרה משנה כשיש מאות ריצות
+
+ה-trigger הלילי של הצוות מתעד בערך 200 שורות לריצה. לאורך חודש זה ~6,000 רשומות. גם הפאנל Executions וגם ה-viewer של Cloud Logging מאפשרים פילטור לפי חומרה, וזה הפילטר היחיד שמאפשר למצוא מה באמת השתבש:
+
+```js
+console.log("Trigger fired at " + new Date());     // info, טובע ברעש
+console.warn("Vertical name missing PR suffix");    // warn, שווה מבט
+console.error("Failed to write row " + row + ": " + e.toString()); // error, מזעיק מישהו
+```
+
+ב-Cloud Logging, מחליפים את פילטר החומרה ל-**Error and above** ונשארים עם 5 הרשומות שבאמת דורשות תשומת לב. עם הכול ברמת info (העולם של `Logger.log`) גוללים בין 6,000 שורות בחיפוש אחר הגרועה.
+
+## try/catch הוא צורת ה-handler בפרודקשן
+
+כל handler של trigger ב-spreadsheets של הצוות נראה ככה:
+
+```js
+function nightlyPull() {
+  try {
+    const data = fetchTaboolaData();
+    writeToCampaignsSheet(data);
+    console.log("Nightly pull complete: " + data.length + " rows");
+  } catch (e) {
+    console.error("Nightly pull failed: " + e.toString());
+    console.error(e.stack);
+    // מעדכן את הצוות. בלי זה, ה-trigger מנסה שוב מחר בשקט
+    // ואף אחד לא שם לב במשך שבוע.
+    MailApp.sendEmail("team@flexelent.com", "Nightly pull broke", e.toString());
+  }
+}
+```
+
+שלושה חלקים, כולם שווים לעשות:
+
+1. **`try`** עוטף את העבודה שיכולה לזרוק. ה-reader, ה-writer, כל `UrlFetchApp.fetch` ל-endpoint של צד שלישי.
+2. **`catch (e)`** מקבל את ה-exception. `e.toString()` היא ההודעה הקצרה; `e.stack` הוא ה-stack trace.
+3. **side effect על כישלון**, בדרך כלל אימייל או webhook ל-Slack או כתיבה לגיליון error log. בלוק ה-catch רץ ב-auth context של ה-trigger, אז הוא יכול לשלוח מייל. handler שלא מתריע הוא ה-handler שאף אחד לא יודע שהוא שבור.
+
+אם לקורא אכפת מהכישלון (שרשרת של triggers שבה הבא אחריו לא אמור לרוץ), משתמשים ב-`throw e` בסוף ה-catch אחרי ה-side effect. ה-exception מתפשט למעלה. אם הקורא הוא ה-runtime עצמו (ה-trigger שהפעיל את זה), בליעת ה-exception היא הצעד הנכון, כבר תיעדתם אותה.
+
+## Structured logs מנצחים שרשור מחרוזות
+
+שורת log שאומרת `"Failed to write row 17: TypeError: cannot read property 'length' of undefined"` בסדר לקריאה. גרועה לפילטור. ה-triggers של הצוות בפרודקשן משתמשים ב-**structured logging**:
+
+```js
+console.log({
+  event: "trigger_fired",
+  triggerName: "nightlyPull",
+  startedAt: new Date().toISOString(),
+});
+
+console.error({
+  event: "row_write_failed",
+  row: 17,
+  buyer: "Yoav Cohen",
+  vertical: "Car Deals PR",
+  error: e.toString(),
+});
+```
+
+`console.log` והחברים מקבלים object literal ומציגים אותו כ-JSON ב-Cloud Logging. הפילטר `jsonPayload.event="row_write_failed"` מציף כל רשומה של row failed לאורך כל הריצות של החודש האחרון. ניתן לחיפוש, למיון, ל-join. שרשור מחרוזות לא נותן כלום מזה.
+
+הפאנל Executions מציג את אותם logs בצורה יפה (הוא מבין את מבנה ה-JSON). Cloud Logging מציג אותם כשדות לחיפוש. כך או כך, הצורה ה-structured משתלמת.
+
+## איתור ריצה ספציפית
+
+כל ריצה של Apps Script מקבלת **execution ID**. רואים אותו בפאנל Executions ואפשר לחפש ב-Cloud Logging לפיו (`labels."script.googleapis.com/script_id" = "..."`). שני המקרים שבהם זה חשוב:
+
+- **משתמש מדווח "משהו השתבש בשלוש בצהריים".** פותחים Executions, ממיינים לפי timestamp, מוצאים את הריצה של שלוש, נכנסים, רואים את ה-logs. בלי ניחושים.
+- **דיווח באג מתייחס לקישור Cloud Logging.** הקישור מקודד את ה-script ID ואת חלון ה-timestamp. פותחים, ה-logs הרלוונטיים כבר מסוננים.
+
+בלי execution IDs, debugging של trigger שיורה 100 פעמים ביום הוא חיפוש מחט אחת בערימת מחטים.
+
+## שמירת logs
+
+Cloud Logging שומר רשומות במשך **30 ימים** כברירת מחדל בפרויקט בתשלום, **7 ימים** ב-tier חינמי. באג שמתגלה ביום שני על כישלון מיום שישי כנראה כבר איבד את ה-context של שישי. הדפוס שהצוות משתמש בו:
+
+- שגיאות קריטיות נכתבות ל-tab "Run log" ב-spreadsheet meta דרך `SpreadsheetApp.openById(...).getSheetByName("Run log").appendRow([...])`. שמירה לתמיד, ניתן לתחקור מ-dashboard.
+- רשומות Cloud Logging נשארות כמקור האמת ל-stack traces ולזמנים.
+
+ה-spreadsheet meta הוא read-only עבור הצוות ו-append-only עבור ה-handlers של ה-triggers. משקיעים חצי שעה בהקמה פעם אחת, חוסכים שעות רבות של ארכיאולוגיה של "מה קרה שבוע שעבר".
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="לוג ה-Campaigns תופס את A1:G61. F2 הוא ה-spend של הקמפיין הראשון בלוג. המשימה: לקרוא אותו בבטחה ולכתוב את התוצאה (או סימן) ל-J1."
+/>
+
+קובץ ה-starter `Lesson.gs` מצהיר על `function processSpendSafely()` עם גוף ריק. שלושה דברים לעשות:
+
+1. עוטפים את הקריאה של F2 דרך `getValue` בתוך בלוק `try`. מתעדים את הערך בהצלחה עם `console.log("Read spend: " + spend)` וכותבים `spend * 1` ל-J1.
+2. מוסיפים בלוק `catch (e)`. מתעדים את הכישלון עם `console.error("Failed to read spend: " + e.toString())` וכותבים את המחרוזת `"error"` ל-J1.
+3. מריצים את ה-function פעם אחת בעורך Apps Script. פותחים את הפאנל Executions ומאשרים גם את שורת ה-log וגם את סטטוס ה-function.
+
+ה-`spend * 1` נראה חסר תועלת, ובגיליון נקי הוא באמת. הסיבה שהוא שם היא המקרה הריאלי שבו F2 מחזיק את המחרוזת `"412.5"` במקום המספר `412.5` (צורה נפוצה כשהנתונים מגיעים דרך IMPORTRANGE מגיליון מבוסס CSV). `spend * 1` כופה המרה של המחרוזת למספר; כפל חסר היה כותב את הטקסט ל-J1 ונוסחאות ה-dashboard במורד הזרם היו נשברות בשקט.
+
+## נפוץ בשטח
+
+- **Trigger לילי עטוף ב-try/catch.** לכל handler של trigger ששייך לצוות אותה צורה: מנסים את העבודה, תופסים כל exception, מתעדים אותו עם `console.error`, שולחים מייל לצוות אם הכישלון קריטי. בלי שלב המייל, trigger שבור פשוט ממשיך לנסות מחדש בכל לילה ומצבר ספירת שגיאות בפאנל Executions שאף אחד לא שם לב אליה.
+- **ספירת שגיאות לכל buyer ב-dashboard.** Cloud Logging ניתן לתחקור מ-BigQuery (export בקליק אחד מ-console של Cloud Logging). הצוות מריץ query יומי שסופר `jsonPayload.event="row_write_failed"` מקובץ לפי `jsonPayload.buyer` וכותב את התוצאה ל-tab "Buyer errors" ב-dashboard של ה-ops. ה-query לוקח 10 שניות; הנראות קבועה.
+- **משך ריצת trigger כמטריקה.** כל trigger מתעד `console.log({ event: "trigger_done", durationMs: Date.now() - startedAt })` בסוף. כש-Taboola pull הלילי מתחיל לקחת 5 דקות במקום 30 שניות, המטריקה מסמנת את זה לפני שה-timeout של 6 דקות הורג את הריצה.
+
+## מלכודות מקצועיות
+
+- **`console.log(spend)` כש-spend הוא object מדפיס "[object Object]".** או עוטפים עם `JSON.stringify(spend)` או מעבירים את ה-object literal כארגומנט (`console.log({ spend })`) כדי ש-Cloud Logging ישמור על המבנה.
+- **`Logger.log("buyer=", buyer, " spend=", spend)` לא מטפל במספר ארגומנטים.** הוא משרשר עם פסיקים. תוצאה: `"buyer=,Yoav Cohen, spend=,412.5"`. משתמשים ב-`console.log("buyer=" + buyer + " spend=" + spend)` או פשוט ב-`console.log({ buyer, spend })`.
+- **Exceptions לא תפוסים ב-installable triggers מנפחים את ה-error log של ה-trigger.** Apps Script מחזיק counter פנימי של שגיאות לכל trigger. handler ישן שזורק כל לילה צובר 100+ שגיאות בחודש ו-Google בסוף שולחת לבעלי הסקריפט מייל "ה-trigger שלך ממשיך להיכשל". עוטפים installable triggers ב-try/catch גם אם העבודה זניחה.
+- **שמירת ה-7 ימים נושכת באגים של יום שישי.** כישלון בחמש בצהריים ביום שישי נעלם בחמש בשישי הבא. אם זמן התגובה של הצוות על באג הוא "נסתכל ביום שני", איבדתם שלושה ימי מרווח. כותבים שגיאות קריטיות לגיליון log קבוע גם.
+- **Stackdriver ו-Cloud Logging הם אותו מוצר.** Google שינתה את השם ב-2019. תשובות StackOverflow ישנות, פוסטים ב-Medium ישנים, ומסמכים פנימיים ישנים עדיין אומרים "Stackdriver". אותו דבר.
+- **Cloud Logging חינם עד 50 GiB לפרויקט לחודש, אחר כך 0.50$ לכל GiB שנכנס.** צוות שכותב 200 שורות structured log לריצה, ב-trigger שיורה כל שעה, נמצא בערך על 1.5 GiB לחודש. בנוחות חינם. צוות שמתעד את כל ה-row payload בכל row write יכול לעבור 50 GiB בקלות; מבנים את ה-logs כך שמתעדים מה שצריך, לא הכול.

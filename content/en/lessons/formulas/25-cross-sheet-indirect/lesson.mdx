@@ -1,0 +1,108 @@
+# Cross-sheet references and INDIRECT
+
+A spreadsheet stops being toy-sized the moment you have more than one tab. Cross-sheet references and `INDIRECT` are how data on tab A talks to tab B: and they're where most workbook chaos starts. This lesson covers the syntax, the gotchas, and the patterns that survive a year of real use.
+
+## Cross-sheet syntax
+
+To reference a cell on another tab, prefix the cell with the tab name and `!`:
+
+```
+=Campaigns!E2
+=Buyers!A1:A100
+=SUM(Campaigns!E2:E100)
+```
+
+If the tab name has a space or special character, wrap it in single quotes:
+
+```
+='May 2026'!E2
+='Campaigns - April'!E2:E100
+```
+
+**Two rules that bite:**
+
+1. The single quotes are required for any space, hyphen, or special character in the tab name. Sheets adds them automatically when you click-to-reference, but if you type by hand, missing quotes give a parse error.
+2. The `!` separates tab from cell ref: no spaces around it. `Campaigns ! E2` is wrong; `Campaigns!E2` is right.
+
+## Tab naming hygiene
+
+Long-running workbooks accumulate tabs: monthly logs, archive snapshots, draft scenarios, scratch tabs. A few rules:
+
+- **Use a short stable prefix** for related tabs: `log_2026_05`, `log_2026_04`, `dash_main`, `dash_buyer_yoav`. Avoids the temptation to rename tabs (which breaks every formula referencing them).
+- **No spaces or punctuation** in tab names you'll reference often. Saves typing single quotes and reduces typos.
+- **Document the schema once** at the top of each tab. Cell A1 = tab purpose; row 2 = column headers; data starts row 3. Consistent layout means cross-sheet formulas slot in predictably.
+
+## INDIRECT: build a reference from a string
+
+`INDIRECT(text)` takes a string and turns it into a reference. It's how you do dynamic sheet selection: pick a tab based on a dropdown.
+
+```
+=INDIRECT("'" & B1 & "'!E2:E100")
+```
+
+If `B1` is "May 2026", this evaluates to `='May 2026'!E2:E100`. Change the dropdown to "April 2026", the same formula now reads from the April tab.
+
+**Combined with SUM, AVERAGE, COUNTIF, etc., this is the per-period dashboard pattern:**
+
+```
+=SUM(INDIRECT("'" & $B$1 & "'!E:E"))
+```
+
+Total spend for the month named in B1. Switch B1, the dashboard recomputes.
+
+## Why INDIRECT scares experienced spreadsheet users
+
+INDIRECT is **volatile**. A volatile function recalculates every time *anything* in the spreadsheet changes: not just its inputs. Five INDIRECT calls in a dashboard with 1000 dependent formulas means 5000 unnecessary recomputations on every keystroke.
+
+Symptoms:
+- Dashboard feels sluggish even when you're editing an unrelated cell.
+- "Calculating..." indicator at the top of Sheets fires constantly.
+- Workbook is slower than the data volume justifies.
+
+**Strategies:**
+
+- **Use INDIRECT sparingly.** One per dashboard, not one per cell. Build the indirect range once at the top of a section; use direct references downstream.
+- **Combine with LET** (lesson 20) so the indirect call evaluates once and the body reuses the resolved range.
+- **Replace with QUERY when possible.** A QUERY against a fixed range that filters by `WHERE` is sometimes cleaner than INDIRECT'ing different sheets.
+- **Consider a single "data" tab** with a `Period` column, then filter via QUERY/FILTER. One sheet of all data + a date filter is faster than N sheets of N months + INDIRECT.
+
+## IMPORTRANGE: cross-workbook references (preview lesson 27)
+
+When the data lives in a different *workbook* (different file URL), the syntax is:
+
+```
+=IMPORTRANGE("https://docs.google.com/.../edit", "Campaigns!A:F")
+```
+
+Lesson 27 covers IMPORTRANGE in depth: the auth model, the network cost, the cache behavior, the patterns that don't break. For now, know that it's the cross-workbook cousin of cross-tab references, with all the same gotchas amplified by network latency.
+
+## The "broken when tab is renamed" problem
+
+A formula `=Campaigns!E2` breaks if someone renames the tab to `Campaigns_v2`. Sheets *tries* to update references when you rename via the tab dropdown, but it doesn't always catch every case (especially formulas inside QUERY strings, INDIRECT calls, or IMPORTRANGEs).
+
+**Defensive patterns:**
+
+- Don't rename tabs after they've been referenced from elsewhere. If you must, do a workbook-wide find-and-replace immediately after.
+- For especially load-bearing tabs, use a **named range** (Data → Named ranges) that points at the right cells. If the tab is renamed, update the named range: every formula using the name still works.
+- Document tab dependencies in cell A1 of each tab: "Referenced by dash_main!H1, dash_buyer_yoav!I3, ..." It's tedious but pays off the moment someone proposes a rename.
+
+## Used in the wild
+
+- **Per-month log + dashboard.** One tab per month (`log_2026_05`, `log_2026_04`, ...), one main dashboard with a month dropdown. INDIRECT pulls the right tab based on the dropdown. Standard pattern.
+- **Cross-tab summaries.** Dashboard cell `=SUM(log_2026_05!E:E)` for May total spend. Many such cells.
+- **Lookup tables on a "config" tab.** Verticals, buyers, platforms, fee structures: all on one stable tab. Every other tab references them. Easier to maintain than scattering definitions.
+- **Archive snapshots.** Quarterly, copy the active log to `archive_2026_q1`. Reference from year-over-year reports. The archive tabs are read-only by convention.
+
+## Pro pitfalls
+
+- **INDIRECT is volatile and slow.** Use it once per pattern, not per cell. The team has had dashboards bog down to multi-second recalc times because a column of 100 INDIRECTs filled instead of one INDIRECT producing a range.
+- **INDIRECT errors are silent until the string resolves.** A dropdown set to a typo'd month name produces `#REF!` with no helpful message. Wrap in IFERROR (lesson 9) with a clear "Pick a valid month" fallback.
+- **Tab names with apostrophes themselves break INDIRECT.** A tab called "Yoav's Campaigns" needs the apostrophe escaped in the INDIRECT string. Easier: don't use apostrophes in tab names.
+- **Cross-sheet formulas don't carry conditional formatting.** A formula `=Campaigns!E2` shows the value but loses the cell's color/bold/etc. Format the destination cell separately.
+- **`Sheet1!A1:A` with no row number** means "from row 1 to the end of column A." Works in cross-sheet refs and is how you future-proof against new rows. Slow if the sheet has lots of empty rows below the data.
+- **Renaming a tab updates direct references but not strings inside QUERY/INDIRECT/IMPORTRANGE.** The team has been bitten by this multiple times: rename "log" to "log_archive" and three QUERIES still reference "log" by string.
+- **Cross-sheet array formulas can spill onto cells that already have content** and produce `#REF!`. Sheets puts the spill error on the formula cell; you have to find and clear the obstructing cells.
+
+## Now do it for real
+
+Click **Start lesson** to provision two tabs: a `data` tab with a small campaign log and a `dashboard` tab with a month dropdown. You'll write three cross-sheet formulas: a direct cross-tab SUM, an INDIRECT-based dynamic SUM driven by the dropdown, and a defensive IFERROR-wrapped INDIRECT that handles the missing-tab case.

@@ -1,0 +1,63 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Conditional formatting: rule-based and formula-based
+
+A campaign log without conditional formatting is a wall of numbers. Sixty rows of Spend, Revenue, ROI. The losing campaign and the breakout winner sit one above the other and look identical. Conditional formatting is the visual layer that turns that wall into something a human reads in two seconds: red on rows that lost money, green on rows that beat target, gray on paused campaigns. It costs nothing at runtime when used correctly, and it's the cheapest way to make a dashboard usable.
+
+## Rule-based vs formula-based: the two big shapes
+
+`Format → Conditional formatting` opens a panel with one toggle that matters: **Single color** or **Color scale**, and inside Single color, the dropdown that decides whether the rule is *condition-based* or *formula-based*.
+
+| Shape | When to use | API conditionType |
+|---|---|---|
+| Greater / less than a number | Single-column thresholds: Spend > 500, ROI < 0 | `NUMBER_GREATER`, `NUMBER_LESS` |
+| Between two numbers | Banding: ROI between 0 and 0.5 looks meh | `NUMBER_BETWEEN` |
+| Text contains | Status columns: paused, killed, blocked | `TEXT_CONTAINS` |
+| Date is | This week, before today | `DATE_BEFORE`, `DATE_AFTER` |
+| Custom formula is | Anything that compares more than one cell or applies cross-row logic | `CUSTOM_FORMULA` |
+
+The decision tree: if the rule is "this cell on its own crosses some threshold", use a condition. If the rule needs to compare the cell to *another cell on the same row* (revenue vs spend, today vs date, status vs target), reach for custom formula.
+
+## Custom formulas: per-row evaluation, with a relativity catch
+
+The custom formula option is where conditional formatting earns its keep. The formula is written as if it applies to the *first* cell in the range. When the rule is applied to `G2:G61`, you write `=G2>F2`. Sheets re-evaluates that formula at every cell in the range, treating the references *relatively*. So the rule fires on G2 when `G2>F2`, on G3 when `G3>F3`, on G4 when `G4>F4`, all the way down. You wrote one formula and you got 60 row-by-row comparisons.
+
+The relativity is the same model as a dragged formula. Which means the same `$` rules apply. Lock the column when you want every row to compare against a fixed value: `=G2>$J$1` highlights any revenue greater than the threshold in `J1`. Lock the row when you want every cell in a row to share the same lookup: `=$D2="Google"` highlights the entire row whenever column D says Google.
+
+The trap: writing `=$G$2>$F$2` by accident. With both anchors locked, the rule evaluates the same comparison once and applies the result to every cell in the range. You either get the whole range green or none of it, and you'll spend ten minutes wondering what's wrong.
+
+## Performance: cheap by default, expensive when paired with volatile functions
+
+Conditional formatting is fast on its own. Sheets evaluates the rule once per cell when the cell or its dependencies change. The cost goes up when the formula references **volatile functions** like `TODAY`, `NOW`, `OFFSET`, `INDIRECT`, or `RAND`, because those re-fire on every recalculation. A rule like `=A2<TODAY()-30` running on a 60-row range is fine. The same rule running on `A:A` over a 50,000-row aggregator workbook with five other volatile rules will make the whole spreadsheet feel laggy.
+
+Two practical guards: bound the range (`A2:A1000`, not `A:A`) and prefer non-volatile alternatives where possible (a static cutoff date in `J1` is cheaper than `TODAY()`).
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns lives in A1:G61. You'll add two conditional-format rules on columns F (Spend) and G (Revenue)."
+/>
+
+Click **Start lesson** to provision the campaign log. Then add two conditional-format rules:
+
+- **`F2:F61`**: Single color, `Greater than` 500. Pick any fill color you like (red works for "this one is expensive, look at it"). Highlights rows where the buyer spent more than $500.
+- **`G2:G61`**: Single color, `Custom formula is` `=G2>F2`. Use a green fill. Highlights every row where revenue beat spend.
+
+The grader reads each rule's range, condition type, and value. It catches a rule on the wrong range, a `Less than` where you wanted `Greater than`, a threshold of 300 instead of 500, and a custom formula that doesn't reference both columns.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **Loss rows in red.** A custom-formula rule of `=$G2<$F2` on the entire data range paints any losing row red across all columns. The dashboard reviewer scans for red and asks "what happened on Tuesday?" instead of squinting at numbers.
+- **ROI > target green, ROI < target amber.** Two rules on the ROI column, ordered by priority. Targets live in a `Config` tab and the rule references them by absolute ref, so changing the target in one place re-paints every dashboard.
+- **Paused campaigns grayed out.** A `TEXT_CONTAINS` rule on the Status column, with the entire row range as the target via custom formula `=$H2="paused"`. Paused rows visually fade so they don't compete with active campaigns for attention.
+
+## Pro pitfalls
+
+- **Ranges that don't extend when new rows arrive.** A rule applied to `F2:F61` covers exactly 60 rows. Tomorrow's row 62 lands without the formatting. Either extend the range (`F2:F1000`) or build a habit of re-checking conditional-format ranges when a tab grows. Tables (Track 1 lesson 17) auto-extend formatting and sidestep this entirely.
+- **Rules duplicated by paste.** Copy-paste a row from one tab to another and the conditional-format rules come along, sometimes with shifted ranges. Two months later the workbook has 14 versions of "the same" rule and you can't tell which one is live. Audit periodically: open the panel and read the list.
+- **The "color = state" anti-pattern.** Painting a cell yellow to mean "needs review" works for one person on one day. Three months later, no one remembers what yellow means. Real status belongs in a Status column with a documented vocabulary. The conditional-format rule reads the column. Color is the visual, not the storage.
+- **Custom formulas with the wrong anchoring.** `=$G$2>$F$2` looks right and is wrong: with both anchors absolute, the rule evaluates once and applies that single boolean to every cell. The rule pattern for "this row is profitable" is `=G2>F2` (no anchors) or `=$G2>$F2` (column-locked, useful when extending the rule across columns).
+- **Volatile functions multiplying cost.** A rule with `TODAY()` on a 50,000-row range, paired with four other rules that also call `TODAY()`, recalcs all 250,000 evaluations on every edit. Either bound the range tightly or stash the volatile value in one cell and reference *that* cell from every rule.

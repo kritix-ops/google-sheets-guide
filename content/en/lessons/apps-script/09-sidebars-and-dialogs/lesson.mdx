@@ -1,0 +1,118 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Sidebars and modal dialogs (HtmlService)
+
+Custom functions live in cells. Triggers fire on events. **Sidebars** and **modal dialogs** are the third UI surface: full HTML panels docked to the workbook, hosted by Apps Script through the `HtmlService` API. They let you build forms, multi-step wizards, dashboards, and approval flows that live alongside the grid rather than inside it.
+
+Three shapes the same HtmlService output can take:
+
+| Method | What it produces |
+|---|---|
+| `showSidebar(html)` | 300px-wide persistent panel docked to the right of the grid. The user can keep editing the sheet while the sidebar is open. |
+| `showModalDialog(html, title)` | Centered floating window. Blocks the rest of the sheet until dismissed. Use for confirms and one-step inputs. |
+| `showModelessDialog(html, title)` | Centered floating window that does NOT block the sheet. Less common; useful for inspectors that update as the user moves around. |
+
+All three are called on `SpreadsheetApp.getUi()`. All three take an `HtmlOutput` built by `HtmlService`.
+
+## Building an HtmlOutput
+
+Two ways to construct the output:
+
+```js
+// From a file in the Apps Script project. Most common: keeps HTML
+// separate from JS, gets editor syntax highlighting.
+const html = HtmlService.createHtmlOutputFromFile("Reports");
+
+// From an inline string. Useful for quick one-off prompts; doesn't scale.
+const html = HtmlService.createHtmlOutput("<h2>Report</h2><p>...</p>");
+```
+
+The argument to `createHtmlOutputFromFile` is the **file name as shown in the Apps Script editor**, not the filename on disk. The editor stores HTML files with a `.html` extension automatically; you reference them without it. `"Reports"` in code, `Reports.html` in the file picker.
+
+Then chain on the output to set the title and dimensions:
+
+```js
+const html = HtmlService.createHtmlOutputFromFile("Reports")
+  .setTitle("Reports")
+  .setWidth(300)  // dialogs only: sidebars ignore this and are always 300px
+  .setHeight(400); // dialogs only
+```
+
+`setTitle` is the visible label at the top of the sidebar or dialog. Skip it and the panel still works, but the header reads blank.
+
+## A note on this course's sidebar
+
+This course's bound Apps Script project already includes a reserved HTML file named `Sidebar`: that's the shell that hosts the in-sheet companion you're reading right now. You cannot use `"Sidebar"` as a file name for your own work in this lesson: the provisioner will silently drop any seed file with that name, and `createHtmlOutputFromFile("Sidebar")` would point at the course shell, not your code. The assignment uses **`"Reports"`** instead. Outside this course, in your own workbook, you can name your HTML file anything you want.
+
+## The sandbox
+
+The HTML you load runs inside an **iframe** served from `googleusercontent.com`, not from your workbook's domain. That has a handful of consequences worth knowing before you write a complex sidebar:
+
+- **`<base target="_top">` belongs in every `<head>`.** Without it, links inside the sidebar open inside the iframe (and break, because the iframe is sandboxed). With it, they open the parent tab. Every HtmlService template Google ships starts with that tag.
+- **No direct access to the spreadsheet from inside the HTML.** The HTML can't read or write cells, can't call `SpreadsheetApp`. To do those things, the client-side JS calls back into the Apps Script server using `google.script.run`. (We touch on that below; a later track covers it in depth.)
+- **`position: fixed` and `position: sticky` do not work** the way you expect inside the sandbox. They behave like static positioning. If you want a sticky footer, use `position: absolute` inside a relatively-positioned container that fills the iframe height.
+- **External resources are subject to the iframe's Content Security Policy.** You can link to a CDN stylesheet or font from a CSP-allowed host (Google Fonts works; arbitrary CDNs may not). Inline `<style>` and inline `<script>` work fine.
+- **Relative URLs to your own server do not resolve.** The iframe's origin is Google's, not yours. Images, fonts, and scripts that you "host" only work if they're served from an absolute https URL.
+
+## Client-to-server calls (preview)
+
+The HTML file can include `<script>` blocks. To call back into your `.gs` code, use `google.script.run`:
+
+```html
+<script>
+  function refresh() {
+    google.script.run
+      .withSuccessHandler(function(spend) {
+        document.getElementById("spend").innerText = spend;
+      })
+      .getTodaysSpend();
+  }
+  refresh();
+</script>
+```
+
+`getTodaysSpend` is a function declared at the top level of any `.gs` file in the project. Apps Script bridges the call across the sandbox boundary. We mention it here because most non-trivial sidebars need it; a later track covers the full client-server lifecycle.
+
+## When to reach for which shape
+
+- **Sidebar**: multi-step flows, persistent UI that the user wants to keep open while working in the grid. The team's "Campaign builder" is a sidebar: form fields walk the buyer through naming a new campaign, picking a vertical from the canonical list, choosing a platform, generating the campaign-name string. It stays open across sheet edits.
+- **Modal dialog**: one-shot confirms and one-step inputs. "Bulk-archive 47 paused campaigns? [Cancel] [Archive]." The blocking nature is the feature: it prevents the user from clicking elsewhere mid-confirm.
+- **Modeless dialog**: rare. Inspector panels that update on selection are the main use case. In practice, sidebars handle most of the same jobs more elegantly.
+
+## Used in the wild
+
+Two patterns from the team:
+
+- **Campaign builder sidebar.** A multi-step form: pick the buyer, pick the vertical from the canonical PR-list, pick the platform, pick the country, choose the campaign type (`permax`, `rsoc`, `s1d`, `tc`). On submit, the sidebar calls a server function that constructs the campaign-name string from the pieces and appends a new row to the campaigns log. The full form lives in `Sidebar.html` (in their workbook, not this course's: they don't share the reserved name) and the server-side row-append is in `Code.gs`.
+- **Bulk-archive confirm dialog.** When the buyer selects 50+ rows and clicks "Archive selected", a modal dialog opens with the row count, the date range, and the total spend covered. Two buttons: Cancel and Archive. Blocking behaviour is critical here: the row selection survives the modal, so the user can't lose the context while confirming.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61. The assignment doesn't read from the grid yet; it focuses on the UI scaffolding. You'll add server-to-client wiring in a later lesson."
+/>
+
+The starter project has two files for you to edit:
+
+1. **`Lesson.gs`**: declares `showReportsSidebar()` with an empty body. Fill it in so it:
+   - Builds an `HtmlOutput` from the project's `Reports` HTML file using `HtmlService.createHtmlOutputFromFile("Reports")`.
+   - Sets the panel title to `"Reports"` with `.setTitle("Reports")`.
+   - Opens it with `SpreadsheetApp.getUi().showSidebar(html)`.
+2. **`Reports.html`**: currently a stub with a placeholder paragraph. Replace the stub with real markup: a heading (`<h2>Spend report`), a paragraph that mentions what the panel shows. Keep the `<base target="_top">` in the head.
+
+Save the project. Switch back to the sheet. From the Apps Script editor, run `showReportsSidebar` once. The first run prompts for auth on the UI scope; accept it. After that, the sidebar opens immediately on every run.
+
+The grader checks: the function exists, the function body uses HtmlService correctly with the `"Reports"` file name, the Reports HTML file exists with a real body and heading, and the file references `"Reports"` (not the reserved `"Sidebar"` shell name) in `createHtmlOutputFromFile`.
+
+## Pro pitfalls
+
+- **The sidebar tab doesn't survive a reload.** Refresh the workbook and the sidebar closes silently. If you have a "Show sidebar" entry on a custom menu, the user just clicks it again. Don't put critical state in the sidebar: keep it in cells or in the script's `PropertiesService` so a reload doesn't lose it.
+- **Modal dialogs block the whole sheet.** No editing, no scrolling, no clicking elsewhere until the user dismisses the dialog. Use them sparingly: they break flow if used for anything other than a one-step confirm.
+- **`setTitle` on a sidebar is the visible heading at the top of the panel.** If you set it to an empty string, the header is blank but the panel still has a top bar.
+- **The HTML file name is case-sensitive.** `createHtmlOutputFromFile("reports")` doesn't find `Reports.html`. The editor's file picker shows the canonical capitalization.
+- **Relative paths don't work for images and fonts.** The iframe is served from `googleusercontent.com`, not from your workbook's domain. Use absolute https URLs to a host you control.
+- **`position: fixed` is silently ignored inside the iframe.** Sticky footers and toolbars need different markup: usually a flex container with `flex-direction: column` and a footer that takes its natural height at the bottom.
+- **External scripts hit the CSP wall.** A `<script src="https://some-cdn/jquery.js">` may load (Google Fonts is allowed; some CDNs are not): it depends on Google's allowlist, which changes. The robust pattern: inline the JS you need, or vendor it into the HTML file's `<script>` block.
+- **Sidebar HTML doesn't have access to the cells.** You can't write `document.getElementById("a1").innerText = spreadsheet.getRange("A1").getValue()`. Reads and writes go through `google.script.run` from the client back to a `.gs` function. The sandbox is the wall.
+- **The reserved `"Sidebar"` filename in this course.** If you put `"Sidebar"` in `createHtmlOutputFromFile(...)`, you'll either get the course shell (not your code) or a "file not found" error if the shell isn't bound. The assignment uses `"Reports"` to avoid the collision.

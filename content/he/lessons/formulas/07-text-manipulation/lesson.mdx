@@ -1,0 +1,125 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# מניפולציה של טקסט: LEFT, RIGHT, MID, FIND, SUBSTITUTE
+
+מידע אמיתי מגיע מלוכלך, במיוחד אחרי שעבר בחצי תריסר פלטפורמות לפני שמגיע אליכם. שמות verticals עם סיומות לא עקביות, קודי קמפיין דחוסים במטא-דאטה, שמות media buyers שצריך לקצר בשביל לג'נד של גרף. פונקציות חיתוך הטקסט מטפלות בניקיון היומיומי. פונקציות העיצוב (UPPER, LOWER, TRIM) משיעור 3 מטפלות ב-case וב-whitespace, השיעור הזה מטפל בחיתוך והחלפה.
+
+## LEFT, RIGHT, MID: חילוץ לפי מיקום
+
+שלוש פונקציות אחיות, כל אחת מקבלת מחרוזת ומספר.
+
+- `LEFT(text, n)` מחזיר את `n` התווים הראשונים
+- `RIGHT(text, n)` מחזיר את `n` התווים האחרונים
+- `MID(text, start, n)` מחזיר `n` תווים החל ממיקום `start` (1-indexed)
+
+שמות ה-verticals של הצוות כולם מסתיימים ב-`" PR"` לפי הקונבנציה. כדי לקבל רק את הנושא, להוריד את 3 התווים האחרונים, צריך `LEFT` בשילוב עם `LEN`.
+
+<MiniGrid
+  data={CAMPAIGNS}
+  caption="טבלת הקמפיינים. שמות ה-verticals בעמודה C כולם מסתיימים ב-' PR'."
+  highlight={["C2"]}
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=LEFT(C2,LEN(C2)-3)"
+  task={<>הורידו את הסיומת <code>" PR"</code> משם ה-vertical של הקמפיין הראשון. <code>"Used Cars PR"</code> צריך להפוך ל-<code>"Used Cars"</code>.</>}
+  hint={<><code>LEFT(text, n)</code> לוקח את <code>n</code> התווים השמאליים. האורך הכולל פחות 3 נותן את הכל חוץ מהרווח האחרון ו-"PR".</>}
+  answer={<><code>LEN(C2)</code> הוא 12 (שנים-עשר תווים ב-"Used Cars PR"). מחסירים 3 כדי להוריד את ה-" PR" שבסוף, מקבלים 9. <code>LEFT(C2, 9)</code> מחזיר "Used Cars". התבנית הזאת (LEFT עם LEN פחות אורך סיומת ידועה) שברירית אם הסיומת משתנה. בכל מקום שבו המידע של הצוות עובר ניקיון לפני join עם מידע מצד הפלטפורמה, זאת הנוסחה. החלופה החזקה כשהתבנית משתנה: <code>REGEXEXTRACT</code> (מכוסה בשיעור 16).</>}
+/>
+
+## FIND: לאתר תו
+
+`FIND(needle, haystack, [start])` מחזיר את ה**מיקום** של ההתאמה הראשונה. הוא 1-indexed ורגיש ל-case. `SEARCH` הוא האח שלא רגיש ל-case.
+
+מרכיבים את `FIND` עם `LEFT`/`RIGHT`/`MID` כדי לחתוך לפי מפריד ידוע במקום מיקום ידוע. ל-vertical כמו `"Used Cars PR"`, המילה הראשונה היא כל מה שמשמאל לרווח הראשון, אבל המיקום משתנה לפי שם ה-vertical.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=LEFT(C2,FIND(" ",C2)-1)'
+  task={<>חלצו את המילה הראשונה משם ה-vertical הראשון. <code>"Used Cars PR"</code> ← <code>"Used"</code>.</>}
+  hint={<>מצאו את הרווח הראשון עם <code>FIND(" ", C2)</code>, ואז קחו את אותו מספר תווים פחות 1 עם <code>LEFT</code>.</>}
+  answer={<><code>FIND(" ", C2)</code> מחזיר 5 (הרווח בין "Used" ל-"Cars"). <code>LEFT(C2, 5-1)</code> מחזיר את 4 התווים הראשונים, "Used". ה-<code>-1</code> מוציא את הרווח עצמו. התבנית הזאת מופיעה בכל מקום שבו צריך לפרסר קודי קמפיין. קמפיין בשם "Taboola_UsedCarsPR_DesktopUS_2026-05" אפשר לפצל על כל קו תחתון כדי לחלץ את הפלטפורמה, ה-vertical, הקהל והתאריך, על ידי שרשור FIND עם LEFT/MID/RIGHT לכל סגמנט.</>}
+/>
+
+## LEN: לספור תווים
+
+`LEN(text)` מחזיר את מספר התווים. שימושי לבד לוולידציה ("יש איזשהו שם vertical מעל 30 תווים?") וכאבן בניין בחיתוך.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=LEN(B2)"
+  task={<>ספרו את התווים בשם ה-media buyer הראשון. <code>"Yoav Cohen"</code> אמור לתת <code>10</code>.</>}
+  hint={<><code>LEN(text)</code>. אל תשכחו שהרווח נחשב תו.</>}
+  answer={<><code>LEN</code> סופר כל תו, כולל רווחים, סימני פיסוק, מספרים ואימוג'י. "Yoav Cohen" הוא 10 תווים: Y-o-a-v-רווח-C-o-h-e-n. בפרודקשן, LEN הוא הבסיס לכללי וולידציה: "שם vertical צריך להיות {"<"}= 30 תווים לפני סיומת ' PR'", "שם media buyer לא צריך לעבור 25 תווים כדי להתאים ללג'נד", "קוד קמפיין צריך להיות בדיוק 18 תווים לפי תקן השמות". משלבים עם conditional formatting (טראק 2) כדי לדגל שורות שנכשלות.</>}
+/>
+
+## SUBSTITUTE: להחליף תת-מחרוזת באחרת
+
+`SUBSTITUTE(text, old, new, [occurrence])` מחליף כל מופע של `old` ב-`new`. מעבירים מספר `occurrence` כדי להחליף רק את המופע ה-n. שימושי לקיצור שמות לגרפים, לנרמול מפרידים לא עקביים או להסרת תווים לא רצויים.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=SUBSTITUTE(B2,"Cohen","C.")'
+  task={<>קצרו את שם ה-media buyer הראשון מ-<code>"Yoav Cohen"</code> ל-<code>"Yoav C."</code> בשביל לג'נד של גרף.</>}
+  hint={<><code>SUBSTITUTE(text, old, new)</code>. החליפו את "Cohen" ב-"C.".</>}
+  answer={<>SUBSTITUTE מחפש תת-מחרוזת מילולית (בלי wildcards). הוא מחזיר מחרוזת חדשה, התא המקורי לא משתנה. הארגומנט הרביעי האופציונלי מאפשר להחליף רק את ההתאמה ה-n, שימושי לעריכת רק הקו התחתון השני בקוד קמפיין, למשל. כדי להחליף לפי מיקום ולא לפי תת-מחרוזת, משתמשים ב-<code>REPLACE</code> (פונקציה אחרת: <code>REPLACE(text, start, length, new)</code>).</>}
+/>
+
+<QuickCheck
+  question="איזו נוסחה משיגה באופן אמין את שם הנושא מכל vertical (למשל 'Used Cars PR' ← 'Used Cars', 'Online MBA PR' ← 'Online MBA')?"
+  options={[
+    {
+      id: "a",
+      label: <code>=LEFT(C2, 9)</code>,
+      correct: false,
+      explanation: "אורך מקובע של 9 בסדר ל-'Used Cars PR' (12 תווים פחות 3) אבל נשבר לשמות קצרים או ארוכים יותר. אורך הנושא משתנה.",
+    },
+    {
+      id: "b",
+      label: <code>=LEFT(C2, LEN(C2)-3)</code>,
+      correct: true,
+      explanation: "אורך פחות 3 מוריד את ה-' PR' שבסוף בלי קשר לאורך הנושא. עמיד לכל שם vertical שמכבד את הקונבנציה.",
+    },
+    {
+      id: "c",
+      label: <code>=SUBSTITUTE(C2, " PR", "")</code>,
+      correct: true,
+      explanation: "גם נכון, ואפשר לטעון שנקי יותר כי הוא מפורש לגבי מה מוסרים. גם זה וגם אפשרות B ברמה מקצועית. השתמשו במה שקורא יותר טוב לצוות שלכם.",
+    },
+  ]}
+/>
+
+## איך בוחרים
+
+| מטרה | מה בוחרים |
+|---|---|
+| לקחת את N התווים הראשונים/אחרונים | `LEFT` / `RIGHT` |
+| לקחת N תווים ממיקום ידוע | `MID` |
+| למצוא מיקום של תו | `FIND` (רגיש ל-case) או `SEARCH` |
+| להחליף תת-מחרוזת בכל מופע | `SUBSTITUTE` |
+| להחליף לפי מיקום | `REPLACE` |
+| לספור תווים | `LEN` |
+| חילוץ מבוסס תבנית | `REGEXEXTRACT` (שיעור 16 מכסה regex לעומק) |
+
+## נפוץ בשטח
+
+- **הורדת הסיומת " PR" מכל עמודת vertical.** או כ-LEFT+LEN inline או כ-SUBSTITUTE לפי סיומת. נעשה פעם אחת בראש טאב "clean" דרך ARRAYFORMULA, ככה שכל הגיליונות במורד הזרם מקבלים את הגרסה רק-עם-נושא.
+- **פירסור קודי קמפיין.** קודים כמו `Taboola_UsedCarsPR_DesktopUS_2026-05` משרשרים FIND+MID לחילוץ פלטפורמה, vertical, תג קהל, תקופה, בדרך כלל בונים 4 עמודות ליד עמודת הקוד.
+- **קיצור שמות media buyers ללג'נדים של גרפים.** SUBSTITUTE של שם המשפחה לאות, או LEFT(buyer, FIND(" ", buyer)-1) כדי לקחת רק את השם הפרטי.
+- **נרמול מפתחות join.** משלבים UPPER/LOWER (שיעור 3) עם TRIM ו-SUBSTITUTE לפני XLOOKUP בין גיליונות, במיוחד כששני המקורות הגיעו מפלטפורמות שונות עם קונבנציות שונות.
+
+## מלכודות מקצועיות
+
+- **`FIND` מחזיר `#VALUE!` כשאין התאמה.** אם מפרסרים מפריד שאולי לא קיים, עוטפים ב-`IFERROR` (שיעור 9): <code>=IFERROR(LEFT(A2, FIND(" ", A2)-1), A2)</code>.
+- **`SUBSTITUTE` רגיש ל-case.** `=SUBSTITUTE("Cohen Cohen", "cohen", "C.")` מחזיר "Cohen Cohen" בלי שינוי. או מעבירים את ה-case הנכון או עוטפים את שני הצדדים ב-`LOWER()`.
+- **`LEFT(A2, LEN(A2)-3)` מחזיר זבל למחרוזות קצרות מ-3 תווים.** הוא מחזיר LEFT עם ספירה שלילית, מה ששוגה. הוסיפו משמר עם `IF(LEN(A2)<=3, "", LEFT(...))` למידע מבולגן.
+- **Whitespace בלתי נראה.** `=LEN(A2)` למה שנראה כמו "Yoav" יכול להחזיר 5 אם יש רווח אחרי. עושים TRIM קודם בזמן פירסור.
+
+## עכשיו לעבודה אמיתית
+
+לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים. תכתבו ארבע נוסחאות טקסט: הורדת הסיומת " PR", קבלת המילה הראשונה של ה-vertical, ספירת תווים בשם media buyer, וקיצור שם media buyer ללג'נד של גרף.

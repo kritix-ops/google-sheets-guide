@@ -1,0 +1,78 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# הערות, הצעות, וזרמי סקירה
+
+spreadsheet בלי הערות הוא חידה. חצי שנה אחר כך, אף אחד לא יודע לענות על "למה השורה ב-14 צבועה צהוב?", "מה בדיוק כלול בעמודת Spend?", "מי החליט לסנן את FR?". הנתונים שם, השיקול שהוביל אליהם איננו. notes ו-comments הם התיעוד של ה-spreadsheet, וב-dashboard עם הרבה IMPORTRANGE הם הדבר היחיד שעומד בינכם לבין ארבע שעות חפירה ארכיאולוגית.
+
+## שלוש טעמים, שלוש משימות
+
+ל-Sheets יש שלושה משטחי הערה נפרדים. בממשק הם נראים דומים, ובפועל הם דברים שונים מאוד.
+
+| משטח | נתיב בממשק | מה זה | מתי מושיטים אליו יד |
+|---|---|---|---|
+| **Note** | Insert → Note (Ctrl+Alt+M) | הערה inline שדבוקה לתא בודד. בלי תגובות, בלי resolve, בלי @-mentions. | הגדרות, מקור הנתונים, מפתחות צבע ("צהוב = X"), יחידות. |
+| **Comment** | Insert → Comment (Ctrl+Alt+M, ואז Comment) | דיון מ-thread עם @-mentions, הקצאה, ו-resolve. גר ב-Drive Comments API. | זרמי סקירה, "המספר הזה נכון?", שיחות בסגנון code review. |
+| **Suggested edit** | תפריט עריכה → Suggesting | שינוי ערך לתא בודד שבעלי הקובץ מאשרים או דוחים. | מאפשרים למי שאינו owner להציע שינויים, בלי לתת לו edit access. |
+
+ה-grader של השיעור הזה קורא **notes**, לא comments. ה-Sheets API חושף notes ישירות על התא (קוראים אותם דרך `cellNote`). comments מ-thread גרים ב-Drive Comments API, וזה משטח גישה שונה שלא מהווה חלק מ-metadata של הגיליון. notes נוסעים עם התא בהעתק-הדבק, comments לא נוסעים, וגם לא suggested edits.
+
+## Notes הן תגי המקור של הצוות
+
+לכל תא כותרת בכל גיליון Aggregator יש note. ה-note עונה על שלוש שאלות שאדם שיתחזק את ה-spreadsheet בעתיד ישאל:
+
+1. **מאיפה העמודה הזאת מגיעה?** "Pulled via IMPORTRANGE from `Taboola export`, sheet `Daily`."
+2. **כמה היא טרייה?** "Refreshes hourly, lag up to 15 minutes after platform updates."
+3. **מה המספר הזה בדיוק?** "Net revenue after platform fees. Gross is in column J."
+
+שלושה משפטים, שנכתבים פעם אחת כשהעמודה נוצרת, ומחזירים את ההשקעה בכל פעם שמישהו חדש פותח את ה-spreadsheet. ה-stack של הצוות, שמלא ב-IMPORTRANGE, הופך את זה ללא-אופציונלי: כששינוי שם של גיליון מקור שובר את `Spend` והעמודה פתאום מייבאת `Revenue`, ה-note הוא הדרך המהירה ביותר להבין מה העמודה *הייתה אמורה* לייצג.
+
+תבנית שנייה: לכל תא של "magic constant" יש note. אם ב-`J1` יושב `0.27` והמספר הזה הוא מכפיל עמלת הפלטפורמה, note שאומר "Platform fee, sourced from Q1 2026 contract, see Drive folder /contracts/2026-q1" הופך מספר מסתורי למספר שאפשר להגן עליו.
+
+## Comments הם לסקירה, לא לתיעוד
+
+notes הם עמידים. comments הם שיחה. הקונבנציה:
+
+- **מוכנות לסקירה.** לפני שולחים dashboard להנהלה, ה-media buyer מקצה לעצמו comment על כל תא KPI: "Sanity-checked against Taboola Backstage, off by 0.4%, acceptable." resolve של ה-comment הופך לחתימה על האישור.
+- **ניתוב שאלות.** `@dina.dayan@flexelent.com Are you still pulling FR? The CTR cratered week-over-week.` ה-@-mention מייצר Drive notification, אפשר להקצות את ה-comment, ו-resolve סוגר את הלולאה.
+- **אי-הסכמות.** כששני media buyers לא מסכימים על מתודולוגיה, thread של comment הוא הקבלה. resolve בלי הסכמה נחשב טעם רע, והצוות מתייחס ל-comments פתוחים כחוסם לשיתוף ה-spreadsheet הלאה.
+
+comments ניתנים לחיפוש ב-Drive (`type:spreadsheet has:comments`), מה שהופך אותם לכלי הנכון ל"מצא כל spreadsheet שבו מישהו העלה שאלה מתודולוגית", ולכלי הלא נכון ל"הסבר מה העמודה הזאת אומרת", כי אף אחד לא הולך לחפש ב-Drive כדי לקרוא את ההגדרה של עמודה אצלכם.
+
+## מצב Suggesting: הנתיב של התורם הזהיר
+
+מחליפים את תפריט העריכה מ-`Editing` ל-`Suggesting`, וכל שינוי שמקלידים הופך להצעה ש-owner של הקובץ מאשר. ב-Docs זה אוניברסלי. ב-Sheets ה-UX מחוספס יותר: זה ברור פר-תא, זה לא מציג נוסחאות בצורה טובה, ורוב הלומדים מגלים את זה במקרה ונכנסים לפניקה. הוא קיים לתרחיש ספציפי אחד ב-workflow של הצוות:
+
+- **תרומות ל-brief tracker.** הגיליון Briefs בבעלות ראש האסטרטגיה. ל-media buyers אין edit access, יש להם suggest access. media buyer שמציע שינוי vertical מגיש הצעה, ראש האסטרטגיה מאשר או דוחה, ו-audit trail אוטומטי.
+
+אם מוצאים את עצמכם מושיטים יד ל-Suggesting mode עבור כל דבר אחר, סביר להניח שמה שאתם רוצים זה comment.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns גר ב-A1:G61. תוסיפו שלוש notes על תאי הכותרת, אחת למקור, אחת להגדרה, ואחת לאזור הזמן."
+/>
+
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. ואז מוסיפים שלוש notes דרך Insert → Note (Ctrl+Alt+M):
+
+- **`A1` (כותרת Date)**: note שמסבירה את אזור הזמן. חייבת לכלול את ה-substring `UTC`. תבנית: "Dates in UTC; convert to GMT+3 for the team office hours view."
+- **`E1` (כותרת Spend)**: note שמסבירה את מקור הנתונים. חייבת לכלול את ה-substring `IMPORTRANGE`. תבנית: "Pulled via IMPORTRANGE from Taboola export, refreshes hourly."
+- **`G1` (כותרת Revenue)**: note שמסבירה את ההגדרה. חייבת לכלול את ה-substring `net`. תבנית: "Net revenue after platform fees."
+
+ה-grader קורא את ה-note של כל תא דרך ה-Sheets API ובודק substring match בלי רגישות לאותיות גדולות/קטנות. הניסוח המדויק הוא שלכם, ה-substrings הם החוזה.
+
+## נפוץ בשטח
+
+ב-spreadsheets האמיתיים של הצוות:
+
+- **לכל תא כותרת בגיליון Aggregator יש note של מקור.** כשפתאום `Spend` מתחיל לייבא את ה-string `"$412.50"` במקום מספר, ה-note אומר לכם איזה spreadsheet מקור, איזה טווח מקור, וחלון ה-refresh של IMPORTRANGE. זה debug של 30 שניות במקום 30 דקות.
+- **לכל תא KPI ב-dashboard יש comment.** לפני שדק יוצא להנהלה, ה-media buyer מקצה comment לכל מספר ראשי עם שיטת ה-sanity check שלו. הסוקרים קוראים את ה-comments, לא את הנוסחאות.
+- **ה-brief tracker משתמש ב-Suggesting לתרומות שאינן של owner.** ל-media buyers אין edit על הגיליון Briefs, הם מציעים. ראש האסטרטגיה מאשר ביום שני בבוקר, והיסטוריית ההצעות משמשת גם כיומן השינויים.
+
+## מלכודות מקצועיות
+
+- **notes לא שורדות `Paste special → Values only`.** אם בונים גיליון Cleaned על ידי הדבקה מהייבוא הגולמי, כל note על תאי המקור הולכת לאיבוד. מוסיפים את ה-notes שוב על היעד, או עוטפים את ה-pipeline כך שהערכים זורמים דרך נוסחאות, שמשמרות את ה-notes על תאי היעד שכתבתם.
+- **comments לא שורדים `File → Make a copy`.** ההעתק החדש מתחיל עם אפס comments, וכל ה-thread נעלם. אם צריכים את היסטוריית הדיון, משתפים את המקור. ההעתקים הם ל-templates נקיים.
+- **Suggesting mode ב-Sheets זה לא Suggesting mode ב-Docs.** לומדים שמכירים את Suggestions ב-Docs מגיעים עם ציפייה ל-UX זורם של סקירה, ומקבלים pop-up פר-תא שלא מציג נוסחאות בצורה טובה. אזהירו אותם, ועדיף, נתבו אותם ל-Comments אלא אם ה-workflow באמת צריך סמנטיקה של אישור שינוי.
+- **קריאת notes דרך ה-API דורשת fetch shape נכון.** ה-grader של השיעור הזה משתמש ב-`cellNote`, שמתחת לפני השטח קורא את `notes` מתוך ה-gridData payload (אנחנו כבר מעבירים `includeGridData=true` ב-`sheetsReader.ts`). אם מחברים Sheets API client משלכם, payload עם `gridData` ריק יחזיר `null` לכל note גם כשיש notes בממשק.
+- **לא שמים lineage קריטי בתוך comment.** comments אפשר לעשות להם resolve ולהסתיר, threads מתארכים אחרי שה-spreadsheet משותף לרוחב, ובהעתקים הם נעלמים לגמרי. lineage שייך ל-note. דיון שייך ל-comment. שומרים על הקו ביניהם חד.

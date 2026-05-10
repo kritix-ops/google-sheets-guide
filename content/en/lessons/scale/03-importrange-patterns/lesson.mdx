@@ -1,0 +1,80 @@
+# IMPORTRANGE patterns and pitfalls
+
+`IMPORTRANGE` is how this team's workbooks talk to each other. It's also the single biggest source of broken formulas, weird permission errors, and "the dashboard is stale and nobody noticed" mornings. Every aggregator in the company has at least one `IMPORTRANGE`, usually a dozen, sometimes fifty. The function is simple. The patterns around it are not.
+
+## What IMPORTRANGE actually does
+
+```
+=IMPORTRANGE(source_url, range_spec)
+```
+
+`source_url` is the full Google Sheets URL of another workbook. `range_spec` is a string like `"Campaigns!A1:G61"`. When you commit the formula, Sheets opens a connection to the source workbook, fetches the range, and spills the result into your tab starting at the cell with the formula.
+
+Three things are happening under the hood that you need to understand:
+
+1. **The first time you reference a source workbook, Sheets prompts you to grant access.** A blue "Allow access" button appears in the cell. Click it and a connection is established between the two files. Until you do, the cell shows `#REF!` with "You need to connect these sheets" in the tooltip.
+2. **The pull is cached.** Sheets refreshes IMPORTRANGE roughly every 30 minutes when the source is idle, and within seconds when the source changes. You cannot force a sub-minute refresh.
+3. **Multiple IMPORTRANGEs from the same source share one connection.** Fifty cells pulling from the same workbook do not make fifty separate network calls. They share the cached pull.
+
+## The auth grant is per workbook, not per range
+
+You grant access once per source workbook. After that, every IMPORTRANGE in your destination can read every range from that source. If the source owner revokes access (or leaves the company and their account is deactivated), every IMPORTRANGE pointed at that source breaks at once. The fix is for somebody with edit access to re-grant. Plan for this: the workbook should not have a single point of failure on one person's account.
+
+## Bounded ranges, always
+
+`IMPORTRANGE(url, "Campaigns!A:G")` pulls *every* row in column A through G of the source's Campaigns tab. If the source has a 30,000-row archive in those columns that nobody told you about, your aggregator just inherited it. Use a bounded range every time:
+
+```
+=IMPORTRANGE("https://docs.google.com/spreadsheets/d/.../edit", "Campaigns!A1:G61")
+```
+
+Yes, you'll have to update the range when the source grows. That's a feature, not a bug. It forces a deliberate update instead of a silent expansion.
+
+## The fan-out pattern
+
+A dashboard often pulls from five raw tabs (one per platform). Five `IMPORTRANGE` formulas pointing at five source workbooks. That's fine. The trap is when you scale this further:
+
+- **Same source, many destinations.** A `Raw - Taboola` sheet whose IMPORTRANGE is referenced by twelve dashboards is a connection with twelve readers. Refreshes propagate to all twelve when the source changes. Fine.
+- **Many sources, one destination.** A single dashboard with fifty IMPORTRANGEs spread across twenty different source workbooks is fragile. Each source workbook is an independent dependency. Any one of them being moved, renamed, or revoked breaks the dashboard.
+- **Dynamic source URL via INDIRECT.** `IMPORTRANGE(INDIRECT(A1), ...)` is a real pattern people try when they want to switch sources dynamically. It breaks IMPORTRANGE's caching (because the cache key changes), it re-evaluates on every edit (`INDIRECT` is volatile), and it usually doesn't work the way the author expected. Avoid it.
+
+## The defensive fallback
+
+A dashboard reading from an `IMPORTRANGE` should not show `#REF!` to whoever opens it. Wrap the call:
+
+```
+=IFERROR(
+  IMPORTRANGE("https://docs.google.com/spreadsheets/d/.../edit", "Campaigns!A1:G61"),
+  "data unavailable"
+)
+```
+
+When the source breaks (revoked permissions, deleted file, renamed range), the cell shows "data unavailable" instead of an error and the dashboard's downstream formulas (a `SUMIFS`, a chart) keep working with a sensible empty input.
+
+## Now do it for real
+
+Click **Start lesson** to provision a Dashboard tab. You'll write three things:
+
+- **A1**: a primary IMPORTRANGE call against the example source URL the lesson supplies, with the range bound to `Campaigns!A1:G61`.
+- **B1**: the same call wrapped in `IFERROR(..., "data unavailable")` as the defensive pattern.
+- **C1**: a short label that captures the team rule, e.g. `Always bound IMPORTRANGE to known row counts`.
+
+A note about how this test works: in a real workbook, `IMPORTRANGE` actually reaches into a different file. In this single-tab test fixture there's no source file, so the cell won't render real data. The grader checks the formula *shape*: function name, recognizable Sheets URL, bounded range, and the IFERROR wrapper. That's the part that travels.
+
+## Used in the wild
+
+The team's main aggregator pulls from five "Raw - Platform" workbooks via IMPORTRANGE. The convention:
+
+- Each Raw workbook is owned by `info@flexelent.com`, not by an individual. When media buyers turn over, the connections survive.
+- Every IMPORTRANGE call is bounded: `A1:G5000` for the per-platform Raw tabs (headroom for two years of growth), `A1:Z100` for lookup tabs.
+- Every IMPORTRANGE in the dashboard is wrapped with `IFERROR`. The fallback is `"refreshing..."` for time-sensitive pulls and `0` or `""` for ones that feed into `SUMIFS`.
+- When a refresh feels stuck, the manual fix is `Edit > Refresh all data sources`. Sometimes the auto-refresh just gets behind.
+
+## Pro pitfalls
+
+- **Forgetting to grant access.** A fresh IMPORTRANGE shows `#REF!` until somebody with edit access clicks "Allow access". If you build a dashboard at 8pm and the morning person opens it at 7am, they see `#REF!` and panic. Grant access yourself before you ship.
+- **The source workbook is renamed.** The URL keeps working (Google Drive uses the file ID, not the name). What breaks is human readability: the "what is this URL" question stops having an obvious answer. Document the source.
+- **The source workbook is deleted.** Every cell goes `#REF!`. There's no recovery besides recreating the source or restoring it from Drive trash within 30 days.
+- **Circular IMPORTRANGE.** Workbook A imports from B which imports from A. Sheets detects the cycle and shows `#REF!` with "circular dependency" in both. Don't.
+- **Adding a column to the source.** If the existing IMPORTRANGE was bounded to `A:G` (seven columns), the new H column does not appear in the destination. You have to update the range. This is a *feature*, but it surprises people. Tell the team when you add a column to a source.
+- **`IMPORTRANGE` inside `ARRAYFORMULA` or `LAMBDA`.** Mostly works, occasionally hits weird edge cases, almost never necessary. Use a plain IMPORTRANGE in one cell and reference it from your formulas.

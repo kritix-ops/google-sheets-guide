@@ -1,0 +1,146 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Quotas ו-batching: לעשות ש-Apps Script ישרוד על נתונים אמיתיים
+
+כל קריאה של Apps Script ל-service של Google היא round-trip ברשת. הסקריפט שלכם חי על תשתית של Google, ה-spreadsheet חי על תשתית של Google, ו-`getValue()` על F2 עדיין עובר את שכבת ה-RPC הפנימית שלהם. קריאה אחת על תא אחד מסתיימת במספר מילישניות ולא שמים לב. אותו קוד בלולאה על 5,000 שורות מסתיים בחמש דקות, אם הוא בכלל מסיים לפני שה-timeout של 6 דקות הורג אותו. התיקון הוא **batching**: מצמצמים את הקריאות התא-תא לקריאת range אחת ולכתיבת range אחת. הדפוס מופיע בכל מקום, ב-Sheets, ב-Drive, ב-Gmail, ב-UrlFetchApp, וזה הכלי הכי חזק לביצועים ש-Apps Script מציע.
+
+## העלות של round-trip
+
+פותחים את פאנל ה-Executions בעורך Apps Script, מריצים את הצורה הנאיבית על 100 שורות:
+
+```js
+function nightlyNaive() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  for (let row = 2; row <= 101; row++) {
+    const spend = sheet.getRange(row, 6).getValue();
+    sheet.getRange(row, 10).setValue(spend * 3.7);
+  }
+}
+```
+
+זה 200 round-trips: 100 קריאות, 100 כתיבות. כל אחד הוא עשרות מילישניות. סך הכול: ~6 שניות. עכשיו תארו לעצמכם את אותו קוד על ה-aggregator החודשי של 5,000 שורות: 10,000 round-trips, ~5 דקות. על הארכיון השנתי של 50,000 שורות: הרבה מעבר ל-quota של 6 דקות לחשבון consumer, והסקריפט קורס באמצע הלולאה כשהשורות שלא הגיע אליהן עדיין ריקות.
+
+הצורה המאוגדת:
+
+```js
+function nightlyBatched() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  const spend = sheet.getRange("F2:F101").getValues();         // קריאה אחת
+  const ils = spend.map(row => [row[0] * 3.7]);                 // ב-JS, חינם
+  sheet.getRange("J2:J101").setValues(ils);                    // כתיבה אחת
+}
+```
+
+שני round-trips, ללא קשר למספר השורות. עבודת 5,000 השורות שלקחה 5 דקות לוקחת עכשיו 3 שניות. עבודת 50,000 השורות שעשתה timeout לוקחת עכשיו 30 שניות. אותה לוגיקה, שני שינויים: `getValues` במקום לולאה של `getValue`, `setValues` של מערך דו-ממדי במקום לולאה של `setValue`.
+
+## הצורה הדו-ממדית שנושכת
+
+`getValues()` תמיד מחזיר מערך דו-ממדי, גם לעמודות בודדות. עבור `F2:F101` מקבלים:
+
+```
+[[412.5], [285.3], [612.0], [187.25], ...]
+```
+
+100 מערכים פנימיים, כל אחד עם אלמנט אחד. ההגעה ל-spend בשורה 2 היא `values[0][0]`, לא `values[0]`. ה-map שמומיר ל-ILS חייב להחזיר את אותה צורה:
+
+```js
+const ils = spend.map(row => [row[0] * 3.7]);
+//                            ^^^^^^^^^^^^^^
+//                            שימו לב לעטיפת ה-[].
+```
+
+מי שכותב `spend.map(row => row[0] * 3.7)` מקבל מערך חד-ממדי (`[1526.25, 1055.61, ...]`) ו-`setValues` זורק:
+
+```
+Exception: The number of rows in the data does not match the number of rows in the range.
+```
+
+זו הטעות הכי נפוצה ב-batching. כלל הצורה: **`setValues` מצפה למערך דו-ממדי באותה צורה כמו ה-range.** כתיבת עמודה בודדת היא `[[x], [y], [z]]`. כתיבת שורה בודדת היא `[[x, y, z]]`. כתיבת תא בודד היא `[[x]]` (או פשוט משתמשים ב-`setValue` לתא אחד).
+
+## Drive ושאר services עוקבים אחר אותו דפוס
+
+הסקריפט של רנימינג verticals של הצוות פעם עשה את זה:
+
+```js
+const folder = DriveApp.getFolderById(FOLDER_ID);
+for (const oldName of OLD_NAMES) {
+  const file = folder.getFilesByName(oldName).next();         // round-trip לקובץ
+  file.setName(file.getName().replace(" pr", " PR"));          // עוד אחד
+}
+```
+
+10 קבצים = 20 round-trips. הגרסה המאוגדת מבצעת iteration על התיקייה פעם אחת:
+
+```js
+const folder = DriveApp.getFolderById(FOLDER_ID);
+const files = folder.getFiles();                                // iterator אחד
+const toRename = [];
+while (files.hasNext()) {
+  const f = files.next();
+  if (f.getName().endsWith(" pr")) toRename.push(f);
+}
+toRename.forEach(f => f.setName(f.getName().replace(" pr", " PR")));
+```
+
+ה-iterator מבצע paging פנימית; קריאת רשת אחת מכסה ~100 קבצים. עבור תיקייה של 50 קבצים זה עכשיו 2 round-trips במקום 100.
+
+ל-UrlFetchApp יש primitive batch משלו, `UrlFetchApp.fetchAll([req1, req2, req3])` מריץ requests במקביל ומחזיר מערך תשובות. עבור 30 קריאות endpoint זה חותך את ה-wall-clock פי 10.
+
+## Quotas שצריך להכיר
+
+המסמכים של Apps Script מציגים את ה-quotas הקשיחים. אלה שנושכים את הצוות:
+
+| Quota | Consumer (gmail.com) | Workspace |
+|---|---|---|
+| זמן ריצה לכל הרצה | 6 דקות | 30 דקות |
+| URL Fetch ביום | 20,000 | 100,000 |
+| גודל payload של URL Fetch | 50 MB | 50 MB |
+| נמענים באימייל ביום | 100 | 1,500 |
+| Triggers לסקריפט לכל משתמש | 20 | 20 |
+| קריאות Properties / Cache לדקה | (לא מתועד, אבל מוגבל) | (אותו דבר) |
+
+שניים שנושכים קודם:
+
+- **timeout של 6 דקות (חשבונות consumer).** הדפוס התא-תא פוגע בזה על כל דבר מעל ~5,000 שורות. הדפוס המאוגד לא.
+- **20,000 קריאות UrlFetchApp ביום ב-consumer.** trigger שמושך נתונים לכל קמפיין עם קריאה אחת לשורה, רץ כל שעה, עובר את זה ביום רגיל. משתמשים ב-`fetchAll` ומאגדים את ה-requests במעלה הזרם.
+
+עוד אחד מעודן: אין quota מתועד על `SpreadsheetApp.getRange().getValue()` לדקה, אבל בפועל שכבת ה-round-trip מגבילה סביב 600-1,000 קריאות לדקה. אחרי זה, קריאות מתחילות להיחסם, וה-timer של הריצה ממשיך לרוץ מול ה-budget של 6 דקות.
+
+## כלי batching נוספים
+
+מספר primitives שמשתלבים עם דפוס ה-batch:
+
+- **`SpreadsheetApp.flush()`** מאלץ כתיבות בתור להתחייב מיד. שימושי כשקריאה במורד הזרם אמורה לראות את הכתיבות (`setValues(...); flush(); getValues(...);`). Apps Script בדרך כלל מאגד כתיבות אופורטוניסטית; `flush` עושה את התפר מפורש.
+- **`Utilities.sleep(ms)`** להכנסת השהיות מכוונות בין bursts. UrlFetchApp מגביל ב-~600 לדקה; `sleep(100)` בין batches של 10 שומר אתכם מתחת לקצב על pulls ארוכים.
+- **`LockService.getScriptLock()`** כששני triggers עלולים לרוץ באותו זמן ולהתחרות על אותו range. ה-lock מסדר אותם כך שהכתיבות המאוגדות לא נכרכות זו בזו.
+- **`fetchAll([{url, method, headers}, ...])`** לקריאות UrlFetch במקביל. כל המערך יורה בו-זמנית; מערך התשובות שומר על הסדר.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="לוג ה-Campaigns תופס את A1:G61 (60 שורות של נתוני קמפיינים). המשימה: להמיר את F2:F61 (USD spend) ל-J2:J61 (ILS spend) בקריאה מאוגדת וכתיבה מאוגדת."
+/>
+
+קובץ ה-starter `Lesson.gs` כבר מכיל `refactorMe()` עובד, אבל זו הגרסה האיטית התא-תא, 60 קריאות ו-60 כתיבות. גם ה-grader וגם העומס הריאלי מענישים את הצורה הזו. מבצעים רפקטור:
+
+1. מחליפים את קריאות `getValue` של לולאת ה-`for` ב-`sheet.getRange("F2:F61").getValues()` אחת.
+2. בונים מערך דו-ממדי (`[[row[0] * 3.7], [row[0] * 3.7], ...]`) עם `.map`. כל אלמנט הוא בעצמו array של תא אחד.
+3. מחליפים את קריאות `setValue` התא-תא ב-`sheet.getRange("J2:J61").setValues(ils)` אחת.
+
+מוחקים את הלולאה לחלוטין. הנקודה היא ההשוואה: 120 round-trips → 2.
+
+## נפוץ בשטח
+
+- **Taboola pull לילי, אחרי רפקטור.** הסקריפט המקורי כתב 5,000 שורות תא אחר תא ולקח 20 דקות (ופעמים עשה timeout). אחרי רפקטור לקריאה אחת של `setValues` עם מערך דו-ממדי של 5,000 שורות, הוא מסתיים ב-30 שניות. אותה לוגיקה, שתי קריאות API במקום 5,000.
+- **מסלול ההגירה מ-IMPORTRANGE ל-Apps Script.** כשלגיליון במעלה הזרם יש 50,000 שורות ו-`IMPORTRANGE` גורם ל-dashboard לקחת 90 שניות להיפתח, הצוות עובר ל-pull יומי של Apps Script: `Sheets.Spreadsheets.values.get` (או `SpreadsheetApp.openById(...)`) פעם אחת על המקור, `setValues` אחד למראה המקומי, ה-dashboard קורא מהמקומי. מחליף רעננות בזמן אמת (ש-IMPORTRANGE בכל מקרה לא ממש סיפק) בטעינה מיידית.
+- **Trigger לכל buyer ששולח roll-up במייל.** קורא את כל ה-tab `Campaigns` פעם אחת, מחשב סיכומים לכל buyer ב-JS, כותב ל-tab dashboard בקריאה אחת, ואז שולח מייל אחד לכל buyer (עם `UrlFetchApp.fetchAll` אם ל-API של ה-buyer-portal צריך עדכון גם). כל הזרימה לוקחת 4 שניות ל-8 buyers; הגרסה התא-תא לקחה 90 שניות.
+
+## מלכודות מקצועיות
+
+- **`setValues` מצפה למערכים דו-ממדיים גם לכתיבת עמודה בודדת.** `[[x], [y], [z]]`, לא `[x, y, z]`. הודעת השגיאה מצביעה על ספירת שורות, מה ששולח אותך לחפש באג של ספירת שורות כשהטעות האמיתית היא צורה.
+- **Off-by-one כשגודל ה-range לא תואם למערך.** `getRange("J2:J60").setValues(arr60Rows)` זורק כי ה-range הוא 59 שורות. תואמים את ספירת השורות בדיוק או משתמשים ב-`getRange(2, 10, arr.length, arr[0].length)` כדי לקבוע את גודל ה-range מהמערך עצמו.
+- **`SpreadsheetApp.flush()` לפעמים נושא משקל.** trigger שכותב ואז מיד קורא את אותו range יכול לראות את הערכים הישנים כי הכתיבה עדיין בתור. `flush()` ביניהם גורם לקריאה לראות את הכתיבה. בדרך כלל מיותר; כשזה כן חשוב, הסימפטום הוא באג "לא יכול להיות" לסירוגין.
+- **ערבוב של batch וקריאות תא-תא מבטל את החיסכון.** `getValues` אחד ואז לולאת `for` עם `setValue` לכל שורה זה אותה עלות של 60 round-trips כמו המקור. או מאוגד לחלוטין בשני הצדדים או לא בכלל.
+- **Triggers שעושים timeout באמצע כתיבה משאירים נתונים חלקיים.** כשכתיבה של 5,000 שורות עושה timeout בנקודת 6 הדקות, השורות שהתחייבו לפני ה-timeout נשארות; השאר לא. ריצה מאוחרת רואה גיליון לא קונסיסטנטי. עוטפים batches גדולים ב-try/catch וכותבים סימן "השורה האחרונה שהושלמה" כך שריצות חוזרות יוכלו להמשיך.
+- **`UrlFetchApp.fetch` בלולאה פוגע ב-throttle של 600/דקה.** משתמשים ב-`fetchAll` ל-requests במקביל, או ב-`Utilities.sleep(100)` בין bursts כדי להישאר מתחת לקצב על pulls ארוכים. שגיאת ה-throttle שקטה, הקריאה פשוט נחסמת יותר ויותר עד שה-timer של הריצה הורג את הריצה.

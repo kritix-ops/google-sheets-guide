@@ -1,0 +1,82 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Connected Sheets ו-BigQuery
+
+כשהנתונים גדלים מעבר למה ש-Sheet יחיד יכול להחזיק (או למה ש-`IMPORTRANGE` יכול לתפור ביחד), השלב הבא הוא BigQuery. Connected Sheets הוא הגשר: הוא מאפשר להצביע עם Google Sheets על טבלת BigQuery ולמשוך לתוך גיליון extract בר-רענון. קוראים מה-extract עם נוסחאות, charts ו-pivot tables רגילים. לא כותבים SQL אלא אם רוצים.
+
+זו הארכיטקטורה שאליה ה-spreadsheets הכבדים יותר של הצוות עוברים לאורך 2025 ו-2026. שני דברים שכדאי לדעת מראש: הוא דורש מהדורת Workspace שכוללת Connected Sheets (Business Plus ומעלה), וכל רענון מריץ שאילתת BigQuery שמחויבת מול הפרויקט. לשניהם יש השלכות עלות שכדאי לתכנן סביבן.
+
+## מה ש-"מחובר" אומר
+
+extract של Connected Sheets הוא סוג מיוחד של גיליון. שלוש תכונות להבין:
+
+1. **הנתונים לקריאה בלבד ברמת השורה.** ניתן לערוך תאים (Sheets לא יעצור) אבל הרענון הבא מוחק את העריכות. מתייחסים לגיליון ה-extract כ-`Raw -` פלוס אכיפה: עבודה נגזרת חיה על גיליון dashboard נפרד ש*קורא מה-extract*.
+2. **רענון לפי דרישה או לפי לוח זמנים.** לוחצים Refresh ב-connector UI, או מגדירים לוח זמנים יומי / שעתי. הנתונים אינם חיים, אלא מה שהרענון האחרון משך.
+3. **ה-connector מכיר את המקור שלו.** הגיליון נושא מטא-דאטה על פרויקט BigQuery, dataset, table, וכל העמודות שנבחרו. אם ה-schema במעלה משתנה (עמודה נמחקת, type משתנה), ה-connector או נכשל ברענון הבא או מייצר nulls בשקט. שניהם מורגשים, אף אחד מהם לא מתקן את עצמו.
+
+## הקמה
+
+בתפריט Sheets: `Data > Data connectors > Connect to BigQuery`. Sheets מבקש את פרויקט ה-GCP, אחר כך את ה-dataset, אחר כך את הטבלה. ניתן למשוך את כל הטבלה (מתאים לטבלאות dimension קטנות) או לכתוב שאילתה (המהלך הנכון לטבלאות עובדות גדולות). התוצאה נוחתת על גיליון חדש ששמו נבחר על ידיך.
+
+שני חוקי עיצוב שמשתלמים:
+
+- **מסננים ב-connector, לא ב-dashboard.** extract של `SELECT * FROM campaigns_fact` שמביא 50M שורות ל-Sheets בזבזני ו(תלוי מספר שורות) אולי בכלל לא נכנס. extract של `SELECT date, buyer, vertical, platform, spend, revenue FROM campaigns_fact WHERE date >= CURRENT_DATE - 30` הוא מה שבאמת רוצים. המסנן רץ ב-BigQuery, שם הוא זול.
+- **מתזמנים את הרענון להתאים לרעננות שצריך.** דיווח יומי? רענון יומי ב-06:00. ניטור attribution שעתי? רענון שעתי. כל אחד מהם הוא שאילתה שמחויבת.
+
+## מודל העלויות
+
+BigQuery מחייב לפי data scanned לכל שאילתה (כיום סביב $6.25 ל-TiB סרוקה, אבל המספר משתנה, בודקים את המחיר הנוכחי לפני התחייבות). רענון של Connected Sheets extract הוא שאילתה אחת. שני דפוסים שעולים כסף אמיתי:
+
+- **רענון של טבלה 200GB כל חמש עשרה דקות.** זה 200GB כפול 96 רענונים ביום כפול 30 ימים = ~576TB בחודש. ב-$6.25/TiB זה $3,600. ל-dashboard בודד.
+- **שכחה ש-`SELECT *` סורק כל עמודה.** משיכת חמש עשרה עמודות כשצריך רק חמש מכפילה ב-4 את עלות הסריקה. מציינים עמודות מפורש.
+
+המיתון: מחלקים את טבלת BigQuery לפי partitions (כך ש-`WHERE date >= ...` סורק רק partitions אחרונים), בוחרים רק את העמודות שצריך, מתזמנים רענונים בקצב שהעסק באמת צריך, לא בקצב המקסימלי האפשרי. ל-exploration אד-הוק, לוחצים Refresh ידנית במקום להשאיר לוח זמנים שעתי דולק.
+
+## עבודה עם ה-extract
+
+ברגע שהנתונים נוחתים, עובדים איתם כמו עם כל טווח אחר. נוסחאות מפנות אליהם לפי שם גיליון:
+
+```
+=SUM(Campaigns_BQ!F2:F61)
+=COUNTIF(Campaigns_BQ!D2:D61, "Taboola")
+=AVERAGEIF(Campaigns_BQ!C2:C61, "Hearing Aids PR", Campaigns_BQ!F2:F61)
+```
+
+Pivots, charts ו-`QUERY` כולם עובדים מול טווח ה-extract. שמים לב שה-references חסומים, אותם כללים מהשיעורים הקודמים חלים.
+
+## תכונת ה-forecasting של 2026
+
+עדכון Workspace מפברואר 2026 הוסיף BigQuery ML + TimesFM forecasting ישירות בתוך Connected Sheets: מצביעים על סדרת זמן ב-extract, לוחצים Forecast, ו-Sheets קורא ל-TimesFM ב-BigQuery כדי לייצר תחזית. בלי SQL. זה שימושי לחיזוי spend / revenue על מערכי הנתונים של סדרות זמן שהצוות בונה. עלותית, כל תחזית היא BigQuery ML job, אז היא מחויבת. הצד החיובי הוא ללא תשתית חיזוי נפרדת.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="גיליון Campaigns_BQ מדמה extract של Connected Sheets. 60 שורות קמפיינים, schema A:G כמו בשיעור."
+/>
+
+יש ללחוץ על **Start lesson** כדי להעלות גיליון Campaigns_BQ עם לוג הקמפיינים שנשתל. בייצור הגיליון הזה היה extract של Connected Sheets, מרוענן לילית מטבלת `campaigns_fact` ב-BigQuery של הצוות. ממלאים את בלוק הסיכום בעמודה J:
+
+- **J1**: סך Spend מה-extract.
+- **J2**: ספירת שורות Taboola (משתמשים ב-`COUNTIF`).
+- **J3**: סוג ה-connector (המחרוזת המפורשת `BigQuery` כדי שכל מי שמבקר את ה-spreadsheet יוכל לדעת מאיפה הנתונים).
+
+השיעור משתמש בגיליון יחיד גם ל-extract וגם לתאי הסיכום. בהקמת Connected Sheets אמיתית הנוסחאות היו מתחילות ב-`Campaigns_BQ!`. ה-grader מקבל את שתי הצורות, העיקרון זהה.
+
+## נפוץ בשטח
+
+הדו"ח הלילי "שבעה הימים האחרונים, כל הפלטפורמות" של הצוות רץ כ-Connected Sheets extract מ-BigQuery:
+
+- ה-extract מושך `SELECT date, buyer, vertical, platform, country, spend, revenue FROM campaigns_fact WHERE date BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1`. בערך 1800 שורות למשיכה בשבוע טיפוסי.
+- לוח זמני הרענון הוא יומי ב-04:00 UTC, כך שכשהצוות מתחיל את היום בתל אביב (07:00 מקומי) הנתונים טריים.
+- גיליונות ה-dashboard מפנים ל-extract דרך prefixes של `Campaigns_BQ!`. סכום, ממוצע, ROI, pivot לפי media buyer. בלי SQL בשכבת ה-dashboard.
+- עלות: כ-$0.10 לרענון כפול 30 = ~$3/חודש לדו"ח הספציפי. דו"חות אחרים ב-spreadsheet מביאים את הסה"כ לסביב $40/חודש, הרבה מתחת למה שתפירת IMPORTRANGE שוות-ערך היתה עולה בזמן אנושי.
+
+## מלכודות מקצועיות
+
+- **שכחה לרענן.** לוח זמנים של "יומי 04:00" אומר שמספרי אתמול לא רעננים אחרי 28 שעות כשמישהו מסתכל ב-dashboard ב-08:00 למחרת. אם הצוות עושה אופטימיזציה חיה, מתזמנים שעתי. אם זו סקירת יום שני של השבוע שעבר, יומי בסדר.
+- **`SELECT *` על טבלת עובדות של 50M שורות.** כל רענון הוא סריקת טבלה מלאה. מציינים עמודות, מסננים לפי תאריך, ומחלקים את טבלת המקור ל-partitions לפי תאריך כך ש-`WHERE date >= ...` הוא partition prune.
+- **ה-connector נשבר כש-schema ב-BigQuery משתנה.** שינוי שם של עמודה, שינוי type, או עמודה שנמחקה הופכים את ה-extract למצב כשל. הרענון הבא נכשל עם שגיאה. נרשמים ל-BigQuery audit logs לטבלאות שה-Connected Sheets שלך תלויים בהן, או מקבלים שכל שינוי schema דורש 5 דקות של re-connect.
+- **ה-extract ניתן לעריכה.** Sheets לא יעצור משתמש מלהקליד לתוך תא של extract. הרענון הבא מוחק את העריכה. מאמנים את הצוות: עבודה נגזרת הולכת על גיליון Dashboard. ה-extract הוא אזור `Raw -`.
+- **`File > Stats` לא משקף את עלות Connected Sheets במלואה.** הוא מציג מספר תאים וזמן recalc, לא עלות סריקה ב-BigQuery. בודקים את ה-BigQuery billing console למספרים האמיתיים.
+- **רענון מתוזמן על spreadsheet שכבר אין לו בעלים.** כשמי שהגדיר את ה-connector עוזב, לוח הזמנים ממשיך לרוץ. עורכים ביקורת על לוחות הזמנים של Connected Sheets רבעונית.

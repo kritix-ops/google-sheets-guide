@@ -1,0 +1,132 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Installable triggers: time-driven, edit-driven with auth
+
+השיעור הקודם כיסה simple triggers, functions עם שמות שמורים שיורות אוטומטית. יש להם auth context צר: בלי אימייל, בלי רשת, בלי מסמכים אחרים, בלי UI. ברגע ש-workflow אמיתי צריך אחד מאלה, simple triggers הם הכלי הלא נכון. הדרך החוצה היא **installable triggers**: triggers שרושמים בקוד באמצעות `ScriptApp.newTrigger(...)`, שרצים עם ה-auth המלא של בעל הפרויקט ויכולים לעשות כל מה ש-function רגילה ב-Apps Script רשאית לעשות.
+
+שלושה דברים ש-installable triggers מוסיפים מעל מודל ה-simple trigger:
+
+1. **auth מלא.** ה-handler יכול לשלוח אימייל, לקרוא URLs, לפתוח spreadsheets אחרים, לקרוא events ב-calendar, לכתוב ל-Drive.
+2. **תזמון מבוסס-זמן.** דמוי cron: כל N דקות, כל N שעות, כל N ימים, או בתאריך ובשעה ספציפיים.
+3. **רישום בקוד.** שורת קוד יוצרת את ה-trigger, שורת קוד מוחקת אותו. בלי state נסתר ב-UI של העורך.
+
+אותו event `onEdit` מהשיעור הקודם יכול להיות מחווט גם כ-installable trigger, אותו שם event, אותה צורת `e`, אבל עם ה-auth המלא של installable trigger. אם ה-handler של עריכה צריך לפנגג Slack, ככה עושים את זה.
+
+## שרשרת ה-builder
+
+`ScriptApp.newTrigger(handlerName)` מחזיר builder. משרשרים עליו קריאות שמתארות איזה סוג trigger זה ומתי הוא יורה; השרשרת מסתיימת ב-`.create()`, שזה מה שבאמת רושם את ה-trigger.
+
+trigger מבוסס-זמן שיורה כל יום ב-6 בבוקר:
+
+```js
+function setupDailyRefresh() {
+  ScriptApp.newTrigger("refreshAggregator")
+    .timeBased()
+    .everyDays(1)
+    .atHour(6)
+    .create();
+}
+```
+
+הארגומנט הראשון ל-`newTrigger` הוא **שם ה-handler כמחרוזת**, לא הפניה ל-function. Apps Script מחפש את ה-handler לפי שם בזמן הירייה. אם משנים את השם של `refreshAggregator` מאוחר יותר ושוכחים לעדכן את המחרוזת, ה-trigger ימשיך לירות, וה-log של ההרצות יתמלא בשגיאות "Script function not found". זו המלכודת הנפוצה ביותר ב-installable triggers.
+
+installable trigger מבוסס-עריכה שמכוון לאותו spreadsheet:
+
+```js
+function setupSpendAlerts() {
+  ScriptApp.newTrigger("notifySpendChange")
+    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+    .onEdit()
+    .create();
+}
+
+function notifySpendChange(e) {
+  // auth מלא, UrlFetchApp.fetch כאן זה בסדר.
+  UrlFetchApp.fetch("https://hooks.slack.com/...", { /* payload */ });
+}
+```
+
+`notifySpendChange` נראה זהה ל-`onEdit` משיעור 7. ההבדל הוא שזה נרשם עם `.forSpreadsheet(...).onEdit()`, לא הוכרז עם השם השמור `onEdit`. הרישום הזה הוא מה שנותן לו auth מלא.
+
+## ארבע צורות התזמון מבוסס-זמן
+
+triggers מבוססי-זמן נופלים לארבעה דפוסי תזמון:
+
+| מתודת builder | יורה |
+|---|---|
+| `.everyMinutes(n)` | כל n דקות. n חייב להיות 1, 5, 10, 15, או 30. |
+| `.everyHours(n)` | כל n שעות. עוגן לשעת יצירת ה-trigger. |
+| `.everyDays(n).atHour(h)` | כל n ימים בשעה h (שעון 24 מקומי). |
+| `.atDate(year, month, day).atHour(h)` | פעם אחת ברגע ספציפי. |
+
+ערכי השעה גסים: `atHour(6)` אומר "מתישהו בין 6:00 ל-7:00 ב-timezone של ה-script", לא בדיוק 6:00. אם צריך ירייה בדיוק שעוני, צריך ארכיטקטורה אחרת, בדרך כלל cron job מחוץ ל-Apps Script שפוגע ב-webhook.
+
+## מתן auth בריצה הראשונה
+
+הפעם הראשונה שמריצים `setupDailyRefresh()` מהעורך של Apps Script, מופיע auth prompt. אתם מאשרים לפרויקט להשתמש ב-OAuth scopes שה-handler צריך: `script.scriptapp` (לרישום ה-trigger עצמו), ומה שגוף ה-handler צריך (spreadsheets, mail, urlfetch וכו'). אחרי שמאשרים, ה-trigger נרשם, החשבון שלכם רשום כבעלים, ומאותו רגע ה-handler יורה תחת ה-auth שלכם, גם כשאתם לא ליד המחשב.
+
+אם נותנים את ה-spreadsheet לחבר צוות והוא צריך עותק משלו של ה-trigger, **הוא חייב להריץ `setupDailyRefresh()` בעצמו**. רישום ה-trigger הוא לכל משתמש, לא לכל script. זה מפיל צוותים: "אני הגדרתי, למה זה לא יורה לכולם?"
+
+## בדיקה ומחיקה
+
+עורך Apps Script מציג את כל ה-triggers הרשומים תחת **Edit → Current project's triggers** (או אייקון השעון בסרגל הצדדי בעורך החדש). כל שורה מציגה את שם ה-handler, סוג ה-trigger, התזמון, וההצלחה או הכישלון של הירייה האחרונה.
+
+בקוד:
+
+```js
+function listTriggers() {
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(function(t) {
+    console.log(t.getHandlerFunction(), t.getEventType().toString());
+  });
+}
+
+function deleteAllRefreshTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === "refreshAggregator") {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+}
+```
+
+לכל חשבון script יש **מגבלה של 20 triggers לפי חשבון לכל script**. אם רושמים את `setupDailyRefresh` פעמיים בלי למחוק את הרישום הראשון, יקרו שתי יריות ביום. רושמים אותה 20 פעם והקריאה הבאה ל-`.create()` תזרוק.
+
+## נפוץ בשטח
+
+שני דפוסים אמיתיים מה-spreadsheets של הצוות:
+
+- **משיכות פלטפורמה לילות.** כל רשת פרסום, Taboola, Outbrain, MediaGo, מקבלת trigger משלה של `.everyDays(1).atHour(2)` רשום מול handler ייעודי. ה-handler פוגע ב-reporting API של הפלטפורמה דרך `UrlFetchApp.fetch`, מפרסר את ה-JSON, וכותב את ה-spend וה-revenue של היום ל-tab הייחודי לפלטפורמה. ה-spreadsheet האגרגטור מושך אז כל tab דרך `IMPORTRANGE`. בלי installable triggers, כלום מזה לא עובד, `UrlFetchApp` מחוץ לתחום ל-simple triggers.
+- **התראות Slack מבוססות עריכה.** ל-spreadsheet של ראשי ה-buyers יש installable edit trigger שצופה בעמודת Profit. כששורה חוצה מתחת ל-`-$500` ליום, ה-handler פונה לערוץ Slack `#spend-alerts` עם ה-buyer של השורה, ה-vertical, וההפסד הנוכחי. חייב להיות installable: simple triggers לא יכולים להגיע ל-Slack.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="לוג ה-Campaigns תופס את A1:G61. עמודה I מכילה את הכותרת `Last refresh`; עמודה J היא המקום שבו ה-handler היומי חותם את הזמן. המשימה: לרשום trigger יומי שיורה handler שכותב `new Date()` ל-J1."
+/>
+
+קובץ ה-starter `Lesson.gs` מצהיר על שני stubs:
+
+- `setupDailyRefresh()`: הרישום. הגוף שלו משתמש ב-`ScriptApp.newTrigger(...).timeBased().everyDays(1).atHour(6).create()` ומכוון ל-handler **לפי שם כמחרוזת**.
+- `refreshAggregator()`: ה-handler שה-trigger יורה. הגוף שלו כותב את ה-`new Date()` הנוכחי לתא J1 ב-tab Campaigns.
+
+הזרימה אחרי שממלאים את שני הגופים:
+
+1. שומרים את הפרויקט. לוחצים על `setupDailyRefresh` בעורך Apps Script. לוחצים על כפתור **Run**.
+2. מאשרים את ה-auth prompt. (אתם נותנים ל-script הרשאה לנהל triggers ולכתוב ל-spreadsheets.)
+3. פותחים את **Edit → Current project's triggers**. אמורה להופיע שורה אחת: `refreshAggregator`, Time-driven, Day timer, 6am–7am.
+4. כדי לאמת שה-handler עובד בלי לחכות 12 שעות, מריצים את `refreshAggregator` ישירות מהעורך. J1 מתמלא ב-timestamp.
+5. אחרי הירייה היומית, ה-executions dashboard מציג שורה אחת ליום עם זמן הריצה וסטטוס היציאה.
+
+מבחני השיעור בודקים את המקור של שתי ה-functions. הם לא (ולא יכולים) לבדוק את registry ה-triggers, זה artefact בזמן ריצה בצד של Google, ניתן לאישור רק מה-UI של העורך.
+
+## מלכודות מקצועיות
+
+- **triggers יתומים מקוד ישן שנכשלים בשקט כל לילה.** אם מוחקים את `refreshAggregator` מהמקור אבל לעולם לא מוחקים את ה-trigger שלו, ה-trigger ימשיך לירות כל יום ב-6 בבוקר, ימצא שאין function עם השם הזה, וירשום "Script function not found", בשקט, ב-executions dashboard שאף אחד לא קורא. מריצים את `listTriggers()` (למעלה) מדי פעם כדי לבדוק מה רשום מול מה.
+- **handlers של trigger שקורסים בשקט.** handler שזורק exception לא מטופל לא שולח לכם אימייל. השגיאה חיה ב-**executions dashboard** (אייקון שעון → Executions) תחת הריצה שנכשלה. מגדירים installable failure-notification trigger (ל-Apps Script יש כזה מובנה) או עוטפים את ה-handler ב-try/catch ושולחים אימייל לעצמכם בכישלון.
+- **`atHour(6)` הוא לא 6:00 בבוקר בדיוק.** triggers מבוססי-זמן של Apps Script יורים בחלון של שעה סביב השעה המבוקשת. אם ה-handler תלוי בנתונים שעולים ב-5:55 בבוקר, מתזמנים את ה-trigger ל-`atHour(7)` כדי להשאיר מרווח.
+- **המגבלה של 20 triggers לכל script.** מוסיפים את `setupDailyRefresh()` לתפריט ומאפשרים למשתמש ללחוץ עליו פעמיים, ורשמתם שני daily triggers. קוד רישום הגנתי בודק את `ScriptApp.getProjectTriggers()` ל-trigger קיים עם אותו שם handler ומוחק אותו לפני שיוצרים חדש.
+- **Quotas של runtime.** חשבונות Google רגילים מקבלים 90 דקות סך הכל של trigger runtime ביום; חשבונות Workspace מקבלים 6 שעות. handler שעובר בלולאה על 60,000 שורות אוכל דקות לכל ירייה; ירייה יומית של 30 דקות שורפת שליש מה-quota של חשבון רגיל.
+- **בלבול אזורי זמן.** השעה של ה-trigger מפורשת ב-**time zone של ה-script** (מוגדר ב-manifest של הפרויקט תחת `timeZone`). time zone של ה-script נקבע ברירת מחדל ללוקאל של יוצר הפרויקט. אם רשמתם את ה-trigger מהלפטופ שלכם בתל אביב והלפטופ של חבר הצוות בניו יורק, שניכם תראו את אותה שעת ירייה, אבל השעה על השעון בכל עיר שונה.
+- **triggers לא שורדים העתקה של פרויקט.** אם עושים File → Make a copy של ה-spreadsheet, לעותק החדש אין triggers רשומים. הבעלים החדש חייב להריץ `setupDailyRefresh()` בעצמו.

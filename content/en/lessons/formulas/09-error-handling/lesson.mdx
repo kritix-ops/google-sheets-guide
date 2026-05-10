@@ -1,0 +1,120 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Error handling: IFERROR, IFNA, ISNA, ISERROR
+
+In a workbook held together by IMPORTRANGE, dynamic lookups, and division-by-spend, errors are not exceptional: they're routine. A vertical name added by another team breaks an XLOOKUP. A campaign with zero spend breaks a `revenue/spend` ROI calculation. A typo in a buyer name breaks a SUMIFS criterion. The error-handling functions let you catch these gracefully, supply a fallback, or flag the row for review without crashing the dashboard.
+
+## The errors you'll meet
+
+Sheets has a small fixed set of errors. Each tells you something specific:
+
+| Error | What it means | Common cause |
+|---|---|---|
+| `#N/A` | "Not available": a lookup couldn't find a match | XLOOKUP/VLOOKUP with no fallback, MATCH with no result |
+| `#REF!` | A reference is broken | Deleted column, IMPORTRANGE permission revoked, formula refers off-sheet |
+| `#DIV/0!` | Division by zero | `revenue/spend` where spend is 0; `AVERAGE` over empty range |
+| `#VALUE!` | Wrong type | Math on a text cell, or a function got a string where it wanted a number |
+| `#NAME?` | Unknown function or named range | Typo in function name, or a named range that no longer exists |
+| `#NUM!` | Numeric out of range | `SQRT(-1)`, dates outside Sheets' supported range, or numbers too large |
+| `#NULL!` | Range intersection is empty | Rare; mostly old-style range syntax |
+
+## IFERROR: catch anything
+
+`IFERROR(formula, fallback)` runs the formula. If it errors, returns the fallback instead. The most-used error handler.
+
+The classic adtech case: ROI calculation. `=F2/E2` errors when spend is zero. Wrap in IFERROR to return 0 (or "no spend" or whatever makes sense for your dashboard).
+
+<TryIt
+  data={[
+    ["Buyer", "Spend", "Revenue"],
+    ["Yoav Cohen", 0, 0],
+    ["Sarah Levi", 200, 350],
+  ]}
+  inputCell="D2"
+  expectedFormula='=IFERROR(C2/B2,"no spend")'
+  task={<>Compute ROI for the first row (revenue ÷ spend), but return <code>"no spend"</code> instead of <code>#DIV/0!</code> when spend is zero. The result in <code>D2</code> should be <code>"no spend"</code>.</>}
+  hint={<>Wrap the division <code>C2/B2</code> in <code>IFERROR(..., "no spend")</code>.</>}
+  answer={<>IFERROR replaces ANY error with the fallback. Both arguments are required: the formula and the fallback value. The fallback can be a string ("no spend"), a number (0), or another formula. The trade-off: IFERROR is a hammer: it catches every error, including ones you might want to know about. If a formula is breaking for a reason that matters, IFERROR will hide it. Use IFNA when you specifically want to handle missing-lookup cases without masking other errors.</>}
+/>
+
+## IFNA: catch only #N/A
+
+`IFNA(formula, fallback)` is IFERROR's narrow sibling. It catches `#N/A` (the "not found" error) and lets every other error pass through.
+
+This matters for adtech XLOOKUPs. If a campaign's vertical isn't in the Verticals lookup table, you get `#N/A`: that's fine, supply a fallback like "Unknown". But if the IMPORTRANGE'd Verticals table itself is broken (`#REF!` from revoked permissions), you want that error to surface so you can fix it. IFERROR would hide both equally; IFNA hides only the missing-match case.
+
+<TryIt
+  data={[
+    ["Vertical", "Category", ""],
+    ["Used Cars PR", "Automotive", ""],
+    ["Crypto Trading PR", "", ""],
+  ]}
+  inputCell="C3"
+  expectedFormula='=IFNA(VLOOKUP(A3,A2:B2,2,FALSE),"Uncategorized")'
+  task={<>Look up the category for "Crypto Trading PR" (which isn't in the lookup table). Return <code>"Uncategorized"</code> instead of <code>#N/A</code>. Result should be <code>Uncategorized</code>.</>}
+  hint={<>Wrap the VLOOKUP in <code>IFNA(..., "Uncategorized")</code>.</>}
+  answer={<>IFNA catches only #N/A: the "I looked but couldn't find it" error. Other errors (#REF!, #VALUE!, #DIV/0!) pass through. This is preferable to IFERROR for lookup wrappers because it lets real failures (broken IMPORTRANGE, wrong column letter) surface as visible errors instead of getting swallowed. In production: IFNA around every lookup, IFERROR only when you've thought hard about whether you really want to swallow everything.</>}
+/>
+
+## ISNA, ISERROR, IFERROR's IF cousins
+
+Sometimes you want to *test* whether a value is an error rather than substitute it. `ISNA(value)` returns TRUE if value is `#N/A`. `ISERROR(value)` returns TRUE for any error. Useful inside `IF` for conditional logic: "if the lookup succeeded, do X; if not, do Y".
+
+```
+=IF(ISNA(XLOOKUP(...)), "Add to backlog", "Already known")
+```
+
+You can usually express the same intent with IFNA/IFERROR. The IS-functions earn their keep when the success and failure branches both involve more than just substituting a value.
+
+<QuickCheck
+  question="Which is the right wrapper for an XLOOKUP that pulls a buyer's email from a Buyers tab via IMPORTRANGE?"
+  options={[
+    {
+      id: "a",
+      label: <code>=IFERROR(XLOOKUP(...), "Unknown")</code>,
+      correct: false,
+      explanation: "IFERROR catches everything, including #REF! when the IMPORTRANGE's permission gets revoked. You'd never know the source was broken: the dashboard just shows 'Unknown' for every row.",
+    },
+    {
+      id: "b",
+      label: <code>=IFNA(XLOOKUP(...), "Unknown")</code>,
+      correct: true,
+      explanation: "IFNA catches the 'not found' case (a buyer not in the Buyers tab) but lets #REF! surface visibly so you know the upstream is broken.",
+    },
+    {
+      id: "c",
+      label: <code>=XLOOKUP(..., "Unknown")</code>,
+      correct: false,
+      explanation: "Close: XLOOKUP's 4th argument handles missing matches just like IFNA. This is actually a fine answer when you have XLOOKUP. But for VLOOKUP/INDEX/MATCH (no built-in fallback), IFNA is the right wrapper.",
+    },
+  ]}
+/>
+
+## How to choose
+
+| Goal | Reach for |
+|---|---|
+| Catch every error with one fallback | `IFERROR(formula, fallback)` |
+| Catch only "not found" lookup errors | `IFNA(formula, fallback)` or XLOOKUP's 4th argument |
+| Branch logic on whether a value is an error | `IF(ISNA(...), ..., ...)` or `IF(ISERROR(...), ..., ...)` |
+| Validate a column for any errors before using it | `COUNTIF(range, "#N/A")` to count, or array of `ISERROR` values |
+| Conditional formatting to flag error rows | Custom formula `=ISERROR(A2)` |
+
+## Used in the wild
+
+- **Every XLOOKUP from IMPORTRANGE'd data wrapped in IFNA.** Fallback is "Unknown" or "" depending on what the dashboard expects. NEVER use IFERROR here: you want #REF! to scream when the source breaks.
+- **Every ROI/CPC/EPC formula wrapped in IFERROR or guarded with IF(spend{">"}0,...,...).** Division by zero is the most common runtime error in adtech sheets.
+- **Conditional formatting that highlights rows where any cell is an error.** Run an `=COUNTIF(A2:Z2,"#N/A") + COUNTIF(A2:Z2,"#REF!") + ...` over each row, format red if {">"}0.
+- **Health-check cells at the top of every dashboard.** A single cell counting errors across the whole sheet, with a big "0" when everything's fine and a non-zero count drawing attention. Pair with conditional formatting.
+
+## Pro pitfalls
+
+- **`IFERROR` is a sledgehammer.** It silently catches errors you might want to fix. If a formula is broken for an unexpected reason, IFERROR hides it forever. Default to IFNA; reach for IFERROR consciously.
+- **Wrapping a whole expression in IFERROR catches mid-formula errors too.** `=IFERROR(A2+B2/C2, 0)` returns 0 if C2 is 0 OR if A2 is text OR if anything else goes sideways. Wrap narrowly: `=A2 + IFERROR(B2/C2, 0)`.
+- **`IFERROR(..., "")` is convenient but creates "ghost" rows.** A blank cell is treated as 0 in math but as "" in lookups. Many downstream issues stem from this. Often better to return an explicit sentinel value like `"-"` so the eye catches it.
+- **`#N/A` is meaningful: don't always hide it.** A column of #N/A from XLOOKUP tells you the join is failing across many rows. Hiding them with IFERROR converts a clear signal into silent corruption.
+- **`ISERROR` is TRUE for every error type, including #N/A.** If you only want to handle the "not found" case, use `ISNA` instead.
+
+## Now do it for real
+
+Click **Start lesson** to provision a small sheet with one zero-spend campaign and one missing-vertical row. You'll write four error-handling formulas: IFERROR around a ROI division, IFNA around a vertical lookup, ISNA inside an IF for branching, and a COUNTIF that counts errors in a range.

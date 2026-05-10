@@ -1,0 +1,82 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Connected Sheets and BigQuery
+
+When the data outgrows what a single Sheet can hold (or what `IMPORTRANGE` can stitch together), the next step is BigQuery. Connected Sheets is the bridge: it lets you point Google Sheets at a BigQuery table and pull a refreshable extract into a tab. You read from the extract with regular formulas, charts, and pivot tables. You don't write SQL unless you want to.
+
+This is the architecture the team's heavier reporting workbooks have been moving to throughout 2025 and 2026. Two things you should know up front: it requires a Workspace edition that includes Connected Sheets (Business Plus and above), and every refresh runs a BigQuery query that bills against the project. Both of those have cost implications you'll want to design around.
+
+## What "connected" means
+
+A Connected Sheets extract is a special kind of tab. Three properties to understand:
+
+1. **The data is read-only at the row level.** You can edit cells (Sheets won't stop you) but the next refresh wipes your edits. Treat the extract tab as `Raw -` plus enforcement: derived work lives on a separate dashboard tab that *reads from* the extract.
+2. **Refresh is on demand or scheduled.** Click Refresh in the connector UI, or set a daily / hourly schedule. The data is not live; it's whatever the last refresh pulled.
+3. **The connector knows its source.** The tab carries metadata about the BigQuery project, dataset, table, and the columns selected. If the upstream schema changes (a column is dropped, a type is altered), the connector either fails the next refresh or silently produces nulls. Both are noticeable; neither is fixed automatically.
+
+## Setting it up
+
+In the Sheets menu: `Data > Data connectors > Connect to BigQuery`. Sheets prompts for the GCP project, then the dataset, then the table. You either pull the whole table (suitable for small dimension tables) or write a query (the right move for large fact tables). The result lands on a new tab whose name you pick.
+
+Two design rules that pay off:
+
+- **Filter at the connector, not on the dashboard.** A `SELECT * FROM campaigns_fact` extract that brings 50M rows to Sheets is wasteful and (depending on row count) might not fit at all. A `SELECT date, buyer, vertical, platform, spend, revenue FROM campaigns_fact WHERE date >= CURRENT_DATE - 30` extract is what you actually want. The filter runs in BigQuery, where it's cheap.
+- **Schedule the refresh to match the freshness you need.** Daily reporting? Daily refresh at 06:00. Hourly attribution monitoring? Hourly refresh. Each one is a query that bills.
+
+## The cost model
+
+BigQuery bills by data scanned per query (currently around $6.25 per TiB scanned, but that figure changes; check the current price before committing). A refresh of a Connected Sheets extract is one query. Two patterns that cost real money:
+
+- **Refreshing a 200GB table every fifteen minutes.** That's 200GB times 96 refreshes per day times 30 days = ~576TB per month. At $6.25/TiB that's $3,600. For a single dashboard.
+- **Forgetting that `SELECT *` scans every column.** Pulling fifteen columns when you only need five quadruples the scan cost. Specify columns explicitly.
+
+The mitigations: partition the BigQuery table (so `WHERE date >= ...` scans only recent partitions), select only the columns you need, schedule refreshes at a cadence the business actually needs, not the maximum possible. For ad-hoc exploration, click Refresh manually instead of leaving an hourly schedule on.
+
+## Working with the extract
+
+Once the data lands, you work with it like any other range. Formulas reference it by tab name:
+
+```
+=SUM(Campaigns_BQ!F2:F61)
+=COUNTIF(Campaigns_BQ!D2:D61, "Taboola")
+=AVERAGEIF(Campaigns_BQ!C2:C61, "Hearing Aids PR", Campaigns_BQ!F2:F61)
+```
+
+Pivots, charts, and `QUERY` all work against the extract range. Notice the references are bounded; the same rules from the previous lessons apply.
+
+## The 2026 forecasting feature
+
+A February 2026 Workspace update added BigQuery ML + TimesFM forecasting directly inside Connected Sheets: you point at an extracted time series, click Forecast, and Sheets calls TimesFM in BigQuery to produce a forecast. No SQL needed. This is useful for spend / revenue forecasting on the timeseries datasets the team builds. Cost-wise, each forecast is a BigQuery ML job, so it bills; the upside is no separate forecasting infrastructure.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns_BQ tab simulates a Connected Sheets extract. 60 campaign rows, schema A:G as in the lesson."
+/>
+
+Click **Start lesson** to provision a Campaigns_BQ tab seeded with the campaign log. In production this tab would be a Connected Sheets extract, refreshed nightly from the team's `campaigns_fact` BigQuery table. Fill the summary block in column J:
+
+- **J1**: total Spend across the extract.
+- **J2**: count of Taboola rows (use `COUNTIF`).
+- **J3**: the connector type (the literal string `BigQuery` so anyone auditing the workbook can tell where the data came from).
+
+The lesson uses a single tab for both the extract and the summary cells. In a real Connected Sheets setup the formulas would prefix the references with `Campaigns_BQ!`. The grader accepts both shapes; the principle is the same.
+
+## Used in the wild
+
+The team's nightly "Last 7 days, all platforms" report runs as a Connected Sheets extract from BigQuery:
+
+- The extract pulls `SELECT date, buyer, vertical, platform, country, spend, revenue FROM campaigns_fact WHERE date BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1`. About 1800 rows per pull on a typical week.
+- The refresh schedule is daily at 04:00 UTC, so when the team starts their day in Tel Aviv (07:00 local) the data is fresh.
+- The dashboard tabs reference the extract via `Campaigns_BQ!` prefixes. Sum, average, ROI, pivot by buyer. No SQL anywhere in the dashboard layer.
+- Cost: about $0.10 per refresh times 30 = ~$3/month for this particular report. Other reports in the same workbook bring the total to about $40/month, well below what the equivalent IMPORTRANGE-based stitching would cost in human time.
+
+## Pro pitfalls
+
+- **Forgetting to refresh.** A schedule of "daily 04:00" means yesterday's numbers are stale by 28 hours when somebody looks at the dashboard at 08:00 the next day. If the team is doing live optimization, schedule hourly. If it's a Monday review of last week, daily is fine.
+- **`SELECT *` on a 50M-row fact table.** Every refresh is a full table scan. Specify columns, filter by date, and partition the source table on date so `WHERE date >= ...` is a partition prune.
+- **The connector breaking when the BigQuery schema changes.** A column rename, a type change, or a dropped column flips the extract to a failure state. The next refresh fails with an error. Subscribe to BigQuery audit logs for the tables your Connected Sheets depend on, or accept that schema changes require a 5-minute reconnect.
+- **The extract being editable.** Sheets won't stop a user from typing into an extract cell. The next refresh wipes the edit. Train the team: derived work goes on a Dashboard tab. The extract is a `Raw -` zone.
+- **`File > Stats` doesn't fully reflect Connected Sheets cost.** It shows cell count and recalc time, not BigQuery scan cost. Check the BigQuery billing console for the real numbers.
+- **A scheduled refresh on a workbook nobody owns anymore.** When the person who set up the connector leaves, the schedule keeps running. Audit Connected Sheets schedules quarterly.

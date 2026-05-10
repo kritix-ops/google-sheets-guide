@@ -1,0 +1,94 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# The broken-sheet clinic: a capstone
+
+Ten lessons in this track covered the things that go wrong with complex spreadsheets: the cell limit, slow recalc, volatile functions, full-column references, `IMPORTRANGE` permission cascades, circular references, `#N/A` handling, the recovery flow. This lesson is the capstone. You inherit a workbook that has five real bugs in five separate cells, and you fix all five. Each bug exercises one lesson's content. A learner who skipped earlier lessons won't pass this one.
+
+The point is the diagnostic flow. In the team's actual work, broken workbooks arrive with no description: the buyer says "the ROI is wrong" and you have to find the cause. The flow:
+
+1. **Scan the visible errors first.** `#REF!`, `#N/A`, `#NUM!`, `#NAME?`, `#VALUE!`, `#DIV/0!`, `#ERROR!`, circular-reference warnings. These are the easy hits; the cell tells you it's broken.
+2. **Open File > Settings > Spreadsheet stats** for cell count and IMPORTRANGE count. A workbook that grew silently is the second-most-common cause of slow recalc after volatile-formula sprawl.
+3. **Click cells in the dashboard and read the formula bar.** Full-column references (`F:F`), volatiles (`TODAY()`, `INDIRECT()`), unhandled `VLOOKUP` (no `IFNA` wrapper), and self-references are visible only on inspection. They look fine in the cell value.
+4. **Check the source tabs of every `IMPORTRANGE`.** Hover the IMPORTRANGE cell and the tooltip shows the source URL. Open it. If you get "You need permission," that's a cascading failure waiting to surface in the next refresh.
+
+The clinic below collapses this flow into one workbook. Five cells, five different breakage patterns, all in column J. Your job is to fix every one.
+
+## The five bugs
+
+| Cell | Seeded formula | What's wrong | The fix |
+|---|---|---|---|
+| `J1` | `=SUM(F:F)` | Full-column reference makes Sheets walk a million empty cells on every recalc. The number is correct, the performance is not. | Replace with bounded `=SUM(F2:F61)`. |
+| `J2` | `=VLOOKUP("NonExistentBuyer", B:F, 5, FALSE)` | Returns `#N/A`. A dashboard cell that shows `#N/A` cascades to every downstream cell. | Wrap with `IFNA` (or `IFERROR`) and provide a fallback: `=IFNA(VLOOKUP(...), 0)`. |
+| `J3` | `=TODAY()-1` | Volatile. Recomputes on every edit anywhere in the workbook. On a busy dashboard that's recalc lag for nothing. | Hardcode a date or reference a non-volatile source like `=A2` (the first date in the log). |
+| `J4` | `=J4+1` | Circular reference: the cell points at itself. Sheets either flags it or holds a stale value. | Remove the self-reference: use a literal value like `0` or a formula that points at another cell. |
+| `J5` | (empty) | The summary block is missing the count of distinct media buyers; downstream dashboards need it. | Write `=COUNTA(UNIQUE(B2:B61))`. |
+
+Each bug maps to a Track 4 lesson:
+
+- **J1** → lesson 2 (slow sheets and full-column references).
+- **J2** → lesson 6 (`#N/A` handling and the IFNA wrapper).
+- **J3** → lesson 2 (volatile functions and recalc cost).
+- **J4** → lesson 7 (circular references and how to break them).
+- **J5** → the "what's missing" prompt: pulling a needed summary value from raw data.
+
+The dashboard is broken until all five cells are right. The grader passes only when every rule passes.
+
+## Why this clinic looks like real life
+
+Workbooks in the wild rarely have one bug. They have several, each from a different mistake, layered on top of each other. The full-column SUM was put in two years ago by someone who didn't know about the recalc cost. The VLOOKUP-without-IFNA was added last month by a buyer who tested with valid input. The TODAY() was a debugging artifact left in by accident. The circular reference happened when someone moved a row. The missing UNIQUE count is just a forgotten line item.
+
+A learner who fixes one bug at a time and tests after each is doing the right thing. A learner who tries to fix all five and check at the end will spend twice as long because the failure modes interact: J4's circular reference might mask J3's volatility, J2's `#N/A` might propagate into J1 if you'd referenced J2 there.
+
+The diagnostic order matters. Start with the cells that don't depend on others (J1, J3, J4, J5). Save J2 for last if it references other dashboard cells in your spreadsheet (in this clinic it doesn't, but in real life this pattern is common).
+
+## What a clean dashboard looks like
+
+Once you've fixed the five cells, the column J block should look like this:
+
+| Cell | Formula | Value |
+|---|---|---|
+| `J1` | `=SUM(F2:F61)` | total Spend |
+| `J2` | `=IFNA(VLOOKUP("NonExistentBuyer", B2:G61, 5, FALSE), 0)` | `0` (the fallback fires) |
+| `J3` | `=A2` or `2026-05-10` (literal) | a stable date |
+| `J4` | `0` (or any non-self-referencing formula) | a finite number |
+| `J5` | `=COUNTA(UNIQUE(B2:B61))` | the distinct buyer count |
+
+Every cell now has a value, no cell shows an error, no formula is volatile, no formula references itself, no formula reads a full column. The dashboard is recoverable from this state. Add a named version (`PostFix-2026-05-11-clinic`) and the workbook is back in operating shape.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61. Column J holds five broken cells (and one empty one). Fix all five before the grader will pass."
+/>
+
+Click **Start lesson** to provision the workbook. Five tasks:
+
+1. **J1**: replace `=SUM(F:F)` with `=SUM(F2:F61)`.
+2. **J2**: wrap the VLOOKUP in IFNA (or IFERROR) with a fallback like `0`.
+3. **J3**: remove the volatile `TODAY()`. Use a literal date or `=A2`.
+4. **J4**: break the circular reference. A literal `0` works.
+5. **J5**: write `=COUNTA(UNIQUE(B2:B61))` for the unique buyer count.
+
+The grader runs five rules, one per cell. All five have to pass.
+
+## Used in the wild
+
+A real walkthrough from the team's onboarding: a buyer inherited the Buyer-Vertical Fatigue dashboard from a previous owner. It opened in 12 seconds (it should open in 1). The ROI cells showed numbers that didn't match the source aggregator. The diagnostic took an hour:
+
+- Three SUMIFS cells in the summary block used `D:D` and `F:F` as their criteria and sum ranges. The dashboard was scanning 8 columns × 1,000,000 = 8M cells on every keystroke. The fix was bounding them to `D2:D5000` and `F2:F5000`. Open time dropped to 2 seconds.
+- One cell used `INDIRECT("Raw - "&$A$1&"!B2:B100")` to dynamically pick a tab to read from. The tab had been renamed two weeks earlier from `Raw - Taboola US` to `Raw-Taboola-US` (hyphens, not spaces). The INDIRECT silently returned `#REF!`. The fix was a switch to an `XLOOKUP` against a stable lookup table, removing the INDIRECT entirely.
+- A VLOOKUP for the previous month's buyer name hit `#N/A` because the buyer had left the team. The fix was an IFNA wrapper with the fallback `"(former buyer)"`.
+
+Three bugs, three different lessons, one dashboard. Same shape as this clinic.
+
+A separate story: the IMPORTRANGE that worked Tuesday and broke Wednesday. The source workbook's owner had revoked the team's access for an audit and forgotten to restore it. The cell showed `#REF!` with the tooltip "You don't have permission to access this spreadsheet." The fix was a Slack message to the owner. The lesson: every workbook with cross-references needs an owner on speed-dial.
+
+## Pro pitfalls
+
+- **Fixing the visible symptom and missing the root cause.** A `#REF!` in fifty cells is usually one deleted source column propagating. Wrap them all in `IFERROR` and the symptom hides; the underlying break is still there and the next refresh might break new cells.
+- **Breaking one thing while fixing another.** Replacing a circular reference with `=0` works but might leave downstream cells stale: they recomputed against the circular cycle and are now reading stale-but-coincidentally-numeric values. After every fix, scan the cells that referenced the fixed one.
+- **Declaring victory before all checks pass.** Five rules. Five passes. Don't talk yourself into "four out of five is good enough." The fifth bug is the one that bites at 8 AM Monday.
+- **Treating `IFERROR` as a catch-all.** `IFERROR(VLOOKUP(...), 0)` swallows `#NAME?` from a misspelled function name the same way it swallows `#N/A`. The result looks fine until the misspelling spreads. Use `IFNA` when only `#N/A` is expected; use `IFERROR` only when you've decided every error means "use the fallback."
+- **Ignoring the formula bar after fixing the value.** The cell now displays `1`. The formula bar shows `=1` (a literal you typed) when it should show `=A2+1`. The visible value passed the test; the formula is wrong for the next data refresh. Always glance at the formula bar after a fix.
+- **Fixing in the live workbook with no version named first.** If the clinic is your team's actual workbook, name a version before you touch anything (`PreClinic-2026-05-11`). The fixes might surface new bugs; the named version is your back-out path.

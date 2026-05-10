@@ -1,0 +1,145 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Aggregation: SUM, AVERAGE, COUNT, COUNTIF, SUMIF, SUMIFS
+
+The aggregators compress a range into a single number. The plain ones (`SUM`, `AVERAGE`, `COUNT`) are intuitive. The conditional ones (`COUNTIF`, `SUMIF`, `COUNTIFS`, `SUMIFS`) are the workhorses of every adtech dashboard: count campaigns matching a condition, sum revenue matching a condition, segment by buyer or platform or date range.
+
+## The plain aggregators
+
+`SUM(range)` adds. `AVERAGE(range)` averages. `MIN`/`MAX` find extremes. `COUNT(range)` counts numeric cells. `COUNTA(range)` counts any non-empty cell (numbers, text, anything).
+
+<MiniGrid
+  data={CAMPAIGNS}
+  caption="The campaign log. We'll aggregate spend and revenue."
+  highlight={["E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13"]}
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula="=AVERAGE(E2:E13)"
+  task={<>Compute the average spend across every campaign. The result should be approximately <code>327.81</code>.</>}
+  hint={<><code>AVERAGE</code> divides <code>SUM</code> by <code>COUNT</code> automatically. Range is <code>E2:E13</code>.</>}
+  answer={<><code>AVERAGE</code> ignores empty cells and text. If a cell in the range held the string "test", AVERAGE would skip it; <code>SUM/COUNTA</code> would include it as 0. <code>AVERAGEA</code> exists for the rare case where you want text counted as 0. The 12-campaign average here is total spend (3933.68) divided by 12 ≈ 327.81. In dashboards you'll almost always want this conditional (average spend per buyer, per platform, per date range), which is what AVERAGEIFS is for.</>}
+/>
+
+<QuickCheck
+  question="A spend column has 8 cells: 5 numbers, 2 text strings (someone typed 'paused'), 1 empty. What does =COUNT(...) return vs =COUNTA(...)?"
+  options={[
+    {
+      id: "a",
+      label: <><code>COUNT</code> returns 5; <code>COUNTA</code> returns 7.</>,
+      correct: true,
+      explanation: "COUNT counts only numbers (5). COUNTA counts any non-empty cell: numbers + strings = 7. Empty cells are excluded from both.",
+    },
+    {
+      id: "b",
+      label: <><code>COUNT</code> returns 8; <code>COUNTA</code> returns 7.</>,
+      correct: false,
+      explanation: "COUNT does not include text or empty cells. It's strictly numeric.",
+    },
+    {
+      id: "c",
+      label: <>Both return 7.</>,
+      correct: false,
+      explanation: "COUNT and COUNTA differ on text. COUNT only counts numbers; COUNTA counts anything non-empty.",
+    },
+  ]}
+/>
+
+## SUMIF and COUNTIF: one condition
+
+The "IF" suffix lets you aggregate only the cells that match a condition. `COUNTIF(range, criterion)` counts matches; `SUMIF(range, criterion, [sum_range])` sums them. The criterion is a string with the comparison inside (greater-than, less-than, etc.) or a literal value.
+
+The classic adtech use: "how many campaigns scored revenue above $400?"
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=COUNTIF(F2:F13,">400")'
+  task={<>Count how many campaigns earned revenue above $400. The result should be <code>7</code>.</>}
+  hint={<>The criterion is a quoted string with the comparison inside. Use <code>COUNTIF</code> on the revenue column.</>}
+  answer={<>COUNTIF takes the range and the criterion. The criterion is a quoted string containing a comparison (greater-than, less-than, not-equal), an exact value to match, or a wildcard pattern like <code>"A*"</code>. Whichever form you use, wrap it in double quotes. In production dashboards you'll rarely use COUNTIF directly: COUNTIFS (multi-criterion) is the workhorse: but the single-criterion form is the place to learn the syntax.</>}
+/>
+
+`SUMIF` adds the optional third argument when the cells you sum are different from the cells you check. The classic case: "sum revenue for all of Yoav's campaigns": check column B for the buyer, sum column F for the revenue.
+
+## SUMIFS and COUNTIFS: multiple conditions
+
+The plural versions take **multiple** condition pairs. Notice the argument order is different from `SUMIF`: the sum range comes **first**, then alternating criterion-range and criterion pairs. This is the most-used Sheets function in business spreadsheets.
+
+```
+=SUMIFS(sum_range, criteria_range1, criterion1, criteria_range2, criterion2, ...)
+=COUNTIFS(criteria_range1, criterion1, criteria_range2, criterion2, ...)
+```
+
+A typical adtech use: total revenue from Yoav's campaigns on Taboola only. Two criteria: buyer = "Yoav Cohen" AND platform = "Taboola".
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=SUMIFS(F2:F13,B2:B13,"Yoav Cohen",D2:D13,"Taboola")'
+  task={<>Use <code>SUMIFS</code> to total Yoav Cohen's revenue on Taboola only. The result should be <code>899.45</code>.</>}
+  hint={<>Sum range first (revenue), then alternating criterion-range / criterion pairs: buyer column → "Yoav Cohen", platform column → "Taboola".</>}
+  answer={<>The argument order is the SUMIFS gotcha. With <code>SUMIF</code>, the range to check comes first and the sum range is optional at the end. With <code>SUMIFS</code> (plural), the sum range comes <strong>first</strong> and is required. After that, you pair criterion-range with criterion as many times as you need. Yoav's Taboola campaigns: row 2 (487.30) + row 6 (412.15) = 899.45. This shape (one buyer, one platform, full sum) is the basic building block of every adtech buyer-vs-platform pivot table. Add a third criterion for date range and you've got a quarterly view.</>}
+/>
+
+<QuickCheck
+  question="What's the difference in argument order between SUMIF and SUMIFS?"
+  options={[
+    {
+      id: "a",
+      label: "SUMIF and SUMIFS take arguments in the same order.",
+      correct: false,
+      explanation: "They don't. SUMIF: range, criterion, [sum_range]. SUMIFS: sum_range, criteria_range1, criterion1, ...",
+    },
+    {
+      id: "b",
+      label: "SUMIF puts sum_range last (optional); SUMIFS puts sum_range first (required).",
+      correct: true,
+      explanation: "This is one of Sheets' most annoying gotchas. SUMIF: =SUMIF(B2:B13, 'Yoav', F2:F13). SUMIFS: =SUMIFS(F2:F13, B2:B13, 'Yoav', D2:D13, 'Taboola').",
+    },
+    {
+      id: "c",
+      label: "SUMIFS only supports one condition.",
+      correct: false,
+      explanation: "SUMIFS takes any number of criteria pairs. That's the whole point.",
+    },
+  ]}
+/>
+
+## How to choose
+
+| Goal | Reach for |
+|---|---|
+| Total a column | `SUM` |
+| Average a column, ignoring text/blanks | `AVERAGE` |
+| Count numbers in a column | `COUNT` |
+| Count any non-empty cells | `COUNTA` |
+| Count cells matching one condition | `COUNTIF` |
+| Count cells matching multiple conditions | `COUNTIFS` |
+| Sum cells matching one condition | `SUMIF` |
+| Sum cells matching multiple conditions | `SUMIFS` |
+| Average cells matching multiple conditions | `AVERAGEIFS` |
+
+`COUNTIFS`, `SUMIFS`, and `AVERAGEIFS` are general enough that you can usually skip the singular versions entirely. If you remember one set, remember the plural. Modern dashboards are mostly `SUMIFS` and `COUNTIFS`.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **The buyer-vs-platform pivot.** Rows are buyers, columns are platforms, cells are SUMIFS of revenue. The total row at the bottom is SUM of the column above, the total column on the right is SUM of the row to the left. Multiply this by 4 metrics (spend, revenue, profit, ROI) and you've got the team's standard weekly view.
+- **The date-bounded summary.** Same SUMIFS, plus a third criterion: `>=` start_date AND `<=` end_date. The start/end dates live in named cells at the top of the dashboard ("current_period_start", "current_period_end") and the whole report updates when you change them.
+- **The "alert" counters.** COUNTIFS for "campaigns with ROI < 0.5" or "campaigns with no spend in the last 7 days". These run at the top of the dashboard as a "things to look at" panel.
+
+## Pro pitfalls
+
+- **The SUMIFS argument-order trap.** Sum range first. Wrong order returns wrong numbers without erroring. Always always always.
+- **Criteria strings need explicit comparison operators.** `SUMIFS(F:F, F:F, ">400")` works. `SUMIFS(F:F, F:F, 400)` matches only exact 400. `SUMIFS(F:F, F:F, "400")` is the same as exact match.
+- **`SUMIFS(..., date_range, ">=2026-01-01")` doesn't always work.** Date strings as criteria are unreliable. Better: <code>SUMIFS(..., date_range, "{">"}=" {"&"} DATE(2026,1,1))</code> with concatenation.
+- **Ranges of different sizes break SUMIFS silently.** Sum range and every criteria range must have the same dimensions. If one is `F2:F13` and another is `B2:B14`, SUMIFS returns wrong results without erroring.
+- **Empty cells count as 0 in SUMIFS for numeric criteria.** If you have empty rows from IMPORTRANGE that haven't been populated yet, `SUMIFS(..., F:F, "{">"}0")` skips them; `SUMIFS(..., F:F, "{"<"}{">"}1000")` includes them as zeros. Watch for this in date-range filters too.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log. You'll build a 4-cell mini-dashboard for one buyer (Yoav Cohen): total spend, total revenue, campaign count, and Taboola-specific revenue. Each cell exercises a different aggregator, but together they form a buyer summary you'd actually use.

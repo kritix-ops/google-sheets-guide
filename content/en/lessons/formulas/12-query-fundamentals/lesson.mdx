@@ -1,0 +1,88 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# The QUERY function: SQL-in-Sheets fundamentals
+
+`QUERY` lets you filter, sort, and project data using a SQL-like string. It's the most powerful single function in Sheets and the workhorse of every adtech dashboard. One QUERY can replace a dozen SUMIFS or a chain of FILTER+SORT: and unlike those, the result updates automatically as the source changes.
+
+The dialect is the **Google Visualization API Query Language**, similar to standard SQL but with quirks: column letters as identifiers, no JOIN, limited UPDATE/DELETE (none in Sheets context), and a few function differences.
+
+## Basic syntax
+
+```
+=QUERY(range, "SELECT clause WHERE clause ORDER BY clause LIMIT n", [headers])
+```
+
+The third argument tells QUERY how many header rows are in `range`. Pass `1` if your range includes a header row, `0` if it doesn't. Omit it and Sheets guesses (usually right, sometimes wrong).
+
+The query string is a single quoted string. Column references use letters: `A`, `B`, `C`, ...: but they refer to columns within the range you passed, **not** the sheet. If you pass `B2:F13`, then column `A` of the query is column `B` of the sheet.
+
+## SELECT
+
+`SELECT *` returns all columns. `SELECT A, B, F` returns specific columns in that order. `SELECT F-E` returns a computed column.
+
+<MiniGrid
+  data={CAMPAIGNS}
+  caption="The campaign log. We'll query against the full A2:F13 range."
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=QUERY(A1:F13,"SELECT B, C, F",1)'
+  task={<>Use QUERY to project just three columns: Buyer, Vertical, Revenue. Pass <code>1</code> as the third argument because A1:F13 includes the header row.</>}
+  hint={<>The SELECT clause names the columns you want, in any order. Use letters as they appear in the source range: B (Buyer), C (Vertical), F (Revenue).</>}
+  answer={<>QUERY's column letters are positional within the range you pass. Since the range starts at column A, the letters in the query string match the sheet letters. The third argument <code>1</code> tells QUERY there's one header row, which it preserves on top of the result. Without it, QUERY might guess wrong and either treat the header as data or split it weirdly.</>}
+/>
+
+## WHERE: filter rows
+
+The WHERE clause filters which rows come through.
+
+```
+=QUERY(A1:F13, "SELECT * WHERE B = 'Yoav Cohen'", 1)
+```
+
+String literals in the query string use **single quotes** (because the whole query is wrapped in double quotes). Numeric comparisons don't need quotes: `WHERE F > 400`. Date comparisons use `date 'YYYY-MM-DD'`: `WHERE A >= date '2026-05-05'`.
+
+Combine conditions with `AND` and `OR`: `WHERE B = 'Yoav Cohen' AND F > 400`.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula={"=QUERY(A1:F13,\"SELECT B, C, F WHERE F > 400 ORDER BY F DESC\",1)"}
+  task={<>Filter to campaigns with revenue greater than 400 and sort by revenue descending. Show Buyer, Vertical, Revenue.</>}
+  hint={<>WHERE comes before ORDER BY in the string. Numeric comparisons don't need quotes around the number.</>}
+  answer={<>The combined query: <code>SELECT B, C, F WHERE F {">"} 400 ORDER BY F DESC</code>. WHERE filters rows; ORDER BY sorts the remaining rows; SELECT projects which columns to show. The order of clauses in the string matches SQL: SELECT → WHERE → ORDER BY → LIMIT. (You can't reorder them: it's strict.) The result here is 7 rows, sorted with David Mizrahi's Solar Panels at the top (1124.6).</>}
+/>
+
+## ORDER BY and LIMIT
+
+`ORDER BY column` sorts ascending; `ORDER BY column DESC` descending. `LIMIT n` keeps only the first n rows. `OFFSET n` skips the first n rows.
+
+A common adtech pattern: top 5 campaigns by revenue.
+
+```
+=QUERY(A1:F13, "SELECT B, C, F ORDER BY F DESC LIMIT 5", 1)
+```
+
+## Used in the wild
+
+QUERY shows up everywhere in the team's dashboards. The patterns:
+
+- **Filtered campaign reports.** "Show me all of Yoav's campaigns from last week with ROI < 1.0." A WHERE with three conditions, one ORDER BY, often a LIMIT.
+- **Top-N leaderboards.** "Top 10 verticals by total spend." (Use GROUP BY: covered in lesson 13.)
+- **Date-bounded summaries.** "All campaigns where launch_date BETWEEN start AND end." Date comparison syntax is finicky: see pitfalls.
+- **Shared-view dashboards.** Build one source-of-truth tab with raw data; use QUERY in every dependent tab. Editing the source updates every dashboard.
+
+## Pro pitfalls
+
+- **Column letters refer to the range, not the sheet.** If you pass `C2:G13`, the query's column `A` is the sheet's column `C`. Easy to forget when copying queries between sheets.
+- **String literals need single quotes inside the query.** `WHERE B = "Yoav"` errors because the double quote ends the JS string. Always use single quotes inside the query string.
+- **Date comparisons need `date 'YYYY-MM-DD'`.** `WHERE A >= '2026-05-01'` treats the string as text and compares lexicographically: sometimes works, often doesn't. Always: `WHERE A >= date '2026-05-01'`.
+- **`SELECT *` plus `GROUP BY` errors.** GROUP BY (lesson 13) requires SELECT to enumerate columns. You can't have both `SELECT *` and aggregation in the same query.
+- **QUERY against IMPORTRANGE'd data needs the header argument explicitly.** Use `QUERY(IMPORTRANGE(...), "SELECT ...", 1)` and double-check the column letters: IMPORTRANGE's columns are positional from the range you imported, not from the source sheet.
+- **Column references in the query are case-sensitive and use uppercase.** `WHERE b = 'Yoav'` errors; `WHERE B = 'Yoav'` works.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log. You'll write three QUERYs of increasing complexity: a simple SELECT projection, a WHERE filter with sorting, and a multi-criterion filter combining buyer and revenue thresholds.

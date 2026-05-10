@@ -1,0 +1,125 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Text manipulation: LEFT, RIGHT, MID, FIND, SUBSTITUTE
+
+Real-world data shows up dirty, especially when it's been touched by half a dozen platforms before you see it. Vertical names with inconsistent suffixes, campaign codes packed with metadata, buyer names that need shortening for a chart legend. The text-slicing functions handle the everyday cleanup. The shaping functions (UPPER, LOWER, TRIM) from lesson 3 take care of casing and whitespace; this lesson handles slicing and substitution.
+
+## LEFT, RIGHT, MID: extract by position
+
+Three sibling functions, each takes a string and a count.
+
+- `LEFT(text, n)` returns the first `n` characters
+- `RIGHT(text, n)` returns the last `n` characters
+- `MID(text, start, n)` returns `n` characters starting at position `start` (1-indexed)
+
+The team's vertical names all end with `" PR"` by convention. To get the topic only (strip those last 3 characters off), you need `LEFT` combined with `LEN`.
+
+<MiniGrid
+  data={CAMPAIGNS}
+  caption="The campaign log. Vertical names in column C all end with ' PR'."
+  highlight={["C2"]}
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=LEFT(C2,LEN(C2)-3)"
+  task={<>Strip the trailing <code>" PR"</code> from the first campaign's vertical name. <code>"Used Cars PR"</code> should become <code>"Used Cars"</code>.</>}
+  hint={<><code>LEFT(text, n)</code> takes the leftmost <code>n</code> characters. The total length minus 3 gives you everything except the trailing space and "PR".</>}
+  answer={<><code>LEN(C2)</code> is 12 (twelve characters in "Used Cars PR"). Subtract 3 to drop the trailing " PR" → 9. <code>LEFT(C2, 9)</code> returns "Used Cars". This pattern (LEFT + LEN minus a known suffix length) is fragile if the suffix changes. Anywhere the team's data goes through cleanup before joining with platform-side data, this is the formula. The robust alternative when the pattern is more variable: <code>REGEXEXTRACT</code> (covered in lesson 16).</>}
+/>
+
+## FIND: locate a character
+
+`FIND(needle, haystack, [start])` returns the **position** of the first match. It's 1-indexed and case-sensitive. `SEARCH` is the case-insensitive sibling.
+
+You compose `FIND` with `LEFT`/`RIGHT`/`MID` to slice at a known delimiter rather than a known position. For a vertical like `"Used Cars PR"`, the first word is everything to the left of the first space: but the position differs per vertical name.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=LEFT(C2,FIND(" ",C2)-1)'
+  task={<>Extract the first word of the first vertical name. <code>"Used Cars PR"</code> → <code>"Used"</code>.</>}
+  hint={<>Find the first space with <code>FIND(" ", C2)</code>, then take that many characters minus 1 with <code>LEFT</code>.</>}
+  answer={<><code>FIND(" ", C2)</code> returns 5 (the space between "Used" and "Cars"). <code>LEFT(C2, 5-1)</code> returns the first 4 characters: "Used". The <code>-1</code> excludes the space itself. This pattern shows up everywhere campaign codes need parsing. A campaign named "Taboola_UsedCarsPR_DesktopUS_2026-05" can be split on every underscore to extract the platform, vertical, audience, and date: by chaining FIND with LEFT/MID/RIGHT for each segment.</>}
+/>
+
+## LEN: count characters
+
+`LEN(text)` returns the number of characters. Useful by itself for validation ("any vertical name over 30 chars?") and as a building block in slicing.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=LEN(B2)"
+  task={<>Count the characters in the first buyer name. <code>"Yoav Cohen"</code> should give <code>10</code>.</>}
+  hint={<><code>LEN(text)</code>. Don't forget the space counts as a character.</>}
+  answer={<><code>LEN</code> counts every character including spaces, punctuation, numbers, and emoji. "Yoav Cohen" is 10 characters: Y-o-a-v-space-C-o-h-e-n. In production, LEN is the basis of validation rules: "vertical name should be ≤ 30 chars before " PR" suffix", "buyer name should not exceed 25 chars for chart legend fit", "campaign code should be exactly 18 chars per the naming standard". Combine with conditional formatting (Track 2) to flag rows that fail.</>}
+/>
+
+## SUBSTITUTE: replace one substring with another
+
+`SUBSTITUTE(text, old, new, [occurrence])` replaces every occurrence of `old` with `new`. Pass an `occurrence` number to replace only the nth instance. Useful for shortening names for charts, normalizing inconsistent separators, or stripping unwanted characters.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=SUBSTITUTE(B2,"Cohen","C.")'
+  task={<>Shorten the first buyer name from <code>"Yoav Cohen"</code> to <code>"Yoav C."</code> for a chart legend.</>}
+  hint={<><code>SUBSTITUTE(text, old, new)</code>. Replace "Cohen" with "C.".</>}
+  answer={<>SUBSTITUTE matches a literal substring (no wildcards). It returns a new string; the original cell is unchanged. The optional fourth argument lets you replace just the nth match: handy for editing only the second underscore in a campaign code, for instance. To replace by position rather than substring, use <code>REPLACE</code> (different function: <code>REPLACE(text, start, length, new)</code>).</>}
+/>
+
+<QuickCheck
+  question="Which formula reliably gets the topic name from any vertical (e.g., 'Used Cars PR' → 'Used Cars', 'Online MBA PR' → 'Online MBA')?"
+  options={[
+    {
+      id: "a",
+      label: <code>=LEFT(C2, 9)</code>,
+      correct: false,
+      explanation: "Hardcoded length 9 is fine for 'Used Cars PR' (12 chars - 3) but breaks for shorter or longer names. Topic length varies.",
+    },
+    {
+      id: "b",
+      label: <code>=LEFT(C2, LEN(C2)-3)</code>,
+      correct: true,
+      explanation: "Length minus 3 strips the trailing ' PR' regardless of the topic length. Robust to any vertical name following the convention.",
+    },
+    {
+      id: "c",
+      label: <code>=SUBSTITUTE(C2, " PR", "")</code>,
+      correct: true,
+      explanation: "Also correct: and arguably cleaner since it's explicit about what's being removed. Both this and option B are pro-grade. Use whichever reads better in your team.",
+    },
+  ]}
+/>
+
+## How to choose
+
+| Goal | Reach for |
+|---|---|
+| Take the first/last N chars | `LEFT` / `RIGHT` |
+| Take N chars from a known position | `MID` |
+| Find the position of a character | `FIND` (case-sensitive) or `SEARCH` |
+| Replace a substring everywhere | `SUBSTITUTE` |
+| Replace by position | `REPLACE` |
+| Count chars | `LEN` |
+| Pattern-based extract | `REGEXEXTRACT` (lesson 16 covers regex in depth) |
+
+## Used in the wild
+
+- **Strip the " PR" suffix from every vertical column.** Either as an inline LEFT+LEN or as a SUBSTITUTE-by-suffix. Done once at the top of a "clean" tab via ARRAYFORMULA so all downstream sheets get the topic-only version.
+- **Parse campaign codes.** Codes like `Taboola_UsedCarsPR_DesktopUS_2026-05` chain FIND+MID to extract platform, vertical, audience tag, period: usually building 4 columns next to the code column.
+- **Shorten buyer names for chart legends.** SUBSTITUTE the surname for an initial, or use LEFT(buyer, FIND(" ", buyer)-1) to take the first name only.
+- **Normalize join keys.** Pair UPPER/LOWER (lesson 3) with TRIM and SUBSTITUTE before XLOOKUP'ing across sheets, especially when two sources came from different platforms with different conventions.
+
+## Pro pitfalls
+
+- **`FIND` returns `#VALUE!` when no match.** If you're parsing a delimiter that might not exist, wrap in `IFERROR` (lesson 9): <code>=IFERROR(LEFT(A2, FIND(" ", A2)-1), A2)</code>.
+- **`SUBSTITUTE` is case-sensitive.** `=SUBSTITUTE("Cohen Cohen", "cohen", "C.")` returns "Cohen Cohen" unchanged. Either pass the right case or wrap both in `LOWER()`.
+- **`LEFT(A2, LEN(A2)-3)` returns garbage for strings shorter than 3 chars.** It returns LEFT with a negative count, which errors. Add a guard with `IF(LEN(A2)<=3, "", LEFT(...))` for messy data.
+- **Whitespace is invisible.** `=LEN(A2)` for what looks like "Yoav" might return 5 if there's a trailing space. TRIM first when parsing.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log. You'll write four text formulas: strip the " PR" suffix, get the first word of the vertical, count characters in a buyer name, and shorten a buyer name for a chart legend.

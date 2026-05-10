@@ -1,0 +1,132 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Installable triggers: time-driven, edit-driven with auth
+
+The previous lesson covered simple triggers: reserved-name functions that fire automatically. They have a narrow auth context: no email, no network, no other docs, no UI. The moment a real workflow needs any of those, simple triggers are the wrong tool. The way out is **installable triggers**: triggers you register programmatically with `ScriptApp.newTrigger(...)`, which run with the project owner's full auth and can do whatever an Apps Script function is normally allowed to do.
+
+Three things installable triggers add on top of the simple-trigger model:
+
+1. **Full auth.** The handler can send mail, fetch URLs, open other spreadsheets, read calendar events, write to Drive.
+2. **Time-driven scheduling.** Cron-like: every N minutes, every N hours, every N days, or at a specific date and time.
+3. **Programmatic registration.** A line of code creates the trigger, a line of code deletes it. No hidden state in the editor UI.
+
+The same `onEdit` event from last lesson can be wired as an installable trigger too: same event name, same `e` shape, but with the full auth of an installable trigger. If your edit handler needs to ping Slack, that's how.
+
+## The builder chain
+
+`ScriptApp.newTrigger(handlerName)` returns a builder. You chain calls on it to describe what kind of trigger it is and when it fires; the chain ends with `.create()`, which is what actually registers the trigger.
+
+A time-driven trigger that fires every day at 6 AM:
+
+```js
+function setupDailyRefresh() {
+  ScriptApp.newTrigger("refreshAggregator")
+    .timeBased()
+    .everyDays(1)
+    .atHour(6)
+    .create();
+}
+```
+
+The first argument to `newTrigger` is the **handler name as a string**, not a function reference. Apps Script looks the handler up by name at fire time. If you rename `refreshAggregator` later and forget to update the string, the trigger keeps firing: and the executions log fills with "Script function not found" errors. That's the most common installable-trigger gotcha.
+
+An edit-driven installable trigger pointed at the same workbook:
+
+```js
+function setupSpendAlerts() {
+  ScriptApp.newTrigger("notifySpendChange")
+    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+    .onEdit()
+    .create();
+}
+
+function notifySpendChange(e) {
+  // Full auth: UrlFetchApp.fetch is fine here.
+  UrlFetchApp.fetch("https://hooks.slack.com/...", { /* payload */ });
+}
+```
+
+`notifySpendChange` looks identical to the `onEdit` from lesson 7. The difference is that this one was registered with `.forSpreadsheet(...).onEdit()`, not declared with the reserved name `onEdit`. That registration gives it full auth.
+
+## The four time-based shapes
+
+Time-driven triggers fall into four scheduling patterns:
+
+| Builder method | Fires |
+|---|---|
+| `.everyMinutes(n)` | Every n minutes. n must be 1, 5, 10, 15, or 30. |
+| `.everyHours(n)` | Every n hours. Anchored to the trigger's creation hour. |
+| `.everyDays(n).atHour(h)` | Every n days at hour h (24-hour local time). |
+| `.atDate(year, month, day).atHour(h)` | Once at a specific moment. |
+
+The hour values are coarse: `atHour(6)` means "sometime between 6:00 and 7:00 in the script's timezone", not exactly 6:00. If you need true clock-precision firing, you need a different architecture: usually a cron job outside Apps Script that hits a webhook.
+
+## The first-run auth grant
+
+The first time you run `setupDailyRefresh()` from the Apps Script editor, you'll see an auth prompt. You're authorizing the project to use the OAuth scopes the handler needs: `script.scriptapp` (for the trigger registration itself), and whatever scopes the handler body needs (spreadsheets, mail, urlfetch, etc.). After you accept, the trigger is registered, your account is on file as the owner, and from then on the handler fires under your auth: even when you're not at your desk.
+
+If you give your workbook to a teammate and they need their own copy of the trigger, **they have to run `setupDailyRefresh()` themselves**. The trigger registration is per-user, not per-script. This catches teams out: "I set it up, why isn't it firing for everyone?"
+
+## Inspecting and deleting
+
+The Apps Script editor surfaces all registered triggers under **Edit → Current project's triggers** (or the clock icon in the left rail on the new editor). Each row shows the handler name, the trigger type, the schedule, and the most recent firing's success or failure.
+
+Programmatically:
+
+```js
+function listTriggers() {
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(function(t) {
+    console.log(t.getHandlerFunction(), t.getEventType().toString());
+  });
+}
+
+function deleteAllRefreshTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === "refreshAggregator") {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+}
+```
+
+Every script account has a **per-account limit of 20 triggers per script**. If you register `setupDailyRefresh` twice without deleting the first registration, you'll get two firings per day. Register it 20 times and the next call to `.create()` throws.
+
+## Used in the wild
+
+Two real patterns from the team's workbooks:
+
+- **Nightly platform pulls.** Each ad network: Taboola, Outbrain, MediaGo: gets its own `.everyDays(1).atHour(2)` trigger registered against a per-platform handler. The handler hits the platform's reporting API via `UrlFetchApp.fetch`, parses the JSON, and writes the day's spend and revenue into the platform-specific tab. The aggregator workbook then pulls each tab via `IMPORTRANGE`. Without installable triggers, none of this works: `UrlFetchApp` is off-limits to simple triggers.
+- **Edit-driven Slack alerts.** The buyer leads' workbook has an installable edit trigger that watches the Profit column. When a row crosses below `-$500` for the day, the handler pings a `#spend-alerts` Slack channel with the row's buyer, vertical, and current loss. Has to be installable: simple triggers can't reach Slack.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61. Column I has the label `Last refresh`; column J is where the daily handler stamps the time. Your job: register a daily trigger that fires a handler which writes `new Date()` into J1."
+/>
+
+The starter file `Lesson.gs` declares two function stubs:
+
+- `setupDailyRefresh()`: the registration. Its body uses `ScriptApp.newTrigger(...).timeBased().everyDays(1).atHour(6).create()` and points at the handler **by string name**.
+- `refreshAggregator()`: the handler the trigger fires. Its body writes the current `new Date()` into cell J1 on the Campaigns tab.
+
+The flow once you've filled both in:
+
+1. Save the project. Click into `setupDailyRefresh` in the Apps Script editor. Press the **Run** button.
+2. Accept the auth prompt. (You're granting the script permission to manage triggers and write to spreadsheets.)
+3. Open **Edit → Current project's triggers**. You should see one row: `refreshAggregator`, Time-driven, Day timer, 6am–7am.
+4. To verify the handler works without waiting 12 hours, run `refreshAggregator` directly from the editor. J1 fills with the timestamp.
+5. After the daily fire, the executions dashboard shows one row per day with the handler's runtime and exit status.
+
+The lesson tests check the source of both functions. They do not (and cannot) check the trigger registry: that's a runtime artefact on Google's side, only confirmable from the editor UI.
+
+## Pro pitfalls
+
+- **Orphaned triggers from old code that fail silently every night.** If you delete `refreshAggregator` from the source but never delete its trigger, the trigger keeps firing every day at 6 AM, finds no function with that name, and logs "Script function not found": quietly, in the executions dashboard nobody reads. Run `listTriggers()` (above) periodically to audit what's registered against what.
+- **Trigger handlers that crash silently.** A handler that throws an uncaught exception doesn't email you. The error lives in the **executions dashboard** (clock icon → Executions) under the failed run. Set up an installable failure-notification trigger (Apps Script has one built in) or wrap your handler in try/catch and email yourself on failure.
+- **`atHour(6)` is not 6:00 AM exactly.** Apps Script's time-driven triggers fire in a one-hour window around the requested hour. If your handler depends on data uploaded at 5:55 AM, schedule the trigger for `atHour(7)` to leave margin.
+- **The 20-trigger limit per script.** Add `setupDailyRefresh()` to your menu and let a user click it twice and you've registered two daily triggers. Defensive registration code checks `ScriptApp.getProjectTriggers()` for an existing trigger with the same handler name and deletes it before creating a new one.
+- **Runtime quotas.** Consumer Google accounts get 90 minutes of total trigger runtime per day; Workspace accounts get 6 hours. A handler that loops over a 60,000-row spreadsheet eats minutes per fire; a daily fire of 30 minutes burns a third of the consumer quota.
+- **Time zone confusion.** The trigger's hour is interpreted in the **script's time zone** (set in the project manifest under `timeZone`). The script time zone defaults to the project creator's locale. If you registered the trigger from your laptop in Tel Aviv and your teammate's laptop is in New York, both see the same firing time: but the wall-clock time in each city is different.
+- **Triggers don't survive a project copy.** If you File → Make a copy of the workbook, the new copy has no registered triggers. The new owner must run `setupDailyRefresh()` themselves.

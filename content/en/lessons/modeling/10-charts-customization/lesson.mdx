@@ -1,0 +1,79 @@
+import { CAMPAIGNS_TIMESERIES } from "@/content/datasets/adtech";
+
+# Charts: customizing axes, labels, and secondary series
+
+Lesson 9 was about *which* chart to pick. Lesson 10 is everything that happens after you click Insert chart. The default chart Sheets gives you is rarely the chart you want to ship. Axis labels say `Column B` instead of `Spend ($)`. The legend sits on the right and squeezes the plot area when you embed the chart in a narrow report frame. Two metrics with wildly different scales share one Y-axis and one of them flatlines at the bottom. The customization layer is what turns a chart from "looks roughly right" into something a buyer can read at a glance in a Monday review.
+
+## Axis titles and units
+
+Every axis with a unit gets a label. ROI is `%`. Spend and revenue are `$`. Conversions are a count. Without a label, the viewer guesses, and the moment somebody guesses wrong about whether a number is dollars or thousands of dollars, the whole report loses credibility.
+
+In `Chart editor → Customize → Chart & axis titles`, set:
+
+- Horizontal axis title: the column name plus its unit when it isn't obvious (`Date` is fine bare; `Spend ($)` is not).
+- Vertical axis title: same rule. If a chart has two Y-axes, both get labels.
+- Chart title: tells the viewer what the chart shows, not where it came from. `April performance trend` is good. `Sheet1 chart 3` is what Sheets gives you by default; it is never the right answer.
+
+## Secondary axis: when two scales share an X
+
+When two metrics share a date axis but live at different scales, plotting them on one Y-axis flattens the smaller one into a horizontal line at zero. A chart that shows daily Spend (range: $1,500 to $2,500) alongside daily Conversions (range: 250 to 400) needs two Y-axes, one on the left and one on the right.
+
+This is what the **COMBO chart type** is built for. A COMBO chart lets you mix series types (line versus column) on a per-series basis, and assign each series to either the left or right axis. The team default for a Spend-plus-revenue-plus-conversions trend is: bars for the dollar metrics on the left axis, a line for the count metric on the right axis. The reader can see the dollar values rise and fall at one scale while the count series moves at its own.
+
+In `Chart editor → Customize → Series`, pick a series from the dropdown, then change `Axis` to `Right axis`. Repeat for every series that belongs on the right. Then in `Chart & axis titles → Right vertical axis`, label it.
+
+## Series formatting: line vs column, color, markers
+
+A COMBO chart's whole point is that not every series is the same shape. In `Customize → Series`, each series can independently be set to `Line`, `Columns`, `Area`, or `Steps`. The rule of thumb the team uses: **continuous metrics (Spend, Revenue, ROI) get lines; countable events (Conversions, Clicks) get columns**. The eye reads a line as a flowing measurement and a bar as a discrete count, and that intuition is right.
+
+Colors should be tied to brand or to status, never random. Spend in the team's color, revenue in green, profit in either green-or-red based on sign. If you let Sheets pick the colors, the same series shows up in a different color every time the chart gets rebuilt, and viewers stop trusting the colors as signal.
+
+Markers (the dots on a line series) help on sparse data. A weekly trend with 8 points reads better with markers than without. On a dense 90-day daily line, markers are noise.
+
+## Legend position
+
+Four choices: `Bottom`, `Right`, `Top`, `None`. The readable defaults are `Bottom` and `Right`. `Top` crowds the chart title and is almost always wrong. `None` is correct when there's only one series and the axis label already names it.
+
+The team's default is **`Bottom`** because most charts get embedded in report frames that are wider than tall, and a right legend eats horizontal space the plot area needs. A bottom legend stacks under the plot and the chart stays wide.
+
+## Sparklines: the inline alternative
+
+Sometimes a chart is overkill. When you have a table where each row is a buyer or a vertical, and you want a tiny trend next to each one ("how has this buyer's revenue moved over the last 7 days?"), the right tool is not 14 charts. It is the `SPARKLINE` function, which puts a one-cell chart inside a cell.
+
+`=SPARKLINE(B2:B8, {"charttype","line"; "color","#1a73e8"})` in a cell renders a tiny line chart of the 7 values to its left. Sparklines are covered end-to-end in Track 1 lesson 26; the point here is that **before you build a full chart, ask whether a sparkline would carry the same information in a tenth of the space**. For a per-row trend column, sparklines win. For a single headline trend at the top of a dashboard, a full chart wins.
+
+## The "no chart for that data" check
+
+If a chart needs more than four series, the legend reads like a phone book and the plot turns into spaghetti. The answer is almost never to add a fifth series. It's one of: a small-multiple grid (one tiny chart per category), a pivot table, or a flat table with sparklines. A chart that needs explaining in three sentences is the wrong chart.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_TIMESERIES.slice(0, 6)}
+  caption="30 days of daily totals fill A1:F31. The chart goes at K1 on a tab named Trend."
+/>
+
+Click **Start lesson** to provision the time series. Then create a tab named `Trend`, paste the data there, and build a customized **COMBO chart** anchored at `K1`:
+
+- Chart type: **COMBO** (this is what gives you per-series line-versus-column control).
+- Series: **at least three** of Spend, Revenue, Clicks, Conversions. Pick the mix that tells the clearest story for the team's review. The team usually goes Spend + Revenue as columns on the left axis, Conversions as a line on the right axis, plus Clicks as a thin secondary line for context.
+- Title: anything that contains the word **"performance"** (case-insensitive). `April performance trend`, `Daily campaign performance`, `Team performance overview` all work.
+- Legend position: **`Bottom`** (`BOTTOM_LEGEND`). The team default; matches the narrow report frames the chart gets embedded in.
+
+The grader reads four properties off the chart: type, series count, legend position, and title. If you switch to a plain LINE chart, the grader catches it. If you put only two series on it, the grader catches that too. A two-series combo isn't telling the multi-metric story the assignment asks for.
+
+## Used in the wild
+
+In the team's actual dashboards, three customization patterns get applied to every chart that ships:
+
+- **Axis titles always include the unit.** `Spend ($)`, `ROI (%)`, `Conversions (count)`. No guessing about whether 1.4 is dollars or a multiplier.
+- **`BOTTOM_LEGEND` is the default**, because every chart ends up in either a Slack message or a Google Doc report, both of which are wider than tall. A right-side legend wastes the plot area.
+- **ROI series get rounded to two decimals** via the series-level number format. A line that bounces between 1.4287 and 1.4319 reads as noise; rounded to 1.43 and 1.43 it reads as the flat trend it actually is.
+
+## Pro pitfalls
+
+- **Secondary-axis settings vanish on copy.** When someone duplicates a tab, the chart copies, but the right-axis assignment quietly resets to the left axis on some series. Always re-open `Customize → Series` after duplicating a tab with a multi-axis chart and verify the assignment held.
+- **Chart titles that match cell text below but don't update.** A common pattern is putting a chart title in a cell like `J0` and pointing the chart title at that cell. When the cell text gets edited, the chart title updates. When somebody changes the chart title directly through the editor, the link breaks silently and the title stops tracking the cell. If the title is supposed to be data-driven, lock that intention with a cell note explaining it.
+- **`SPARKLINE` cells that look like real charts in print.** A sparkline at the default cell size looks like a tiny chart on screen. When the sheet gets printed or exported to PDF, sparklines render at the print size, and at 100% zoom they often look like noise. Test the print output before you ship a sheet that depends on sparklines for the trend story.
+- **Charts pulling from `IMPORTRANGE` ranges that grow.** A chart pointed at `Source!A2:F100` looks fine until the source workbook adds rows 101 through 200. The chart silently ignores them. Use a wide range like `A2:F1000` or, better, a named range that you extend in one place.
+- **`COMBO` charts that lose their assignment when reordering series.** Drag a series up in the editor's series list, and Sheets sometimes resets that series's chart type back to the default. Always re-verify the line/column choice for each series after reordering.

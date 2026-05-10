@@ -1,0 +1,129 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# המעבר מ-Excel
+
+Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מה שתופס אנשי מקצוע בשבוע הראשון. הארבעה הגדולים: arrays לא עושים auto-spill, `XLOOKUP` עובד אותו דבר, ל-Power Query אין מקבילה, ומודל השיתוף מבוסס לינק במקום קובץ.
+
+## Arrays: מפורש, לא משתמע
+
+הקלידו `=F2:F13` ב-`H1` (reference לעמודת Revenue). ב-Excel 365, ה-array spill כלפי מטה לבד. ב-Sheets, תקבלו רק את הערך הראשון, `487.3`. כדי לקבל spill, עוטפים ב-`ARRAYFORMULA`.
+
+המקרה הקלאסי באדטק: רוצים עמודת רווח (revenue פחות spend) לכל קמפיין, מחושבת בנוסחה אחת. ב-Excel היינו מקלידים `=F2:F13-E2:E13` ומקבלים את העמודה כ-spill בחינם. ב-Sheets צריך לעטוף את זה.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="G1"
+  expectedFormula="=ARRAYFORMULA(F2:F13-E2:E13)"
+  task={<>חשבו רווח (revenue פחות spend) לכל הקמפיינים בבת אחת. נוסחה אחת ב-<code>G1</code> אמורה למלא את <code>G1:G12</code> ברווח של כל קמפיין.</>}
+  hint={<>עטפו את <code>F2:F13-E2:E13</code> ב-<code>ARRAYFORMULA(...)</code> כדי שיעשה spill.</>}
+  answer={<>ביטויי חשבון פשוטים כמו <code>F2:F13-E2:E13</code> לא עושים auto-spill ב-Sheets. הם מחזירים רק את הערך הראשון. עטיפה ב-<code>ARRAYFORMULA</code> אומרת למנוע לשדר את החיסור על פני כל הטווח, ככה שנוסחה אחת ב-<code>G1</code> ממלאת 12 תאים. פונקציות כמו <code>FILTER</code>, <code>SORT</code>, <code>UNIQUE</code>, <code>QUERY</code>, ו-<code>SEQUENCE</code> עושות spill בעצמן ולא צריכות עטיפה. בעבודת אדטק אמיתית, תכתבו ARRAYFORMULA על עמודות של מטריקות מחושבות (רווח, ROI, EPC, מרג'ין) ככה שנוסחה אחת בראש ממלאת את כל העמודה כשנכנסים קמפיינים חדשים למטה.</>}
+/>
+
+<QuickCheck
+  question="מי מהבאים לא זקוק ל-ARRAYFORMULA כדי לעשות spill ב-Sheets?"
+  options={[
+    {
+      id: "a",
+      label: <code>=F2:F13 - E2:E13</code>,
+      correct: false,
+      explanation: "ביטויי חשבון פשוטים לא עושים spill ב-Sheets. הם זקוקים ל-ARRAYFORMULA.",
+    },
+    {
+      id: "b",
+      label: <code>=FILTER(F2:F13, B2:B13 = "Yoav Cohen")</code>,
+      correct: true,
+      explanation: "FILTER מודע ל-array. גם SORT, UNIQUE, QUERY, ו-SEQUENCE.",
+    },
+    {
+      id: "c",
+      label: <code>=F2:F13</code>,
+      correct: false,
+      explanation: "Reference פשוט לטווח מחזיר רק את התא הראשון אם לא עוטפים אותו.",
+    },
+  ]}
+/>
+
+## XLOOKUP: סוף סוף אותו דבר בשתיהן
+
+`XLOOKUP` הגיע ל-Sheets ב-2022. חתימה זהה, התנהגות זהה. אם אתם משתמשים בו ב-Excel היום, אתם יכולים להשתמש בו ב-Sheets היום.
+
+```
+=XLOOKUP(search_key, lookup_range, return_range, [if_not_found], [match_mode], [search_mode])
+```
+
+שימוש טיפוסי באדטק: לאתר את ה-revenue של הקמפיין הראשון של media buyer ספציפי בטבלה.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=XLOOKUP("Yoav Cohen",B2:B13,F2:F13)'
+  task={<>השתמשו ב-<code>XLOOKUP</code> כדי למצוא את ה-revenue של הקמפיין הראשון של Yoav Cohen בטבלה. התוצאה ב-<code>H1</code> צריכה להיות <code>487.3</code>.</>}
+  hint={<>שלושה ארגומנטים: search key (<code>"Yoav Cohen"</code>), lookup range (<code>B2:B13</code>, עמודת ה-Buyer), return range (<code>F2:F13</code>, Revenue).</>}
+  answer={<>ה-lookup range וה-return range מועברים כארגומנטים נפרדים. הם מיושרים שורה-מול-שורה: שורה 1 של <code>B2:B13</code> היא Yoav, שורה 1 של <code>F2:F13</code> היא 487.3. בלי חשבון של מספר עמודה, בלי דגל <code>FALSE</code> ל-exact match. <code>XLOOKUP</code> מחזיר את ההתאמה הראשונה כברירת מחדל. כאן זה הקמפיין מ-1 במאי על ה-vertical Car Deals PR ב-Google. כדי למצוא התאמה ספציפית, הוסיפו תנאים נוספים או השתמשו ב-INDEX/MATCH (מכוסה בשיעור 4).</>}
+/>
+
+## ל-Power Query אין מקבילה ישירה
+
+Power Query של Excel הוא UI לעיצוב, חיבור והמרה של מידע, עם שלבים מתועדים בתור קוד M. ל-Sheets אין משהו דומה מהקופסה. התשובות הילידיות של Sheets, ממופות לפי מה שהייתם שולפים ב-Excel:
+
+| ב-Excel הייתם... | ב-Sheets שולפים... |
+|---|---|
+| מסננים וממיינים עם Power Query | `QUERY(range, "SELECT ... WHERE ... ORDER BY ...")` |
+| Join של שתי טבלאות על מפתח | `QUERY` עם references מרובים, או `XLOOKUP` פר שורה |
+| מושכים מ-spreadsheet אחר | `IMPORTRANGE(url, "Sheet!A:F")` |
+| המרות רב-שלביות | Apps Script (Track 3) |
+| מושכים ממסד נתונים או warehouse | Connected Sheets + BigQuery (Track 4) |
+
+`IMPORTRANGE` היא הדרך שבה הצוות מחבר כל גיליון קמפיינים למקור המידע הגולמי שלו. זה גם המקור הנפוץ ביותר לנוסחאות שבורות: שינוי שם של ה-spreadsheet המקור, שלילה של הרשאות, טווח שזז. שיעור 27 של Track 1 מכסה דפוסי `IMPORTRANGE`. Track 4 מכסה איתור התקלות.
+
+<QuickCheck
+  question="אתם רוצים להציג רק קמפיינים עם revenue גבוה או שווה ל-400, ממוין מהגבוה לנמוך. מה הגישה הכי אידיומטית ב-Sheets?"
+  options={[
+    {
+      id: "a",
+      label: "להוסיף עמודת עזר עם IF, ואז למיין ידנית.",
+      correct: false,
+      explanation: "עובד, אבל כל שינוי דורש מיון מחדש. התוצאה סטטית, לא מחושבת. ב-spreadsheet רב-גיליונות עם עשרות תלויות, זה הופך מהר לבלתי ניתן לתחזוקה.",
+    },
+    {
+      id: "b",
+      label: <><code>QUERY(A2:F13, "SELECT B, C, F WHERE F {">"}= 400 ORDER BY F DESC")</code></>,
+      correct: true,
+      explanation: "QUERY משלב סינון ומיון בנוסחה אחת. התוצאה מתעדכנת כשהמקור משתנה. בדיוק מה שרוצים כשהמקור עצמו הוא IMPORTRANGE.",
+    },
+    {
+      id: "c",
+      label: "לפתוח את Power Query.",
+      correct: false,
+      explanation: "Power Query הוא רק ב-Excel. ל-Sheets אין UI מקביל. QUERY הוא התשובה הפנימית.",
+    },
+  ]}
+/>
+
+## מודל השיתוף מבוסס לינק, לא קובץ
+
+קבצי Excel חיים במערכת קבצים, וההרשאה היא חלק ממיקום האחסון. spreadsheets של Sheets חיים ב-Drive, וההרשאה היא metadata על המסמך עצמו: תפקידים גרנולריים (viewer, commenter, editor) ו-scopes של שיתוף בלינק. הזרימה של "לשמור ולשלוח את הקובץ במייל" נעלמת ומוחלפת ב"לשלוח לינק". ל-spreadsheet אחד יכולים להיות מאות עורכים בו-זמנית בלי merge conflicts.
+
+באדטק זה מתבטא בשתי דרכים:
+
+- **References בין spreadsheets דרך `IMPORTRANGE`.** כשגיליון א' מייבא מגיליון ב', זה דורש הרשאה מפורשת בפעם הראשונה. אם הבעלים של ב' שולל גישת editor ל-א', ה-IMPORTRANGE נכשל בשקט וכל הנוסחאות התלויות מחזירות `#REF!`. הכפילו פי 10 גיליונות מקור, ושבירה אחת יוצרת מפל.
+- **Filter views (יכוסה בהמשך ב-Track 2).** כשחמישה media buyers חולקים גיליון, כל אחד יכול להפעיל פילטר משלו בלי להפריע לאחרים. בלי filter views, פילטר של "להציג רק Taboola" של אחד מסתיר שורות לכולם.
+
+## כמה הבדלים שקטים יותר
+
+- **אין VBA מובנה.** Apps Script (בטעם JavaScript) מחליף אותו. Track 3 מכסה אותו.
+- **`UNIQUE`, `SORT`, `FILTER` עושים spill בלי `ARRAYFORMULA`.** הוסבו להתנהג כמו הגרסאות עם spill של Excel.
+- **References בין גיליונות מדלגים על נתיב הקובץ.** `=Campaigns!E5` במקום `=[file.xlsx]Sheet1!E5`. References בין spreadsheets עובדים דרך `IMPORTRANGE` (שיעור 27).
+- **`IF`, `IFS`, `SWITCH`, `LET` מיושרים.** לוגיקה מותנית עוברת חלק.
+
+## נפוץ בשטח
+
+ב-spreadsheets האמיתיים של הצוות, הדפוסים שהשיעור הזה מכסה מופיעים ככה:
+
+- **עמודות רווח, ROI, EPC, מרג'ין הן כולן ARRAYFORMULA יחיד בראש.** כשמדביקים קמפיינים חדשים לשורות 14, 15, 16, ה-ARRAYFORMULA מתרחבת אוטומטית (בהנחה שהטווח הוגדר רחב מספיק מההתחלה).
+- **XLOOKUP בסגנון "תני לי X של media buyer Y" הוא רפלקס יומיומי.** תאריך הקמפיין הראשון, סך ה-spend החודש, ה-vertical האחרון שהריץ. לעיתים קרובות מצומד ל-IMPORTRANGE בין גיליונות על טאב של buyers.
+- **QUERY הוא איך בונים את ה-dashboards.** "SELECT A, B, SUM(F) GROUP BY A, B" עם פילטרים לפי טווח תאריכים. איטי יותר מ-SUMIFS על גיליונות גדולים מאוד, אבל הרבה יותר אקספרסיבי.
+
+## עכשיו לעבודה אמיתית
+
+לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים. תתרגלו את שלושת ההבדלים הכי גדולים בין Excel ל-Sheets: עמודת רווח עם `ARRAYFORMULA`, `QUERY` לקמפיינים עם revenue גבוה, ו-`XLOOKUP` לאיתור revenue של קמפיין ראשון של media buyer.

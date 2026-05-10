@@ -1,0 +1,106 @@
+# Financial functions: NPV, IRR, PMT, and friends
+
+Sheets ships a deep set of financial functions originally aimed at loans, bonds, and depreciation. Most of them rarely matter for a media buyer. The handful that do: `NPV`, `IRR`, `PMT`, plus a few cousins: show up the moment you're justifying budget allocation across cohorts, computing payback period for an acquisition campaign, or modeling the lifetime value of a customer relative to acquisition cost.
+
+This lesson covers the small set worth knowing and the math you actually use day-to-day.
+
+## NPV: net present value
+
+A dollar today is worth more than a dollar a year from now. `NPV(rate, cash_flow_1, cash_flow_2, ...)` discounts a series of future cash flows back to today's value.
+
+```
+=NPV(0.10, -1000, 200, 300, 400, 500)
+```
+
+This says: at a 10% annual discount rate, what's the present value of "spend $1,000 today, earn $200 next year, $300 the year after, etc"?
+
+**Critical gotcha:** Sheets' `NPV` discounts every cash flow including the first one. If the first cash flow is "today" (period 0), it shouldn't be discounted. The standard correction: pass period-0 cash separately:
+
+```
+=NPV(0.10, 200, 300, 400, 500) - 1000
+```
+
+The `-1000` is the today-cost; the NPV is the discounted value of the future inflows. Subtract them to get the true NPV.
+
+In adtech, NPV is how you compare two acquisition strategies that pay back over different time horizons. "Channel A costs $1k today and earns $200 for 5 years; Channel B costs $1.2k today and earns $400 for 3 years." NPV at the team's hurdle rate tells you which is better.
+
+## IRR: internal rate of return
+
+`IRR(cash_flows)` returns the discount rate at which NPV equals zero: the implicit annual return of the cash-flow series.
+
+```
+=IRR({-1000, 200, 300, 400, 500})
+```
+
+Result is roughly 0.13 (13% IRR). If your hurdle rate is 10%, this is acceptable; if it's 15%, it's not.
+
+**The cash flow array starts with the negative initial outflow.** Forget the negative sign and IRR returns nonsense or `#NUM!`.
+
+The team uses IRR to compare campaign acquisition spend against expected LTV streams. "Spend $X to acquire users; users generate revenue Y, Z, W over 12 months." IRR collapses the whole stream into one comparable number.
+
+## PMT: loan/equal-payment math
+
+`PMT(rate, nper, pv)` computes the periodic payment on a loan or equal-payment series. Less directly relevant for media buying, more for "if I'm financing $50k of upfront ad spend at 8% over 12 months, what's the monthly payment?"
+
+```
+=PMT(0.08/12, 12, 50000)        → $-4,348.31 monthly
+```
+
+Notes: rate is per period (so divide annual by 12 for monthly), nper is total periods, pv is the present value (the loan amount). The result is negative because it's an outflow from your perspective.
+
+## Adtech math: PROFIT, MARGIN, ROAS, payback period
+
+Most of what a media buyer needs is straightforward arithmetic, but worth naming:
+
+| Metric | Formula | Meaning |
+|---|---|---|
+| Profit | `revenue - spend` | Dollar profit |
+| ROI | `(revenue - spend) / spend` | % return on spend |
+| ROAS | `revenue / spend` | Revenue per dollar of ad spend |
+| Margin | `(revenue - spend) / revenue` | Profit as % of revenue |
+| CAC | `spend / new_customers` | Cost to acquire a customer |
+| LTV | `avg_revenue_per_customer * retention_months` | Lifetime value |
+| LTV/CAC | `LTV / CAC` | Health ratio (>3 is healthy) |
+| Payback period | `CAC / monthly_revenue_per_customer` | Months to recoup CAC |
+
+Promote these to **named functions** (lesson 21) the moment more than one dashboard uses them. `=ROI(spend, revenue)`, `=ROAS(spend, revenue)`, `=PAYBACK_MONTHS(cac, monthly_revenue)`. The team's vocabulary lives in formulas.
+
+<TryIt
+  data={[["Spend", "Revenue", "Profit", "ROI", "ROAS"], [342.18, 487.30, "", "", ""]]}
+  inputCell="C2"
+  expectedFormula="=B2-A2"
+  task={<>Compute Profit in <code>C2</code> as Revenue minus Spend.</>}
+  hint={<><code>=B2-A2</code>. Profit = Revenue - Spend.</>}
+  answer={<>Profit is 145.12. ROI (D2) would be <code>=(B2-A2)/A2</code> ≈ 0.424. ROAS (E2) is <code>=B2/A2</code> ≈ 1.424. The three are different lenses on the same numbers: Profit in dollars, ROI as a return ratio, ROAS as revenue per dollar.</>}
+/>
+
+<TryIt
+  data={[["Year", "Cash flow"], [0, -1000], [1, 400], [2, 400], [3, 400], [4, 400], ["NPV @ 10%", ""]]}
+  inputCell="B6"
+  expectedFormula="=NPV(0.10,B2:B5)+B1"
+  task={<>Compute the NPV of the cash-flow series at a 10% discount rate. Note the standard correction: <code>NPV(rate, period_1_onward) + period_0</code>.</>}
+  hint={<>NPV(0.10, B2:B5) discounts the future inflows. Add B1 (the period-0 outflow, which is already negative) without discounting.</>}
+  answer={<>The result is roughly 268. The corrected pattern is <code>=NPV(rate, future_flows) + initial_outlay</code>. Sheets' NPV insists on discounting every cash flow you give it, so passing the period-0 flow separately (and adding it un-discounted) is how you get the accountant's NPV. If you'd written <code>=NPV(0.10, B1:B5)</code> directly, the answer would be off by a 10% discount on the initial outlay.</>}
+/>
+
+## Used in the wild
+
+- **NPV across cohort acquisition strategies.** Compare "high CAC, long-tail revenue" vs "low CAC, fast-fade" channels. NPV at the team's hurdle rate tells you which dollar-in/dollar-out shape is better.
+- **IRR for budget allocation.** When deciding which campaigns to scale, IRR collapses each campaign's projected cash flow into one comparable number. Anything below the hurdle rate gets dropped.
+- **Payback period for new-channel experiments.** "Will Channel X pay back its CAC within 3 months?" Computed from CAC and monthly revenue per customer; gates whether the experiment continues.
+- **LTV/CAC as a health metric.** The team's North Star ratio. Above 3 is healthy; 1-3 is marginal; below 1 is unsustainable. Aggregated by buyer, vertical, channel: used to decide where to invest more.
+- **Margin trend over time.** Margin compresses as competition raises CPCs. Track monthly margin per vertical to see which verticals are getting harder.
+
+## Pro pitfalls
+
+- **NPV discounts the first cash flow.** Almost everyone gets this wrong the first time. Always: `NPV(rate, period_1_onward) + period_0`.
+- **IRR returns nonsense if all cash flows have the same sign.** You need at least one negative (outflow) and one positive (inflow). All-positive or all-negative streams have no real IRR.
+- **IRR can have multiple solutions** when cash flows alternate signs (positive, negative, positive). Sheets returns one; if the result looks off, try `IRR(cash_flows, guess)` with a different starting guess.
+- **PMT uses sign conventions.** Loans usually have a positive PV (you receive the money) and negative PMT (you pay it back). Investments are reversed. Get the sign wrong and the magnitudes look right but with a negative: easy to misread in a busy dashboard.
+- **Rate units must match period units.** Annual rate / 12 with monthly periods. Annual rate with annual periods. Don't mix.
+- **All these functions assume regular intervals.** Cash flows on the 1st of each month is regular; cash flows on irregular dates need `XNPV` and `XIRR` (which take date arrays alongside the values).
+- **LTV/CAC numbers are only as good as the LTV estimate.** A 6-month LTV based on 1-month data is a guess. Note the assumption next to the number; review it monthly as more data accumulates.
+
+## Now do it for real
+
+Click **Start lesson** to provision a small cash-flow scenario and a campaign-margin block. You'll write four formulas: ROI, ROAS, NPV (with the correction), and IRR: the core of any acquisition-cost model.

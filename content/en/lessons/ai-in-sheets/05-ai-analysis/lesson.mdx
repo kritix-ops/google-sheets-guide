@@ -1,0 +1,78 @@
+import { CAMPAIGNS_TIMESERIES } from "@/content/datasets/adtech";
+
+# AI-assisted analysis
+
+There's a moment in every dashboard review where you stare at a spike or a drop and ask "what happened on Tuesday?" AI in Sheets is good at being the first answer to that question. It can flag a date that stands out, draft a paragraph for an exec summary, suggest a chart for an unfamiliar dataset, point at three outliers and explain what's odd. It is not good at being the last answer. The skill is using AI as the peer reviewer of your analysis, not the source of truth.
+
+This lesson is about that pairing. AI proposes candidates. Your domain knowledge decides what they mean. Use them together and analysis sessions move fast and stay grounded. Use AI alone and you ship reports that confidently misread a tracking pixel bug as a marketing win.
+
+## What AI is good at
+
+- **Surfacing candidates for investigation.** "Which three days had the largest deviation from the weekly average?" Gemini's good at this. The candidates may not all be real, but the list is a useful starting point.
+- **Drafting copy for a known finding.** "Write a one-paragraph summary of the week for an exec audience, mentioning the launch-day spike on 2026-04-15." Gemini turns your bullet points into prose faster than you can.
+- **Suggesting a chart for a question.** "What chart best shows the relationship between spend and conversions over time?" Reasonable suggestion, reasonable axis labels, reasonable defaults.
+- **Translating findings.** Hebrew-to-English, Spanish-to-English. The team uses this on customer feedback regularly.
+
+## What AI is bad at
+
+- **Causal inference.** "Why did revenue go up on Friday?" Gemini will produce a confident answer. It does not actually know. The answer is plausible-sounding correlation reasoning, not causation.
+- **Attribution that needs context.** "Which campaign drove the spike?" requires knowing that you launched a new offer last week, that one buyer's account was paused, that tracking was broken on Wednesday. Gemini sees the numbers, not the context.
+- **Distinguishing real outliers from instrumentation bugs.** A day with zero conversions and normal traffic looks like a striking outlier to Gemini. To you, it's an obvious tracking pixel failure.
+- **Time series without seasonality.** Adtech data has weekly cycles, end-of-month spikes, holiday dips. Gemini sometimes flags these as "outliers" when they're routine.
+
+The mental model: AI is excellent at *what to look at*. You are still the one deciding *what it means*.
+
+## Specific prompts that work
+
+```
+=AI("Identify the date with the highest spend spike and explain why it stands out", Daily!A2:F31)
+=AI("List the three days with the lowest conversion rate", Daily!A2:F31)
+=AI("Draft a one-paragraph summary of the spend trend for an exec audience", Daily!A2:F31)
+=AI("Suggest a chart type and axis labels for showing daily revenue against daily spend", Daily!A2:F31)
+```
+
+What they share: a specific question with a specific output shape, and a bounded range as the second argument. The range is what grounds the answer. Without it, Gemini speculates.
+
+## The verification step
+
+The single highest-leverage habit: never paste an AI claim into a report without checking the underlying data. The discipline:
+
+1. Read what AI said.
+2. Sort or filter the data to verify the claim.
+3. Note the verification in a sibling cell.
+4. Only then put the claim in the dashboard.
+
+A confirmed finding has a date, a number, and a one-sentence interpretation. An unconfirmed finding has prose. Reports get only confirmed findings.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_TIMESERIES.slice(0, 6)}
+  caption="30 days of team-wide daily totals on the Daily tab. A1:F31 covers Date, Spend, Revenue, Clicks, Impressions, Conversions. Watch for the launch-day spike on 2026-04-15 and the pixel-issue dip on 2026-04-22."
+/>
+
+Click **Start lesson** to provision the 30-day daily totals on a Daily tab. Three cells in column I:
+
+- **I1** calls `=AI(...)` on the daily data, with a prompt that includes `spike` or `outlier`. The range should cover the data (`A2:F31` or similar).
+- **I2** is a literal confirmation note. After Gemini flags a date, you verify it against the data. The note must reference either `2026-04-15` (the launch-day spike) or the word `launch`.
+- **I3** is the discipline note. The note must contain `domain knowledge` or `human review`.
+
+The flow is the workflow: AI surfaces the candidate, you confirm it from the data, you write down the discipline so the next person on the team can repeat the move.
+
+## Used in the wild
+
+In the team's weekly review:
+
+- **The Monday session opens with three AI prompts.** Three days with the biggest outlier behavior, top three buyers by ROI change, suggested chart for the new offer. The team treats the AI output as the agenda, not the answer.
+- **Every AI-flagged "outlier" gets a one-sentence note next to it.** "Confirmed: launch day." or "Tracking pixel error, not real." or "Real outlier, needs investigation." The notes accumulate into a weekly journal.
+- **AI drafts the exec summary paragraph; a human edits.** The draft saves 20 minutes. The edit is what makes it accurate.
+- **Anything AI says about causation gets removed.** "Revenue went up because" turns into "Revenue went up; investigation pending." The team learned this the hard way after a board deck cited an AI-generated causal claim that turned out to be a coincidence.
+
+## Pro pitfalls
+
+- **AI confidently identifies a spike that's actually a tracking pixel bug.** The 2026-04-22 dip in the dataset is a pixel issue, not a real performance problem. Gemini calls it an outlier; you have to know it's instrumentation.
+- **AI's outliers are statistically real but business-meaningless.** A day with 2x revenue might be a single high-value conversion landing, not a trend.
+- **AI summarizes with reversed causality.** "Revenue increased because spend increased" sounds reasonable; in adtech, the relationship is often the other way around (spend follows revenue for budget-pacing reasons). Always verify the direction.
+- **The "AI said it so it must be true" trap.** A polished AI paragraph carries undeserved authority. Use AI output as a starting draft, not a final claim.
+- **Asking AI for the "best" or "worst" buyer/vertical/platform.** Subjective frames produce different answers each call. Define the criterion ("highest ROI", "lowest CPC variance") and use a formula instead.
+- **AI's chart suggestions for time series.** Often a line chart with the y-axis starting at zero, which buries a 5% trend in a flat-looking line. Verify the suggested config against the actual data shape before applying.

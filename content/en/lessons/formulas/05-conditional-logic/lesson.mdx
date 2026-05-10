@@ -1,0 +1,126 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Conditional logic: IF, IFS, SWITCH, AND, OR
+
+`IF` was a sneak preview in lesson 3. The full story is bigger: nested `IF`s collapse fast under their own weight, `IFS` cleans them up, `SWITCH` handles equality matches, and `AND`/`OR`/`NOT` compose any condition you can describe in words. This lesson covers the full vocabulary using the everyday adtech case: bucketing campaigns by ROI and translating platform names into categories.
+
+## Nested IF: where it breaks
+
+You can nest one `IF` inside another's value-if-false slot to build a chain. Two buckets: easy. Five buckets: a parenthesis-counting nightmare. Compare the same logic: assign each campaign a performance label based on ROI:
+
+<Compare>
+  <ComparePanel label="Nested IF: hard to read" tone="negative">
+    <pre className="mt-1 overflow-x-auto rounded-md bg-surface-elevated p-3 font-mono text-xs">
+{`=IF(F2/E2>=2,"Star",
+  IF(F2/E2>=1.2,"Profitable",
+    IF(F2/E2>=0.9,"Break-even",
+      "Loss")))`}
+    </pre>
+  </ComparePanel>
+  <ComparePanel label="IFS: linear, scannable" tone="positive">
+    <pre className="mt-1 overflow-x-auto rounded-md bg-surface-elevated p-3 font-mono text-xs">
+{`=IFS(F2/E2>=2,"Star",
+     F2/E2>=1.2,"Profitable",
+     F2/E2>=0.9,"Break-even",
+     TRUE,"Loss")`}
+    </pre>
+  </ComparePanel>
+</Compare>
+
+Both formulas grade the first campaign (ROI = 487.30/342.18 ≈ 1.42) as `Profitable`. The right-hand version is easier to write, easier to read, and easier to modify. The trailing `TRUE, "Loss"` is the "default" branch: `TRUE` always matches, so it's the catch-all for anything that didn't hit an earlier condition.
+
+## IFS: condition, value, condition, value...
+
+`IFS` takes pairs: a condition and a value, repeated. It returns the value of the **first** condition that's true. If none match, it returns `#N/A`. Always end with a `TRUE` catch-all to avoid that.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=IFS(F2/E2>=2,"Star",F2/E2>=1.2,"Profitable",F2/E2>=0.9,"Break-even",TRUE,"Loss")'
+  task={<>Bucket the first campaign's ROI: <code>Star</code> if ROI ≥ 2, <code>Profitable</code> if ≥ 1.2, <code>Break-even</code> if ≥ 0.9, otherwise <code>Loss</code>. The result should be <code>Profitable</code>.</>}
+  hint={<>Four condition-value pairs. The condition is <code>F2/E2 {">"}= ...</code> for each threshold. End with <code>TRUE, "Loss"</code> as the catch-all.</>}
+  answer={<>IFS evaluates conditions left-to-right and returns the value paired with the first true one. Order matters: <code>F2/E2 {">"}= 0.9</code> is true for the first campaign (ROI ≈ 1.42), but it's not the first match: <code>F2/E2 {">"}= 1.2</code> is also true and earlier in the list. The order needs to go from strictest to loosest. The <code>TRUE</code> catch-all guarantees a match for any input that didn't hit an earlier rule. In real adtech work, ROI buckets like this drive scaling decisions: Stars get more budget, Losses get paused.</>}
+/>
+
+## SWITCH: equality matches
+
+`SWITCH` is `IFS` for equality checks. Pass an expression, then alternate match-and-return pairs, with an optional default at the end.
+
+The classic adtech use: translate platform names into broader categories so dashboards can show "Native vs. Social vs. Search" totals without listing each platform individually.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H3"
+  expectedFormula='=SWITCH(D2,"Taboola","Native","Outbrain","Native","MediaGo","Native","Poppin","Native","Facebook","Social","TikTok","Social","Google","Search","Other")'
+  task={<>Translate the first campaign's platform (Google) into a broader category. Use SWITCH with these pairs: Taboola/Outbrain/MediaGo/Poppin → Native; Facebook/TikTok → Social; Google → Search; default → Other. The result should be <code>Search</code>.</>}
+  hint={<>The first argument is the value being compared (D2). Then pairs of platform-name and category. The last lone argument is the default for anything that didn't match.</>}
+  answer={<>SWITCH only handles equality: you can't write <code>{">"}=80</code> in a SWITCH branch. For range checks like ROI buckets, use IFS. SWITCH shines for discrete-value translations: platform → category, status code → label, region → manager, currency → conversion rate. The default catches any new platform that gets added later (so the formula doesn't return <code>#N/A</code> when an unknown name shows up via IMPORTRANGE). In production, the platform-to-category map often lives in a separate "Config" sheet and gets pulled in via XLOOKUP: same idea as SWITCH but data-driven.</>}
+/>
+
+## AND, OR, NOT: composing conditions
+
+A condition can be more than one comparison. `AND(...)` is true if every argument is true. `OR(...)` is true if any one is. `NOT(x)` flips a boolean.
+
+<QuickCheck
+  question="Which expression labels rows as 'Scale candidate' when revenue beats spend AND spend is at least $200 (high-volume profitable rows)?"
+  options={[
+    {
+      id: "a",
+      label: <code>=IF(F2{">"}E2, "Scale candidate", "")</code>,
+      correct: false,
+      explanation: "This labels every profitable campaign, including ones with $50 of spend. We need both conditions.",
+    },
+    {
+      id: "b",
+      label: <code>=IF(AND(F2{">"}E2, E2{">"}=200), "Scale candidate", "")</code>,
+      correct: true,
+      explanation: "Both bounds enforced. AND requires every argument to be true.",
+    },
+    {
+      id: "c",
+      label: <code>=IF(OR(F2{">"}E2, E2{">"}=200), "Scale candidate", "")</code>,
+      correct: false,
+      explanation: "OR is too permissive: a $1000-spend losing campaign would still match the second arm. AND is what you want.",
+    },
+  ]}
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H4"
+  expectedFormula='=IF(AND(F2>E2,E2>=200),"Scale candidate","Other")'
+  task={<>Label the first campaign as <code>Scale candidate</code> if it's both profitable (revenue {">"} spend) AND high-volume (spend {">"}= 200). Otherwise <code>Other</code>. (First campaign: spend 342.18, revenue 487.30, so the result should be <code>Scale candidate</code>.)</>}
+  hint={<>Use <code>AND</code> inside <code>IF</code> to combine two comparisons.</>}
+  answer={<>The condition needs both ends of the criteria, so <code>AND(F2{">"}E2, E2{">"}=200)</code> requires revenue to beat spend AND spend to be at least 200. For the first campaign, both are true (487.30 {">"} 342.18 AND 342.18 {">"}= 200), so IF returns <code>"Scale candidate"</code>. The other typical combinations: <code>AND(profitable, low_spend)</code> for "test winners worth scaling", <code>OR(losing, very_low_volume)</code> for "candidates to pause", <code>AND(high_roi, NOT(low_volume))</code> for "the campaigns to celebrate at QBR".</>}
+/>
+
+## How to choose
+
+| Pattern | Use |
+|---|---|
+| Single yes/no | `IF(condition, yes, no)` |
+| 3+ ranked thresholds | `IFS(cond1, val1, cond2, val2, ..., TRUE, default)` |
+| Discrete value lookup | `SWITCH(expr, match1, val1, ..., default)` or `XLOOKUP` against a config table |
+| Combine multiple conditions | `AND(...)`, `OR(...)`, or nest them |
+| Negate a condition | `NOT(...)` or just flip the comparison |
+
+Once you have IFS in your toolbox, you'll rarely write more than two nested IFs again. Once you have SWITCH, IFS-with-equality stops being a thing. And once a SWITCH grows past ~10 branches, move it to a config table and use XLOOKUP: easier to maintain when the team adds new platforms or verticals.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **ROI buckets drive scaling decisions.** An IFS column tags each campaign as Star/Profitable/Break-even/Loss. The dashboard then SUMIFS spend by bucket to show "how much of our budget is on Stars vs. Losses".
+- **Platform → category SWITCH/XLOOKUP feeds the Native/Social/Search totals row** in every dashboard.
+- **AND-conditions on multiple metrics drive the "scale candidate" / "pause candidate" lists.** Combining ROI threshold AND spend threshold AND date-range filter is the typical shape.
+
+## Pro pitfalls
+
+- **`#N/A` from IFS** means none of your conditions matched. Always end with `TRUE, default_value`.
+- **`#N/A` from SWITCH** means no match and no default supplied. Always pass a default as the last argument.
+- **Order matters in IFS.** Strictest condition first, loosest last (or use `TRUE` catch-all). Reversed order silently returns the wrong bucket.
+- **Comparing imported text to a number** doesn't error but always returns FALSE. If revenue comes in via IMPORTRANGE as a string ("487.30" not 487.30), <code>F2 {">"} E2</code> never matches. Coerce with `VALUE(F2)` or `F2*1`.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log. You'll write three formulas: an `IFS` for the ROI bucket, a `SWITCH` for the platform category, and an `IF` with `AND` for the scale-candidate flag.

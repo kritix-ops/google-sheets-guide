@@ -1,0 +1,93 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Sharing and permissions: viewer, commenter, editor, link sharing, expirations, transfer of ownership
+
+A workbook is only as private as its weakest share. The team has been burned by this exactly once and once was enough: a "Anyone with the link can edit" share got pasted into a Slack channel, the channel got forwarded, and three weeks later a sheet of vendor payout rates was being read by people who should never have seen it. Validation keeps bad values out of the data. Protected ranges keep bad edits out of the cells. **Permissions are the access policy that survives forwarding.** They decide who can open the file at all, and they are the only line of defense once the link is in the wild.
+
+## The four roles
+
+`File → Share` opens the share dialog, and every entry in it sits at exactly one of four roles. The role decides what the person can do once they open the file.
+
+| Role | Drive API value | Can read | Can comment | Can edit | Can share |
+|---|---|---|---|---|---|
+| Viewer | `reader` | Yes | No | No | No |
+| Commenter | `commenter` | Yes | Yes | No | No |
+| Editor | `writer` | Yes | Yes | Yes | Depends on owner setting |
+| Owner | `owner` | Yes | Yes | Yes | Yes, plus transfer ownership |
+
+`reader` (Viewer) sees the data and can usually download, print, and copy it unless the owner explicitly disables that in the share dialog. They can't edit and they can't leave comments. This is the right role for "I want them to look at this number, that's it."
+
+`commenter` is the workhorse for review. The reviewer can read the whole sheet, leave threaded comments, and propose suggested edits, but cannot change a value. This is what external auditors and outside partners get by default. They can flag a problem; they can't fix it directly.
+
+`writer` (Editor) is full edit access except sharing rights. Whether an editor can re-share depends on the owner's "Editors can change permissions and share" setting in the share dialog. The team default is **off**, so writers can change cells but not re-share the file.
+
+`owner` is everything plus the ability to transfer ownership. There is exactly one owner per file on personal Drive (shared drives are different, see below). The owner cannot be removed by any other user, which is why transferring ownership before someone leaves matters so much.
+
+## The four types
+
+Roles answer "what can they do." Types answer "who is *they*."
+
+- **`user`** is a specific email address. The most precise type and the team default.
+- **`group`** is a Google Group address. Everyone currently in the group inherits the role, and new members added to the group later silently get access too. Convenient and dangerous in equal measure; see Pro pitfalls.
+- **`domain`** grants the role to anyone with an email at a given domain. `flexelent.com` covers the whole company in one entry.
+- **`anyone`** is link sharing. Anyone with the URL, including unauthenticated visitors, gets the role. This is the riskiest type and the team policy is to never use it for anything containing campaign data, vendor pricing, or PII.
+
+## Expiration discipline
+
+Every external share gets an expiration. Not "should." **Gets.** The team default is 30 days, renewable on request. The `expirationTime` field on the permission is an ISO 8601 timestamp; Drive auto-removes the permission when that time passes.
+
+Internal shares (team Google Group, internal users by email, the `flexelent.com` domain share on workbooks everyone needs) don't need an expiration. When someone leaves the company, IT removes their account and the access drops automatically. External shares carry no such guarantee. Without an expiration, the share lives forever, including past the point where the external person stops working with us, including past the point where their own email account gets compromised.
+
+The pattern: `auditor@external.com`, role `commenter`, `expirationTime` 30 days out. Renewed monthly if the audit is still active.
+
+## Transfer of ownership
+
+Ownership transfer is only available within the same domain. You cannot transfer ownership of a `flexelent.com` workbook to a `gmail.com` account, which is a deliberate Google safety rail.
+
+When a media buyer leaves the company, the team's policy is to transfer ownership of all of their workbooks to a designated **team archive account** (a service account, not a person), not to a teammate. The reason: if you transfer to Roni, then Roni leaves in a year, you have the same problem all over again. The archive account doesn't leave. The next-of-kin teammate gets `writer` access to anything they need to use, and the archive owns the file long-term.
+
+The transfer happens from the share dialog: change the leaving person's role to `Transfer ownership`, confirm, done. After transfer, the previous owner becomes a `writer` automatically and you can remove them whenever you want.
+
+## Link-sharing pitfalls
+
+"Anyone with the link can view" is the single most common accidental over-share in this team's history. The flow is: someone wants to quickly send a tab to a vendor, they click "Get link," the link defaults to "Restricted" but they switch it to "Anyone with the link" because that's the path of least resistance, the vendor opens it, the vendor's CC'd colleague opens it, the colleague forwards it to their manager, and now the workbook is being read by six people the original sharer doesn't know exist. Once the link is out, you cannot put it back. The only fix is to break the link by deleting and replacing the workbook, which breaks every `IMPORTRANGE` downstream.
+
+**Team policy: never use "Anyone with the link" for campaign data, vendor pricing, PII, or anything covered by an NDA. Always specify users by email.** If the vendor wants link sharing because it's easier for them, that's their preference; the team's data security trumps their convenience.
+
+## Auditing who has access
+
+Drive shows the current permission list in the share dialog, but reading it manually across 200 workbooks doesn't scale. Two tools that do scale:
+
+- **Drive activity log** (right-click the file in Drive → `Activity dashboard`) shows who actually opened the file and when. This is how you catch the "wait, why is `procurement@vendor.com` opening this every Tuesday" surprises.
+- **The Drive API `permissions.list` endpoint** is what the team uses to script weekly reports of "who currently has access to which sensitive workbook." The graded part of this lesson uses the same endpoint, and `filePermissions()` in the grader reads exactly what Drive returns.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns lives in A1:G61. The grading hook reads the spreadsheet's Drive-level permissions, not the data, so you only need to share the file the right way."
+/>
+
+Click **Start lesson** to provision the campaign log on a `Campaigns` tab. Then open `File → Share` and add two permissions to the workbook:
+
+- **External auditor.** Add `auditor@external.com` as a **commenter**, then click `Add expiration` and set the expiration to any date in the future (30 days from now is the team default). This is the pattern for any external partner who needs to read and flag issues but should not change values, and whose access should not outlive the engagement.
+- **Internal team leads.** Add `team-leads@flexelent.com` as an **editor**. No expiration is needed for an internal team Group. When a team lead leaves, IT removes their account and the share drops automatically.
+
+The grader reads the file's permission list through the Drive API and checks both permissions are present with the right role. Missing expirations on the auditor share get caught. Setting the auditor to `writer` instead of `commenter` gets caught. Email matching is case-insensitive so `AUDITOR@EXTERNAL.COM` works too.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **External auditor share, mandatory expiration.** Every audit engagement gets `auditor@<their-domain>.com` at role `commenter` with a 30-day expiration. Renewed monthly if the audit drags. When the engagement ends the permission is already on its way out, so nobody forgets.
+- **Internal team-leads writer share.** `team-leads@flexelent.com` (a Google Group, but provisioned as a `user` permission on the Group's address) gets `writer` on every operational workbook. No expiration; the Group membership is the access list, and IT manages that.
+- **Per-vendor commenter shares with monthly expiration.** Each vendor who needs to review their own payout sheet gets `vendor-name@vendor-domain.com` as `commenter` with a 30-day expiration. They can flag a discrepancy, they cannot edit a number, and if the relationship ends or pauses for a quarter, the access disappears on its own.
+
+## Pro pitfalls
+
+- **"Anyone with the link" leaking via Slack copy-paste.** The single most common accidental over-share. The fix is policy, not a feature: never use it for anything sensitive, regardless of how convenient it is.
+- **Expirations missing on external shares.** Without an expiration, the share lives forever. Audit your sensitive workbooks once a quarter and add expirations to any external permission that doesn't have one. The script that does this in one pass is a two-hour Apps Script project that pays for itself the first time it catches a forgotten share.
+- **Transferring ownership to a personal account.** The leaving media buyer's `@flexelent.com` account is going to be deactivated. If you transferred ownership of their workbooks to a teammate's `@flexelent.com` account and then that teammate leaves a year later, you have the same problem again. Transfer to a long-lived archive account, not to a person.
+- **Group shares where the group itself gets new members.** `team-leads@flexelent.com` is convenient, but when HR adds a new manager to the Group, that manager silently inherits `writer` on every workbook the Group has access to. Audit Group membership the same way you audit individual permissions, and treat "new member of an editor group" as an access event in your weekly Drive-permission report.
+- **Editors who can re-share.** If you leave "Editors can change permissions and share" on (the Drive default), a writer can add their own viewers and commenters without telling you. Turn it off in the share dialog `Settings` gear. The owner stays in control of who else gets in.
+- **Removing a user's account doesn't always remove their permissions.** A `gmail.com` collaborator who switches jobs still has access until you remove their permission explicitly. Domain shares and Group shares clean up automatically; individual external `user` shares do not.

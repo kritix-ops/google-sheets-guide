@@ -1,0 +1,102 @@
+# עורך Apps Script ומבנה הפרויקט
+
+Apps Script הוא JavaScript שרץ בתוך Google Workspace. הקוד יושב ב-**project**, תיקייה של קבצים ש-Google מארחת, מצורפת או למסמך מסוים ("bound") או לשום דבר ("standalone"). השיעורים ב-Track הזה משתמשים כולם ב-projects מסוג bound: לכל workbook שאתם פותחים בקורס הזה יש project מצורף תחת Extensions → Apps Script. ה-sidebar שאתם קוראים עכשיו הוא קובץ אחד באותו project. ה-custom functions שתכתבו בשיעור 3 יהיו קובץ נוסף. הכול במקום אחד.
+
+## פותחים את העורך
+
+מתוך Google Sheet פתוח:
+
+1. **Extensions → Apps Script.** העורך נפתח בטאב חדש.
+2. **מחכים שעץ הקבצים בצד יטען.** הפתיחה הראשונה של project bound חדש לוקחת שתי שניות.
+3. **הפריסה המוגדרת:** עץ קבצים בצד, עורך קוד במרכז, פאנל של execution log/output למטה.
+
+בפעם הראשונה שהעורך נפתח עבור workbook שלא בבעלותכם, Google עלולה לבקש שתאשרו את ה-auth scopes של הפרויקט. ה-prompt עוין בכוונה ("Sheets Guide isn't verified: proceed anyway?"). עבור ה-bound projects של הקורס, לוחצים "Advanced → Go to Sheets Guide (unsafe)". זה ה-bound script שלכם; "unsafe" כאן רק אומר ש-Google לא סקרה אותו כי אף אחד לא מפרסם script פר-workbook.
+
+## מה יש בפרויקט
+
+project של Apps Script מסוג bound מכיל קבצים משלושה סוגים:
+
+| סוג | סיומת | מה זה |
+|---|---|---|
+| Server JS | `.gs` | JavaScript שרץ על שרתי Google. רוב הקוד שלכם. |
+| HTML | `.html` | תוכן sidebar ו-dialog. נרנדר בתוך ה-UI של Sheets. |
+| JSON manifest | `appsscript.json` | הגדרות הפרויקט: timezone, oauthScopes, runtime version. תמיד קובץ אחד בלבד בשם הזה. |
+
+עץ הקבצים מציג קבצים לפי סדר היצירה. גוררים כדי לשנות סדר. אין מבנה של תיקיות, projects שטוחים. כדי לארגן project שגדל, נותנים שמות עם prefix: `lib_Dates.gs`, `lib_Strings.gs`, `triggers_Daily.gs`, `triggers_OnEdit.gs`. העורך ממיין לפי אלפבית וה-prefix מקבץ קבצים קשורים.
+
+## ה-manifest ניתן לעריכה
+
+קובץ ה-manifest `appsscript.json` מוסתר בדרך כלל ("Project Settings → Show 'appsscript.json' manifest file in editor"). מפעילים את זה; תצטרכו לערוך אותו עבור triggers, OAuth scopes, advanced services, ו-add-on manifests. דוגמה למשהו מייצג:
+
+```json
+{
+  "timeZone": "America/New_York",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets.currentonly",
+    "https://www.googleapis.com/auth/script.container.ui"
+  ]
+}
+```
+
+- **`timeZone`** שולט באיך הפרויקט מפרש תאריכים ובאיזה timezone `new Date()` פועל. ה-manifest של הקורס משתמש ב-`America/New_York` (ככה Taboola מדווחת ברירת מחדל). מגדירים ל-`Asia/Jerusalem` עבור projects ש-triggers שלהם צריכים לפעול בשעון ישראל.
+- **`exceptionLogging: "STACKDRIVER"`** מנתב שגיאות ל-Cloud Logging, שם תלכו כש-trigger לילי כושל בשקט. החלופה `"NONE"` בולעת שגיאות וזה לעיתים נדירות מה שתרצו.
+- **`runtimeVersion: "V8"`** בוחר את מנוע ה-JavaScript המודרני. ה-runtime הישן Rhino עדיין ניתן לבחירה עבור projects ישנים מאוד, אבל אסור להתחיל project חדש שם. שיעור 2 מכסה מה ש-V8 נותן לכם.
+- **`oauthScopes`** היא הרשימה המפורשת של הרשאות שהפרויקט צריך. Apps Script מזהה אותן אוטומטית בהרצה הראשונה כשהשדה ריק, אבל הצהרה מפורשת היא תרגול עדיף: זה מתעד מה הפרויקט נוגע בו ועוצר התרחבות מסתורית של auth prompt כשמישהו מוסיף קריאה חדשה לשירות.
+
+## מוסיפים קובץ
+
+לוחצים על `+` ליד "Files" ברצועה השמאלית. ה-dropdown מציע "Script" (`.gs`), "HTML" (`.html`), או "Apps Script Project" (שמטמיע project אחר כספרייה, מכוסה בשיעור 12).
+
+בשיעור הזה, ל-project המקושר יש שלושה קבצים כשפותחים אותו:
+
+| קובץ | סוג | מה יש בו |
+|---|---|---|
+| `appsscript` | JSON | ה-manifest שלמעלה. |
+| `Code` | SERVER_JS | ה-bootstrap של ה-sidebar של הקורס. לא נוגעים. |
+| `Lesson` | SERVER_JS | stub ריק של `projectName()`. זה הקובץ שתערכו. |
+| `Sidebar` | HTML | shell ה-iframe של ה-sidebar. לא נוגעים. |
+
+הקובץ `Lesson.gs` שלכם לעריכה בכל שיעור ב-Track 3. שיעורים 1–17 ישתלו ב-stub שונה כאן.
+
+## שמירה והרצה
+
+עריכה של קובץ נשמרת אוטומטית, אבל היא לא נפרסת עד שלוחצים **Save project** (Ctrl/Cmd+S, או אייקון הדיסקט). אחרי שמירה:
+
+- **קבצי Code.gs** הופכים מיד לקריאים מתאים כ-custom functions ומהתפריט כ-macros.
+- **קבצי HTML** מתעדכנים בפתיחה הבאה של ה-sidebar.
+- **ה-manifest** נכנס לתוקף בהרצה הבאה; אם שיניתם `oauthScopes`, ההרצה הבאה תבקש מהמשתמש לאשר את סט ה-scopes החדש.
+
+ה-dropdown של Run בראש העורך מאפשר לבחור כל function בפרויקט ולהריץ אותה פעם אחת לצורכי דיבאג. משתמשים בזה כדי להריץ function של setup ידנית לפני שמחברים אותה ל-trigger, או כדי לבדוק custom function מתוך העורך בלי לעבור דרך תא.
+
+## עכשיו לעבודה אמיתית
+
+ל-project המקושר של השיעור הזה יש קובץ `Lesson.gs` עם stub של `projectName()`. שתי משימות:
+
+1. פותחים **Extensions → Apps Script** ועורכים את `Lesson.gs`. מחליפים את `return null;` ב-`return SpreadsheetApp.getActiveSpreadsheet().getName();`. שומרים את הפרויקט.
+2. חוזרים ל-spreadsheet, בתא **A1**, מקלידים `=projectName()`. התא צריך להציג את שם ה-workbook הזה.
+
+תופיע פעם אחת auth prompt בפעם הראשונה שהתא יבצע הערכה, Apps Script צריך הרשאה לקרוא את ה-spreadsheet בשמכם. מאשרים; הרצות הבאות משתמשות באותו אישור.
+
+## נפוץ בשטח
+
+ל-project המקושר של workbook של צוות יש בדרך כלל:
+
+| קובץ | מטרה |
+|---|---|
+| `appsscript` | Manifest. מגדיר את ה-timezone של הצוות, מצהיר על כל ה-scopes הנחוצים. |
+| `Code` או `Main` | נקודות הכניסה: `onOpen`, פריטי תפריט מותאם, מפעילי sidebar. |
+| `lib_*` | מודולים שימושיים לשימוש חוזר: עוזרי תאריכים, מנרמלי verticals, ממירי מטבע. |
+| `triggers_*` | handlers של triggers: פולים לילים, מאמתי on-edit. |
+| `ui_*` | קבצי HTML של sidebars ו-dialogs. |
+
+חלוקה לפי prefix היא המוסכמה של הצוות. אף כלי לא אוכף את זה; זו פשוט הרגל שהופך project של שלושים קבצים לניתן לניווט.
+
+## מלכודות מקצועיות
+
+- **Bound vs standalone.** מחזור החיים של script bound הוא של ה-spreadsheet. אם מוחקים את ה-spreadsheet, ה-script הולך איתו. צריכים אותה לוגיקה בכמה workbooks? בונים standalone script ומושכים אותו כספרייה (מכוסה בשיעור 12).
+- **ה-dashboard ב-script.google.com.** scripts מסוג bound לא מופיעים ברשימת "My projects" שלכם ב-script.google.com. כדי למצוא אותם, פותחים את ה-workbook והולכים ל-Extensions → Apps Script, זו נקודת הכניסה היחידה.
+- **שינוי שם של `Code.gs`.** לא שובר כלום. ל-runtime של Apps Script לא אכפת איך הקובץ נקרא. אבל כל מי שיפתח את הפרויקט יחפש קודם את `Code.gs` מתוך הרגל, אז משאירים את קובץ נקודת הכניסה בשם הזה.
+- **עריכת שני tabs של אותו project בו-זמנית.** עורך Apps Script לא מציג אזהרות conflict בזמן אמת. שני tabs פתוחים על אותו project ידרסו זה את זה בשקט בשמירה. אם עוברים בין מחשבים, סוגרים tab אחד לפני שפותחים בשני.
+- **גרסאות של Apps Script.** כל שמירה יוצרת HEAD revision חדש, אבל רק deployments עם version הם immutable. כדי לחזור ל-"מה שרץ אתמול", הולכים ל-**Project Settings → Show appsscript.json** ואז **File → See version history**, כן, זה מוסתר שתי לחיצות עמוק.

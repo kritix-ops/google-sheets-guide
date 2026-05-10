@@ -1,0 +1,128 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Web apps מ-Apps Script: doGet / doPost, ו-URLs של deployment
+
+פרויקט Apps Script מקושר ניתן לקריאה מה-spreadsheet שמארח אותו (custom functions, תפריטים, triggers) וממקורות פרויקטי Apps Script אחרים (ספריות, שיעור 12). אפשר גם **לבצע לו deploy כ-web app**, ובמקרה הזה הוא מקבל URL ציבורי שכל מי שיש לו את ה-URL יכול לקרוא לו ב-HTTP פשוט. הצוות משתמש בזה ל-endpoints של Slack slash commands, receivers של Linear webhook, וכמה dashboards ציבוריים. הצורה קטנה אבל לכל שדה ב-dialog של ה-deployment יש משמעות, כי השילוב השגוי הוא או פרצת אבטחה או אינטגרציה שבורה.
+
+## שני שמות ה-functions
+
+Apps Script מחווט בקשות GET ו-POST לשני שמות function ספציפיים. אין router, אין decorator, אין annotation, השמות עצמם הם החוזה:
+
+```js
+function doGet(e) {
+  // נקרא לכל GET HTTP ל-URL של ה-deployment.
+  // `e` נושא query parameters, את המשתמש, את גוף הבקשה (ריק ל-GET), וכן הלאה.
+  return HtmlService.createHtmlOutput("<h1>Hello</h1>");
+}
+
+function doPost(e) {
+  // נקרא לכל POST HTTP ל-URL של ה-deployment.
+  // `e.postData.contents` מחזיק את הגוף הגולמי (כ-string).
+  // `e.postData.type` מחזיק את ה-Content-Type header.
+  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+```
+
+methods אחרים של HTTP (PUT, DELETE, PATCH) לא נתמכים. אם צריך אותם, חושפים את ה-endpoint דרך טריק של `_method` ב-query parameter (POST עם `?_method=PUT`) ועושים dispatch בתוך `doPost`.
+
+## אובייקט ה-event `e`
+
+ה-function מקבלת ארגומנט יחיד, באופן מקובל בשם `e`, שנושא את הבקשה:
+
+| שדה | מה הוא מחזיק |
+|---|---|
+| `e.parameter` | query string כ-object שטוח. `?x=1&y=2` → `{ x: "1", y: "2" }`. **מפתחות כפולים נשטחים לערך האחרון.** |
+| `e.parameters` | query string כ-object של arrays. `?x=1&x=2` → `{ x: ["1", "2"] }`. משתמשים בזה כשמקבלים repeats. |
+| `e.queryString` | ה-query string הגולמי אחרי ה-`?`. ריק ל-POST. |
+| `e.postData.contents` | גוף הבקשה הגולמי כ-string. ל-POST של JSON, זה ה-JSON; מפעילים `JSON.parse(e.postData.contents)` כדי לקבל את ה-object. |
+| `e.postData.type` | ה-Content-Type header שנשלח על ידי הקורא. |
+| `e.postData.length` | אורך הגוף בבייטים. |
+
+האחרון הוא ה-gotcha ששווה לזכור: `e.parameter.x` מחזיר רק את הערך האחרון של `x` כשב-URL יש כמה. אם Slack slash command שולח `?text=one&text=two`, `e.parameter.text` הוא `"two"`. רוצים את `e.parameters.text` (לשון רבים) אם באמת צריך את שניהם.
+
+## החזרת response
+
+שני סוגי החזרה תקפים:
+
+1. **`HtmlService.createHtmlOutput(html)`**: מחזיר HTML. משתמשים לדף שאדם יצפה בו ב-browser.
+2. **`ContentService.createTextOutput(text)`**: מחזיר טקסט. משתמשים ל-JSON, טקסט רגיל, XML, או כל דבר שניתן לקריאה במכונה. משרשרים `.setMimeType(ContentService.MimeType.JSON)` ל-JSON, `.setMimeType(ContentService.MimeType.XML)` ל-XML.
+
+```js
+// response של JSON
+return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+  .setMimeType(ContentService.MimeType.JSON);
+
+// response של HTML (לדף שאדם רואה)
+return HtmlService.createHtmlOutput(`<h1>Total spend: $${spend}</h1>`)
+  .setTitle("Daily spend");
+```
+
+החזרת string גולמי מ-`doGet` או מ-`doPost` לא עובדת, Apps Script לא יכול לבחור Content-Type בשבילכם. ה-script ייכשל ב-deploy או ב-runtime בהתאם לגרסת העורך.
+
+## Deploy של ה-web app
+
+מהעורך: **Deploy → New deployment → Web app**. ה-dialog שואל ארבע שאלות:
+
+| הגדרה | מה היא שולטת בה |
+|---|---|
+| Description | תווית טקסט חופשי שמוצגת ברשימת ה-deployments. כותבים מה השתנה מאז ה-deploy האחרון. |
+| Execute as | או "**Me**" (בעלי ה-script, עם ה-auth context של הבעלים, ה-script יכול לקרוא את ה-Drive של הבעלים, לשלוח מייל בשם הבעלים, וכן הלאה) או "**User accessing the web app**" (ה-auth של כל קורא, ש-Apps Script אוסף בהיטל הראשון). |
+| Who has access | "Only myself", "Anyone with Google account", או "Anyone" (פתוח לחלוטין, בלי login). |
+| Version | snapshot של הקוד ברגע ה-deploy. שינויי קוד הבאים לא יוצאים לפועל עד deployment חדש. |
+
+לוחצים Deploy. Apps Script מקצה URL בצורה `https://script.google.com/macros/s/<deployment-id>/exec`. זה ה-URL ש-Slack / Linear / GitHub / ה-dashboard שלכם פוגעים בו.
+
+## Execute as: שדה המוקשים של האבטחה
+
+"**Execute as me**" + "**Anyone**" הוא השילוב המסוכן. ה-web app ציבורי באינטרנט, וכל בקשה רצה עם ה-scopes של החשבון שלכם. אם המניפסט של ה-script שלכם מצהיר `https://www.googleapis.com/auth/drive` ומישהו מגלה את ה-URL של ה-deployment, הוא יכול לבנות GET ידנית שקורא כל קובץ שאתם יכולים לקרוא. הקוד של ה-web app הוא הדבר היחיד בין האינטרנט הציבורי לבין ה-scope המלא של Drive שלכם.
+
+ברירות המחדל הישרות:
+
+- **endpoint פנימי של Slack?** Execute as me, Anyone with Google account. ה-outgoing webhook של Slack מאומת, ה-script שלכם מאמת את ה-Slack signing secret, וה-filter של "Anyone with Google account" לפחות שומר את האינטרנט הפתוח רחוק מה-URL.
+- **dashboard ציבורי?** Execute as me, Anyone. ודאו לחלוטין שה-scopes במניפסט הם המינימום שהקוד שלכם צריך, `spreadsheets.currentonly` אם אתם רק קוראים את ה-sheet המקושר, **לא** `drive`.
+- **פעולת user-impersonating (משתמש אחד לכל בקשה, כל אחד מושך את קבצי Drive שלו)?** Execute as user accessing the web app, Anyone with Google account. כל משתמש מאשר פעם אחת בהיטל הראשון; ה-script רץ עם ה-auth שלו.
+
+## URLs של deployment משתנים כשעושים redeploy
+
+כל "Deploy → New deployment" מקצה URL **חדש**. ה-deployment הקודם ממשיך לעבוד (טוב, האינטגרציות הקיימות שלכם לא נשברות באותה שנייה ששולחים תיקון), אבל ה-URL החדש שונה. כדי לשמור על אותו URL לאורך עדכוני קוד, משתמשים ב-**Deploy → Manage deployments → (עורכים את ה-deployment הקיים) → New version**. זה מחליף את הקוד מתחת לאותו URL.
+
+הצוות למד את זה בצורה הקשה. הגרסה הראשונה של endpoint ה-Slack slash command יצאה עם "New deployment" בכל פעם, מה שאומר שכל push של קוד דרש עדכון של ה-URL בתוך ה-config של אפליקציית Slack. בפעם השלישית שמישהו שכח, ה-Slack slash command מת בשקט לשבוע. עכשיו הם משתמשים רק ב-"Manage deployments → New version" ל-endpoint הזה.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="לוג ה-Campaigns תופס את A1:G61. J1 מחזיק את ה-spend הכולל המחושב מראש. המשימה: להגדיר doGet (מחזיר את ה-total כ-HTML) ו-doPost (מפענח גוף JSON, כותב את payload.value ל-K1, מחזיר success ב-JSON)."
+/>
+
+קובץ ה-starter `Lesson.gs` מצהיר על `doGet(e)` ו-`doPost(e)` כ-stubs. שני גופי function לכתוב:
+
+### `doGet`
+1. קוראים את J1 בלשונית Campaigns: `const spend = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns").getRange("J1").getValue();`.
+2. עוטפים אותו ב-response של HTML: `return HtmlService.createHtmlOutput(`<h1>Total spend: $${spend}</h1>`);`.
+
+### `doPost`
+1. מפענחים את הגוף: `const payload = JSON.parse(e.postData.contents);`.
+2. כותבים את הערך ל-K1: `sheet.getRange("K1").setValue(payload.value);`.
+3. מחזירים success response ב-JSON עם `ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);`.
+
+ה-grader בודק את צורות המקור כי הוא לא יכול לעשות deploy ל-web app ולפגוע ב-URL. ברגע שהצורות עוברות, **Deploy → New deployment → Web app** בעורך כדי לקבל URL אמיתי. פוגעים ב-URL מה-browser כדי לראות את ה-HTML של ה-spend; `curl -X POST -d '{"value": 42}' '<URL>'` כדי לבדוק את הצד של ה-POST.
+
+## נפוץ בשטח
+
+שלושת ה-web apps של הצוות הם צורות שונות שכולן משתמשות בשלד הזה:
+
+- **ה-Slack `/spend` slash command.** כש-buyer מקליד `/spend yesterday` ב-Slack, Slack מבצע POST ל-URL של deployment. `doPost` קורא את `e.parameter.text`, מאתר את התקופה המבוקשת בלשונית ה-Aggregator, ומחזיר response של JSON ש-Slack מציג כהודעת צ'אט. Execute as me, "Anyone with Google account" אפילו לא אפשרי (Slack POSTs בלי auth), אז ה-function מאמת את ה-Slack signing secret בעצמה לפני שהיא עושה משהו אחר.
+- **ה-receiver של Linear webhook.** Linear מבצע POST של JSON בכל פעם ש-ticket משנה state. `doPost` מוסיף שורה ללשונית "Linear events". ה-receiver לא צריך להחזיר משהו משמעותי, הוא רק מאשר עם `{ ok: true }`. Execute as me, Anyone.
+- **ה-dashboard היומי הציבורי.** `doGet` שמרנדר דף HTML קטן עם שלושת ה-verticals המובילים של היום, ה-spend הכולל, ו-sparkline. מקושר מ-ticket ב-Linear; כל מי שיש לו את ה-URL רואה אותו. Execute as me, Anyone. ה-scope במניפסט הוא `spreadsheets.currentonly` כדי שאי אפשר יהיה להשתמש ב-URL לקרוא משהו אחר.
+
+## מלכודות מקצועיות
+
+- **New deployment = URL חדש.** כל אינטגרציה שמצביעה על ה-URL הישן ממשיכה לעבוד (ה-deployment הישן עדיין קיים) אבל לא רואה את הקוד החדש שלכם. משתמשים ב-**Manage deployments → New version** כדי לשלוח עדכון קוד תחת ה-URL הקיים.
+- **"Execute as me" + "Anyone" הוא דפוס האבטחה הגרוע ביותר.** URL ציבורי שרץ עם ה-scope המלא של Drive שלכם. עוברים על המניפסט לפני deploy עם השילוב הזה, מורידים scopes שאתם לא משתמשים בהם בפועל, ואף פעם לא כוללים `drive` אם `spreadsheets.currentonly` יספיק.
+- **`e.parameter` מקרס מפתחות כפולים לערך האחרון.** `?x=1&x=2` → `e.parameter.x === "2"`. משתמשים ב-`e.parameters.x` (שימו לב לרבים) כדי לקבל את ה-array `["1", "2"]`. Slack וכמה שולחים אחרים משתמשים במפתחות חוזרים באופן אידיומטי.
+- **גודל בקשת POST הוא טכנית 50 MB אבל בפועל תפגעו ב-execution timeout של 6 דקות קודם.** אל תתכננו web app סביב גופי בקשה גדולים. אם צריך לקלוט CSV, מבקשים מהקורא להעלות אותו ל-Drive ולשלוח לכם POST של ה-file ID, מושכים ומעבדים אותו מ-Drive ב-triggered job נפרד.
+- **`doPost` רץ עם ה-auth של מי שעשה deploy, גם כשהוא נקרא על ידי תעבורה אנונימית.** ה-POST של Slack ל-endpoint שלכם אין לו זהות Google, אבל `doPost` רץ בתור אתם. זה אומר ש-`SpreadsheetApp.getActiveSpreadsheet()` עובד (כי לכם יש גישה), אבל זה גם אומר שכל מי שמוצא את ה-URL יכול להפעיל קוד שנוגע ל-sheet שלכם. תמיד מאמתים shared-secret header או חתימת payload לפני שעושים עבודה אמיתית.
+- **HtmlService הוא sandboxed.** ה-HTML של ה-web app רץ בתוך iframe של Google, כשרוב ה-cookies וה-storage APIs חסומים. אל תנסו לבנות SPA אמיתי שם, משתמשים בו לדפים inline קטנים ו-embed ל-frontends רציניים מאחורי שירות hosting אמיתי.
+- **ה-URL של ה-deployment מסתיים ב-`/exec` לגרסה המפורסמת וב-`/dev` ל-URL הבדיקה של HEAD.** בזמן פיתוח פוגעים ב-URL של `/dev` כדי לבדוק עריכות בלי לעשות redeploy; אינטגרציות production פוגעות ב-`/exec`. לא מדביקים את ה-URL של `/dev` ב-config של אפליקציית Slack, ה-URL הזה דורש שתהיו logged in כבעלי ה-script, אז קוראים חיצוניים לא יכולים להגיע אליו.

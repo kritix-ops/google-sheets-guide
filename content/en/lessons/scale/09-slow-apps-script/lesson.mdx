@@ -1,0 +1,156 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Diagnosing slow Apps Script: profiles and batch ops
+
+Track 3 lesson 16 taught the batch-API fix: read once with `getValues()`, write once with `setValues()`, do the math in JavaScript in between. This lesson is the diagnostic layer underneath that fix. You have a script that runs slowly. Maybe it times out. Maybe the team's nightly aggregator started taking eighteen minutes when last month it took two. Before you refactor, you need to know which line is the slow one. Guessing wastes a day. Profiling takes ten minutes.
+
+## The Executions panel: where slow shows up
+
+Every run of an Apps Script function is recorded in the Executions panel. In the new editor: **View > Executions**. The panel lists recent runs with their duration, their status (Completed, Failed, Timed out, Cancelled), the user who triggered them, and the trigger type (Editor, Trigger, API). Sort by duration descending and the slowest runs float to the top.
+
+A few things to read from this panel without instrumenting anything yet:
+
+- **Duration column.** A function under 1 second is fine. A function over 30 seconds is suspect. A function over 60 seconds in a consumer Google account is in the danger zone (the script timeout is 6 minutes for consumer accounts, 30 minutes for Workspace). Anything that times out at the limit is the panel's most expensive signal: it tells you the function isn't just slow, it's exceeding the runtime budget.
+- **Trigger column.** A function that's slow when run from the editor (Editor trigger) and fast when run from a time-driven trigger usually means the editor's first auth handshake is dominating. Run it twice from the editor; the second run is the realistic number.
+- **Failed and Timed out rows.** A function that completes for ten runs and times out on the eleventh is hitting a quota wall or a data wall (the source grew). The eleventh run's duration is your ceiling.
+
+The Executions panel is the cheapest first move. Don't profile yet; just look at the panel. Sometimes the answer is "the function isn't slow, the trigger fires every minute and the queue's backed up." That's a configuration fix, not a code fix.
+
+## console.time and console.timeEnd: the profiling pair
+
+When the Executions panel says "this function takes 18 seconds" and you need to know which 18 seconds, the cheapest instrument is the `console.time` / `console.timeEnd` pair:
+
+```js
+function aggregate() {
+  console.time("read");
+  const values = sheet.getRange("F2:F61").getValues();
+  console.timeEnd("read");
+
+  console.time("math");
+  const total = values.reduce((s, r) => s + r[0], 0);
+  console.timeEnd("math");
+
+  console.time("write");
+  sheet.getRange("J1").setValue(total);
+  console.timeEnd("write");
+}
+```
+
+Run the function. Open **View > Logs** (or click the run row in the Executions panel and scroll to the Logs section). You'll see three lines like `read: 412 ms`, `math: 1 ms`, `write: 188 ms`. Now you know exactly which block to optimize. The math is never the bottleneck. The reads and writes are.
+
+The label is just a string. Match the same string in `time` and `timeEnd`. Forget to close one and `console.time` silently leaks: nothing prints, no error, just a missing line in the log.
+
+## Why per-cell loops are the usual culprit
+
+The default move for someone new to Apps Script is to write the for-loop they'd write anywhere else:
+
+```js
+function slowAggregate() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  let total = 0;
+  for (let row = 2; row <= 61; row++) {
+    total += sheet.getRange(row, 6).getValue();  // 60 round-trips
+  }
+  sheet.getRange("J1").setValue(total);
+}
+```
+
+Each `getRange().getValue()` is its own server round-trip. Sixty rows is sixty round-trips. On the team's actual nightly aggregator over 12,000 campaign rows, that pattern was clocking eighteen minutes. The refactor:
+
+```js
+function slowAggregate() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  console.time("read");
+  const values = sheet.getRange("F2:F61").getValues();
+  console.timeEnd("read");
+
+  let total = 0;
+  for (let row = 0; row < values.length; row++) {
+    total += values[row][0];
+  }
+  sheet.getRange("J1").setValue(total);
+}
+```
+
+One `getValues()` call. One round-trip. The for-loop now iterates over an in-memory 2D array, which JavaScript does in microseconds. On the nightly aggregator the refactored version ran in 40 seconds.
+
+The same pattern applies to writes. A loop that calls `setValue()` per cell is sixty writes; a single `setValues()` is one. Write your output as a 2D array and hand the whole array to `setValues()`.
+
+## The 6-minute and 30-minute timeouts
+
+Apps Script kills functions that take too long. The limit depends on the account type:
+
+| Account | Custom function timeout | Script function timeout |
+|---|---|---|
+| Consumer (gmail.com) | 30 seconds | 6 minutes |
+| Google Workspace | 30 seconds | 30 minutes |
+
+The 6-minute consumer ceiling is the one that surprises adtech teams whose buyers run scripts from their personal account on a side workbook. The fix is a Workspace account on the team's domain or breaking the work into smaller batched pieces that each finish under 6 minutes and resume via state stored in PropertiesService.
+
+A timed-out function does not roll back. Any writes it had already made are persisted. If your aggregator times out 80% through a 12,000-row write, you've got 9,600 rows of new data and 2,400 stale rows still showing yesterday's numbers, with no error in the cell to mark the line. Profile before you ship.
+
+## SpreadsheetApp.flush(): when, and when not
+
+`SpreadsheetApp.flush()` forces pending changes to commit to the sheet immediately. Apps Script normally batches writes; `flush()` says "stop batching, send what you have now."
+
+Useful in two narrow cases:
+
+- **You need a read after a write inside the same function.** You wrote a value to column F and now want to read column G in the next line, where G is a formula that depends on F. Without `flush()`, the read sees the stale G.
+- **You want progress visible mid-run.** A long-running script that writes progress to a status cell needs `flush()` between writes so the user can see "Row 5000 of 12000" tick up.
+
+Harmful in one common case:
+
+- **Inside a loop, between writes.** This defeats the batch. Each `flush()` is a round-trip; calling it 12,000 times in a write loop adds twelve thousand round-trips on top of the writes. The whole point of batching is to send the work in one trip.
+
+Default: don't call `flush()`. The runtime flushes on its own at the end of the function. Only add it when one of the two specific cases above bites.
+
+## Utilities.sleep: insurance, not optimization
+
+`Utilities.sleep(ms)` pauses execution. Pros sprinkle a 100ms sleep between calls to an external API (UrlFetchApp, Drive, Calendar) when they're approaching a per-second rate limit, because the alternative is a quota error mid-loop. That's the legitimate use.
+
+What `Utilities.sleep` does NOT fix:
+
+- A slow `getValues` call. Sleeping doesn't make the spreadsheet faster.
+- A timeout. Sleeping eats your runtime budget for nothing.
+- A flaky write. If the write failed, sleep then retry is fine; sleep alone won't make it succeed.
+
+Treat sleep as a rate-limit smoothing tool, not a performance tool. If you see `Utilities.sleep(2000)` in a hot loop, that's a 2-second delay per iteration, on the budget.
+
+## Cloud Logging for retention past 7 days
+
+Stackdriver / Cloud Logging integration with Apps Script keeps logs longer than the in-editor logs (which clear after 7 days). For a script you only run weekly, the in-editor logs are gone by the time you'd profile them. The fix is to enable Cloud Logging on the bound Google Cloud project and use `console.log` calls; they flow into Cloud Logging automatically. From there you can query past runs and aggregate durations across weeks.
+
+For the team's nightly aggregator, this is how you'd build a chart of "function duration over the last 90 days" to spot when the per-cell loop started hitting the 6-minute wall (which is usually two months after the team added a platform and quietly doubled the row count).
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns log occupies A1:G61. The starter `Lesson.gs` has a slow `slowAggregate()` that reads column F cell-by-cell. Your job: refactor to one getValues() batch, wrap the read with console.time, and write the total to J1."
+/>
+
+Three tasks in `Lesson.gs`:
+
+1. **Refactor the read.** Replace the per-cell `getValue()` loop with `const values = sheet.getRange("F2:F61").getValues();` followed by an in-memory for-loop over `values`. The output stays the same; the time goes from "sixty round-trips" to "one."
+2. **Wrap the read with `console.time` and `console.timeEnd`.** Use any label you like (`"read"` is conventional). The pair has to balance: an open `console.time` with no matching `timeEnd` logs nothing.
+3. **Run `slowAggregate` from the editor.** The function writes the total spend to J1. Open the Executions panel afterward and confirm the duration. The total in J1 is what the grader checks.
+
+When you re-run after the refactor, the Logs section under the Executions row should show a `read: <N> ms` line. Compare it against the original (run the slow version once first to see the contrast).
+
+## Used in the wild
+
+The team's nightly Taboola pull was the canonical case. The function read 12,000 campaign rows from a `Raw - Taboola` tab, computed daily totals per buyer, and wrote them to a `Daily` tab. Original runtime: 18 minutes. The Executions panel flagged it the first time it crept over the consumer 6-minute timeout (the buyer was running it from her gmail.com personal account; the team's nightly trigger was on her Workspace account, so the trigger version never timed out, but the manual one did, and that's how the slowness surfaced). One `console.time` pair around the read block confirmed 95% of the time was the per-cell loop. The refactor was a thirty-minute edit. The new runtime: 40 seconds. The exact same logic, called the right way.
+
+Two other places this profiling pattern earns its keep on this team:
+
+- **A `setValue` loop that pushes computed ROI back into the source tab.** Same shape: refactor to `setValues()`, instrument with `console.time`, drop from minutes to seconds.
+- **A custom-function-style helper called from 800 cells.** Each cell call ran a small lookup. Profiling showed the lookup itself was milliseconds but the function was being invoked 800 times per recalc. The fix was an `ARRAYFORMULA` wrapper that made the helper run once over the whole range.
+
+## Pro pitfalls
+
+- **`console.time` without matching `console.timeEnd`.** Silent. No log line, no error, nothing in the Executions output. If your label isn't appearing in the log, look for the unmatched pair.
+- **`flush()` between every write in a loop.** Kills the batch. Each call is a round-trip on top of the write. Audit your code for `flush()` inside `for` loops; in 9 out of 10 cases it's there because someone copied a snippet and the snippet was wrong.
+- **Profiling the inner loop.** A `console.time` call inside a 12,000-iteration loop adds its own overhead. Profile the loop as a whole, not iteration-by-iteration. If you need per-iteration timing, sample every 100th iteration, not every one.
+- **Assuming the slow part is the obvious culprit.** The slowest line in a function is often the innocent-looking getter chain: `sheet.getActiveRange().getValues()` forces a round-trip to figure out what the active range is, on top of the round-trip for the values. Cache the range object in a `const` once and reuse it.
+- **The 6-minute timeout on a consumer account when the trigger runs on a Workspace account.** Production never sees the timeout because triggers get the longer ceiling. The buyer who tested manually from their personal account hit it. Run the function under the same account that runs the trigger before declaring it fast.
+- **Looking at the Executions panel and seeing the script ran for 5.9 minutes.** That's not "almost made it." That's the runtime budget on a consumer account being burned and the function probably did not complete its last batch. Treat any duration over 80% of the ceiling as a future failure.

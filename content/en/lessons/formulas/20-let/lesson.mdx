@@ -1,0 +1,115 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# LET: name intermediate values inside a formula
+
+`LET` lets you assign names to values inside a single formula. The names exist only within the LET: they're not on the sheet, they're not in the namespace, they're scoped to the one cell.
+
+The reason to care: complex formulas become readable, and slow formulas become fast. When the same subexpression appears five times in a formula, LET lets you compute it once and refer to it by name. Sheets evaluates each LET binding once, even if you reference it many times in the body.
+
+## Syntax
+
+```
+LET(name1, value1, name2, value2, ..., body)
+```
+
+You alternate name/value pairs, then end with the body: the expression that uses the names. The body is the only required final argument; everything before it comes in pairs.
+
+```
+=LET(spend, E2, revenue, F2, (revenue - spend) / spend)
+```
+
+`spend` and `revenue` are local names bound to E2 and F2; the body computes ROI using those names. The result is the same as `=(F2-E2)/E2`, but reads as English instead of cell coordinates.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=LET(spend,E2,revenue,F2,(revenue-spend)/spend)"
+  task={<>Compute ROI for the first campaign in <code>H2</code> using LET. Bind <code>spend</code> to E2, <code>revenue</code> to F2, and the body computes <code>(revenue - spend) / spend</code>.</>}
+  hint={<>Pattern: <code>LET(name1, value1, name2, value2, body)</code>. The body is the last argument and is just an expression.</>}
+  answer={<>For one calculation this is overkill. The win is in formulas with 3+ steps, where naming intermediates removes the guesswork: a reader can scan <code>profit, revenue - cost</code> instead of decoding <code>F2-E2-G2*0.05</code>. The intermediate also helps debugging: you can change just one binding to test variations.</>}
+/>
+
+## Why LET matters: avoiding "spreadsheet stew"
+
+Without LET, complex per-row formulas turn into nested unreadable strings:
+
+```
+=IF((F2-E2)/E2>0.5, "Scale", IF((F2-E2)/E2>0, "Hold", IF((F2-E2)/E2>-0.2, "Watch", "Kill")))
+```
+
+Six identical `(F2-E2)/E2` recomputes (which Sheets will optimize, but a reader still sees the noise). Worse: change one ROI definition (say, subtract a fee), and you're hunting all six copies.
+
+With LET:
+
+```
+=LET(
+  roi, (F2 - E2) / E2,
+  IF(roi > 0.5, "Scale",
+   IF(roi > 0, "Hold",
+   IF(roi > -0.2, "Watch", "Kill")))
+)
+```
+
+`roi` is computed once, used four times, and named. Adding the fee is a one-character edit in the binding.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=LET(roi,(F2-E2)/E2,IF(roi>0.5,"Scale",IF(roi>0,"Hold",IF(roi>-0.2,"Watch","Kill"))))'
+  task={<>Bucket the first campaign into Scale / Hold / Watch / Kill based on ROI. Define <code>roi</code> with LET, then nest IFs against it.</>}
+  hint={<>Bindings: <code>roi, (F2-E2)/E2</code>. Body is a nested IF using <code>roi</code>. Thresholds: 0.5 / 0 / -0.2.</>}
+  answer={<>The verdict for row 2 (Yoav, Used Cars PR): spend 342.18, revenue 487.30, ROI ≈ 0.424 → <code>Hold</code> (between 0 and 0.5). Without LET this same logic uses <code>(F2-E2)/E2</code> three times. With LET, it's named once and the rest reads as decision logic, not arithmetic.</>}
+/>
+
+## LET binds in order
+
+A later binding can use an earlier one. This is how you build pipelines:
+
+```
+=LET(
+  spend, SUM(E2:E13),
+  revenue, SUM(F2:F13),
+  profit, revenue - spend,
+  roi, profit / spend,
+  IF(roi > 0.3, "Strong period", "Weak period")
+)
+```
+
+Five steps, each named, each reusable, each computable in terms of earlier ones. The reader sees: get spend, get revenue, derive profit, derive ROI, decide.
+
+## LET for performance
+
+If the same expensive subexpression appears multiple times, LET avoids re-computing it. This matters when the subexpression is a slow QUERY, IMPORTRANGE, or large array operation:
+
+```
+=LET(
+  data, QUERY(IMPORTRANGE("...", "raw!A:F"), "SELECT * WHERE Col2 = 'Yoav Cohen'", 1),
+  rows, ROWS(data),
+  total, SUM(QUERY(data, "SELECT Col6", 0)),
+  rows & " campaigns, " & TEXT(total, "$#,##0") & " revenue"
+)
+```
+
+`data` (the slow IMPORTRANGE+QUERY) is computed once. Without LET, you'd run that import twice (once for ROWS, once for SUM) and pay the network round-trip both times. The team's IMPORTRANGE-heavy dashboards live or die by this pattern.
+
+## Pro pitfalls
+
+- **Names can't shadow built-in functions.** `LET(SUM, 5, SUM)` errors. Pick names like `total`, `spend_total`, `s` instead.
+- **Names are case-insensitive but display as-typed.** `LET(Roi, 0.5, ROI)` works but reads weirdly. Pick a casing convention (lowercase is most common) and stick to it.
+- **The body must be exactly one expression.** No semicolons, no statements. If you need multiple things, return them in an array or wrap with another structure.
+- **Bindings are eagerly evaluated.** `LET(x, slow_function(), 0)` still pays the cost of `slow_function()` even though the body never uses x. Only bind values you'll actually use.
+- **Forward references don't work.** A binding can use earlier names, but not later ones. Order matters; reorganize bindings if you find yourself wanting to forward-reference.
+- **LET inside LAMBDA is fine, and useful.** Recall from lesson 18: a LAMBDA's body must be one expression. LET is the standard way to give that expression internal structure.
+- **Don't over-name.** A 3-line LET with 8 bindings, half of which are used once, is harder to read than the inline form. Use LET when names buy clarity, not when you've heard you should use LET.
+
+## Used in the wild
+
+- **KPI calculators** that take a buyer + period and return a verdict. `LET(spend, ..., revenue, ..., roi, ..., verdict, ...)`.
+- **Dashboard summary cells** that compute period-over-period changes. Bind `current` and `previous`, then derive `delta` and `pct_change`.
+- **IMPORTRANGE-heavy dashboards.** Bind the imported data once at the top of the LET; reference it as many times as needed in the body. Cuts response time in half on slow imports.
+- **Inside LAMBDA**: any non-trivial LAMBDA body uses LET to break the calculation into named steps. The combination is what makes named functions (lesson 21) readable.
+- **Conditional summaries**: bind a filtered subset once, then compute multiple statistics over it (count, sum, average) without re-filtering.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log. You'll write three LET-based formulas of increasing depth: a basic ROI rename, a multi-step categorization (Scale/Hold/Watch/Kill), and a portfolio-level summary that aggregates spend and revenue and emits a one-sentence verdict.

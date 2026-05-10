@@ -1,0 +1,78 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Comments, suggestions, and review workflows
+
+A workbook with no notes is a riddle. Six months in, nobody can answer "why is row 14 highlighted yellow?", "what does the Spend column actually include?", "who decided to filter out FR?". The data is there, the reasoning that produced it is not. Notes and comments are the workbook's documentation, and on a multi-sheet IMPORTRANGE-fed dashboard they are the only thing standing between you and a four-hour archaeology session.
+
+## Three flavors, three jobs
+
+Sheets exposes three separate annotation surfaces. They look similar in the UI; they are very different things.
+
+| Surface | UI path | What it is | When to reach for it |
+|---|---|---|---|
+| **Note** | Insert → Note (Ctrl+Alt+M) | Inline annotation glued to one cell. No replies, no resolution, no @-mentions. | Definitions, data lineage, "yellow means X" legends, units. |
+| **Comment** | Insert → Comment (Ctrl+Alt+M, then Comment) | Threaded discussion with @-mentions, assignment, and resolve. Lives in the Drive Comments API. | Review workflows, "is this number right?", code-review-style conversations. |
+| **Suggested edit** | Editing menu → Suggesting | Per-cell value change a doc owner approves or rejects. | Letting non-owners propose changes without trusting them with edit access. |
+
+The grader for this lesson reads **notes**, not comments. The Sheets API exposes notes directly on the cell (we read them with `cellNote`). Threaded comments live on the Drive Comments API surface, which is a different access path and not part of the in-sheet metadata. Notes travel with the cell on copy-paste; comments do not, and neither do suggested edits.
+
+## Notes are the team's lineage tags
+
+Every header cell on every Aggregator tab gets a note. The note answers three questions a future maintainer will ask:
+
+1. **Where does this column come from?** "Pulled via IMPORTRANGE from `Taboola export`, sheet `Daily`."
+2. **How fresh is it?** "Refreshes hourly, lag up to 15 minutes after platform updates."
+3. **What is this number, exactly?** "Net revenue after platform fees. Gross is in column J."
+
+Three sentences, written once when the column is created, that pay back every single time someone new opens the workbook. The team's IMPORTRANGE-heavy stack makes this non-optional: when an upstream sheet rename breaks `Spend` and the column suddenly imports `Revenue` instead, the note is the fastest way to figure out what the column was *supposed* to mean.
+
+A second pattern: every "magic constant" cell gets a note. If `J1` holds `0.27` and that number is the platform fee multiplier, a note saying "Platform fee, sourced from Q1 2026 contract, see Drive folder /contracts/2026-q1" turns a mystery number into a defensible one.
+
+## Comments are for review, not documentation
+
+Notes are durable. Comments are conversational. The convention:
+
+- **Review readiness.** Before sending a dashboard to leadership, the buyer assigns themselves a comment on each KPI cell: "Sanity-checked against Taboola Backstage, off by 0.4%, acceptable." Resolving the comment becomes the sign-off.
+- **Question routing.** `@dina.dayan@flexelent.com Are you still pulling FR? The CTR cratered week-over-week.` The @-mention generates a Drive notification, the comment can be assigned, and resolving it closes the loop.
+- **Disagreements.** When two buyers disagree about a methodology, the comment thread is the receipt. Resolving it without consensus is bad form; the team treats unresolved comments as a blocker for sharing the workbook upstream.
+
+Comments are searchable in Drive (`type:spreadsheet has:comments`), which makes them the right tool for "find every workbook where someone flagged a methodology question," and the wrong tool for "explain what this column means" because nobody is going to search Drive to read your column definition.
+
+## Suggesting mode: the cautious contributor's path
+
+Switch the editing menu from `Editing` to `Suggesting` and every change you type becomes a suggestion the doc owner approves. In Docs this is universal. In Sheets the UX is rougher: it's clearly per-cell, it doesn't preview formulas well, and most learners discover it by accident and panic. It exists for one specific use case in the team's workflow:
+
+- **Brief tracker contributions.** The Briefs sheet is owned by the strategy lead. Buyers don't have edit access; they have suggest access. A buyer suggesting a vertical change submits a suggestion, the strategy lead approves or rejects, and the audit trail is automatic.
+
+If you find yourself reaching for Suggesting mode for anything beyond that pattern, you probably want a comment instead.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns lives in A1:G61. You'll add three header notes documenting source, definition, and timezone."
+/>
+
+Click **Start lesson** to provision the campaign log. Then add three notes via Insert → Note (Ctrl+Alt+M):
+
+- **`A1` (Date header)**: a note explaining the timezone. Must include the substring `UTC`. Pattern: "Dates in UTC; convert to GMT+3 for the team office hours view."
+- **`E1` (Spend header)**: a note explaining the data source. Must include the substring `IMPORTRANGE`. Pattern: "Pulled via IMPORTRANGE from Taboola export, refreshes hourly."
+- **`G1` (Revenue header)**: a note explaining the definition. Must include the substring `net`. Pattern: "Net revenue after platform fees."
+
+The grader reads each cell's note via the Sheets API and checks for a case-insensitive substring match. The exact wording is yours; the substrings are the contract.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **Every Aggregator-tab header has a lineage note.** When `Spend` mysteriously starts importing string `"$412.50"` instead of the number, the note tells you the source workbook, the source range, and the IMPORTRANGE refresh window. That is a 30-second debug instead of a 30-minute one.
+- **Every dashboard KPI cell ships with a comment.** Before a deck goes to leadership, the buyer assigns a comment on each headline number with their sanity-check method. Reviewers read the comments, not the formulas.
+- **The brief tracker uses Suggesting for non-owner contributions.** Buyers don't get edit on the Briefs sheet; they suggest. The strategy lead approves on Monday morning, and the suggestion history doubles as the change log.
+
+## Pro pitfalls
+
+- **Notes don't survive `Paste special → Values only`.** If you build a Cleaned tab by pasting from the raw import, every note on the source cells is lost. Re-add the notes on the destination, or wrap the pipeline so the values flow through formulas (which preserve notes on the destination cells you wrote).
+- **Comments don't survive `File → Make a copy`.** The new copy starts with zero comments, every thread gone. If you need the discussion history, share the original; copies are for clean templates.
+- **Suggesting mode in Sheets is not Suggesting mode in Docs.** Learners who know Docs Suggestions arrive expecting the same fluid review UX and get a per-cell pop-up that doesn't preview formulas. Warn them; better, route them to Comments unless the workflow really needs change-approval semantics.
+- **Reading notes via the API requires the right fetch shape.** The grader for this lesson uses `cellNote`, which under the hood reads `notes` from the gridData payload (we already pass `includeGridData=true` in `sheetsReader.ts`). If you wire up your own Sheets API client, an empty `gridData` payload returns `null` for every note even when notes exist in the UI.
+- **Don't put critical lineage in a comment.** Comments can be resolved and hidden, threads get archived after a workbook is shared widely, and copies lose them entirely. Lineage belongs in a note. Discussion belongs in a comment. Keep the two from blurring.

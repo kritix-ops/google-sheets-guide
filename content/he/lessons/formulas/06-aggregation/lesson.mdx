@@ -1,0 +1,145 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# אגרגציה: SUM, AVERAGE, COUNT, COUNTIF, SUMIF, SUMIFS
+
+פונקציות האגרגציה מצמצמות טווח למספר אחד. הפשוטות (`SUM`, `AVERAGE`, `COUNT`) אינטואיטיביות. המותנות (`COUNTIF`, `SUMIF`, `COUNTIFS`, `SUMIFS`) הן סוסי העבודה של כל dashboard באדטק. סופרים קמפיינים שעומדים בתנאי, סוכמים revenue שעומד בתנאי, מפלחים לפי media buyer, פלטפורמה או טווח תאריכים.
+
+## פונקציות האגרגציה הפשוטות
+
+`SUM(range)` מחבר. `AVERAGE(range)` ממצע. `MIN`/`MAX` מוצאים קצוות. `COUNT(range)` סופר תאים מספריים. `COUNTA(range)` סופר כל תא לא ריק (מספרים, טקסט, כל דבר).
+
+<MiniGrid
+  data={CAMPAIGNS}
+  caption="טבלת הקמפיינים. נבצע אגרגציה על spend ועל revenue."
+  highlight={["E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13"]}
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula="=AVERAGE(E2:E13)"
+  task={<>חשבו את ה-spend הממוצע על פני כל הקמפיינים. התוצאה אמורה להיות בערך <code>327.81</code>.</>}
+  hint={<><code>AVERAGE</code> מחלק <code>SUM</code> ב-<code>COUNT</code> אוטומטית. הטווח הוא <code>E2:E13</code>.</>}
+  answer={<><code>AVERAGE</code> מתעלם מתאים ריקים ומטקסט. אם תא בטווח החזיק את המחרוזת "test", AVERAGE היה מדלג עליו, ואילו <code>SUM/COUNTA</code> היה כולל אותו כ-0. <code>AVERAGEA</code> קיים למקרה הנדיר שבו רוצים שטקסט ייספר כ-0. הממוצע של 12 הקמפיינים כאן הוא סך ה-spend (3933.68) חלקי 12, בערך 327.81. ב-dashboards כמעט תמיד תרצו את הגרסה המותנית, ממוצע spend לכל media buyer, לכל פלטפורמה, לכל טווח תאריכים, וזה בדיוק מה ש-AVERAGEIFS עושה.</>}
+/>
+
+<QuickCheck
+  question="עמודת spend מחזיקה 8 תאים: 5 מספרים, 2 מחרוזות טקסט (מישהו הקליד 'paused'), ו-1 ריק. מה =COUNT(...) מחזיר לעומת =COUNTA(...)?"
+  options={[
+    {
+      id: "a",
+      label: <><code>COUNT</code> מחזיר 5, <code>COUNTA</code> מחזיר 7.</>,
+      correct: true,
+      explanation: "COUNT סופר רק מספרים (5). COUNTA סופר כל תא לא ריק, מספרים ועוד מחרוזות שווה 7. תאים ריקים לא נספרים בשני המקרים.",
+    },
+    {
+      id: "b",
+      label: <><code>COUNT</code> מחזיר 8, <code>COUNTA</code> מחזיר 7.</>,
+      correct: false,
+      explanation: "COUNT לא כולל טקסט או תאים ריקים. הוא מספרי בלבד.",
+    },
+    {
+      id: "c",
+      label: <>שניהם מחזירים 7.</>,
+      correct: false,
+      explanation: "COUNT ו-COUNTA נבדלים על טקסט. COUNT סופר רק מספרים, COUNTA סופר כל מה שלא ריק.",
+    },
+  ]}
+/>
+
+## SUMIF ו-COUNTIF: תנאי אחד
+
+הסיומת "IF" מאפשרת לעשות אגרגציה רק על התאים שעומדים בתנאי. `COUNTIF(range, criterion)` סופר התאמות, `SUMIF(range, criterion, [sum_range])` מסכם אותן. הקריטריון הוא מחרוזת עם ההשוואה בפנים (גדול מ, קטן מ וכו'), או ערך בודד.
+
+השימוש הקלאסי באדטק: "כמה קמפיינים הביאו revenue מעל 400 דולר?"
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=COUNTIF(F2:F13,">400")'
+  task={<>ספרו כמה קמפיינים השיגו revenue מעל 400 דולר. התוצאה אמורה להיות <code>7</code>.</>}
+  hint={<>הקריטריון הוא מחרוזת במרכאות עם ההשוואה בפנים. השתמשו ב-<code>COUNTIF</code> על עמודת ה-revenue.</>}
+  answer={<>COUNTIF מקבל את הטווח ואת הקריטריון. הקריטריון הוא מחרוזת במרכאות שמכילה השוואה (גדול מ, קטן מ, שונה מ), ערך מדויק להתאמה, או תבנית wildcard כמו <code>"A*"</code>. בכל אופן שתבחרו, עוטפים במרכאות כפולות. ב-dashboards של פרודקשן תשתמשו ב-COUNTIF ישירות לעיתים רחוקות. COUNTIFS (רב-קריטריונים) הוא סוס העבודה. אבל הצורה החד-קריטריונית היא המקום ללמוד את התחביר.</>}
+/>
+
+`SUMIF` משתמש בארגומנט השלישי האופציונלי כשהתאים שמסכמים שונים מהתאים שבודקים. המקרה הקלאסי: "סכמו את ה-revenue של כל הקמפיינים של Yoav". בודקים את עמודה B כדי למצוא את ה-media buyer, ומסכמים את עמודה F של ה-revenue.
+
+## SUMIFS ו-COUNTIFS: כמה תנאים
+
+הגרסאות בלשון רבים מקבלות **כמה** זוגות תנאים. שימו לב שסדר הארגומנטים שונה מ-`SUMIF`: טווח הסכימה בא **קודם**, ואז זוגות מתחלפים של טווח-קריטריון וקריטריון. זאת פונקציית ה-Sheets שהכי הרבה משתמשים בה ב-spreadsheets עסקיים.
+
+```
+=SUMIFS(sum_range, criteria_range1, criterion1, criteria_range2, criterion2, ...)
+=COUNTIFS(criteria_range1, criterion1, criteria_range2, criterion2, ...)
+```
+
+שימוש טיפוסי באדטק: סך ה-revenue מהקמפיינים של Yoav על Taboola בלבד. שני קריטריונים: media buyer = "Yoav Cohen" וגם פלטפורמה = "Taboola".
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=SUMIFS(F2:F13,B2:B13,"Yoav Cohen",D2:D13,"Taboola")'
+  task={<>השתמשו ב-<code>SUMIFS</code> כדי לסכם את ה-revenue של Yoav Cohen על Taboola בלבד. התוצאה אמורה להיות <code>899.45</code>.</>}
+  hint={<>טווח הסכימה ראשון (revenue), ואז זוגות מתחלפים של טווח-קריטריון וקריטריון: עמודת media buyer ← "Yoav Cohen", עמודת פלטפורמה ← "Taboola".</>}
+  answer={<>סדר הארגומנטים הוא המלכודת של SUMIFS. ב-<code>SUMIF</code>, הטווח שבודקים בא קודם וטווח הסכימה אופציונלי בסוף. ב-<code>SUMIFS</code> (לשון רבים), טווח הסכימה בא <strong>ראשון</strong> והוא חובה. אחר כך מזווגים טווח-קריטריון עם קריטריון כמה פעמים שצריך. הקמפיינים של Yoav על Taboola: שורה 2 (487.30) ועוד שורה 6 (412.15) שווה 899.45. הצורה הזאת, media buyer אחד, פלטפורמה אחת, סכום מלא, היא אבן הבניין הבסיסית של כל Pivot table של media buyer מול פלטפורמה באדטק. מוסיפים קריטריון שלישי לטווח תאריכים ומקבלים תצוגה רבעונית.</>}
+/>
+
+<QuickCheck
+  question="מה ההבדל בסדר הארגומנטים בין SUMIF ל-SUMIFS?"
+  options={[
+    {
+      id: "a",
+      label: "SUMIF ו-SUMIFS מקבלים ארגומנטים באותו סדר.",
+      correct: false,
+      explanation: "לא ולא. SUMIF: range, criterion, [sum_range]. SUMIFS: sum_range, criteria_range1, criterion1, ...",
+    },
+    {
+      id: "b",
+      label: "SUMIF שם את sum_range אחרון (אופציונלי), SUMIFS שם את sum_range ראשון (חובה).",
+      correct: true,
+      explanation: "זאת אחת המלכודות הכי מעצבנות ב-Sheets. SUMIF: =SUMIF(B2:B13, 'Yoav', F2:F13). SUMIFS: =SUMIFS(F2:F13, B2:B13, 'Yoav', D2:D13, 'Taboola').",
+    },
+    {
+      id: "c",
+      label: "SUMIFS תומך רק בתנאי אחד.",
+      correct: false,
+      explanation: "SUMIFS מקבל כל מספר של זוגות קריטריונים. זאת כל המהות שלו.",
+    },
+  ]}
+/>
+
+## איך בוחרים
+
+| מטרה | מה בוחרים |
+|---|---|
+| סך כולל של עמודה | `SUM` |
+| ממוצע של עמודה, מתעלם מטקסט וריקים | `AVERAGE` |
+| ספירת מספרים בעמודה | `COUNT` |
+| ספירת תאים לא ריקים | `COUNTA` |
+| ספירת תאים שעומדים בתנאי אחד | `COUNTIF` |
+| ספירת תאים שעומדים בכמה תנאים | `COUNTIFS` |
+| סכימת תאים שעומדים בתנאי אחד | `SUMIF` |
+| סכימת תאים שעומדים בכמה תנאים | `SUMIFS` |
+| ממוצע תאים שעומדים בכמה תנאים | `AVERAGEIFS` |
+
+`COUNTIFS`, `SUMIFS` ו-`AVERAGEIFS` כללים מספיק כדי שאפשר בדרך כלל לדלג על הגרסאות בלשון יחיד. אם זוכרים סט אחד, זוכרים את הרבים. dashboards מודרניים הם בעיקר `SUMIFS` ו-`COUNTIFS`.
+
+## נפוץ בשטח
+
+ב-spreadsheets האמיתיים של הצוות:
+
+- **ה-Pivot של media buyer מול פלטפורמה.** השורות הן media buyers, העמודות הן פלטפורמות, התאים הם SUMIFS של revenue. שורת הסך-הכל בתחתית היא SUM של העמודה מעליה, עמודת הסך-הכל מימין היא SUM של השורה משמאלה. מכפילים את זה ב-4 מטריקות (spend, revenue, profit, ROI) ומקבלים את התצוגה השבועית הסטנדרטית של הצוות.
+- **הסיכום החסום-בתאריכים.** אותו SUMIFS, ועוד קריטריון שלישי: `>=` start_date וגם `<=` end_date. תאריכי ההתחלה והסוף יושבים בתאים בעלי שם בראש ה-dashboard ("current_period_start", "current_period_end"), וכל הדוח מתעדכן כשמשנים אותם.
+- **מוני ה-"alert".** COUNTIFS לדברים כמו "קמפיינים עם ROI < 0.5" או "קמפיינים בלי spend ב-7 הימים האחרונים". אלה רצים בראש ה-dashboard כפאנל "מה צריך לבדוק".
+
+## מלכודות מקצועיות
+
+- **המלכודת של סדר הארגומנטים ב-SUMIFS.** טווח הסכימה ראשון. סדר לא נכון מחזיר מספרים שגויים בלי לשגות. תמיד, תמיד, תמיד.
+- **מחרוזות קריטריון דורשות אופרטור השוואה מפורש.** `SUMIFS(F:F, F:F, ">400")` עובד. `SUMIFS(F:F, F:F, 400)` מתאים רק ל-400 מדויק. `SUMIFS(F:F, F:F, "400")` זאת אותה התאמה מדויקת.
+- **`SUMIFS(..., date_range, ">=2026-01-01")` לא תמיד עובד.** מחרוזות תאריך כקריטריון לא אמינות. עדיף: <code>SUMIFS(..., date_range, "{">"}=" {"&"} DATE(2026,1,1))</code> עם שרשור.
+- **טווחים בגדלים שונים שוברים את SUMIFS בשקט.** טווח הסכימה וכל טווח קריטריון חייבים להיות באותם מימדים. אם אחד הוא `F2:F13` ואחר הוא `B2:B14`, SUMIFS יחזיר תוצאות שגויות בלי שגיאה.
+- **תאים ריקים נספרים כ-0 ב-SUMIFS לקריטריונים מספריים.** אם יש שורות ריקות מ-IMPORTRANGE שעדיין לא התמלאו, `SUMIFS(..., F:F, "{">"}0")` מדלג עליהן, אבל `SUMIFS(..., F:F, "{"<"}{">"}1000")` כולל אותן כאפסים. שימו לב לזה גם בפילטרים של טווח תאריכים.
+
+## עכשיו לעבודה אמיתית
+
+לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים. תבנו mini-dashboard של 4 תאים ל-media buyer אחד (Yoav Cohen): סך spend, סך revenue, ספירת קמפיינים, ו-revenue ספציפי ל-Taboola. כל תא מתרגל פונקציית אגרגציה אחרת, אבל יחד הם יוצרים סיכום של media buyer שהיה משמש בפועל.

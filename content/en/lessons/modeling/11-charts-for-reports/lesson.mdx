@@ -1,0 +1,89 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Charts for reports: export-ready formatting
+
+The chart you build for your own screen and the chart you ship in a report are not the same product. Your dashboard chart can be busy because you read it every day and you know what every line means. A report chart lands in front of an executive who will glance at it for three seconds, on a slide, in a PDF, sometimes printed. Lesson 9 covered which chart type fits which question. This lesson is the export-readiness checklist: title, legend, color, embedding, refresh. Get these wrong and the team's QBR deck has eight charts and four different answers to "what quarter is this?".
+
+## Naming convention: the title is the slide caption
+
+The single highest-leverage rule for report charts is this: **the chart title contains the time period and the metric**. `Spend by Buyer, Q2 2026`. `Revenue by Vertical, April 2026`. `ROI by Platform, last 30 days`. When the chart lands in a Slides deck, the slide caption can be omitted because the chart already says what it is. When the chart is exported as a PNG and pasted into Slack, the PNG self-documents: nobody has to ask "what quarter?".
+
+The chart you make on Monday for "this week" becomes the chart someone opens in August looking for "Q2 numbers" and is confused that it shows the wrong week. Bake the period into the title. Update it when the period changes. A title that says `Spend by Buyer` and nothing else is a slow-acting bug.
+
+## Legend choices for reports
+
+Sheets puts `Legend → Position` under `Customize` after you double-click the chart. The default is `Right`. The team conventions:
+
+| Series count | Legend position | Why |
+|---|---|---|
+| 1 (single series) | `None` (NO_LEGEND) | The legend just repeats the title. Wastes pixels on a slide. |
+| 2 to 4 | `Bottom` | Cleaner than right, and the legend doesn't shrink the plot area as the chart resizes. |
+| 5+ | (don't use one chart) | A 12-platform color legend is unreadable. Use small multiples or a different chart. |
+
+The trap: a 5-series chart with a `Bottom` legend looks fine on your 27-inch monitor and unreadable when it's projected on a meeting room wall.
+
+## Color discipline: pick once, use everywhere
+
+If `Native` is teal in one chart, it's teal in every chart in the deck. `Search` is the same orange across the QBR. Pick the brand colors once, write them down in a `Colors` tab, and use them as the manual series colors on every chart. Sheets keeps the chart-level color when you copy the chart into Slides, so consistency carries through.
+
+The two colors that consistently fail in exports are pale yellows (vanish on white slide backgrounds) and pure red on pure green (color-blind viewers can't tell them apart). Pick high-contrast brand colors and stick with them.
+
+## Embedding in Docs and Slides
+
+Two ways to put a Sheets chart into a Doc or Slides deck:
+
+- **Linked**: `Insert → Chart → From Sheets → "Link to spreadsheet"`. The chart in the deck stays connected to the spreadsheet. When the source data changes, the deck shows an `Update` button. Click it and the chart re-renders.
+- **Image / unlinked**: copy the chart, paste into Slides, choose `Paste as image` (or use `Download → PNG` and insert the file). The image is static. Source updates don't reach it.
+
+The team default is **linked for the QBR deck, unlinked for one-off emails**. The QBR is rebuilt every quarter, so a live link saves the rebuild. A one-off email screenshot of "yesterday's numbers" doesn't want to update three days later when somebody clicks `Update` by accident.
+
+## Refresh behavior of linked charts
+
+A linked chart in Slides does **not** auto-refresh while the deck is open. The refresh model is:
+
+1. Slides loads the deck. The chart shows the data as of the last refresh.
+2. If the source has changed since, Slides shows an `Update` button on the chart.
+3. The chart only updates when the user clicks `Update` or reopens the deck.
+
+Plan around this when you present. If you're showing the deck Monday morning and the source pulls fresh data overnight, click `Update` on every chart before the meeting. Better, click `Update` after the data refresh window closes and before anybody else opens the file.
+
+## Export to PDF, PNG, SVG
+
+Right-click a chart → `Download` gives three formats:
+
+- **PNG**: for emails, Slack, screenshots. Lossless, raster, fixed-size.
+- **PDF**: for the final report attachment, legal review, QBR write-up. Vector, prints crisply.
+- **SVG**: for designers who'll resize it. Vector, scales without blur.
+
+PNG is the workhorse for "send me a chart of last week". PDF goes in the formal deliverable. SVG goes to the design team for the brand-aligned cleanup.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns lives in A1:G61. You'll build one report-ready bar chart anchored at J1."
+/>
+
+Click **Start lesson** to provision the campaign log. Then build a single bar chart on the `Campaigns` tab with all three of these:
+
+- **Chart type** is `Bar` (horizontal). Source: `Campaigns!B1:B61` (Buyer) + `Campaigns!F1:F61` (Spend). Anchor the chart at `J1`.
+- **Title** names the quarter, e.g. `Spend by Buyer, Q2 2026`. The grader looks for `Q1`, `Q2`, `Q3`, or `Q4` (case-insensitive) in the title.
+- **Legend → Position** is `None` (NO_LEGEND). One series, no legend needed.
+
+The grader reads the chart back via `sheet.charts("Campaigns")` and checks the three rules independently. Build the chart once and the three checks pass together; miss one of the three and you'll see exactly which one failed.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **The QBR deck pulls 8 charts, all linked.** Spend by Buyer, Revenue by Vertical, ROI by Platform, Profit by Country, plus four campaign-level drilldowns. Before the QBR meeting, the deck owner opens every slide and clicks `Update` on every chart. Forty seconds. The alternative is the slide showing last quarter's numbers in front of the CFO.
+- **The Friday weekly summary exports one PNG.** A single buyer-comparison bar chart on a `Weekly` tab, exported to PNG, dropped into the weekly Slack post. The chart title says `Spend by Buyer, Week of YYYY-MM-DD` so the PNG works on its own when someone scrolls back to old Slack messages.
+- **The brief tracker has `SPARKLINE` columns that never go into reports.** They're dense, screen-only, and only useful next to the row they describe. Report charts are full-size, titled, and self-explanatory. Sparklines are for working spreadsheets, not for slides.
+
+## Pro pitfalls
+
+- **NO_LEGEND on a multi-series chart.** You strip the legend on a single-series bar and forget it's still off when you add a second series. The viewer sees two colored bars and can't tell which is `Native` and which is `Social`. Re-enable the legend the moment a second series appears.
+- **Colors that work on screen but fail in PDF.** Pale yellow on white, light grey on white, pure red plus pure green. The bar chart looks fine in Sheets and the PDF export is illegible. Test the PDF before you ship.
+- **Titles that go stale.** `Spend by Buyer, Q2` sits in a deck until October, and the chart now shows Q3 data but the title still says Q2. Either re-title quarterly or use `=CONCAT("Spend by Buyer, ", "Q", ROUNDUP(MONTH(TODAY())/3, 0), " ", YEAR(TODAY()))` and reference that cell in the chart title via the `Use cell` option.
+- **Copy-paste from Sheets to Slides as image silently breaks the link.** Right-clicking and choosing `Copy` then `Paste` in Slides offers a `Link to spreadsheet` checkbox. If it's unchecked, the chart pastes as an image with no link. Three months later you wonder why the chart never updates. Always check the checkbox.
+- **`IMPORTRANGE`-backed charts that refresh on a delay.** A linked Slides chart shows the data in the source spreadsheet at refresh time. If the source spreadsheet itself pulls via `IMPORTRANGE`, you're chained to two refresh cycles: the source needs fresh data before you click `Update` in Slides. Update the source first, then update the chart.

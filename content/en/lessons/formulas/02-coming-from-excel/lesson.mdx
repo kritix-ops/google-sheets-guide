@@ -1,0 +1,129 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Coming from Excel
+
+Sheets and Excel are 90% the same. The 10% gotchas catch working pros in week one. The big four: arrays don't auto-spill, `XLOOKUP` works the same, Power Query has no equivalent, and the sharing model is link-based instead of file-based.
+
+## Arrays: explicit, not implicit
+
+Type `=F2:F13` in `H1` (a reference to the Revenue column). In Excel 365, the array spills downward by itself. In Sheets, you get just the first value, `487.3`. To spill, wrap in `ARRAYFORMULA`.
+
+The classic adtech case: you want a profit column (revenue minus spend) for every campaign, computed by one formula. In Excel you'd type `=F2:F13-E2:E13` and get the spilled column for free. In Sheets you have to wrap it.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="G1"
+  expectedFormula="=ARRAYFORMULA(F2:F13-E2:E13)"
+  task={<>Compute profit (revenue minus spend) for every campaign at once. A single formula in <code>G1</code> should fill <code>G1:G12</code> with each campaign's profit.</>}
+  hint={<>Wrap <code>F2:F13-E2:E13</code> in <code>ARRAYFORMULA(...)</code> so it spills.</>}
+  answer={<>Plain math expressions like <code>F2:F13-E2:E13</code> don't auto-spill in Sheets: they return only the first value. Wrapping in <code>ARRAYFORMULA</code> tells the engine to broadcast the subtraction across the whole range, so a single formula in <code>G1</code> fills 12 cells. Functions like <code>FILTER</code>, <code>SORT</code>, <code>UNIQUE</code>, <code>QUERY</code>, and <code>SEQUENCE</code> spill on their own and don't need the wrapper. In real adtech work, you'll write ARRAYFORMULA across columns of computed metrics (profit, ROI, EPC, margin) so a single formula at the top fills the whole column as new campaigns are added below.</>}
+/>
+
+<QuickCheck
+  question="Which of these does NOT need ARRAYFORMULA to spill in Sheets?"
+  options={[
+    {
+      id: "a",
+      label: <code>=F2:F13 - E2:E13</code>,
+      correct: false,
+      explanation: "Plain math expressions don't spill in Sheets. They need ARRAYFORMULA.",
+    },
+    {
+      id: "b",
+      label: <code>=FILTER(F2:F13, B2:B13 = "Yoav Cohen")</code>,
+      correct: true,
+      explanation: "FILTER is array-aware. So are SORT, UNIQUE, QUERY, and SEQUENCE.",
+    },
+    {
+      id: "c",
+      label: <code>=F2:F13</code>,
+      correct: false,
+      explanation: "A plain reference to a range returns just the first cell unless wrapped.",
+    },
+  ]}
+/>
+
+## XLOOKUP: same in both, finally
+
+`XLOOKUP` shipped to Sheets in 2022. Identical signature, identical behavior. If you use it in Excel today, you can use it in Sheets today.
+
+```
+=XLOOKUP(search_key, lookup_range, return_range, [if_not_found], [match_mode], [search_mode])
+```
+
+A typical adtech use: look up the revenue of a specific buyer's first campaign in the log.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=XLOOKUP("Yoav Cohen",B2:B13,F2:F13)'
+  task={<>Use <code>XLOOKUP</code> to find the revenue of Yoav Cohen's first campaign in the log. The result in <code>H1</code> should be <code>487.3</code>.</>}
+  hint={<>Three arguments: search key (<code>"Yoav Cohen"</code>), lookup range (<code>B2:B13</code>: the Buyer column), return range (<code>F2:F13</code>: Revenue).</>}
+  answer={<>The lookup range and return range are passed as separate arguments. They line up row-for-row: row 1 of <code>B2:B13</code> is Yoav, row 1 of <code>F2:F13</code> is 487.3. No column-number arithmetic, no <code>FALSE</code> flag for exact match. <code>XLOOKUP</code> returns the first match by default: which here is the May 1 Car Deals PR campaign on Google. To find a specific match, add more conditions or use INDEX/MATCH (covered in lesson 4).</>}
+/>
+
+## Power Query has no direct equivalent
+
+Excel's Power Query is a UI for shaping, joining, and transforming data, with steps recorded as M code. Sheets has nothing like that out of the box. The Sheets-native answers, mapped by what you'd reach for in Excel:
+
+| In Excel you'd... | In Sheets reach for... |
+|---|---|
+| Filter and sort with Power Query | `QUERY(range, "SELECT ... WHERE ... ORDER BY ...")` |
+| Join two tables on a key | `QUERY` with multiple references, or `XLOOKUP` per row |
+| Pull from another workbook | `IMPORTRANGE(url, "Sheet!A:F")` |
+| Multi-step transformations | Apps Script (Track 3) |
+| Pull from a database or warehouse | Connected Sheets + BigQuery (Track 4) |
+
+`IMPORTRANGE` is how the team wires every campaign sheet to its raw-data source. It's also the most common source of broken formulas: source workbook renamed, permissions revoked, range drifted. Track 1 lesson 27 covers `IMPORTRANGE` patterns; Track 4 covers diagnosing breakage.
+
+<QuickCheck
+  question="You want to show only campaigns with revenue >= 400, sorted high-to-low. What's the most idiomatic Sheets approach?"
+  options={[
+    {
+      id: "a",
+      label: "Add a helper column with IF, then sort manually.",
+      correct: false,
+      explanation: "Works, but every change requires re-sorting. The result is static, not derived. In a multi-sheet workbook with dozens of dependents, this gets unmanageable fast.",
+    },
+    {
+      id: "b",
+      label: <><code>QUERY(A2:F13, "SELECT B, C, F WHERE F {">"}= 400 ORDER BY F DESC")</code></>,
+      correct: true,
+      explanation: "QUERY combines filter and sort in one formula. The result updates as the source changes: exactly what you want when the source is itself an IMPORTRANGE.",
+    },
+    {
+      id: "c",
+      label: "Open Power Query.",
+      correct: false,
+      explanation: "Power Query is Excel-only. Sheets has no equivalent UI; QUERY is the inline answer.",
+    },
+  ]}
+/>
+
+## The sharing model is link-based, not file-based
+
+Excel files live in a file system; sharing is a permission attached to the storage location. Sheets workbooks live in Drive; sharing is metadata on the document, with granular roles (viewer, commenter, editor) and link-share scopes. The "save and email the file" workflow disappears, replaced by "send a link." A workbook can have hundreds of editors at once with no merge conflicts.
+
+This shows up in adtech work in two ways:
+
+- **Cross-workbook references via `IMPORTRANGE`.** When Sheet A imports from Sheet B, it requires explicit permission the first time. If the owner of B revokes editor access on A, the IMPORTRANGE fails silently and every dependent formula returns `#REF!`. Multiply by 10 source sheets and one breakage cascades.
+- **Filter views (covered later in Track 2).** When five media buyers share a sheet, they can each apply their own filter without disturbing the others. Without filter views, one person's "show only Taboola" filter hides rows for everyone.
+
+## A few quieter differences
+
+- **No built-in VBA.** Apps Script (JavaScript-flavored) replaces it. Track 3 covers it.
+- **`UNIQUE`, `SORT`, `FILTER` spill without `ARRAYFORMULA`.** Retrofitted to behave like Excel's spilled versions.
+- **Cross-sheet references skip the file path.** `=Campaigns!E5` rather than `=[file.xlsx]Sheet1!E5`. Cross-workbook references use `IMPORTRANGE` (lesson 27).
+- **`IF`, `IFS`, `SWITCH`, `LET` are aligned.** Conditional logic ports cleanly.
+
+## Used in the wild
+
+In the team's actual workbooks, the patterns this lesson covers show up like this:
+
+- **Profit, ROI, EPC, margin columns are all single ARRAYFORMULAs at the top.** When new campaigns are pasted into rows 14, 15, 16, the ARRAYFORMULA extends automatically (assuming the range was set wide enough at the start).
+- **XLOOKUP for "give me X for buyer Y" is a daily reflex.** First campaign date, total spend this month, last vertical they ran. Often joined with cross-sheet IMPORTRANGE on a buyers tab.
+- **QUERY is how the dashboards get built.** "SELECT A, B, SUM(F) GROUP BY A, B" with filters by date range. It's slower than SUMIFS for huge sheets but much more expressive.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log. You'll exercise the three biggest Excel-to-Sheets differences: an `ARRAYFORMULA` profit column, a `QUERY` for high-revenue campaigns, and an `XLOOKUP` for a buyer's first campaign revenue.

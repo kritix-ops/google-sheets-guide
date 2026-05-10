@@ -1,0 +1,88 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# QUERY in depth: GROUP BY, PIVOT, LABEL, and the Col1 quirk
+
+Lesson 12 covered QUERY's basics: SELECT, WHERE, ORDER BY, LIMIT. This lesson goes deeper with the clauses that turn QUERY from "SQL filter" into "the most powerful aggregation tool in Sheets": `GROUP BY`, `PIVOT`, `LABEL`, plus the gotchas that catch every adtech analyst eventually.
+
+## GROUP BY: aggregate by category
+
+`GROUP BY` collapses rows into groups. Combined with aggregation functions (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`), it produces summary tables.
+
+```
+=QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B", 1)
+```
+
+This returns one row per buyer with their total revenue. The classic adtech "spend by buyer" or "revenue by platform" pivot.
+
+<MiniGrid
+  data={CAMPAIGNS}
+  caption="Source data we'll group."
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=QUERY(A1:F13,"SELECT B, SUM(F) GROUP BY B ORDER BY SUM(F) DESC",1)'
+  task={<>Build a per-buyer revenue summary, sorted by revenue descending. Use GROUP BY and SUM, then sort.</>}
+  hint={<>SELECT lists what to project (B and SUM(F)). GROUP BY tells QUERY how to bucket. ORDER BY can reference SUM(F) directly.</>}
+  answer={<>The aggregate function SUM(F) collapses all matching rows. GROUP BY B says "group rows that share the same value in column B". ORDER BY SUM(F) DESC sorts the resulting summary by total revenue, biggest first. The result has one row per buyer plus a header. The header for the SUM column is "sum revenue" (lowercase) by default: use LABEL to rename it.</>}
+/>
+
+## LABEL: rename header columns
+
+Aggregate columns get auto-named `sum revenue`, `count vertical`, etc. To rename them, add a `LABEL` clause at the end:
+
+```
+=QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B LABEL SUM(F) 'Total Revenue'", 1)
+```
+
+`LABEL aggregate 'New Name'` works for any column, aggregated or not.
+
+## PIVOT: rotate to a 2D summary
+
+`PIVOT` takes a column and turns its unique values into column headers. Combined with GROUP BY and an aggregate, you get a 2D pivot table.
+
+```
+=QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B PIVOT D", 1)
+```
+
+This returns: rows = buyers, columns = platforms, cells = total revenue. The classic adtech buyer-vs-platform matrix in one formula.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=QUERY(A1:F13,"SELECT B, SUM(F) GROUP BY B PIVOT D",1)'
+  task={<>Build a buyer-vs-platform pivot showing total revenue. Rows are buyers, columns are platforms.</>}
+  hint={<>GROUP BY B (rows), PIVOT D (columns), SUM(F) (cell values).</>}
+  answer={<>PIVOT rotates the pivot column into headers across the result. Empty cells (where a buyer didn't run on that platform) come back blank. The order of platforms in the result is alphabetical by default: control it with subqueries or post-processing if needed. PIVOT with QUERY is faster and more dynamic than the built-in pivot table feature for one-shot calculations.</>}
+/>
+
+## The Col1 quirk
+
+When you pass a range *without* a header row to QUERY (or pass `0` as the headers argument), the columns are named `Col1`, `Col2`, etc.: not `A`, `B`, `C`. Easy to miss; produces confusing errors.
+
+```
+=QUERY(A2:F13, "SELECT Col2, SUM(Col6) GROUP BY Col2", 0)
+```
+
+When using IMPORTRANGE inside QUERY, the same trap: IMPORTRANGE'd data doesn't carry headers in the same way, so columns become Col1...ColN.
+
+## Used in the wild
+
+- **The team's master dashboard.** A single QUERY with GROUP BY buyer, PIVOT platform, SUM revenue and SUM spend: produces the canonical "who's making money where" matrix.
+- **Vertical performance reports.** GROUP BY vertical, SUM revenue, ORDER BY DESC: top-performing verticals first.
+- **Date-bounded period summaries.** GROUP BY buyer with WHERE date BETWEEN start AND end: what each buyer did this month vs. last month.
+- **Cohort analysis.** GROUP BY launch_month (computed via TEXT(A, "yyyy-MM")) for month-over-month retention.
+
+## Pro pitfalls
+
+- **The "label" column for an aggregate is lowercase by default.** `SUM(F)` becomes header "sum revenue". Use LABEL to rename or LABEL to suppress with empty string `''`.
+- **GROUP BY requires every non-aggregated column in SELECT to also be in GROUP BY.** `SELECT A, B, SUM(F) GROUP BY A` errors because B isn't grouped or aggregated. Add B to GROUP BY or wrap in MIN/MAX/etc.
+- **PIVOT with too many distinct values blows up the result width.** PIVOT a column with 1000 unique values and you get 1000 result columns. Filter first.
+- **Col1 vs A.** Pass `1` for the headers argument when your range includes headers; `0` otherwise. Mix this up and the column references break.
+- **IMPORTRANGE column references.** IMPORTRANGE'd data inside QUERY uses Col1, Col2, etc. by default. Wrap IMPORTRANGE in another QUERY or use the right header arg.
+- **Date columns in GROUP BY group by exact value, not by month.** To group by month: `GROUP BY YEAR(A), MONTH(A)` and select those instead of A directly.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log. You'll write three QUERYs: a per-buyer revenue summary, a buyer-vs-platform pivot, and a vertical-totals report with a custom column label.

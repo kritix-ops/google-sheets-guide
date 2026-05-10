@@ -1,0 +1,76 @@
+import { CAMPAIGNS_TIMESERIES } from "@/content/datasets/adtech";
+
+# Charts: choosing the right chart type
+
+A chart makes a sheet readable in seconds. Picking the wrong chart type makes it slower, sometimes actively misleading. A pie with 14 slices, a line chart over discrete categories, a column chart that mixes counts and dollars on one axis: every one of those ships in real dashboards and every one of those wastes the reader's time. The decision tree below covers about 90% of what an adtech dashboard needs.
+
+## The six chart types you'll actually use
+
+Six families do most of the work. Knowing which one to reach for is more important than knowing how to format any of them.
+
+| Chart type | What it's for | Adtech example | Don't use it for |
+|---|---|---|---|
+| Line | Continuous time-series | Daily revenue across April | Comparing 5 platforms at one point in time |
+| Column / Bar | Comparing discrete categories | Spend by buyer this month | A 30-day trend (use line instead) |
+| Area | Stacked composition over time | Revenue by platform per day, stacked | Two separate trends on the same axis |
+| Pie | Composition at one point in time | % of monthly spend by platform | More than 5 slices, or anything trending |
+| Scatter | Correlation between two metrics | CPC versus ROI across campaigns | Time-series of a single metric |
+| Combo | Two metrics, different Y-axis scales | Spend (bars) + ROI (line) per day | One-metric stories (overkill) |
+
+**Line** is the workhorse for time-series. The X-axis is continuous time; one or more series ride on top. Daily revenue, weekly active campaigns, hourly clicks during a launch: all line charts.
+
+**Column** (vertical bars) and **Bar** (horizontal bars) compare discrete categories. The team's "spend by buyer this month" or "revenue by vertical": column charts. Use horizontal bar charts when the category labels are long enough that vertical labels would have to rotate to fit (`"Solar Systems & Panels PR"` flipped 45 degrees is unreadable).
+
+**Area** is line with the area below the line filled in. Useful as a *stacked* area for composition over time: each platform's revenue stacked daily, so the reader sees both the total trend and each platform's share of it. Don't use plain area for one series: line is cleaner.
+
+**Pie** is for composition at *one* point in time. "Of this month's spend, what share went to each platform?" If you find yourself making a separate pie for each month, you wanted a stacked column or stacked area. Pies with more than 5 slices stop being readable: group small slices into "Other."
+
+**Scatter** plots one metric against another. CPC against ROI across the campaigns you ran last month answers "do my high-CPC campaigns make more money or less?" There is no time axis. Each dot is one campaign. This is the right chart when the question is about correlation, not change.
+
+**Combo** lives on the same X-axis but with two different Y-axes. Daily spend (columns, left axis in dollars) plus daily ROI (line, right axis as a multiplier). Spend ranges from $1,500 to $3,300; ROI ranges from 1.2 to 1.5. Plotted on the same axis, ROI would be a flat line at the bottom. The right axis lets both series show their shape.
+
+## Anchor, frame, and the sheet underneath
+
+A chart in Sheets is an overlay on the grid. It has an **anchor cell** (the top-left corner the chart attaches to) and a **frame** (the chart's own bounding box). Insert a chart and it lands somewhere near your selected range; drag it to where you want it. The anchor is what determines whether the chart moves with the cells underneath it or stays put. Right-click the chart, choose `Move chart to own sheet` if it needs more room and shouldn't sit on top of the data.
+
+Where you anchor a chart in a dashboard matters. The team's pattern: data lives in columns A through F, charts get anchored in column H or further right, far enough that adding rows to the data doesn't push the charts off the visible area.
+
+## Series count and legend
+
+More than four series on a single chart and your reader gives up. Three is comfortable. Two is best. If you're tempted to put eight platforms on one line chart, ask whether you really need eight separate lines or whether you want one chart per platform (small multiples) or a different aggregation (top 3 + "Other").
+
+The legend goes where it isn't fighting the data. Default is `BOTTOM_LEGEND`; `RIGHT_LEGEND` works when you have lots of horizontal room and short series names. `NO_LEGEND` is fine when there's only one series and the chart's title says what it is.
+
+## Imported dates and IMPORTRANGE
+
+Charts read straight from cell values. If the date column was pulled in via `IMPORTRANGE` and arrived as text instead of as a real date, your line chart will treat the X-axis as discrete labels and the spacing between days won't reflect actual elapsed time. Symptom: a line chart that looks weirdly compressed where dates are missing. Fix it upstream by converting the date column to real dates (`=DATEVALUE(A2)`), not by changing chart settings.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_TIMESERIES.slice(0, 6)}
+  caption="CAMPAIGNS_TIMESERIES seeds the Trend tab. 30 days of daily totals: Spend, Revenue, Clicks, Impressions, Conversions."
+/>
+
+Click **Start lesson** to provision the timeseries on a tab named `Trend`. Then add two charts on the same tab:
+
+- **Chart 1**: a **LINE** chart of `Revenue` (column C) over `Date` (column A). Title it something with the word `Revenue` in it. Anchor it at `H1`.
+- **Chart 2**: a **COLUMN** chart of `Conversions` (column F) over `Date` (column A). Title it something with the word `Conversion` in it. Anchor it at `H20`.
+
+The grader reads each chart's family, basic type, title, and anchor. If you put a BAR chart where the lesson asked for COLUMN, or a chart with a title that doesn't say what it shows, the grader catches it.
+
+## Used in the wild
+
+In the team's real dashboards:
+
+- **Daily revenue charts live above daily spend charts** in the same column. One scan top-to-bottom tells the story: revenue trending up while spend is flat means margin is widening.
+- **Platform-mix pies live next to a stacked-area chart** showing the same mix over time. The pie answers "right now" and the stacked area answers "is the mix shifting." Together they're a complete picture; separately they're each missing half.
+- **Scatter charts of CPC vs ROI** sit at the bottom of buyer dashboards. The buyer scans for outliers: a high-CPC dot that's also high-ROI is a campaign to scale; a high-CPC dot that's low-ROI is a campaign to pause.
+
+## Pro pitfalls
+
+- **Pies with more than 5 slices.** Once you're past 5, your reader can't compare adjacent wedges by eye. Group the small ones into "Other" or switch to a column chart, where the bar lengths are directly comparable.
+- **Line charts over categorical X-axes.** A line connecting "Taboola, Outbrain, MediaGo" implies a trend that doesn't exist: there's no order between the platforms. Use column instead.
+- **Mixing counts and dollars on one axis.** A column chart with `Clicks` (15,000) and `Revenue` ($3,000) on the same Y-axis makes revenue look like a typo. Switch to combo with two Y-axes, or split into two charts.
+- **Legend that's longer than the chart.** Eight series with full vertical names crowd the legend until the chart itself is a thumbnail. Cut to top-N + "Other" or move the legend to the top.
+- **Charts that broke when the data range expanded.** A chart hardcoded to `A1:C31` won't pick up day 32. The fix is to base the chart on a full-column reference (`A:C`) or on a named range that grows. The follow-up is to remember that a chart over `A:C` still includes the header row, so set "Use row 1 as headers" on the chart.

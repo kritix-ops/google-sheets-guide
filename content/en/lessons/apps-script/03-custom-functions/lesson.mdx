@@ -1,0 +1,157 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Custom functions: writing, naming, autocomplete metadata
+
+The two preceding lessons covered the Apps Script editor and the execution model. Now you'll write code that fires from inside the sheet itself. A **custom function** is a JavaScript function defined in the bound project that the spreadsheet can call from a cell, exactly like `=SUM` or `=VLOOKUP`. You name it, you ship it once, and from then on every cell in the workbook reaches for the same logic. The team's adtech workbooks lean on this constantly: USD-to-ILS conversion, vertical name normalization, ROI bucketing, country-code → region mapping. One function definition; thirty different formulas calling it.
+
+## The shape
+
+A custom function is a top-level function in `Code.gs` (or any `.gs` file in the project):
+
+```js
+function usdToILS(usd, rate) {
+  return usd * rate;
+}
+```
+
+That's it. Save the project. Now in any cell you can type:
+
+```
+=usdToILS(F2, $K$1)
+```
+
+The function name in the cell matches the JS identifier. Case doesn't matter in the cell: `=USDTOILS(...)` works too: but the JS declaration is case-sensitive. `function USDtoILS` and `function usdToILS` are two different functions to the editor.
+
+Apps Script only treats **top-level function declarations** as custom functions. None of these are callable from a cell:
+
+```js
+// Arrow function: not a top-level declaration.
+const usdToILS = (usd, rate) => usd * rate;
+
+// Function expression assigned to a const: same problem.
+const usdToILS = function(usd, rate) { return usd * rate; };
+
+// Nested inside another function: invisible from the outside.
+function helpers() {
+  function usdToILS(usd, rate) { return usd * rate; }
+}
+```
+
+The function-set the Apps Script editor builds when you save is what the spreadsheet sees. If a name doesn't show up in the autocomplete tooltip when you start typing `=usd...` in a cell, the editor didn't see a top-level declaration. Open `Code.gs`, fix the declaration shape, save, and the autocomplete catches up within a second.
+
+## The JSDoc that turns into a tooltip
+
+The shape above works, but if a teammate hovers `=usdToILS(...)` in a cell, all they see is the function name. Add a `@customfunction` JSDoc and the cell tooltip starts showing the parameter list and the description: same hint surface as `=SUM`:
+
+```js
+/**
+ * Convert a US dollar amount to ILS at a given rate.
+ *
+ * @param {number} usd  The amount in US dollars.
+ * @param {number} rate The USD-to-ILS exchange rate.
+ * @return {number} The amount converted to ILS.
+ * @customfunction
+ */
+function usdToILS(usd, rate) {
+  return usd * rate;
+}
+```
+
+Four tags, all worth writing on the day you ship the function:
+
+| Tag | What it does |
+|---|---|
+| Description (first paragraph) | The body of the tooltip. One sentence. |
+| `@param {type} name desc` | Shows up as parameter help when the cursor is on that argument. |
+| `@return {type} desc` | Documented but not shown in the tooltip; useful for the next reader of the source. |
+| `@customfunction` | Required for the autocomplete suggestion to surface in cells. Without it, the function still works but it won't show up when typing `=usd...`. |
+
+For a one-person workbook the JSDoc is optional. For a team workbook it's free documentation that lives next to the code and shows up in the cell where it's needed.
+
+## Reading a range argument
+
+A custom function's argument is whatever the cell passes:
+
+| Cell formula | What `usd` is inside the function |
+|---|---|
+| `=usdToILS(F2, 3.7)` | The number in F2 |
+| `=usdToILS(F2:F10, 3.7)` | A 2D array of nine numbers |
+| `=usdToILS("80.50", 3.7)` | The string `"80.50"` (Sheets does not auto-coerce) |
+| `=usdToILS(, 3.7)` | `undefined` |
+
+For the simple single-cell case `usd * rate` works. The instant the caller passes a range, JavaScript's `*` operator silently does the wrong thing on the 2D array (`NaN`) and the cell shows `#NUM!`. The robust shape iterates explicitly:
+
+```js
+function usdToILS(usd, rate) {
+  if (Array.isArray(usd)) {
+    return usd.map(function(row) {
+      return row.map(function(v) { return v * rate; });
+    });
+  }
+  return usd * rate;
+}
+```
+
+A function written this way handles `=usdToILS(F2, $K$1)` in row-by-row formulas **and** `=usdToILS(F2:F61, $K$1)` as a one-formula spill into 60 rows. The lesson's assignment only requires the single-cell path; you can ship the array path on day two.
+
+## Caching: same args, same result
+
+Custom functions are **cached by their argument list**. The first call to `=usdToILS(F2, $K$1)` runs the function and remembers the answer. If F2 and K1 don't change, opening the workbook tomorrow does not re-execute the function: the cached value is shown. This is a feature (workbooks open fast even with hundreds of custom-function cells) and a trap (a function that reads the current time, the current user, or a random value silently freezes the moment its inputs are stable).
+
+Three patterns to avoid in a custom function:
+
+- **`new Date()` or `Date.now()`.** Cached. Two cells calling the same function at the same time can return different timestamps; reopening the file returns the cached one.
+- **`Math.random()`.** Same problem. Use `RAND()` natively if you need randomness in a cell; it's volatile and re-rolls correctly.
+- **`UrlFetchApp.fetch(...)` for live data.** Hits a quota per recalc and gets cached. If the data is supposed to be live, use a time-driven trigger that writes to a cell, not a custom function that reads from a URL.
+
+The rule of thumb: a custom function should be **a pure function of its arguments**. If two calls with the same arguments could legitimately return different things, it doesn't belong as a custom function.
+
+## What custom functions cannot do
+
+The auth context custom functions run under is intentionally narrow. They can:
+
+- Read the active spreadsheet via `SpreadsheetApp.getActiveSpreadsheet()` (read-only, current sheet only)
+- Call `Utilities.*` for parsing and formatting
+- Run pure JS
+
+They **cannot**:
+
+- Show a dialog or sidebar (`showSidebar`, `alert`: those require an active UI context)
+- Write to the spreadsheet (`setValue`, `setFormula`)
+- Send email, edit Calendar, or anything else that needs OAuth scopes the cell context doesn't carry
+- Take more than 30 seconds (custom-function timeout)
+
+If your function needs any of those, it's a macro or a triggered handler, not a custom function. Track 3 lessons 4–7 cover that side of the surface.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61. Spend is in F, Revenue in G: both in USD. Your job: convert them to ILS in columns H and I using a custom function."
+/>
+
+The starter file `Lesson.gs` already declares the `usdToILS(usd, rate)` signature with a `return null;` stub. Three tasks:
+
+1. Replace `return null;` with the correct expression so the function actually multiplies its arguments.
+2. In cell H2, call `=usdToILS(F2, $K$1)` to convert F2's USD spend into ILS. K1 holds the rate (3.7).
+3. In cell I2, call `=usdToILS(G2, $K$1)` to convert G2's USD revenue. Same function, different input column.
+
+The point is reuse. Once `usdToILS` is right, both formulas just call it. Change the rate in K1 and both cells update. Change the conversion logic (rounding, a 0.5% bank fee) in one place in `Lesson.gs` and every cell that calls the function picks it up.
+
+## Used in the wild
+
+In the team's actual workbooks, custom functions show up as small lookup-and-format utilities:
+
+- **`normalizeVertical(name)`**: strips trailing whitespace, fixes casing, ensures the " PR" suffix. Run on every incoming row from the platform export sheets.
+- **`countryToRegion(iso2)`**: maps `"DE"` → `"EU"`, `"US"` → `"NA"`, `"BR"` → `"LATAM"`. A 200-line switch statement in Apps Script beats a 200-cell lookup table that has to be maintained inline.
+- **`roiBucket(roi)`**: buckets ROI into `"loss"`, `"flat"`, `"profitable"`, `"hero"`. Used in dashboards and in conditional-formatting rules' custom formulas.
+
+Every one of these is the same shape: pure function of its arguments, returns a single value, gets called from many cells.
+
+## Pro pitfalls
+
+- **The function shows up in autocomplete but returns `#NAME?` in the cell.** The function was saved but the spreadsheet's autocomplete cache is stale. Type the call out fully and press Enter; the autocomplete index updates within a few seconds and the cell evaluates.
+- **`#ERROR!` with no other detail.** Either the function threw or the function returned `undefined`. Add `console.log(usd, rate)` calls inside the body and check the Apps Script editor's Execution log (View → Logs in the legacy editor; the bug icon in the new one) on the next recalculation.
+- **The function runs once and never updates.** Caching. The function ran with the original args, the args haven't changed, the cached value is being returned. Edit one of the input cells and recalc; the function re-fires.
+- **`=usdToILS(F2:F61, $K$1)` returns one cell instead of spilling.** The function isn't handling the array case. Either write the array-aware version above or call it per-row (`=usdToILS(F2, $K$1)` then fill down).
+- **`function usdToILS` defined but cells show `#NAME?` for `=usdToILS(...)`.** The bound script wasn't authorized after the latest edit. Open Apps Script, click Run on any function once, accept the auth prompt, and the cell evaluates on the next recalc.

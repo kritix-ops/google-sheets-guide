@@ -1,0 +1,84 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Number formatting: custom formats, locale gotchas
+
+A workbook's numbers carry meaning beyond their value. A revenue of `487.30` displayed as `$487.30` reads differently from `487.30000`, which reads differently from `487`, which reads differently from `48730%`. The underlying number is the same in every case. Only the format changed. Number formats are the cheap layer that turns raw numbers into a dashboard a human can scan in two seconds, and the layer that quietly causes a third of the "this column looks wrong" tickets when the format and the data drift apart.
+
+## The seven built-in format types
+
+`Format → Number` gives you a menu of presets and a custom-format box. Behind the menu, every cell carries one of seven format types:
+
+| Type | What it's for | Pattern example | Renders 487.3 as |
+|---|---|---|---|
+| `NUMBER` | Plain numeric, with optional thousands separator and decimals | `#,##0.00` | `487.30` |
+| `PERCENT` | Multiplied display only, with `%` glued on | `0.00%` | `48730.00%` |
+| `CURRENCY` | Money, with the locale's currency sign | `$#,##0.00` | `$487.30` |
+| `DATE` | Calendar date | `dd/mm/yyyy` | `21/05/1901` |
+| `TIME` | Clock time | `hh:mm:ss` | `07:12:00` |
+| `DATE_TIME` | Both | `dd/mm/yyyy hh:mm` | `21/05/1901 07:12` |
+| `SCIENTIFIC` | Exponent notation for very large or very small values | `0.00E+00` | `4.87E+02` |
+
+The grader and the API see this as a `{ type, pattern }` pair. The `type` says which family the format belongs to; the `pattern` is the exact recipe. Two cells can share the same `CURRENCY` type and have wildly different patterns: `$#,##0` for the dashboard summary, `$#,##0.0000` for the rate card.
+
+## Custom format strings: four sections, color modifiers, literals
+
+A custom pattern is up to four sections separated by semicolons:
+
+`positive ; negative ; zero ; text`
+
+In order: how a positive number renders, how a negative renders, how zero renders, how text renders. You can stop early. Two sections means "positive ; negative". One section applies to everything.
+
+The placeholder characters that matter: `0` means "always show this digit, pad with zero if missing", `#` means "show this digit only if present", `,` is the thousands separator, `.` is the decimal separator. A literal character that's not one of those gets a backslash in front, so `\$#,##0` shows a dollar sign even outside a currency type.
+
+Color modifiers come before the section. The supported colors are `[Black]`, `[Blue]`, `[Cyan]`, `[Green]`, `[Magenta]`, `[Red]`, `[White]`, `[Yellow]`. The team uses one pattern more than any other on financial columns:
+
+`#,##0.00;[Red]-#,##0.00`
+
+That's "positive shows as a thousands-separated number with two decimals; negatives show the same shape but red, with a leading minus". Apply it to a P&L column and the loss rows light up without a single conditional-format rule. The `NUMBER` type carries the pattern; the format type stays `NUMBER` because the meaning is "a number", not "money" or "a percent".
+
+## Locale gotchas: the silent rewriters
+
+The format you typed is *interpreted* through the spreadsheet's locale. A few places where this hurts:
+
+- **Currency symbol.** A `CURRENCY` format that shows `$` in a US-locale workbook shows `€` in a EU-locale workbook for the same pattern. The pattern hasn't changed; the locale-dependent symbol resolution did. If your spend column needs to *always* be USD regardless of who opens the file, write the dollar sign as a literal: `\$#,##0.00`. Same trick for shekels with `\₪`.
+- **Decimal and thousands separators.** US locale: `1,234.56`. EU locale: `1.234,56`. The same custom pattern of `#,##0.00` produces both, depending on the spreadsheet's locale setting. A workbook duplicated from US to a colleague in Berlin and switched to German locale will silently flip every number's separators.
+- **Date formats.** `dd/mm/yyyy` and `mm/dd/yyyy` look identical for May 1 (both render `01/05/2026` and `05/01/2026` respectively, easy to confuse). Open the same file in a workbook set to a different locale and "May 1" becomes "January 5". Picking `yyyy-mm-dd` for any date column that crosses borders dodges the entire class of bug.
+
+The takeaway: format follows locale unless you anchor it with literals. For a multi-region team, anchor.
+
+## The "format follows the data" rule
+
+A format lives on the *consuming* sheet. It does not travel through `IMPORTRANGE`. If the source workbook formats a column as currency and the destination workbook pulls it via `IMPORTRANGE`, the imported numbers arrive raw and the destination has to apply its own formatting. This sounds obvious until somebody renames a column header in the source, the destination's import shifts, and the formatting that *was* on the right column ends up on the wrong one. Apply formats to a column once, on the consuming sheet, after the import shape is stable.
+
+A second wrinkle: imported dates sometimes arrive as text strings rather than serial numbers. A text date can't be formatted as a date. The format pattern silently does nothing. Use `DATEVALUE` to coerce, then format.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns lives in A1:G61. You'll add an ROI column in H and apply three number formats."
+/>
+
+Click **Start lesson** to provision the campaign log. Then apply three number formats:
+
+- **`F2:F61`** (Spend column): currency with two decimals. The `Format → Number → Currency` preset is fine; the underlying type must be `CURRENCY` and the pattern must include `$`.
+- **`G2:G61`** (Revenue column): custom format showing negatives in red. Pattern: `#,##0.00;[Red]-#,##0.00`. The type stays `NUMBER` because this is "a number with red-for-negative styling", not "money". Apply it via `Format → Number → Custom number format`.
+- **`H1`**: type the header `ROI`. **`H2`**: write `=G2/F2-1`. Fill down to `H61`. Format `H2:H61` as percent with two decimals. The type must be `PERCENT` and the pattern must include `%`.
+
+The grader checks `F2`, `G2`, and `H2` (one cell per range, since formats are per-cell). It catches the wrong type family (e.g. a `CURRENCY` format on the negatives-red column when it should be `NUMBER`), a missing `$` on the spend column, a missing `[Red]` on the revenue column, and a `NUMBER` format on the ROI column that should be `PERCENT`.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **Spend, Revenue, Profit always render as currency.** Anywhere those three columns show up (campaign logs, dashboards, P&L summaries) they're formatted with the locale's currency symbol and two decimals. A column labeled "Spend" that renders without a currency sign reads as a count, not as money, and somebody will misinterpret it.
+- **ROI always renders as percent with two decimals.** A ROI column with the underlying value `0.247` displayed as `0.247` is unreadable. The same column displayed as `24.70%` is the only thing the buyer needs. Two decimals because rounded-to-zero ROIs (`25%`) hide the difference between `24.6%` and `25.4%`, and that difference is the entire decision.
+- **Dates in `yyyy-mm-dd` for cross-team workbooks.** The performance team works with EMEA buyers (DD/MM/YYYY) and US buyers (MM/DD/YYYY). Picking ISO format dodges the ambiguity entirely. Local-format dates stay on tabs that one region owns.
+
+## Pro pitfalls
+
+- **Format does not change the underlying value.** A cell with the value `487.30` formatted as percent renders as `48730%`. Looking at the cell, you'd think the value is `48730`. It isn't. Any formula that references the cell still sees `487.30`. The display lies; the value doesn't. If a column "looks like" 25% but the SUMIF is off by a factor of 100, check the format before you blame the formula.
+- **Locale shift rewrites your formats.** A workbook duplicated from a US owner to an Israeli colleague who clicks `File → Settings → Locale → Israel` flips every currency to shekels and every date to `dd/mm/yyyy`. The numbers haven't moved; the rendering has. If a workbook needs a fixed format regardless of opener, anchor it with literal characters and explicit patterns.
+- **Format ranges that don't extend.** A format applied to `F2:F61` covers exactly 60 rows. Tomorrow's row 62 lands without the format. Either format the entire column once (`F:F`) so new rows inherit, or build a habit of re-applying when a tab grows. Tables (Track 1 lesson 17) carry format down to new rows; bare ranges don't.
+- **Numbers stored as text become uncomputable.** A number formatted as `TEXT` still looks like a number but doesn't sum. `SUM(F2:F61)` quietly skips text-typed cells, so your total looks low and you spend an hour wondering which row is wrong. The fix is `VALUE(F2)` to coerce, then re-format. Imported data via `IMPORTRANGE` is the most common source.
+- **`[Color]` modifiers don't replace conditional formatting.** A custom pattern with `[Red]` only colors based on the sign or the section. For "red when ROI < target where target is in J1", you need a conditional-format rule, not a number format. Use number formats for sign-based color (positive vs negative); use conditional formatting for threshold-based color.

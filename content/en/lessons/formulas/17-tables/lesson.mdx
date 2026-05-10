@@ -1,0 +1,105 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Tables: structured ranges that don't break
+
+A **Table** is a Sheets feature that turns a range into a structured object with a name, typed columns, and self-extending bounds. Once data is in a table, you reference columns by name (`Campaigns[Spend]`) instead of position (`E2:E13`). When rows are added, every formula and chart referencing the table updates automatically: no `$E$2:$E$1000` "extend the range now and hope it's enough" pattern.
+
+This is the single biggest readability and robustness upgrade Sheets has shipped in years. Use it everywhere your team's data has a recognizable schema.
+
+## Convert a range into a table
+
+1. Select the range (or click any cell in the data: Sheets will detect the bounds).
+2. **Format → Convert to table.** (Or right-click → "Convert to table".)
+3. Sheets infers column types (text, number, currency, date, percent), applies formatting, and gives the table an auto-name like `Table1`.
+4. Click the small table-name dropdown at the top-left to rename it to something meaningful: `Campaigns`, `Buyers`, `Verticals`.
+
+**Always rename the table immediately after creating it.** `Table1` is meaningless; `Campaigns` makes formulas read like English.
+
+## Structured references: the syntax
+
+Once your range is a table named `Campaigns` with columns `Date | Buyer | Vertical | Platform | Spend | Revenue`:
+
+| Reference | Means |
+|---|---|
+| `Campaigns[Spend]` | The whole Spend column (data only, no header) |
+| `Campaigns[#HEADERS]` | The header row |
+| `Campaigns[#DATA]` | All data rows, all columns (synonym for the table body) |
+| `Campaigns[#ALL]` | Header + data + totals |
+| `Campaigns[#TOTALS]` | The totals row, if one exists |
+| `Campaigns[[#HEADERS],[Spend]]` | Just the header cell of the Spend column |
+| `Campaigns[[#ALL],[Spend]]` | The Spend column including its header |
+
+Examples:
+
+```
+=SUM(Campaigns[Spend])
+=AVERAGE(Campaigns[Revenue])
+=COUNTIF(Campaigns[Buyer], "Yoav Cohen")
+=SUMIFS(Campaigns[Revenue], Campaigns[Platform], "Taboola")
+```
+
+**Naming rule that bites everyone:** spaces in the table name are replaced with underscores in formulas. A table named `Used Cars` becomes `Used_Cars[Spend]`. Spaces inside *column* names are kept as-is: `Campaigns[Vertical Name]` is valid: though many teams avoid spaces in column names entirely and use underscores or camelCase to keep formulas terse.
+
+## Why tables matter in adtech
+
+The team's campaign log grows by ~50 rows per week. Without a table, every dashboard formula is `=SUMIFS(Sheet1!F:F, Sheet1!B:B, "Yoav Cohen")`: referencing entire columns to handle "future rows we haven't added yet." The whole-column reference is wasteful and slow, and breaks the moment someone inserts a header.
+
+With a table:
+
+```
+=SUMIFS(Campaigns[Revenue], Campaigns[Buyer], "Yoav Cohen")
+```
+
+- **Auto-extends** when new rows are added: no need to widen the range.
+- **No accidental header inclusion**: `Campaigns[Spend]` already means "the data, not the header."
+- **Self-documenting**: anyone reading the formula knows what column is involved.
+- **Survives column inserts**: if someone adds a "Currency" column between Platform and Spend, range-based `E:E` breaks; `Campaigns[Spend]` still resolves correctly.
+
+## What HyperFormula doesn't see
+
+This lesson's **Try it** boxes use a sandboxed engine that doesn't understand Sheets tables. So the in-lesson examples below use ordinary ranges: but in the real assignment (Start lesson) you'll write the table-reference forms.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=SUM(E2:E13)'
+  task={<>Sum the Spend column (E2:E13) using ordinary ranges. In real Sheets, you would write <code>=SUM(Campaigns[Spend])</code> instead: the result is the same, but the table form survives row additions.</>}
+  hint={<>Just <code>=SUM(E2:E13)</code>. Skip the header row.</>}
+  answer={<>The two formulas give identical results today. The difference shows up tomorrow: when you add row 14, the range version still ends at row 13 unless you remember to extend it. The table version expands automatically.</>}
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=SUMIFS(F2:F13,B2:B13,"Yoav Cohen")'
+  task={<>Sum the Revenue for all of Yoav Cohen's campaigns. With ranges: <code>=SUMIFS(F2:F13, B2:B13, "Yoav Cohen")</code>. With a table: <code>=SUMIFS(Campaigns[Revenue], Campaigns[Buyer], "Yoav Cohen")</code>: same result, way more readable.</>}
+  hint={<>SUMIFS(sum_range, criteria_range, criterion). Sum_range is column F (Revenue), criteria_range is column B (Buyer).</>}
+  answer={<>Once you're using tables, every condition reads like English: "sum Revenue where Buyer = Yoav Cohen." Compare that to "sum F2 through F13 where the parallel B column equals Yoav Cohen": same logic, three times more cognitive load.</>}
+/>
+
+## The current-row gotcha
+
+In Excel, you can write `=[@Spend] * 1.1` inside a table column to reference "the current row's Spend." **Sheets does not support this.** There is no `@column` or `[#ThisRow]` syntax. Inside a table, you still use a regular cell reference like `=E2*1.1` for current-row math, and Sheets auto-fills it down the column. The auto-fill is smart: but the formula reads as `E2`, not as `[@Spend]`, so the readability advantage doesn't extend to per-row calculations.
+
+This is the single biggest gotcha when migrating from Excel: **structured references work for whole-column aggregates but not for current-row math.** Keep the table for what it's good at; use ordinary references for in-row formulas.
+
+## Used in the wild
+
+- **Master campaign log → table.** Convert the team's main campaign sheet to a table named `Campaigns`. Every dashboard pivot, sumifs, and chart now references `Campaigns[Revenue]` instead of `Sheet1!F:F`. New campaigns added at the bottom flow into every downstream formula automatically.
+- **Verticals lookup table.** A small lookup with vertical → category → benchmark CPC. As a table, the lookup reads `=VLOOKUP(B2, Verticals[#ALL], 2, FALSE)` and never breaks when new verticals are added.
+- **Per-buyer dashboards.** `=SUMIFS(Campaigns[Spend], Campaigns[Buyer], $A2)` filled across Yoav, Sarah, David, Maya, Tom: readable and stable.
+- **Chart sources.** Point a chart at `Campaigns[Date]` and `Campaigns[Revenue]`. Chart updates as the table grows; no need to re-edit chart ranges every week.
+
+## Pro pitfalls
+
+- **No `@column` syntax.** Per-row formulas inside a table use plain cell references (`=E2*1.1`), not `=[@Spend]*1.1`. Excel users get this wrong constantly.
+- **Spaces in table names become underscores in formulas.** A table named "Used Cars" is `Used_Cars[Spend]`, not `'Used Cars'[Spend]` and not `Used Cars[Spend]`.
+- **You can't easily un-table.** "Convert back to range" exists in the table dropdown but it strips formatting and column types. Plan the table boundaries deliberately.
+- **Tables don't span IMPORTRANGE.** A table on Sheet A doesn't carry to Sheet B when you `IMPORTRANGE` the data: the imported copy is plain values. Use QUERY against the import or convert the imported range to a new local table.
+- **Column-type inference can mis-read.** If your "Date" column has one stray text entry, Sheets might infer the column as text. Fix the source data, then change the column type from the column-header dropdown.
+- **Sorting/filtering inside a table is built-in but isolates from outside formulas.** A `=Campaigns[Revenue]` reference returns the sorted view from outside, not the original physical row order. Usually fine, occasionally surprising.
+- **Conditional formatting on tables uses the table reference.** Rules like "highlight rows where ROI < 1" written against `Campaigns[Revenue]/Campaigns[Spend]` survive row additions. Range-based rules don't.
+
+## Now do it for real
+
+Click **Start lesson** to provision a campaign log. You'll convert the range to a table named `Campaigns`, then write three formulas using structured references: a `SUM` over the Spend column, a `SUMIFS` filtered by buyer, and a `COUNTIF` against the Vertical column.

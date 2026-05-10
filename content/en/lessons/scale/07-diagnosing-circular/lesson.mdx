@@ -1,0 +1,78 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Diagnosing circular references
+
+A circular reference is a dependency graph with a loop. Cell A says "I need B," cell B says "I need A," and the engine has nowhere to start. Sheets refuses to evaluate the loop and shows `#REF!` with "Circular dependency detected" in the tooltip on every cell in the cycle. The error is loud but the cause is sometimes deeply hidden, especially when the loop runs through three or more cells, through `INDIRECT`, or through an Apps Script trigger that writes to the same cell that fires it.
+
+The shape to internalize: **Sheets evaluates a directed acyclic graph. Any cycle stops the graph.**
+
+## The four common cycle shapes
+
+Most real cycles fall into one of four patterns:
+
+1. **Self-reference.** `J1 = SUM(F2:F61) + J1`. The author wanted "total plus an adjustment" and forgot the adjustment cell was the cell they were writing in. Sheets sees J1 in J1's own range and stops.
+2. **Two-cell cycle.** `J2 = J3 + 1`, `J3 = J2 - 1`. Neither cell is self-referential; the loop is across the pair. This shape often appears after refactoring, where the author moves the formula from one cell to another and the references don't move with it.
+3. **Multi-cell loop.** `A1 = B1 + 1`, `B1 = C1 + 1`, `C1 = A1 + 1`. Three or more cells; the cycle is invisible without tracing the graph. Sheets still detects it, but the error is annotated on each cell in the loop, not on the "first" one.
+4. **Hidden cycle through `INDIRECT`.** `A1 = INDIRECT(B1)` where B1 happens to evaluate to "A1". The static dependency graph doesn't show the loop because the reference is computed at runtime, but the engine resolves the lookup at evaluation time and trips the cycle detector anyway. These are the hardest to diagnose because the cycle isn't visible in the formula text on either cell.
+
+## Finding the cycle
+
+Sheets does not surface a "cycle path" visualization the way a programming IDE shows you a stack trace. The diagnostic flow is mechanical:
+
+1. **Read the cell at the visible error.** The formula text in the bar tells you which cells this one depends on.
+2. **Click into each referenced cell.** Is one of them depending back on the cell you started from? If yes, that's the cycle. If no, recurse: click into one of *their* references.
+3. **For multi-cell loops, walk the graph until you return to the starting cell.** This is tedious but mechanical. The loop has finite length.
+4. **For `INDIRECT` cycles, look at what the `INDIRECT` argument resolves to.** Often this is a dropdown or a named range whose value points back into the formula's own neighborhood.
+
+In a workbook with hundreds of formulas, the cycle is almost always near the cells the learner most recently edited. Time of last edit is the strongest signal you have.
+
+## "Iterative calculation" is almost always wrong
+
+`File > Settings > Calculation` exposes an "Iterative calculation" toggle. Turning it on tells Sheets to compute cycles by repeated approximation, up to N passes, until the values converge or N is hit. Three reasons not to reach for this:
+
+- **It silently converges on a wrong answer.** Most cycles are bugs. Allowing them to converge produces a stable but incorrect number that no longer flags as an error.
+- **It doesn't always converge.** For a cycle like `J2 = J3 + 1, J3 = J2 + 1`, every pass increases both values; the loop diverges. Sheets caps at N=50 by default and stops where it happens to be.
+- **It's a workbook-wide setting.** You cannot opt one cycle in and the rest out. The bug somebody else introduces next month rides on the same toggle you turned on for one cell.
+
+The legitimate use case is narrow: certain financial models (depreciation that depends on book value, which depends on depreciation) genuinely have iterative structure, and the textbook solution is N-pass approximation. If you find yourself reaching for the toggle, write a comment in the cell that names the convergence target and the expected number of passes; otherwise, future-you will think it's a bug.
+
+## The Apps Script onEdit cycle
+
+A specifically nasty cycle the Sheets engine cannot detect: an `onEdit` trigger that writes to the cell whose edit fired it.
+
+```javascript
+function onEdit(e) {
+  const sheet = e.source.getActiveSheet();
+  sheet.getRange('J1').setValue(sheet.getRange('J1').getValue() + 1);
+}
+```
+
+The edit fires `onEdit`, the function writes to J1, the write fires `onEdit` again, and the loop runs until Apps Script hits its 30-second execution cap. The visible symptoms are a runaway counter, a frozen workbook, and a stack of trigger failure emails. The fix is a guard on `e.range.getA1Notation()` so the trigger ignores edits it made.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="A 60-row campaign log lives in A1:G61. Three pre-seeded cycle cells in column J need to be untangled."
+/>
+
+Click **Start lesson** to provision the Campaigns tab with three cells in deliberate cycles:
+
+- **J1** is `=SUM(F2:F61)+J1`, the classic self-referencing total. Fix it so the cell holds the total spend without referencing itself.
+- **J2** is `=J3+1` and **J3** is `=J2-1`, a two-cell cycle. Break the loop. Easiest fix: hardcode J3 to a concrete number, then point J2 at the now-stable J3.
+
+Two cycle shapes, three fixes. The lesson is identifying which cell needs to stop being a formula.
+
+## Used in the wild
+
+- **The "total ROI" cell that included itself.** Last quarter someone refactoring the team's master dashboard moved a formula into the wrong cell and the new formula now read `=(J2-J1)/J1 + ROI_adjustment` where `ROI_adjustment` had been re-pointed at the cell they were typing in. The whole dashboard went red. Twenty minutes of click-into-each-cell tracing later: the adjustment column was supposed to be a row above, not a row at the same height. One reference fixed, dashboard back.
+- **The auto-rounding loop that ran for a day.** A buyer wrote an `onEdit` trigger to round every Spend cell to two decimals. The trigger wrote to the same cell it had read from; the write fired `onEdit` again; the script burned about 14 hours of execution quota over a weekend until somebody removed the trigger Monday morning. The fix was a one-line guard checking whether the edit came from a column the script cared about.
+- **The aggregator that included its own output.** The aggregator tab pulled three platform tabs together via `QUERY`. Somebody added a "total spend across platforms" cell at the bottom of the aggregator and then added the aggregator's own column into the source range of the QUERY. Cycle. Aggregator went red. The root cause wasn't obvious because the cycle ran through a `QUERY` source and the static formula text didn't show it.
+
+## Pro pitfalls
+
+- **`INDIRECT` cycles that hide behind dynamic references.** `=INDIRECT("B"&ROW())` looks innocent; if the dropdown that fed `ROW()` happens to resolve back to the same row, the loop is invisible in the formula text. Spend time on the cells that feed the `INDIRECT` argument, not just the `INDIRECT` cell itself.
+- **The "I'll just enable iterative calculation" trap.** Silently converges on a wrong answer. Once enabled, every future cycle in the workbook gets the same treatment and no one knows.
+- **A `SUM` with its own cell that returns 0.** When a `SUM` range happens to include its own anchor cell and iterative calc is off, the cell shows `#REF!`. When iterative calc is on and the cell's initial value was empty, the SUM resolves to 0, which looks like a missing-data bug rather than a cycle.
+- **Pasting a formula that worked into a cell where it doesn't.** `=A1` pasted into A1 is a cycle. `=B1+J1` pasted into J1 is a cycle. The formula bar shows the same text it did in the source cell; the cycle is what changed.
+- **Cycles introduced by Apps Script triggers.** Sheets cannot detect this; the engine sees one write at a time, not the chain. Diagnose by looking at recent trigger execution logs (Apps Script → Executions) when the workbook starts misbehaving on save.

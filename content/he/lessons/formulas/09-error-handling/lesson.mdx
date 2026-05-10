@@ -1,0 +1,120 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# טיפול בשגיאות: IFERROR, IFNA, ISNA, ISERROR
+
+ב-spreadsheet שמוחזק ביחד על ידי IMPORTRANGE, lookups דינמיים וחלוקה ב-spend, שגיאות הן לא חריגה. הן שגרה. שם vertical שצוות אחר הוסיף שובר XLOOKUP. קמפיין עם spend אפס שובר חישוב ROI מסוג `revenue/spend`. שגיאת הקלדה בשם media buyer שוברת קריטריון של SUMIFS. פונקציות הטיפול בשגיאות מאפשרות לתפוס את המקרים האלה בעדינות, לספק חלופה, או לדגל את השורה לבדיקה בלי להפיל את ה-dashboard.
+
+## השגיאות שתפגשו
+
+ל-Sheets יש סט קבוע וקטן של שגיאות. כל אחת אומרת משהו ספציפי:
+
+| שגיאה | מה המשמעות | סיבה נפוצה |
+|---|---|---|
+| `#N/A` | "Not available", lookup לא מצא התאמה | XLOOKUP/VLOOKUP בלי fallback, MATCH בלי תוצאה |
+| `#REF!` | reference שבור | עמודה נמחקה, הרשאת IMPORTRANGE נשללה, נוסחה מפנה אל מחוץ לגיליון |
+| `#DIV/0!` | חלוקה באפס | `revenue/spend` כשה-spend הוא 0, `AVERAGE` על טווח ריק |
+| `#VALUE!` | סוג שגוי | חשבון על תא טקסט, או פונקציה שקיבלה מחרוזת במקום מספר |
+| `#NAME?` | פונקציה לא ידועה או named range לא ידוע | טעות הקלדה בשם פונקציה, או named range שכבר לא קיים |
+| `#NUM!` | מספרי מחוץ לטווח | `SQRT(-1)`, תאריכים מחוץ לטווח הנתמך של Sheets, או מספרים גדולים מדי |
+| `#NULL!` | חיתוך טווחים ריק | נדיר, בעיקר תחביר טווחים ישן |
+
+## IFERROR: לתפוס הכל
+
+`IFERROR(formula, fallback)` מריץ את הנוסחה. אם היא משגה, מחזיר את ה-fallback במקום. מטפל השגיאות שהכי משתמשים בו.
+
+המקרה הקלאסי באדטק: חישוב ROI. `=F2/E2` משגה כש-spend הוא אפס. עוטפים ב-IFERROR כדי להחזיר 0 (או "no spend" או מה שהגיוני ל-dashboard שלכם).
+
+<TryIt
+  data={[
+    ["Buyer", "Spend", "Revenue"],
+    ["Yoav Cohen", 0, 0],
+    ["Sarah Levi", 200, 350],
+  ]}
+  inputCell="D2"
+  expectedFormula='=IFERROR(C2/B2,"no spend")'
+  task={<>חשבו ROI לשורה הראשונה (revenue חלקי spend), אבל החזירו <code>"no spend"</code> במקום <code>#DIV/0!</code> כש-spend הוא אפס. התוצאה ב-<code>D2</code> אמורה להיות <code>"no spend"</code>.</>}
+  hint={<>עטפו את החלוקה <code>C2/B2</code> ב-<code>IFERROR(..., "no spend")</code>.</>}
+  answer={<>IFERROR מחליף כל שגיאה ב-fallback. שני הארגומנטים חובה: הנוסחה וערך ה-fallback. ה-fallback יכול להיות מחרוזת ("no spend"), מספר (0), או נוסחה אחרת. הטרייד-אוף: IFERROR הוא פטיש, הוא תופס כל שגיאה, כולל כאלה שאולי הייתם רוצים לדעת עליהן. אם נוסחה נשברת מסיבה שחשובה, IFERROR יסתיר אותה. השתמשו ב-IFNA כשרוצים ספציפית לטפל במקרים של lookup שלא נמצא בלי להסתיר שגיאות אחרות.</>}
+/>
+
+## IFNA: לתפוס רק #N/A
+
+`IFNA(formula, fallback)` הוא האח הצר של IFERROR. הוא תופס את `#N/A` (השגיאה של "לא נמצא") ומאפשר לכל שגיאה אחרת לעבור.
+
+זה משנה ל-XLOOKUPs באדטק. אם ה-vertical של קמפיין לא נמצא בטבלת ה-lookup של Verticals, מקבלים `#N/A`, וזה בסדר, מספקים fallback כמו "Unknown". אבל אם טבלת ה-Verticals שמיובאת ב-IMPORTRANGE עצמה שבורה (`#REF!` מהרשאות שנשללו), רוצים שהשגיאה הזאת תצוף ככה שיהיה אפשר לתקן אותה. IFERROR היה מסתיר את שתיהן באותה מידה, IFNA מסתיר רק את מקרה ההתאמה החסרה.
+
+<TryIt
+  data={[
+    ["Vertical", "Category", ""],
+    ["Used Cars PR", "Automotive", ""],
+    ["Crypto Trading PR", "", ""],
+  ]}
+  inputCell="C3"
+  expectedFormula='=IFNA(VLOOKUP(A3,A2:B2,2,FALSE),"Uncategorized")'
+  task={<>מצאו את הקטגוריה ל-"Crypto Trading PR" (שלא קיים בטבלת ה-lookup). החזירו <code>"Uncategorized"</code> במקום <code>#N/A</code>. התוצאה אמורה להיות <code>Uncategorized</code>.</>}
+  hint={<>עטפו את ה-VLOOKUP ב-<code>IFNA(..., "Uncategorized")</code>.</>}
+  answer={<>IFNA תופס רק #N/A, השגיאה של "חיפשתי ולא מצאתי". שגיאות אחרות (#REF!, #VALUE!, #DIV/0!) עוברות. זה עדיף על IFERROR כעטיפה ל-lookups כי זה מאפשר לכשלים אמיתיים (IMPORTRANGE שבור, אות עמודה שגויה) לצוץ כשגיאות נראות במקום להיבלע. בפרודקשן: IFNA מסביב לכל lookup, IFERROR רק כשחשבתם היטב אם באמת רוצים לבלוע הכל.</>}
+/>
+
+## ISNA, ISERROR, בני הדודים של IFERROR מבית IF
+
+לפעמים רוצים *לבדוק* אם ערך הוא שגיאה, לא להחליף אותו. `ISNA(value)` מחזיר TRUE אם הערך הוא `#N/A`. `ISERROR(value)` מחזיר TRUE לכל שגיאה. שימושי בתוך `IF` ללוגיקה מותנית, "אם ה-lookup הצליח, עשה X, אם לא, עשה Y".
+
+```
+=IF(ISNA(XLOOKUP(...)), "Add to backlog", "Already known")
+```
+
+בדרך כלל אפשר לבטא את אותה כוונה עם IFNA/IFERROR. פונקציות ה-IS מצדיקות את עצמן כשהענפים של ההצלחה והכישלון שניהם כוללים יותר מסתם החלפת ערך.
+
+<QuickCheck
+  question="מה העטיפה הנכונה ל-XLOOKUP שמושך אימייל של media buyer מטאב Buyers דרך IMPORTRANGE?"
+  options={[
+    {
+      id: "a",
+      label: <code>=IFERROR(XLOOKUP(...), "Unknown")</code>,
+      correct: false,
+      explanation: "IFERROR תופס הכל, כולל #REF! כשההרשאה של ה-IMPORTRANGE נשללת. לא תדעו שהמקור שבור, ה-dashboard פשוט יראה 'Unknown' לכל שורה.",
+    },
+    {
+      id: "b",
+      label: <code>=IFNA(XLOOKUP(...), "Unknown")</code>,
+      correct: true,
+      explanation: "IFNA תופס את מקרה 'לא נמצא' (media buyer שלא בטאב Buyers) אבל מאפשר ל-#REF! לצוף לעין כדי שתדעו שהמקור במעלה הזרם שבור.",
+    },
+    {
+      id: "c",
+      label: <code>=XLOOKUP(..., "Unknown")</code>,
+      correct: false,
+      explanation: "כמעט. הארגומנט הרביעי של XLOOKUP מטפל בהתאמות חסרות בדיוק כמו IFNA. זאת בעצם תשובה סבירה כשיש XLOOKUP. אבל ל-VLOOKUP/INDEX/MATCH (בלי fallback מובנה), IFNA היא העטיפה הנכונה.",
+    },
+  ]}
+/>
+
+## איך בוחרים
+
+| מטרה | מה בוחרים |
+|---|---|
+| לתפוס כל שגיאה עם fallback אחד | `IFERROR(formula, fallback)` |
+| לתפוס רק שגיאות "לא נמצא" של lookup | `IFNA(formula, fallback)` או הארגומנט הרביעי של XLOOKUP |
+| להסתעף לפי האם ערך הוא שגיאה | `IF(ISNA(...), ..., ...)` או `IF(ISERROR(...), ..., ...)` |
+| לוודא שעמודה נקייה משגיאות לפני שמשתמשים בה | `COUNTIF(range, "#N/A")` לספירה, או מערך של ערכי `ISERROR` |
+| Conditional formatting לסימון שורות שגיאה | נוסחה מותאמת `=ISERROR(A2)` |
+
+## נפוץ בשטח
+
+- **כל XLOOKUP על מידע מ-IMPORTRANGE עטוף ב-IFNA.** ה-fallback הוא "Unknown" או "" תלוי במה שה-dashboard מצפה. אף פעם לא להשתמש ב-IFERROR פה, רוצים ש-#REF! יצרח כשהמקור נשבר.
+- **כל נוסחת ROI/CPC/EPC עטופה ב-IFERROR או מוגנת ב-IF(spend{">"}0,...,...).** חלוקה באפס היא שגיאת ריצה הנפוצה ביותר ב-spreadsheets של אדטק.
+- **Conditional formatting שמדגיש שורות שבהן תא כלשהו הוא שגיאה.** מריצים `=COUNTIF(A2:Z2,"#N/A") + COUNTIF(A2:Z2,"#REF!") + ...` על כל שורה, מעצבים באדום אם {">"}0.
+- **תאי בדיקת תקינות בראש כל dashboard.** תא בודד שסופר שגיאות בכל הגיליון, עם "0" גדול כשהכל בסדר וספירה לא אפסית שמושכת תשומת לב. משלבים עם conditional formatting.
+
+## מלכודות מקצועיות
+
+- **`IFERROR` הוא פטיש כבד.** הוא בולע בשקט שגיאות שאולי הייתם רוצים לתקן. אם נוסחה שבורה מסיבה לא צפויה, IFERROR יסתיר אותה לתמיד. ברירת מחדל זה IFNA, IFERROR רק במודע.
+- **עטיפת ביטוי שלם ב-IFERROR תופסת גם שגיאות באמצע הנוסחה.** `=IFERROR(A2+B2/C2, 0)` מחזיר 0 אם C2 הוא 0 או אם A2 הוא טקסט או אם משהו אחר משתבש. עוטפים בצורה צרה: `=A2 + IFERROR(B2/C2, 0)`.
+- **`IFERROR(..., "")` נוח אבל יוצר שורות "רפאים".** תא ריק נחשב 0 בחשבון אבל "" ב-lookups. הרבה בעיות במורד הזרם נובעות מזה. לעיתים קרובות עדיף להחזיר ערך אינדיקטור מפורש כמו `"-"` ככה שהעין תופסת אותו.
+- **`#N/A` משמעותי, לא תמיד להסתיר.** עמודה שלמה של #N/A מ-XLOOKUP אומרת לכם שה-join נכשל על המון שורות. הסתרה שלהם עם IFERROR הופכת סיגנל ברור לשחיתות שקטה.
+- **`ISERROR` הוא TRUE לכל סוג שגיאה, כולל #N/A.** אם רק רוצים לטפל במקרה של "לא נמצא", השתמשו ב-`ISNA` במקום.
+
+## עכשיו לעבודה אמיתית
+
+לחצו על **Start lesson** כדי להעלות גיליון קטן עם קמפיין אחד עם spend אפס ושורה אחת עם vertical חסר. תכתבו ארבע נוסחאות לטיפול בשגיאות: IFERROR סביב חלוקת ROI, IFNA סביב lookup של vertical, ISNA בתוך IF להסתעפות, ו-COUNTIF שסופר שגיאות בטווח.

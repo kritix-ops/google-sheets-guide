@@ -1,0 +1,151 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# אינטגרציות Workspace: Drive, Calendar, Gmail
+
+פרויקט Apps Script מקושר לא רואה רק את ה-spreadsheet שהוא חי בתוכו. אותו script יכול לקרוא ולכתוב קבצים ב-Drive, לשלוח מייל דרך חשבון Gmail, וליצור אירועים ב-Calendar, הכול מאותו קוד JavaScript שכבר רץ על edit triggers ועל לחיצות תפריט. הקאץ' הוא שלכל שירות יש OAuth scope משלו, ו-Apps Script יבקש אישור פעם אחת לכל scope חדש בהרצה הראשונה של ה-function. שיעור 4 כיסה את המשטח של `SpreadsheetApp`; השיעור הזה עוסק בשלושת השירותים שנוגעים בכל השאר ב-workspace.
+
+## DriveApp: חיפוש, קריאה, וכתיבה של קבצים
+
+`DriveApp` הוא נקודת הכניסה ל-Google Drive. שלוש צורות חוזרות ב-scripts אמיתיים של צוות:
+
+```js
+// שליפת קובץ לפי ID. ה-ID מגיע מה-URL: drive.google.com/file/d/<ID>/view
+const file = DriveApp.getFileById("1abc...");
+const csvText = file.getBlob().getDataAsString();   // הבייטים הגולמיים כמחרוזת
+
+// חיפוש לפי שם או לפי query. searchFiles מחזיר iterator, לא array.
+const iter = DriveApp.searchFiles('title contains "Taboola export"');
+while (iter.hasNext()) {
+  const f = iter.next();
+  Logger.log(f.getName() + " -> " + f.getId());
+}
+
+// העתקת קובץ. makeCopy מחזיר את אובייקט ה-File החדש; משנים לו שם או מעבירים אותו אחר כך.
+const copy = file.makeCopy("Taboola export 2026-05-11", DriveApp.getFolderById("0folder..."));
+```
+
+ה-iterator הוא המלכודת הקלה. גם `searchFiles` וגם `getFolders` מחזירים Drive iterators, לא arrays. `.map` ו-`.filter` לא קיימים עליהם, חייבים להניע אותם עם `.hasNext()` ו-`.next()`. מי שכותב `DriveApp.searchFiles(q).forEach(...)` מקבל runtime error על "forEach is not a function", והבאג הוא ה-iterator, לא ה-query.
+
+`DriveApp` דורש את ה-scope `https://www.googleapis.com/auth/drive`. יש scope צר יותר `https://www.googleapis.com/auth/drive.file` שרואה רק קבצים שהמשתמש מסר במפורש ל-app (דרך picker או שנוצרו על ידי ה-script). ה-scope הצר הוא ברירת המחדל הנכונה ל-scripts שנוגעים רק בקבצי הפלט של עצמם; מרחיבים רק כשבאמת צריך לקרוא נתוני משתמש קיימים.
+
+## CalendarApp: קריאה ויצירה של אירועים
+
+```js
+const cal = CalendarApp.getDefaultCalendar();   // היומן הראשי של המשתמש
+const event = cal.createEvent(
+  "Campaign launch: Reverse Mortgage PR (UK)",
+  new Date("2026-05-12T09:00:00+03:00"),
+  new Date("2026-05-12T09:30:00+03:00"),
+  {
+    description: "Buyer: Ben Nahum. First $200 of spend goes to LP testing.",
+    guests: "ben.nahum@flexelent.com,info@flexelent.com",
+    sendInvites: true,
+  }
+);
+```
+
+CalendarApp הוא הקל מבין השלושה. מקבלים Calendar, קוראים ל-`createEvent` (חד-פעמי) או ל-`createAllDayEvent` או ל-`createEventSeries` (חוזר), והאירוע נוחת ביומן עם הזמנות אופציונליות לאורחים. הקריאה עובדת באותה דרך: `cal.getEventsForDay(new Date())` מחזיר array (כן, כאן זה array ולא iterator), וכל Event חושף `getTitle`, `getStartTime`, `getEndTime`, `getDescription` וכן הלאה.
+
+ה-scope הוא `https://www.googleapis.com/auth/calendar`. script שיוצר אירועים רק למשתמש הרץ (בלי לגעת ביומנים אחרים) מסתפק ב-scope צר יותר `calendar.events`, שווה להציב אותו במניפסט אם ה-script הולך להיות משותף בהפצה רחבה.
+
+## MailApp לעומת GmailApp: פשוט לעומת עשיר
+
+שני שירותים שולחים מייל. הם נראים דומים בנקודת הקריאה אבל נבדלים במה שהם יכולים לעשות ואיזה scope הם דורשים.
+
+| | `MailApp` | `GmailApp` |
+|---|---|---|
+| שליחת מייל | כן | כן |
+| קריאת inbox / threads | לא | כן |
+| צירוף קבצים | כן | כן |
+| עריכת drafts, labels, threads | לא | כן |
+| Scope נדרש | `script.send_mail` (שליחה בלבד) | `gmail.modify` או `mail.google.com` |
+| Quota יומי (חשבונות צרכניים) | 100 מיילים ביום | 100 מיילים ביום |
+| Quota יומי (Workspace) | 1,500 מיילים ביום | 1,500 מיילים ביום |
+
+אם ה-script צריך לשלוח רק הודעת מייל יוצאת אחת לכל הרצה, משתמשים ב-`MailApp`. ה-scope צר יותר (לא מוסרים בטעות ל-script גישת קריאה ל-inbox), ה-API קטן יותר, וה-quota זהה. ה-mailer היומי של ה-spend בצוות משתמש ב-`MailApp` בדיוק מהסיבה הזאת.
+
+```js
+MailApp.sendEmail({
+  to: "info@flexelent.com",
+  subject: "Daily spend report: 2026-05-11",
+  body: "Total spend yesterday: $32,418.20\n\nFull breakdown: https://docs.google.com/spreadsheets/...",
+});
+```
+
+ל-options bag יש משמעות. הצורות עם ארגומנט בודד (`MailApp.sendEmail(to, subject, body)`) עובדות אבל נועלות אתכם מחוץ לפיצ'רים כמו `htmlBody`, `cc`, `bcc`, `attachments`, `replyTo`, ו-`name` (שם התצוגה של ה-FROM, לא הנמען, ראו את המלכודות למטה). ברירת מחדל לצורת ה-object מהיום הראשון, ולא תצטרכו לשכתב את הקריאה כשהצוות יבקש עיצוב HTML.
+
+## דפוסים חוצי שירותים
+
+הכוח האמיתי של scripts ב-Workspace מתבטא כש-function אחת משרשרת את שלושת השירותים:
+
+```js
+function ingestDailyTaboolaCsv() {
+  // 1. Drive: איתור ה-CSV של היום
+  const iter = DriveApp.searchFiles(
+    'title contains "Taboola export 2026-05-11" and mimeType = "text/csv"'
+  );
+  if (!iter.hasNext()) {
+    MailApp.sendEmail({
+      to: "info@flexelent.com",
+      subject: "Taboola export missing for 2026-05-11",
+      body: "No CSV found in Drive. The Taboola scheduled export probably failed; check the platform dashboard.",
+    });
+    return;
+  }
+  const csv = Utilities.parseCsv(iter.next().getBlob().getDataAsString());
+
+  // 2. SpreadsheetApp: כתיבת השורות
+  const sheet = SpreadsheetApp.getActive().getSheetByName("Taboola raw");
+  sheet.clear();
+  sheet.getRange(1, 1, csv.length, csv[0].length).setValues(csv);
+
+  // 3. Calendar: קביעת פגישת הסקירה
+  CalendarApp.getDefaultCalendar().createEvent(
+    "Taboola data review",
+    new Date("2026-05-11T17:00:00+03:00"),
+    new Date("2026-05-11T17:30:00+03:00"),
+    { description: "Review newly ingested Taboola rows in the Aggregator tab." }
+  );
+
+  // 4. MailApp: אישור שה-ingest נחת
+  MailApp.sendEmail({
+    to: "info@flexelent.com",
+    subject: "Taboola export ingested: " + (csv.length - 1) + " rows",
+    body: "Review meeting on the calendar at 17:00.",
+  });
+}
+```
+
+ארבעה שירותים, function אחת, trigger אחד. בהרצה הראשונה של בעלי ה-script, Apps Script מבקש אישור ל-scopes של Drive, Sheets, Calendar, ו-Gmail במכה אחת. מאותו רגע זה רץ בשקט.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="לוג ה-Campaigns תופס את A1:G61. ה-spend הכולל חושב מראש ויושב ב-J1. המשימה: לקרוא את J1 ולשלוח מייל יומי של דוח spend."
+/>
+
+קובץ ה-starter `Lesson.gs` מצהיר על `function emailSpendReport()` עם TODO. שלושה צעדים:
+
+1. קוראים את ה-spend הכולל מ-J1 בלשונית Campaigns: `const spend = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns").getRange("J1").getValue();`.
+2. שולחים מייל עם `MailApp.sendEmail({ to: ..., subject: ..., body: ... })`. הנמען יכול להיות `info@flexelent.com` או כל כתובת שבשליטתכם.
+3. מוודאים שגוף ההודעה באמת מכיל את הסכום (template literal: `` `Total spend today: $${spend}` ``).
+
+לוחצים Run על `emailSpendReport` בעורך. מאשרים את ה-scope של gmail בפעם הראשונה. מריצים שוב, בודקים ב-inbox.
+
+## נפוץ בשטח
+
+לצוות יש שלושה scripts שנוגעים ב-Workspace ורצים בכל יום:
+
+- **ה-digest הבוקרי של ה-spend.** trigger מבוסס-זמן קורא ל-`emailSpendReport` ב-09:00 עם הסיכום של היום הקודם, שלושת ה-verticals המובילים, ושלושת התחתונים. הולך לכל media buyer פעיל.
+- **ניקיון Drive של יום שישי.** query של `searchFiles` מאתר כל קובץ "raw export" שגילו מעל 30 יום, מעתיק אותם לתיקיית ארכיון, ומסיר את המקוריים. שומר על quota ה-Drive של הצוות ל-exports של השבוע הנוכחי.
+- **פתיחת campaign ל-Calendar.** כש-media buyer לוחץ "Launch" ב-sidebar מותאם (שיעור 5 ב-Track 3 מכסה את זה), ה-script יוצר אירוע ב-Calendar ל-24 שעות קדימה כ-placeholder לפגישת סקירה.
+
+## מלכודות מקצועיות
+
+- **השדה `name` של `MailApp.sendEmail` הוא שם תצוגת ה-FROM, לא הנמען.** קוד מתחילים שכותב `MailApp.sendEmail({ to: "info@flexelent.com", name: "info@flexelent.com", ... })` שולח הודעה FROM "info@flexelent.com" (תצוגה) ו-TO "info@flexelent.com", מה שעובד אבל לא מה שהכותב חשב שהוא עושה. הנמען הוא תמיד `to:` (או `bcc:` / `cc:`).
+- **`DriveApp.searchFiles` מחזיר iterator, לא array.** אין `.map`, אין `.forEach`, אין `.length`. Drive iterators הם streams; מטיילים בהם עם `.hasNext()` / `.next()` ואוספים ל-array בעצמכם אם צריך.
+- **Quotas של שליחת Gmail מחמירים יותר ממה שנדמה.** 100 ביום לחשבונות צרכניים, 1,500 ביום ל-Workspace, והם מתאפסים בחלון rolling של 24 שעות, לא בחצות. script שמריץ `sendEmail` בלולאה 100 פעמים בדקה אחת יפגע ב-rate limit לדקה לפני שיגיע ל-quota היומי ויתחיל לזרוק. אוספים להודעה אחת עם גוף ארוך יותר, או מגבילים את הקצב עם `Utilities.sleep(1000)` בין שליחות.
+- **`DriveApp.createFile` ב-script מקושר מציב את הקובץ ב-Drive של בעלי ה-SCRIPT, לא ב-Drive של המשתמש שמריץ.** אם ה-script בבעלות יואב ודינה מריצה אותו, הקובץ נוחת ב-Drive של יואב כאשר דינה היא editor (אם זכרתם לשתף). כדי ליצור ב-Drive של המשתמש שמריץ, משתמשים ב-`Drive.Files.create(...)` עם שירות Drive המתקדם, הוא רץ as the user.
+- **`CalendarApp.getDefaultCalendar()` מחזיר את היומן של מי שמריץ את ה-script, לא של בעלי ה-script.** ב-script שמוגדר "Execute as me" בעלי ה-script הוא "me", כך שגם הרצה של דינה יוצרת אירועים ביומן של יואב. שני מודי ההרצה ("as me" לעומת "as the user accessing") חשובים פה בדיוק כמו ב-web apps בשיעור 13.
+- **בקשה ל-`https://mail.google.com/` (גישת Gmail מלאה) כשרק שולחים מייל.** prompt האישור של Apps Script מציג את תיאור ה-scope המלא, ו"Read, compose, send, and permanently delete all your email" מבריח משתמשים מלהריץ את ה-script. יורדים ל-`script.send_mail` אם כל מה שעושים זה לשלוח.

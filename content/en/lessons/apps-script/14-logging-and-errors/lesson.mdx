@@ -1,0 +1,139 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Logging, error handling, and the Cloud Logging story
+
+The first thirteen lessons of Track 3 covered code that does work: custom functions, menus, macros, triggers, the `SpreadsheetApp` surface. This lesson covers the part nobody thinks about until something breaks at 2 a.m.: how you see what your code did, and how you survive when it goes wrong. The team's nightly Taboola pull, the per-buyer dashboard refresher, the IMPORTRANGE-fallback trigger: every one of them needs logs so you can answer "did it run?" and error handling so a single bad row doesn't take down the whole batch.
+
+## Two logging surfaces, one sane choice
+
+Apps Script has two ways to print:
+
+```js
+console.log("Read spend: " + spend);   // modern. Use this.
+Logger.log("Read spend: " + spend);    // legacy. Still works.
+```
+
+Both lines show up in the same place. Open the Apps Script editor, click the **Executions** icon in the left rail (the clock with the arrow), and every recent run shows up with its logs attached. `console.log` is the post-2020 surface; `Logger.log` is the older one that predates the integration with Google's Cloud Logging.
+
+The two differences worth knowing:
+
+| | `console.log` | `Logger.log` |
+|---|---|---|
+| Severity levels | `info`, `warn`, `error`, `debug` via `console.log/warn/error/debug` | One level (info). |
+| Argument shape | Accepts multiple args and object literals, formatted as JSON. | Single string. Multi-arg gets concatenated with commas. |
+| Cloud Logging filtering | Severities filter natively (`severity=ERROR`). | All entries land at the info level. |
+| Recommendation | Prefer this for everything new. | Leave existing code alone; don't add new calls. |
+
+Default to `console.log`. The only time `Logger.log` still wins is when you're patching legacy code and want to match the style around you.
+
+## Severity matters when you have hundreds of runs
+
+The team's nightly trigger logs about 200 lines per run. Across a month that's ~6,000 entries. The Executions panel and the Cloud Logging viewer both let you filter by severity, and that filter is the only way to find what actually went wrong:
+
+```js
+console.log("Trigger fired at " + new Date());     // info, drowns in noise
+console.warn("Vertical name missing PR suffix");    // warn, worth a glance
+console.error("Failed to write row " + row + ": " + e.toString()); // error, page someone
+```
+
+In Cloud Logging, switch the severity filter to **Error and above** and you're left with the 5 entries that actually need attention. With everything at the info level (the `Logger.log` world) you scroll through 6,000 lines hunting for the bad one.
+
+## Try/catch is the production handler shape
+
+Every trigger handler on the team's workbooks looks like this:
+
+```js
+function nightlyPull() {
+  try {
+    const data = fetchTaboolaData();
+    writeToCampaignsSheet(data);
+    console.log("Nightly pull complete: " + data.length + " rows");
+  } catch (e) {
+    console.error("Nightly pull failed: " + e.toString());
+    console.error(e.stack);
+    // Surface to the team. Without this, the trigger silently retries
+    // tomorrow and you don't notice for a week.
+    MailApp.sendEmail("team@flexelent.com", "Nightly pull broke", e.toString());
+  }
+}
+```
+
+Three pieces, all worth doing:
+
+1. **`try`** wraps the work that can throw. The reader, the writer, any `UrlFetchApp.fetch` to a third-party endpoint.
+2. **`catch (e)`** receives the exception. `e.toString()` is the short message; `e.stack` is the stack trace.
+3. **A side effect on failure**, usually an email or a Slack webhook or a write to an error log sheet. The catch block runs in the trigger's auth context, so it can send mail. The handler that doesn't notify is the handler nobody knows is broken.
+
+If the caller cares about the failure (a chain of triggers where the next one should not run), `throw e` at the end of the catch after the side effect. The exception propagates up. If the caller is the runtime itself (the trigger that fired this), eating the exception is correct, you've already logged it.
+
+## Structured logs beat string concatenation
+
+A log line that says `"Failed to write row 17: TypeError: cannot read property 'length' of undefined"` is fine to read. It's terrible to filter on. The team's production triggers use **structured logging**:
+
+```js
+console.log({
+  event: "trigger_fired",
+  triggerName: "nightlyPull",
+  startedAt: new Date().toISOString(),
+});
+
+console.error({
+  event: "row_write_failed",
+  row: 17,
+  buyer: "Yoav Cohen",
+  vertical: "Car Deals PR",
+  error: e.toString(),
+});
+```
+
+`console.log` and friends accept an object literal and render it as JSON in Cloud Logging. The filter `jsonPayload.event="row_write_failed"` then surfaces every failed-row entry across all of last month's runs. Searchable, sortable, joinable. Plain-string concatenation gives you none of that.
+
+The Executions panel shows the same logs rendered nicely (it understands the JSON structure). Cloud Logging shows them as searchable fields. Either way, the structured form pays off.
+
+## Finding a specific execution
+
+Every Apps Script run gets an **execution ID**. You see it in the Executions panel and you can search Cloud Logging by it (`labels."script.googleapis.com/script_id" = "..."`). The two cases where this matters:
+
+- **A user reports "something went wrong at 3 p.m."** Open Executions, sort by timestamp, find the 3 p.m. run, click in, see the logs. No guessing.
+- **A bug report references a Cloud Logging link.** The link encodes the script ID and the timestamp window. Open it, the relevant logs are pre-filtered.
+
+Without execution IDs, debugging a trigger that fires 100 times a day is hunting for one needle in a stack of needles.
+
+## Log retention
+
+Cloud Logging retains entries for **30 days** by default on a paid project, **7 days** on free tiers. A bug noticed on Monday for a Friday failure has likely lost its Friday context. The pattern the team uses:
+
+- Critical errors get written to a "Run log" tab in a meta-spreadsheet via `SpreadsheetApp.openById(...).getSheetByName("Run log").appendRow([...])`. Permanent retention, queryable from a dashboard.
+- The Cloud Logging entries stay as the source of truth for stack traces and timing.
+
+The meta-spreadsheet is read-only by the team and append-only by the trigger handlers. Spend a half-hour setting it up once, save many hours of "what happened last week" archaeology.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61. F2 is the spend on the first campaign in the log. Your job: read it safely and write the result (or a marker) to J1."
+/>
+
+The starter file `Lesson.gs` declares `function processSpendSafely()` with an empty body. Three things to do:
+
+1. Wrap the `getValue` read of F2 inside a `try` block. Log the value on success with `console.log("Read spend: " + spend)` and write `spend * 1` to J1.
+2. Add a `catch (e)` block. Log the failure with `console.error("Failed to read spend: " + e.toString())` and write the string `"error"` to J1.
+3. Run the function once in the Apps Script editor. Open the Executions panel and confirm both the log line and the function status.
+
+The `spend * 1` looks pointless, and on a clean sheet it is. The reason it's there is the realistic case where F2 holds the string `"412.5"` instead of the number `412.5` (a common shape when data comes in via IMPORTRANGE from a CSV-backed sheet). `spend * 1` coerces the string to a number; an absent multiplication would write the text into J1 and the dashboard formulas downstream would break silently.
+
+## Used in the wild
+
+- **Nightly trigger wrapped in try/catch.** Every team-owned trigger handler has the same shape: try the work, catch any exception, log it with `console.error`, email the team if the failure is critical. Without the email step, a broken trigger just keeps retrying nightly and racking up an Executions-tab error count nobody notices.
+- **Per-buyer error counts pulled into a dashboard.** Cloud Logging is queryable from BigQuery (one-click export from the Cloud Logging console). The team runs a daily query that counts `jsonPayload.event="row_write_failed"` grouped by `jsonPayload.buyer` and writes the result into the "Buyer errors" tab of the ops dashboard. The query takes 10 seconds; the visibility is permanent.
+- **Trigger run duration as a metric.** Every trigger logs `console.log({ event: "trigger_done", durationMs: Date.now() - startedAt })` at the end. When the nightly Taboola pull starts taking 5 minutes instead of 30 seconds, the metric flags it before the 6-minute execution timeout kills the run.
+
+## Pro pitfalls
+
+- **`console.log(spend)` when spend is an object prints "[object Object]".** Either wrap with `JSON.stringify(spend)` or pass the object literal as the argument (`console.log({ spend })`) so Cloud Logging keeps the structure.
+- **`Logger.log("buyer=", buyer, " spend=", spend)` doesn't multi-arg.** It concatenates with commas. Result: `"buyer=,Yoav Cohen, spend=,412.5"`. Use `console.log("buyer=" + buyer + " spend=" + spend)` or just `console.log({ buyer, spend })`.
+- **Uncaught errors in installable triggers bloat the trigger error log.** Apps Script keeps an internal per-trigger error counter. One stale handler that throws every night racks up 100+ errors a month and Google eventually sends the script owner a "your trigger keeps failing" email. Wrap installable triggers in try/catch even if the work is trivial.
+- **The 7-day retention bites Friday bugs.** A failure at 5 p.m. Friday is gone by 5 p.m. the next Friday. If the team's response time on a bug is "we'll look at it Monday", you've lost three days of breathing room. Write critical errors to a permanent log sheet too.
+- **Stackdriver and Cloud Logging are the same product.** Google renamed it in 2019. Old StackOverflow answers, old Medium posts, and old internal docs still say "Stackdriver". Same thing.
+- **Cloud Logging is free up to 50 GiB per project per month, then $0.50/GiB ingested.** A team writing 200 structured log lines per run, on a trigger that fires every hour, is around 1.5 GiB/month. Comfortably free. A team that logs the full row payload on every row write can blow past 50 GiB; structure the logs so you log what's necessary, not everything.

@@ -1,0 +1,90 @@
+import { BUYERS_DETAIL } from "@/content/datasets/adtech";
+
+# Drop-downs and smart chips: people, file, finance, date, place chips
+
+Lesson 4 covered the drop-down half of `Data → Data validation`: closed lists, ranges, custom formulas. This lesson is about the other half of the controlled-input story: **smart chips**, the rich `@`-mention inserts that pin a person, a file, a place, a finance ticker, or a calendar date into a single cell. A buyer name typed as text is just a string. The same name as a person chip is a link to that person's profile, their email, their availability: hover and you see it. The cell still looks like one cell. Underneath, it's a structured reference to something outside the spreadsheet.
+
+## The five chip types you'll actually use
+
+Sheets supports more chip kinds than this, but in adtech work the same five keep showing up:
+
+| Chip | What it pins | Adtech context |
+|---|---|---|
+| Person | A Workspace user (name, email, profile, Calendar) | Owner of an `Aggregator` tab; on-call media buyer per row |
+| File | A Drive file (Sheet, Doc, Slide, Form, Folder) | Pin the source workbook next to its IMPORTRANGE aggregator; link the creative folder per campaign |
+| Finance | A stock ticker, mutual fund, or currency pair | Competitor stock signals tied to weekly budget calls |
+| Place | A Google Maps location | Geo-targeted creative review notes (the city the ad is running in) |
+| Date / Calendar event | A date or an event from your Calendar | Launch dates, freshness markers on dashboards, media-plan milestones |
+
+The first two carry almost all the weight in real workbooks. People-attribution and file-pinning are the patterns you'll repeat hundreds of times. The other three appear, but rarely.
+
+## Inserting a chip: the @-mention pattern
+
+Inside any cell, type `@` and Sheets opens a chip-picker. The picker filters as you type:
+
+- `@yoav` filters to people whose name matches `yoav`. Pick `Yoav Cohen` and the cell now holds a person chip linked to his Workspace identity.
+- `@May 10` filters to dates and offers a "May 10, 2026" date chip.
+- `@AAPL` filters to finance and offers the Apple stock ticker chip.
+- `@Master campaign log` filters to Drive files matching that title.
+
+The chip renders as a small pill with the entity's name and a hover preview. The cell's underlying text is just `@`. The display text and the link target both live in chip metadata, not in the cell value.
+
+## How the API sees a chip
+
+Each chip is a `ChipRun` attached to the cell. A run carries a `startIndex` (the character position in the cell where the chip sits) plus a `Chip` payload that's either a person chip or a rich-link chip:
+
+```
+A1 = "@"           // the cell value is just the @ placeholder
+chipRuns[0]:
+  startIndex: 0
+  chip:
+    personProperties:
+      email: "yoav.cohen@flexelent.com"
+```
+
+Or for a file chip:
+
+```
+B2 = "@"
+chipRuns[0]:
+  startIndex: 0
+  chip:
+    richLinkProperties:
+      uri: "https://docs.google.com/spreadsheets/d/abc123"
+      mimeType: "application/vnd.google-apps.spreadsheet"
+```
+
+`mimeType` is what tells you the chip's subtype: `application/vnd.google-apps.spreadsheet` for a Sheet, `application/vnd.google-apps.document` for a Doc, `application/vnd.google-apps.folder` for a Drive folder, and so on. Place chips, finance chips, and calendar chips have their own bespoke `mimeType` values, but the `vnd.google-apps.*` family covers every Drive file the team links daily.
+
+## Now do it for real
+
+<MiniGrid
+  data={BUYERS_DETAIL.slice(0, 4).map((b) => [b.name, b.team])}
+  caption="The buyer roster the assignment uses. You'll add the first two as person chips, then a file chip pointing at any Drive file you have access to."
+/>
+
+Click **Start lesson** to provision the workbook. Then create a new tab named `Owners` and add three smart chips:
+
+- **`A2`**: a person chip for Yoav Cohen (`yoav.cohen@flexelent.com`). In the cell, type `@yoav.cohen` and pick him from the chip-picker.
+- **`A3`**: a person chip for Dina Dayan (`dina.dayan@flexelent.com`).
+- **`B2`**: a file chip pointing at any Sheet, Doc, or Drive file you have access to. Type `@` and pick a file from your recents, or paste a Drive URL and accept the "convert to chip" prompt.
+
+The grader reads each cell's `chipRuns` back via the Sheets API and checks the chip type, the linked email (case-insensitive), and the file's mimeType.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **Every `Aggregator` tab has an Owner column with person chips.** When something breaks at 11 PM, the on-call rotation `@`-mentions the chip and the right person gets paged. A name in plain text doesn't page anyone.
+- **The master campaign log has a `Source folder` column with file chips.** Each row's chip points at the Drive folder holding the creatives, the landing-page screenshots, and the brief. One click from the row to the artifacts.
+- **Dashboards carry a freshness marker.** A header cell with a date chip says "Data through May 9, 2026" and the chip becomes a Calendar link if the team wants to schedule a review.
+- **Per-campaign owner attribution.** When a row's `Buyer` cell is a person chip, filtering the sheet by buyer still works because Sheets indexes the chip's display name. The chip is strictly an upgrade over plain text in this case.
+
+## Pro pitfalls
+
+- **Chips don't survive `Paste special → Values only`.** That paste mode strips the chip and leaves the bare `@`. If you build a workbook by pasting from another spreadsheet, you'll need to re-enter every chip on the destination side. Plain copy-paste preserves chips; values-only doesn't.
+- **Searching for a person's name with `FIND` or `REGEXMATCH` doesn't match.** The cell's underlying text is `@`. The name `Yoav Cohen` lives in the chip's `personProperties`, not in the cell value. `FIND("Yoav", A2)` returns `#VALUE!`. To search across chips, you need the API or an Apps Script.
+- **Chips break for viewers outside the Workspace domain.** A person chip for `@yoav.cohen@flexelent.com` shows up to a contractor with a personal Gmail as a chip pill, but clicking it leads to "you don't have access". File chips have the same failure mode if the linked Drive file isn't shared with the viewer.
+- **`IMPORTRANGE` does not bring chips across.** When the `Aggregator` tab pulls from `Raw - Taboola` via `IMPORTRANGE`, the imported cells contain whatever text the source had at the chip position, which is just `@`. Chips have to be recreated on the consuming sheet, or the source data needs to live in plain columns alongside.
+- **Sorting a column of person chips works, but the sort key is the chip's display name, not the email.** Two buyers with the same first name (`Yoav Cohen` and `Yoav Levi`) sort by full display name. If you need email-precision sort, add a hidden helper column with the email pulled out via Apps Script.
+- **A chip in a `QUERY` source range becomes the bare `@`** in the QUERY output. QUERY reads the cell's text value, not the chip metadata. Aggregating chip-bearing columns means losing the chip in the result.

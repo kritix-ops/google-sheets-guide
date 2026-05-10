@@ -1,0 +1,103 @@
+{
+  "app": {
+    "name": "Sheets Guide",
+    "tagline": "בוחרים שיעור, עושים את העבודה ב-Sheets אמיתי, מקבלים ציון."
+  },
+  "nav": {
+    "curriculum": "תוכנית הלימודים",
+    "comingSoon": "בקרוב"
+  },
+  "tracks": {
+    "formulas": {
+      "label": "נוסחאות",
+      "tagline": "References, lookups, מערכים, REGEX, LAMBDA, Tables."
+    },
+    "modeling": {
+      "label": "מידול נתונים",
+      "tagline": "Pivot tables, גרפים, validation, שיתוף, טפסים."
+    },
+    "apps-script": {
+      "label": "Apps Script",
+      "tagline": "פונקציות מותאמות, triggers, sidebars, APIs חיצוניים."
+    },
+    "scale": {
+      "label": "סקייל ודיבאג",
+      "tagline": "גיליונות עם מיליון שורות, IMPORTRANGE, BigQuery, TimesFM, גיליונות שבורים."
+    },
+    "ai-in-sheets": {
+      "label": "AI ב-Sheets",
+      "tagline": "Gemini, =AI(), Fill with Gemini, אמון מבוסס."
+    }
+  },
+  "home": {
+    "welcomeWithName": "ברוכים הבאים, {name}.",
+    "welcome": "ברוכים הבאים.",
+    "intro": "הקורס מתחיל מ-references בסיסיים בין תאים, ממשיך דרך Apps Script, ומגיע עד דיבאג של גיליונות בסקייל גדול. בכל שיעור נפתח גיליון חדש ב-Drive שלכם. בסיום, האפליקציה קוראת את הגיליון ואומרת בדיוק מה עבד ומה לא.",
+    "startWith": "להתחיל מ-{title}",
+    "lessonsInProgress": "כתיבת השיעורים בתהליך."
+  },
+  "account": {
+    "menuLabel": "תפריט חשבון",
+    "signedIn": "מחוברים",
+    "signOut": "התנתקות",
+    "defaultLanguage": "שפת ברירת מחדל",
+    "defaultLanguageHelp": "כשפותחים את האפליקציה, מתחילים בשפה זו."
+  },
+  "locale": {
+    "switchTo": "מעבר ל{language}",
+    "english": "אנגלית",
+    "hebrew": "עברית",
+    "labelEn": "EN",
+    "labelHe": "עב"
+  },
+  "lesson": {
+    "translationPending": "התרגום לעברית בתהליך",
+    "viewInEnglish": "כרגע מוצג התוכן באנגלית."
+  },
+  "assignmentPanel": {
+    "heading": "תרגיל",
+    "intro": "עבודה ב-Google Sheets אמיתי. בסיום, לוחצים על Grade my work.",
+    "startAssignment": "התחלת התרגיל",
+    "startFresh": "ניסיון חדש",
+    "openSheet": "פתיחת הגיליון",
+    "gradeMyWork": "בדיקת התרגיל",
+    "readingSheet": "קוראים את הגיליון",
+    "feedback": "משוב",
+    "passed": "עבר",
+    "notYet": "עדיין לא",
+    "gradedBy": "ציון על ידי {by}",
+    "confirmFreshStart": "כבר יש ניסיון פעיל. להתחיל מחדש? (הגיליון הנוכחי נשאר ב-Drive.)",
+    "sheetProvisioned": "הגיליון מוכן. נפתח בלשונית חדשה.",
+    "sidebarFailed": "הגיליון מוכן (provisioning של ה-sidebar נכשל: {error})",
+    "scoreSeeFeedback": "{score} / 100. ראו משוב למטה.",
+    "passedScore": "עבר: {score} / 100",
+    "couldNotStart": "לא ניתן להתחיל: {error}",
+    "couldNotGrade": "לא ניתן לבדוק: {error}"
+  },
+  "sidebar": {
+    "openLesson": "פתיחת השיעור המלא",
+    "tasks": "משימות",
+    "showAnswer": "הצגת התשובה",
+    "hideAnswer": "הסתרת התשובה",
+    "checkMyWork": "בדיקת התרגיל",
+    "checkAgain": "בדיקה מחדש",
+    "checking": "בודקים...",
+    "checkedAgo": "נבדק {ago}",
+    "justNow": "עכשיו",
+    "secondsAgo": "לפני {n} שניות",
+    "minutesAgo": "לפני {n} דקות",
+    "hoursAgo": "לפני {n} שעות",
+    "missingAttemptTitle": "חסר מזהה ניסיון.",
+    "missingAttemptBody": "יש לפתוח את ה-sidebar דרך כפתור התחלת התרגיל."
+  },
+  "theme": {
+    "toggle": "החלפת ערכת נושא",
+    "light": "בהיר",
+    "dark": "כהה"
+  },
+  "signIn": {
+    "intro": "ללמוד Google Sheets מאפס ועד מומחה. תרגילים אמיתיים, ציון מיידי על הגיליונות שלכם.",
+    "continueWithGoogle": "המשיכו עם Google",
+    "scopeNote": "תתבקשו להעניק גישה ל-Google Sheets, Drive, ו-Apps Script. ה-OAuth tokens נשמרים על המחשב הזה בלבד."
+  }
+}

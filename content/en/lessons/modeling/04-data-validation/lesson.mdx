@@ -1,0 +1,83 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Data validation: lists, conditions, custom formulas
+
+A workbook with no validation is a data-cleanup project waiting to happen. Someone types `Yoav Chen` instead of `Yoav Cohen`. Someone enters `Tabolla` for the platform. Someone fat-fingers a spend of `-3850`. Each of these silently corrupts every downstream pivot, lookup, and SUMIFS until somebody finds it weeks later. Data validation is the cheap fix you put in place once and it stops the whole class of bug forever.
+
+## Three patterns, one menu
+
+`Data → Data validation` is where this lives. The dialog gives you three patterns that cover almost every real case:
+
+| Pattern | When to use | Sheets API type |
+|---|---|---|
+| Dropdown (list of values) | Small, fixed vocabularies: platforms, statuses, regions | `ONE_OF_LIST` |
+| Dropdown (from a range) | Lists that change over time: buyer roster, vertical names, account IDs | `ONE_OF_RANGE` |
+| Custom formula | Anything else: `Spend > 0`, `Date >= start_of_quarter`, `LEN(name) > 1` | `CUSTOM_FORMULA` |
+
+There are more (number-between, date-after, text-contains) but in practice you reach for those three. The decision tree is: does the value come from a closed list (dropdown) or does it have to satisfy a rule (custom formula)?
+
+## Strict vs warning: pick strict
+
+The validation dialog has a switch labeled `On invalid data → Reject input` versus `Show warning`. The team default is **strict (Reject input)**, with one exception: rules that warn about something that's *unusual* but not *wrong*.
+
+- **Strict for closed vocabularies.** Buyer name, platform, vertical: there is no other valid value. Reject.
+- **Strict for sign rules.** Spend, revenue, click count: negative numbers shouldn't reach the sheet at all. Reject.
+- **Warning for soft thresholds.** "Spend over $1000 looks high, are you sure?": that's a warning, not a rejection, because spending $1500 isn't *wrong*, just unusual.
+
+The trap: **a warning that gets ignored at 5 PM is data**. If the rule actually matters, make it strict.
+
+## Dropdown from a range vs inline list
+
+Both ways produce the same dropdown UI. The difference is where the list lives.
+
+**Inline list (`ONE_OF_LIST`)** is the right choice when the list will not change: 7 platforms, 6 status codes, 4 ad types. Updating the list means editing the validation rule on every cell that uses it. That's fine when the list rarely changes.
+
+**Range-driven list (`ONE_OF_RANGE`)** is the right choice when the list is dynamic: the buyer roster grows, verticals come and go, the country list expands. The list lives in a `Buyers` or `Verticals` tab and the validation reads from there. New entries appear in every dropdown automatically the moment they're added to the source range. This is the team's default for anything pulled from a config tab.
+
+The trap: if you point `ONE_OF_RANGE` at a small fixed range like `Buyers!A2:A9`, then add `Maya Goldberg` to row 10, she won't appear in the dropdown until you extend the validation range. Use a generous bound (`A2:A1000`) or, better, a named range that you can extend in one place.
+
+## Custom formula: the escape hatch
+
+When neither dropdown shape fits, custom formula handles the rest. The rule evaluates the formula in the context of the cell being validated; the formula returns `TRUE` (allow) or `FALSE` (reject).
+
+Real patterns from the team's workbooks:
+
+| Rule | Formula |
+|---|---|
+| Spend must be positive | `=B3>0` |
+| Date must be in the current quarter | `=AND(B3>=DATE(2026,4,1), B3<DATE(2026,7,1))` |
+| Buyer-name field can't be blank | `=LEN(TRIM(B3))>0` |
+| Vertical must end with " PR" | `=RIGHT(B3,3)=" PR"` |
+| Campaign id must match the format | `=REGEXMATCH(B3,"^[a-z]{2}-[a-z]{2}-[mda]-[a-z]{4}\d{4}[a-z]{2}-[a-z]{3}-\d+-\d{6}-")` |
+
+The cell reference (`B3`) inside a custom formula refers to the *cell being validated*. When you copy the validation across `B3:B100`, the formula automatically becomes `B4>0`, `B5>0`, and so on, just like a regular relative reference.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="Campaigns lives in A1:G61. You'll add a separate Inputs tab for validated entry fields."
+/>
+
+Click **Start lesson** to provision the campaign log. Then create a tab named `Inputs` and add three validated cells:
+
+- **`B1`**: dropdown sourced from `Campaigns!B2:B61` (buyer roster), strict.
+- **`B2`**: inline dropdown listing all 7 platforms, strict.
+- **`B3`**: custom-formula rule `=B3>0` for spend, strict.
+
+The grader reads each rule back and checks it's the right shape. If you switch a rule to warning-only, the grader catches that too.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **Every config tab is the source of truth for a dropdown somewhere.** The `Buyers` tab feeds the buyer dropdown in every dashboard. Adding a new buyer is one edit, not 14.
+- **Validation rules are documented in cell notes.** A cell note that says "must match Buyers!A:A" is read by the next person who inherits the workbook and explains why the rule is the way it is.
+- **Spend / revenue cells have `>0` validation by default.** Negative numbers from a typo or a copy-paste mistake silently flip every ROI calculation; the validation rule catches them at entry.
+
+## Pro pitfalls
+
+- **`ONE_OF_RANGE` on too small a range.** `Buyers!A2:A9` covers 8 buyers. Buyer 9 won't show up. Either use a generous bound or point at a named range.
+- **Validation that doesn't follow when you copy a formula.** Validation copies with paste, but `Paste special → Values only` strips it. If you build a workbook by pasting from somewhere else, re-apply validation on the destination range.
+- **Strict mode that doesn't actually block IMPORTRANGE.** Validation rejects manual entry but accepts whatever IMPORTRANGE writes. If imported data needs validating, do it in a `Cleaned` tab with formulas, not via validation rules.
+- **Custom formulas that reference the wrong cell.** `=$B$3>0` is locked to row 3 even when the validation is applied to `B3:B100`. Drop the dollar signs.

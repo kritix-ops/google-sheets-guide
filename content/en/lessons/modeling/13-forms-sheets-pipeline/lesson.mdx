@@ -1,0 +1,91 @@
+import { FORM_RESPONSES } from "@/content/datasets/adtech";
+
+# Forms → Sheets pipeline
+
+A Google Form linked to a Sheet is one of the cheapest, most reliable data pipelines you can stand up. The team uses them for conference RSVPs, vendor intake, monthly campaign briefs, post-mortem surveys after a botched launch, anywhere you need a few non-technical people to contribute structured data without learning a CRM. The catch: the data lands raw. Mixed-case emails, trailing whitespace, duplicate submissions when someone hits "Edit response" then "Submit" again. The pipeline is the form. The discipline is the cleanup.
+
+## The shape of a linked sheet
+
+When you create a Form and pick "Send to Sheets", Sheets creates a new tab named `Form Responses 1` (or `Form Responses 2` if you've already used the first one). The columns are fixed by the API:
+
+| Column | Source | Notes |
+|---|---|---|
+| `A` | Timestamp | Server time, ISO format; never trust the user's clock |
+| `B` | Email Address | Only present if the form requires sign-in. Beware of case drift. |
+| `C..H` | Form questions | One column per question, in form-order |
+
+The Form owns the first row (headers). Editing the headers in Sheets does NOT rename the Form questions, so the next response writes the original column name back. Don't try to "tidy" the headers; do cleanup in a separate tab instead.
+
+## The "Form Responses 1" tab is your raw rectangle
+
+Treat the Form Responses tab the same way lesson 1 treated raw data tabs: **don't aggregate inside it, don't add columns to the right that the next response could overwrite**. The pattern:
+
+1. `Form Responses 1`: append-only, owned by the form.
+2. `Clean`: derived. Contains the formulas that normalize emails, dedupe, and aggregate.
+3. `Dashboard`: consumes `Clean`, never the raw tab directly.
+
+Adding helper columns to `Form Responses 1` *seems* fine at first. It breaks when the form gets a new question and Sheets inserts the column in the middle, shifting your helpers to the wrong cell references. Keep the raw tab pristine.
+
+## The five cleanup recipes you'll use most
+
+```
+=COUNTA(B2:B21)                                      raw response count
+=COUNTA(UNIQUE(LOWER(TRIM(B2:B21))))                 distinct people
+=COUNTIF(G2:G21,"Yes")                               Yes/No counts
+=COUNTIFS(D2:D21,"Native EMEA",G2:G21,"Yes")          team × Yes/No breakdown
+=SORTN(UNIQUE(LOWER(B2:B21)),5,0,1,1)                 5 most recent distinct emails
+```
+
+Three of these you'll write in the assignment. Two patterns to internalize:
+
+**Always wrap email columns in `LOWER(TRIM(...))`** before passing them to `UNIQUE`, `COUNTIF`, or any matching function. The team has been bitten by `dina.dayan@flexelent.com` and `DINA.DAYAN@flexelent.com` counted as two people enough times. The cost of the wrapper is zero. The cost of the bug is a phone call from your manager asking why the rsvp count is off.
+
+**Use `COUNTIFS` (plural) the moment you have two criteria**. The singular `COUNTIF` only takes one. Forms always have at least two breakdown axes (team and yes/no, or vertical and country), so you'll graduate to `COUNTIFS` within ten minutes of opening any real form analysis.
+
+## Handling duplicates
+
+Forms allow editors to edit responses (if you enabled it). Sheets logs the edit as a new row, leaving the original. You'll see two rows from the same person, same email, different timestamps. The cleanup pattern: keep the *latest* row per email.
+
+```
+=ARRAYFORMULA(
+  IF(B2:B21="", , 
+    IF(COUNTIFS(B2:B$21, B2:B21, A2:A$21, ">"&A2:A21)=0, "latest", "older")
+  )
+)
+```
+
+The formula counts how many later rows share this email. Zero later rows → this is the latest → tag it `"latest"`. Add an extra column filter (or use `FILTER(... , latest_col="latest")`) and the duplicates fall out.
+
+For the lesson assignment we keep it simpler: cleanup as count-distinct. Real workbooks layer the dedupe pattern on top of that.
+
+## Now do it for real
+
+<MiniGrid
+  data={FORM_RESPONSES.slice(0, 6)}
+  caption="Form Responses 1 has 20 rows. The summary block lives in column J on the same tab."
+/>
+
+Click **Start lesson** to provision a fresh copy of the Form Responses tab. The raw data sits in `A1:H21`, with labels seeded in column I. Fill in column J:
+
+- **`J1`**: total raw responses (`COUNTA`).
+- **`J2`**: distinct people, with `LOWER + TRIM + UNIQUE`.
+- **`J3`**: newsletter Yes count.
+- **`J4`**: count of submissions from the `Native EMEA` team.
+
+The grader checks each formula's shape AND its computed value, so swapping `COUNTIF` for `SUMPRODUCT` is fine, but skipping `LOWER` on the email column is not.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **Conference RSVP forms feed the headcount estimate.** A single sheet pulls the linked form tab, dedupes by email, segments by team, and writes the per-team headcount into a budget dashboard. End-to-end: form → cleaned tab → dashboard, all in one workbook.
+- **Vendor intake forms drive payment workflow.** The cleanup adds a `processed_at` column. Once a row is marked processed, accounting filters it out of the to-do view.
+- **Monthly campaign brief forms feed the brief calendar.** Each brief becomes a row; the cleaned tab generates a `=HYPERLINK(...)` per row that links into the matching planning document. A people-chip column attaches the campaign owner.
+
+## Pro pitfalls
+
+- **Form question renames don't rename the column.** Editing the question in the Form leaves the existing column header alone in Sheets (so old responses stay queryable), but new responses still write to the same column. Don't rely on header text for `QUERY` matching; reference by column letter.
+- **`Edit response` is enabled by default.** Most teams want it off. Otherwise editing creates duplicate rows that look intentional but aren't.
+- **The email column is missing when sign-in isn't required.** A form without authenticated email will collect responses but column B will be blank. The form owner needs to flip "Collect email addresses" to on in the Form settings, not in Sheets.
+- **`UNIQUE` on a column with mixed-case text returns BOTH cases.** Always wrap in `LOWER` (or `UPPER`/`PROPER`) before deduping email and name columns.
+- **Forms don't enforce data types on free-text fields.** Numeric questions stored as "two hundred" (someone typed the word) break SUMs downstream. Either use a numeric question type in the form, or validate in the cleaned tab with `IFERROR(VALUE(F2), 0)`.

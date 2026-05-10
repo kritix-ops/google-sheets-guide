@@ -1,0 +1,83 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Pivot tables: rows, columns, values, calculated fields
+
+A pivot table takes a long, narrow log and turns it into a short, wide summary. Same data, different shape. Once you can read a pivot, half the dashboard work in adtech is "what's the right pivot for this question". This lesson teaches the four slots in the Pivot editor (Rows, Columns, Values, Filters) and the calculated-field escape hatch when the four slots aren't enough.
+
+## The mental model
+
+A pivot has one source range and four configuration slots. The source is always a rectangle of raw rows with a single header row at the top (lesson 1's "raw rectangle" pattern is what feeds pivots cleanly).
+
+| Slot | What it does | Example |
+|---|---|---|
+| **Rows** | Group rows; one resulting row per distinct value | Buyer name |
+| **Columns** | Group columns; one resulting column per distinct value | Platform |
+| **Values** | Aggregate inside each Row × Column cell | SUM of Revenue |
+| **Filters** | Discard source rows before aggregation runs | Country = "DE" |
+
+The pivot's output is a Rows × Columns grid with the Values aggregated inside each cell. With Buyer on Rows, Platform on Columns, and SUM(Revenue) as the value, you get a buyer-by-platform revenue matrix. That's the single most common shape in adtech dashboards.
+
+## Anchoring a pivot
+
+`Insert → Pivot table` opens the dialog. Pick "Existing sheet" and choose an empty cell (we use K1 in this lesson) so the pivot sits next to the raw log without overwriting it. The cell you choose becomes the **anchor** (the top-left of the pivot) and the pivot grows down and right from there.
+
+The pivot anchor is special: the cell itself contains the pivot definition (not a value). Reading K1 from a script returns the pivot config, not the displayed number. The other cells the pivot fills (K2, K3, L1, L2, …) hold the calculated `effectiveValue`s you can read like any normal cell.
+
+## Summarize functions
+
+The Values slot doesn't just take a column, it takes a column **plus** a function. The function determines what each cell shows. The headline options:
+
+| Function | What it does | When to reach for it |
+|---|---|---|
+| `SUM` | Add up the values | Total spend, total revenue, total clicks |
+| `COUNTA` | Count non-empty cells | Number of campaigns per buyer |
+| `COUNTUNIQUE` | Count distinct values | Number of distinct verticals per platform |
+| `AVERAGE` | Mean | Average CPC across a buyer's runs |
+| `MIN` / `MAX` | Smallest / largest value | Worst-day spend, best-day revenue |
+| `MEDIAN` | Middle value | Robust "typical" revenue (ignores outliers, unlike average) |
+
+The pro move: **`MEDIAN` over `AVERAGE` for any metric that has long-tail outliers**. One blockbuster day pulls the average up; the median doesn't move. ROI distributions especially are skewed enough that the average misleads.
+
+## Calculated fields: the escape hatch
+
+When a Values slot needs a ratio of two source columns (ROI, ROAS, CPC, margin), the four standard slots don't cover it. Calculated fields do. In the Pivot editor, click `Values → Add → Calculated field`, and write a formula like:
+
+```
+= 'Revenue' / 'Spend'
+```
+
+Names in single quotes reference source column headers (case-sensitive). The formula is evaluated **inside** the pivot's aggregation, so a calculated field for `'Revenue' / 'Spend'` divides the **summed** revenue by the **summed** spend per cell, which is what you want for a portfolio ROI per buyer-platform combo, not the average of per-row ROIs (which would skew toward small-spend rows).
+
+The gotcha: calculated fields use SUM by default. If you need a different aggregation inside the calculated field, write it explicitly: `=SUMIF('Country','DE','Revenue') / SUMIF('Country','DE','Spend')`. Most of the time, the default SUM-of-the-formula is what you want, and you can leave the formula simple.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="60 rows of Campaign data fill A1:G61. The pivot will sit at K1, with empty H/I/J columns separating it from the raw log."
+/>
+
+Click **Start lesson** to provision the campaign log. Then anchor a pivot table at `K1`:
+
+- **Source range**: `Campaigns!A1:G61` (the bounded raw rectangle).
+- **Rows**: Buyer.
+- **Columns**: Platform.
+- **Values**: SUM of Revenue.
+
+The result is the buyer-by-platform revenue matrix every team dashboard opens with. The grader reads the pivot definition back via the Sheets API and verifies each slot is configured correctly. Layout (horizontal vs vertical) and calculated fields land in lesson 3.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **The opening pivot on every weekly review**: Rows = Buyer, Columns = Platform, Values = SUM Revenue. One look tells you who's running where and at what scale.
+- **The vertical-mix pivot**: Rows = Vertical, Values = SUM Spend, COUNTA Campaigns, AVERAGE ROI. Three values stacked in one pivot. Tells you "where's the money going, and is it working".
+- **The country pivot for budgeting**: Rows = Country, Columns = Quarter (a calculated field grouping the Date column), Values = SUM Spend. Quarterly geo allocation in one shape.
+
+## Pro pitfalls
+
+- **Pivot source pointing at the full column** (`Campaigns!A:G`). The pivot recomputes against a million empty rows on every edit. Bound the source: `A1:G61`, `A1:G500`, whatever fits the actual data.
+- **Editing the raw log under a live pivot** rearranges the pivot's groupings. New buyer names appear as new rows; new platforms appear as new columns. That's usually good, but if the pivot is the basis for a stable downstream report, freeze the source range or copy the pivot's output to a static range.
+- **Calculated fields that reference a column header containing a space** must use the exact spelling and casing. `'Total Spend'` is different from `'Total spend'`.
+- **`AVERAGE` of a ratio is not the ratio of averages**. Calculated `'Revenue'/'Spend'` returns SUM(Revenue) / SUM(Spend) per cell, which is the portfolio ratio. If you want the average of per-row ratios, compute the ratio in a source column first, then SUM or AVERAGE it.
+- **Pivots don't survive copy-paste cleanly**. Copying a range that contains pivot output cells pastes static values; the pivot doesn't re-anchor at the destination. To duplicate a pivot, re-create it from the source.

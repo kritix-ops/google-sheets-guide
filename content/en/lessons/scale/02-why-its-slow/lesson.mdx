@@ -1,0 +1,79 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Why your sheet is slow
+
+A workbook that lagged for half a second yesterday lags for eight today. Nobody touched the formulas. The data grew by a thousand rows and a sleeping problem woke up. Three patterns account for almost every slow Sheets workbook:
+
+1. **Volatile functions** that re-evaluate on every edit and on the minute timer.
+2. **Full-column references** that walk a million empty cells on every recalc.
+3. **Recalc cascades** where one cell's change triggers a chain of downstream formulas.
+
+You need to be able to recognize each one in formula text. Once you can spot them, the fix is usually a five-second edit per formula.
+
+## Volatile functions
+
+Six functions in Sheets are volatile: `TODAY`, `NOW`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`. "Volatile" means Sheets recomputes them every time *any* cell anywhere in the workbook changes, plus on a one-minute timer for time-based ones. A workbook with one `TODAY()` is fine. A workbook with `TODAY()` inside an `ARRAYFORMULA` over 50,000 rows is 50,000 volatile cells, each pulling its dependents into the recalc on every keystroke.
+
+The dangerous ones to look for in a slow workbook:
+
+- **`INDIRECT("Sheet1!A1")`** is volatile AND breaks the moment Sheet1 is renamed. Use a direct reference when you can.
+- **`OFFSET(A1, 0, 0, COUNTA(A:A), 1)`** is the "find the last row" trick. It's volatile, and the `COUNTA(A:A)` inside is also a full-column ref. Two slow things in one formula.
+- **`TODAY()` inside `ARRAYFORMULA`** is the worst one. A single `TODAY` is cheap; `ARRAYFORMULA(TODAY()-A2:A1000)` is a thousand volatile cells.
+
+The cure is usually the same: replace the volatile call with a static value (a hardcoded date string), a cell reference to a date the user updates manually, or a non-volatile alternative (use `INDEX(A:A, n)` instead of `OFFSET`).
+
+## Full-column references
+
+`SUM(F:F)` looks future-proof. It also forces Sheets to read every cell in column F before computing the sum. Sheets caps a sheet at one million rows by default, so that's potentially a million cells of work to add up sixty numbers.
+
+The fix is to bound the range explicitly: `SUM(F2:F61)`, or `SUM(F2:F5000)` if you want headroom for the next two years of growth. The common objections:
+
+- **"What if new rows arrive?"** Bound to `F2:F5000` or use a named range that you grow when needed. The extra empty cells in `F2:F5000` are cheap because Sheets sees them as a contiguous block, not as individual addresses.
+- **"`ARRAYFORMULA` lets me reference `F:F` and it still works."** Sometimes. Other times the spill exceeds your patience and the workbook freezes. Bound it.
+- **"`COUNTA(B:B)` is convenient as a row count."** Yes. It's also slow. `COUNTA(B2:B5000)` does the same job at 0.5% of the work.
+
+`File > Settings > Spreadsheet stats` shows the formula count and recalc time. If the workbook reports more than a couple of seconds, full-column references are almost always part of it.
+
+## Recalc cascades
+
+A single edit triggers recomputation of every cell that references it, recursively. If `J1 = SUM(F2:F61)` and `K1 = J1 / J2` and `L1 = K1 * 100` and twenty other cells reference `L1`, editing one number in F cascades through twenty-three cells. With a hundred dependent cells and a couple of volatile functions in the mix, each keystroke is hundreds of milliseconds of work.
+
+You don't usually need to redesign the dependency graph. You need to make sure:
+
+- **Aggregations happen once.** `J1 = SUM(F2:F61)` is one SUM. Twenty cells that each compute `SUM(F2:F61)/something` is twenty SUMs. Reuse the summary cell.
+- **Conditional formats are bounded.** A conditional format that targets `A:Z` is a rule that fires across a million cells. Bound to `A1:Z1000`.
+- **Data validation rules don't sit on empty cells you'll never use.** Each one runs on every edit.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log has 60 rows in A2:G61. Three summary cells in column J have been seeded with slow shapes. Refactor them."
+/>
+
+Click **Start lesson** to provision the campaigns log with the seeded slow versions. Refactor each one:
+
+- **J1** is seeded as `=SUM(F:F)`. Replace with `=SUM(F2:F61)`.
+- **J2** is seeded as `=COUNTA(B:B)`. Replace with `=COUNTA(B2:B61)`.
+- **J3** is seeded as `=TODAY()-1`, the "report date" for the run. Replace with a non-volatile value: a hardcoded string like `"2026-05-10"`, or a reference to a date cell that the team updates manually when running the report.
+
+The point isn't that any one of these is catastrophic on a 60-row sheet. It's that you'll inherit a workbook with thirty cells like these and the same three fixes apply to all of them.
+
+## Used in the wild
+
+The team's main attribution workbook lagged eight seconds per edit by mid-2025. Two engineers spent half a day on it. The fix:
+
+- 41 cells with `SUM(F:F)`, `SUM(G:G)`, or `COUNTA(B:B)` patterns. Bounded all to `F2:F5000`.
+- 6 cells with `INDIRECT` constructing tab names dynamically. Two were genuinely dynamic (kept as is, accepted the cost). Four were not (replaced with direct references).
+- 1 conditional format rule covering `A:Z` on a sheet with 14,000 rows. Bounded to `A1:Z14000`.
+- 1 `ARRAYFORMULA(TODAY() - A2:A)` that was lighting up the recalc on every minute tick. Replaced with a static `Report date` cell at the top of the sheet.
+
+Recalc dropped from 8s to 0.6s. The workbook didn't get smaller; the work per edit did.
+
+## Pro pitfalls
+
+- **`INDIRECT("Sheet1!A1")` is the silent assassin.** Volatile, breaks on rename, and looks innocent in a formula bar. If you find one in a workbook that lags, it's almost certainly part of the cause.
+- **A volatile function inside `ARRAYFORMULA` is N volatile cells.** `ARRAYFORMULA(TODAY()-A2:A1000)` is 999 volatile cells.
+- **"`OFFSET` to find the last row" is the old guide answer.** It's also volatile and slow. Use `INDEX(A:A, COUNTA(A:A))` or, better, name a range and grow it manually.
+- **`File > Settings > Spreadsheet stats` is your friend.** It tells you the cell count, formula count, IMPORTRANGE count, and how many of those are volatile. Look at it whenever a workbook feels sluggish.
+- **A formula bar full of nested IFs is fine.** The slow thing isn't formula complexity; it's range size and volatility. Don't refactor a clean `IFS` chain; refactor the `SUM(F:F)` two rows down.

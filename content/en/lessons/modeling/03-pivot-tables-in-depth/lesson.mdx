@@ -1,0 +1,100 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Pivot tables in depth: filters, multi-value, calculated fields
+
+Lesson 2 covered the four slots in the Pivot editor: Rows, Columns, Values, Filters. That's enough for the simplest dashboards. The moment you need to scope a pivot to one country, stack three numbers per cell, or roll dates into quarters, you reach past the basics. This lesson is the rest of what a working media buyer uses on a real spreadsheet every day.
+
+## Filters: by values vs by condition
+
+The Filters slot pares the source down BEFORE the pivot aggregates. Two flavors:
+
+| Flavor | What it does | When to reach for it |
+|---|---|---|
+| **Filter by values** | Explicit allowlist of visible items | You know the exact set: `Country in {DE, UK}`, `Platform in {Google, Facebook}` |
+| **Filter by condition** | A predicate the source row must satisfy | `Spend > 200`, `Vertical contains "PR"`, `Date is after 2026-04-15` |
+
+By-values shows up in the Sheets API as a `visibleValues` list. By-condition shows up as a `BooleanCondition` with a type (`NUMBER_GREATER`, `TEXT_CONTAINS`, `DATE_AFTER`, `CUSTOM_FORMULA`, …) and matching `conditionValues`. Both attach to one source column at a time. The grader for this lesson reads the by-values form.
+
+The pro choice between them: **by-values** for a stable list (countries you actually run in, the four buyers on the team), **by-condition** for anything dynamic (this month's date range, ROI thresholds, ad-hoc text searches). Don't waste a by-values filter on a list that grows every week.
+
+## Slicers: filters with a UI surface
+
+A slicer is a pivot filter wrapped in an on-sheet control. Same effect on the pivot, very different effect on the team. Editors with filter access change the pivot's Filters slot inside the editor; viewers can't. A slicer renders a dropdown right on the sheet, so a viewer who can only read the workbook can still click "Country: DE" and see the pivot recompute.
+
+Insert a slicer with `Data → Slicer`, point it at the pivot's source range, and pick a column. The slicer's selection is its own state, separate from the pivot's Filters slot. When both are set, they intersect.
+
+When to add a slicer: any dashboard a stakeholder will look at, where you want them to flip the country, the buyer, or the platform without learning the editor. Don't add a slicer to a pivot only you ever touch. It just clutters the sheet.
+
+## Multi-value pivots: stacking SUM, AVERAGE, COUNTA
+
+The Values slot accepts more than one value. Stack `SUM Spend`, `SUM Revenue`, `COUNTA Date` (campaign count), `AVERAGE ROI` in the same pivot, and each `Row × Column` cell shows all of them side by side, or stacked, depending on `valueLayout`.
+
+Two layouts:
+
+- **HORIZONTAL** (default). Each value gets its own column under each Column group. With one Column group "Platform" (7 platforms) and three values, you get 21 result columns. Tolerable. With two Columns groups it explodes.
+- **VERTICAL**. Values stack as rows under each Row group. With Buyer on Rows and three values, each buyer gets three rows, and the columns stay narrow.
+
+The team default for **3 or more values is VERTICAL**. The pivot reads top-to-bottom like a normal report, and the column count stops blowing up when you add a fourth value.
+
+## Custom date groupings: years, quarters, months in one click
+
+A Date column in Rows or Columns lists every distinct date as its own group, which is almost never what you want. To roll up: right-click the date row group in the pivot output, pick `Create pivot group rule → Group by date`, and choose the granularity. Year, year-quarter, year-month, year-month-day, day of week, hour. The grouping rule lives on the pivot definition, not on the source data, so the source column stays raw.
+
+The common adtech grouping is **year-quarter** for finance reviews and **year-month** for monthly trend dashboards. Avoid grouping by raw `Quarter` (without the year): Q1 across 2025 and 2026 collapses into one group and you lose the year-over-year story.
+
+## Calculated fields, deeper
+
+Lesson 2 introduced calculated fields as the escape hatch when none of the standard summarize functions cover what you need. The full syntax: a Values slot whose summarize is `CUSTOM`, with a `formula` string that references source headers in single quotes:
+
+```
+= ('Revenue' - 'Spend') / 'Spend'
+```
+
+Two forms produce the same ROI:
+
+```
+= ('Revenue' - 'Spend') / 'Spend'
+= 'Revenue' / 'Spend' - 1
+```
+
+The grader for this lesson accepts either, by checking that the formula contains both `'Revenue'` and `'Spend'`.
+
+The trap: column names are **case-sensitive** and must match the source header text exactly. `'revenue'` (lowercase) will fail silently. `'Total Spend'` is a different name from `'Total spend'`. If the calculated field returns `#REF!` or a blank, the column reference is the first thing to check.
+
+The other trap: the formula is evaluated AFTER the implicit SUM by default, so `'Revenue' / 'Spend'` per cell is `SUM(Revenue) / SUM(Spend)` for the rows in that cell, which is the **portfolio** ratio. That's almost always what you want for ROI, ROAS, or weighted CPC. If you instead want the average of per-row ratios, compute the ratio in a source column and aggregate that.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="60 rows of Campaign data fill A1:G61. The pivot at K1 will pull three values per buyer for two countries (DE and UK)."
+/>
+
+Click **Start lesson** to provision the campaign log. Then anchor a pivot table at `K1` with:
+
+- **Source range**: `Campaigns!A1:G61`.
+- **Rows**: Buyer.
+- **Values** (three of them):
+  - SUM of Spend
+  - SUM of Revenue
+  - A calculated field for ROI: `=('Revenue' - 'Spend') / 'Spend'` (or `='Revenue'/'Spend' - 1`).
+- **Filter**: Country, by values, keep DE and UK only.
+- **Value layout**: As rows (VERTICAL).
+
+The result is a buyer-level Spend / Revenue / ROI breakdown for the team's two biggest English-speaking markets. The grader reads the pivot definition back and verifies each piece.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **The country-scoped dashboard pivot**: a slicer on Country at the top of the sheet, a pivot below with SUM Spend, SUM Revenue, calculated ROI on Rows = Buyer. The viewer flips DE → UK → US and the pivot recomputes. The pivot itself has no Filters slot set; the slicer is the only filter, so editors can change it without touching the pivot config.
+- **The buyer scoreboard**: Rows = Buyer, Values = SUM Spend, SUM Revenue, COUNTA Date, calculated ROI, calculated `'Revenue' - 'Spend'` for portfolio profit. Five values, VERTICAL layout, one screen.
+- **The quarterly geo view**: Rows = Country, Columns = Date grouped by year-quarter, Values = SUM Spend. Quarterly geo allocation for finance, in one pivot, no helper columns.
+
+## Pro pitfalls
+
+- **Filters that drift when source columns are inserted or removed.** The filter's `sourceColumn` is an offset into the source range, not a header name. Insert a column in the middle of the source and every filter past the insertion point silently shifts to the wrong column. Same trap for calculated fields that reference column headers if you also rename a header.
+- **Calculated fields with a renamed source header.** Rename `Revenue` to `Revenue (USD)` in row 1, and every calculated field that references `'Revenue'` returns `#REF!` until you also edit the formula. There's no rename-propagation.
+- **VERTICAL layout without "Show totals".** The pivot reads top-to-bottom but if totals are off, the eye has no anchor row per buyer. Flip Rows → Show totals on for grouped pivots; the totals row is what makes the layout legible.
+- **Slicers that aren't visible to viewers.** A slicer is a floating object on the sheet. If the pivot fits in a small embedded frame, the slicer scrolls off-screen and viewers see a static pivot they can't change. Position the slicer above or beside the pivot, never below.
+- **Filtering by condition with a stale value.** A filter "Date is after 2026-04-15" is fine in April. Six months later it still says 2026-04-15 and the pivot quietly excludes nothing. For dynamic dates, use a CUSTOM_FORMULA filter referencing `TODAY()`, or move the date range into a slicer the team actually maintains.

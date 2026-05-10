@@ -1,0 +1,77 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Diagnosing #REF! and #N/A
+
+These two errors look similar in a dashboard: a red cell where a number used to be. They are different bugs, and treating them the same is the fastest way to mask real problems. `#REF!` means a reference broke: the formula points at cells that no longer exist. `#N/A` means a lookup ran cleanly but didn't find a match. One is structural; the other is a data question. The fixes have nothing to do with each other.
+
+## #REF! means "the cell I was pointing at is gone"
+
+The Sheets engine raises `#REF!` whenever a formula references a cell, range, column, or sheet that doesn't exist. The common causes:
+
+- **A column or row was deleted out from under a formula.** You wrote `=SUM(D2:D100)`, somebody deleted column D, and the cell now reads `=SUM(#REF!:D99)`. The token `#REF!` is the engine's way of saying "this argument is past tense."
+- **A copy-paste landed in a place where the relative reference walked off the grid.** Pasting `=A1` into A1 of a different tab where there is no row above turns into `#REF!`.
+- **A sheet was deleted or renamed.** `=Roster!A2` becomes `=#REF!!A2` the moment the Roster tab is gone.
+- **An `IMPORTRANGE` source was deleted, trashed, or had its sharing revoked.** The cell shows `#REF!` with "An array result was not expanded because it would overwrite data" or "Did not find value" in the tooltip; the formula text itself is fine but the source is gone.
+
+The fix is always the same shape: rebuild the reference. There is no `IFERROR` workaround that helps. Wrapping a broken reference in `IFERROR("source unavailable")` masks the symptom and guarantees you will not notice when the same thing happens to the next column. `#REF!` is structural; it deserves a structural fix.
+
+## #N/A means "I looked, I didn't find"
+
+`#N/A` is raised by lookup functions when no match exists. `VLOOKUP("MissingBuyer", B:C, 2, FALSE)` runs cleanly, walks the column, finds nothing, and returns `#N/A`. The formula is correct. The data does not contain what you asked for. The fix is one of three:
+
+1. **Decide that "no match" is a normal outcome and surface a label.** This is the common case. Wrap in `IFNA` with a readable fallback: `=IFNA(VLOOKUP(...), "not found")`. Use `IFNA` specifically, not `IFERROR`, because `IFNA` catches only `#N/A` and lets every other error (a `#REF!`, a `#VALUE!`, a `#DIV/0!`) surface as itself. `IFERROR` catches everything and is the right answer about 10% of the time.
+2. **Fix the data.** If "MissingBuyer" should be in the roster, the bug is upstream. Wrapping the symptom hides the work.
+3. **Switch to `XLOOKUP` with an inline fallback.** `XLOOKUP(search, range, return, "not found")`. The fourth argument is the cleanest fallback shape in the language: it sits in the call, and anyone reading the formula sees both the lookup and the failure handler in one place.
+
+## The IFNA / IFERROR / IFERROR-IF-NA decision tree
+
+The choice between the three error-handling wrappers is binary:
+
+| Scenario | Use |
+|---|---|
+| Lookup that might miss; everything else should still error loudly. | `IFNA` |
+| Computation that throws several different errors and you genuinely want one fallback for all of them. | `IFERROR` |
+| Lookup inside a larger expression where you need fallback only for the miss but `IFNA` doesn't fit syntactically. | `IFERROR(IF(ISNA(lookup), fallback, lookup), other_fallback)` |
+
+The third row is rare and usually a sign that the formula should be a `LET`.
+
+The reason this matters: `IFERROR` is the bigger hammer. Used everywhere, it silently swallows `#REF!` (the structural bug you needed to fix), `#DIV/0!` (the arithmetic bug you needed to notice), and `#VALUE!` (the type mismatch you needed to clean up). A dashboard wrapped in `IFERROR(..., "")` is a dashboard with no errors and a 30% chance of being wrong.
+
+## Why `XLOOKUP` makes this easier
+
+`XLOOKUP` was added to Sheets specifically to consolidate the lookup ecosystem and to make the "no match" case sit inside the function call. Compared to `VLOOKUP`:
+
+- The fallback is the fourth argument, not an outer wrapper. The formula reads top to bottom: search this, in this column, return this column, otherwise this label.
+- The return column does not have to be to the right of the search column.
+- A range that walks off the bottom doesn't silently corrupt to `#REF!` the way a `VLOOKUP` column-index argument does when you delete a column.
+
+Where `XLOOKUP` doesn't help: if the lookup table comes through `IMPORTRANGE` from a workbook whose Roster tab was renamed, the cell still shows `#REF!`. That's structural, not lookup-shaped, and no fallback inside the call will catch it.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="A 60-row campaign log lives in A1:G61. Three cells in column J start broken or empty. Your job is to fix each one for the right reason."
+/>
+
+Click **Start lesson** to provision a Campaigns tab with two pre-seeded broken cells:
+
+- **J1** evaluates to `#REF!`. The formula was pointing at a column that has been deleted. Replace it with a working `SUM` of the Spend column.
+- **J2** evaluates to `#N/A`. The formula is `=VLOOKUP("MissingBuyer", B:C, 2, FALSE)`. There is no buyer named "MissingBuyer" in the log; the lookup runs cleanly and returns `#N/A`. Wrap it in `IFNA` (or `IFERROR`) with a readable fallback like `"not found"`.
+- **J3** is empty. Write a defensive `XLOOKUP` for "Yoav Cohen" against the Buyer column (`B2:B61`) returning Spend (`F2:F61`), with an inline fallback string in the fourth argument.
+
+Two error types, three different fixes. The lesson is not the syntax; the lesson is matching the fix to the bug.
+
+## Used in the wild
+
+- **The buyer-dropdown #REF! cascade.** Two months ago somebody deleted the Roster tab on the master spreadsheet. Every formula across three dashboards that referenced `Roster!A:A` flipped to `#REF!`. The fix was rebuilding the canonical roster on a fresh tab, then re-pointing all downstream `IMPORTRANGE` calls. The temptation to wrap each broken cell in `IFERROR("unknown")` would have left the dashboards green and the buyer-vertical breakdown silently empty.
+- **`IFNA` on every production lookup.** The team's standing rule on the buyer-vertical dashboard: every `VLOOKUP` or `XLOOKUP` that pulls a name lives inside an `IFNA` with an explicit string. New buyers appear without an entry in the roster lookup table; the fallback flags them by name so the roster gets updated, not silently absorbed.
+- **Hunting cell-level errors with `=ISERROR(...)` columns.** When a dashboard goes red, the first audit pass is a helper column over each formula column: `=ARRAYFORMULA(ISERROR(C2:C61))`. The TRUE cells are the leak. From there you read the formula in one of those cells and decide #REF! vs #N/A vs something else.
+
+## Pro pitfalls
+
+- **`IFERROR` everywhere.** The single biggest source of silent dashboard bugs. `IFERROR` swallows every error type; the dashboard goes green; the math is wrong. Reach for `IFNA` first; reach for `IFERROR` only when you have proven there is no other failure mode the cell could throw.
+- **`IFNA` on a formula that can also throw `#DIV/0!`.** Common shape: `IFNA(ROI/spend, 0)`. The `#DIV/0!` from a zero-spend day still surfaces; `IFNA` doesn't catch it. Either use `IFERROR` knowingly, or guard the divide with `IF(spend=0, 0, ROI/spend)`.
+- **Wrapping `#REF!` instead of fixing it.** Tempting because it makes the red disappear. Months later somebody else opens the workbook, sees green, and trusts numbers that haven't been right since the column was deleted.
+- **Stacked `XLOOKUP` fallbacks.** `XLOOKUP(name, B:B, F:F, XLOOKUP(name, B2:B2, F2:F2, XLOOKUP(...)))`. Five levels deep usually means one of the inner ones is silently always firing and the outer ones are decoration. A `LET` with an explicit `ISNA` check reads better and surfaces the actual fallback path.
+- **An imported lookup table that becomes `#REF!` overnight.** The fallback in your `XLOOKUP` doesn't help if the entire return range is `#REF!`. The error message in the cell will say `#REF!`, not `#N/A`, and your `IFNA` swallows nothing. This is one of the reasons the next lesson is about cycles and the one after that is about IMPORTRANGE.

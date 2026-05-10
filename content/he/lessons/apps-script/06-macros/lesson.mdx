@@ -1,0 +1,140 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Macros: הקלטה, עריכה, שיתוף
+
+macro ב-Google Sheets היא פשוט function רגילה ב-Apps Script ש**רשומה במניפסט** כך שהיא צצה תחת Tools → Macros עם קיצור מקלדת אופציונלי. אין שום קסם ב-function עצמה, אותן קריאות `SpreadsheetApp` ו-`Range` משני השיעורים הקודמים. החלק החדש הוא הרישום: הוא זה שהופך את ה-function לנגישה מתפריט Tools במקום רק מהתפריט הנפתח Run בעורך Apps Script.
+
+Macros הן הדרך שבה צוות הופך פעולות ידניות חד-פעמיות לחזרתיות: לעצב את ה-tab של החודש החדש, לארכב את הדאטה של החודש שעבר, לסמן batch של קמפיינים כמתים. ה-buyer שזקוק לפעולה לא צריך לדעת שום דבר ב-Apps Script, הוא בוחר את ה-macro מהתפריט והיא רצה.
+
+## מוקלטות מול כתובות-יד
+
+ל-Sheets יש פיצ'ר של Record Macro (Extensions → Macros → Record macro). הזרימה היא בדיוק מה שזה נשמע: מתחילים להקליט, מבצעים רצף של עריכות ב-UI, עוצרים את ההקלטה, ו-Sheets כותב את ה-function ב-Apps Script שמשחזרת את העריכות האלה. זה נראה אטרקטיבי, אין קוד לכתוב, ואז קוראים מה הוא הפיק:
+
+```js
+function MyMacro() {
+  var spreadsheet = SpreadsheetApp.getActive();
+  spreadsheet.getCurrentCell().setNumberFormat('$#,##0.00');
+  spreadsheet.getActiveRangeList().setFontWeight('bold');
+};
+```
+
+שתי בעיות:
+
+1. **הוא משתמש ב-`getCurrentCell()` וב-`getActiveRangeList()`.** אלה קוראים את התא שבו המשתמש במקרה נמצא כשה-macro רץ. ה-macro שעבד מצוין כשהקלטתם אותו על F2 עכשיו מעצב את התא הלא נכון כשחבר צוות מריץ אותו מ-D17.
+2. **אין טיפול בשגיאות, אין logging, אין constants.** אם משהו נשבר בזמן הרצה (הגיליון שונה בשם, ה-range נמחק), ה-macro נכשל בשקט או עם הודעה לא מועילה.
+
+Macros מוקלטות הן נקודת התחלה, לא יעד. ה-macros האמיתיים של הצוות כתובים ביד. הם נראים כמו הדוגמאות משיעור 4 / שיעור 5: `getSheetByName` מפורש, A1 ranges מפורשים, מבנה מכוון.
+
+```js
+function formatNewMonth() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  sheet.getRange("F2:F61").setNumberFormat("$#,##0.00");
+  sheet.getRange("G2:G61").setNumberFormat("$#,##0.00");
+  sheet.setFrozenRows(1);
+}
+```
+
+שם ה-function הוא שם ה-macro. הגוף הוא פשוט קוד `SpreadsheetApp` רגיל.
+
+## רישום ה-macro
+
+function צצה תחת Tools → Macros רק כשהיא רשומה במניפסט `appsscript.json` של הפרויקט תחת `sheets.macros`:
+
+```json
+{
+  "timeZone": "America/New_York",
+  "sheets": {
+    "macros": [
+      {
+        "menuName": "Format new month",
+        "functionName": "formatNewMonth",
+        "defaultShortcut": "Ctrl+Alt+Shift+1"
+      }
+    ]
+  }
+}
+```
+
+שלושת השדות:
+
+| שדה | מה הוא עושה |
+|---|---|
+| `menuName` | התווית שהמשתמש רואה תחת Tools → Macros. שומרים אותו ספציפי, "Format" לבד דו-משמעי ליד macros אחרות. |
+| `functionName` | ה-function ב-JS שה-macro מריץ. חייב להתאים בדיוק להכרזה של ה-function (רגיש לאותיות גדולות וקטנות). |
+| `defaultShortcut` | אופציונלי. צירוף המקלדת שמפעיל את ה-macro. Sheets מקצה את `Ctrl+Alt+Shift+1` עד `Ctrl+Alt+Shift+9` ל-macros של משתמש. |
+
+אפשר לערוך את המניפסט ידנית, אבל המסלול הידידותי הוא **Extensions → Macros → Manage macros → Add new macro**. הוא פותח dialog קטן שבו בוחרים את ה-function ואת התווית, ו-Sheets כותב לכם את ערך המניפסט.
+
+## במה macros נבדלים מפריטי תפריט
+
+`addReportsMenu` של שיעור 5 בנה תפריט מותאם בסרגל הכלים של ה-spreadsheet. macro דומה אבל חי במשטח אחר:
+
+| | פריט תפריט (שיעור 5) | macro |
+|---|---|---|
+| איפה הוא חי | תפריט מותאם בסרגל הכלים (Reports, Buyer tools, וכו') | תת-תפריט Tools → Macros |
+| איך הוא נרשם | `createMenu().addItem(...)` שנקרא מ-`onOpen` | רשומה ב-`appsscript.json` תחת `sheets.macros` |
+| קיצור מקלדת | אין כברירת מחדל | אופציונלי `Ctrl+Alt+Shift+1..9` |
+| גלוי למשתמשים אחרים | כן, בכל פתיחה | כן, בכל פתיחה |
+| מתי להשתמש | קבוצות מקובצות של פעולות (תפריט Reports עם 5 פריטים) | פעולה בודדת בתדירות גבוהה שרוצים לה קיצור |
+
+בפועל הצוות משתמש בשניהם. Reports, Buyers, Cleanup מקבלים תפריטים משלהם; פעולות חד-פעמיות כמו "Format new month" או "Archive month" הופכות ל-macros כדי שיקבלו קיצור Ctrl+Alt+Shift+1.
+
+## שיתוף של macro
+
+ה-macro היא function בפרויקט המקושר ב-Apps Script. לכל מי שיש גישת עריכה ל-spreadsheet יש את ה-macro זמינה, הוא לא צריך להתקין שום דבר, ולא צריך גישה לעורך Apps Script אלא אם הוא רוצה לשנות את ה-function. הפעם הראשונה שמישהו מריץ אותה הוא מקבל את ה-OAuth consent prompt; אחרי זה זה פשוט עובד.
+
+המלכודת בשיתוף: **קיצור המקלדת הוא לפי משתמש, לפי spreadsheet.** ה-buyer שפתח את ה-spreadsheet בפעם הראשונה צריך לגשת ל-Tools → Macros → Manage macros ולהקצות קיצור משלו. ברירת המחדל במניפסט היא מה שכל משתמש חדש מתחיל ממנו, אבל ניתן לעקוף אותה מקומית.
+
+## כתיבות של Apps Script לא ניתנות לביטול
+
+זו ההפתעה הכואבת ביותר בכל macro. **Ctrl+Z לא מבטל את מה ש-macro עשתה.** כתיבות של Apps Script עוברות במסלול API אחר מעריכות משתמש, וה-undo stack הוא לעריכות משתמש בלבד. macro שדורסת 500 שורות בדאטה הלא נכון משאירה את ה-buyer בלי דרך חזרה חוץ משחזור מהיסטוריית הגרסאות (File → Version history → See version history).
+
+שתי השלכות על איך כותבים macros:
+
+1. **מאשרים לפני כל שינוי הרסני.** שער של `ui.alert("This will overwrite the Aggregator tab. Continue?", ui.ButtonSet.YES_NO)` לפני `setValues` שדורס 500 שורות הוא חובה, לא אופציונלי.
+2. **לוקחים snapshot לפני שינוי.** macro ששוקעת שורות במקום יכולה להתחיל בהעתקת ה-range המקורי ל-tab "Backup" מוסתר. ביטוח זול.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 8)}
+  caption="לוג ה-Campaigns תופס את A1:G61. המשימה: לכתוב macro שמחיל פורמט מטבע על עמודת Spend ומקפיא את שורת הכותרת."
+/>
+
+קובץ ה-starter `Lesson.gs` מצהיר על `function formatSpendColumn()` עם TODO. שלושה שלבים:
+
+1. מקבלים את הגיליון Campaigns דרך `SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns")`.
+2. מחילים את פורמט המטבע על F2:F61: `sheet.getRange("F2:F61").setNumberFormat("$#,##0.00")`. התבנית משתמשת ב-`#` לספרות אופציונליות, ב-`0` לספרות חובה, בפסיק לקיבוץ אלפים, בנקודה וב-`00` לדיוק של שתי ספרות עשרוניות, וב-`$` כסימן המטבע המילולי.
+3. מקפיאים את שורת הכותרת: `sheet.setFrozenRows(1)`. עכשיו שורה 1 נשארת גלויה בזמן גלילה, חיוני כשהגיליון גדל מעבר למסך אחד.
+
+מריצים את ה-function פעם אחת מהתפריט הנפתח Run בעורך Apps Script. F2:F61 מוצגים כ-`$412.50`, `$285.30` וכן הלאה. שורה 1 נשארת מקובעת כשגוללים.
+
+ב-spreadsheet אמיתי הייתם רושמים את זה כ-macro דרך Extensions → Macros → Manage macros כך שתצוץ תחת Tools → Macros עם קיצור.
+
+## נפוץ בשטח
+
+ה-macro "Format new month" של הצוות היא המקרה הקנוני. בתחילת כל חודש מוסיפים tab חדש עם אותה צורת עמודות של החודש הקודם. ה-macro מחילה:
+
+| עמודה | פורמט |
+|---|---|
+| A (Date) | `yyyy-mm-dd` |
+| F (Spend), G (Revenue) | `$#,##0.00` |
+| עמודת ROI (מחושבת) | `0.00` (מספר עם שתי ספרות עשרוניות) |
+| כל תאי הכותרת | bold, רקע אפור בהיר |
+
+macro אחת, Ctrl+Alt+Shift+1 אחד, אפס לחיצות מעבר לזה. בלי ה-macro ה-buyer היה מבזבז עשר דקות על עיצוב tab חדש כל חודש. עם ה-macro זה שתי שניות.
+
+macros אחרות ב-spreadsheets של הצוות:
+
+- **"Archive month"** מעתיק את ה-tab של ה-Aggregator הנוכחי לגיליון גיבוי עם חותמת תאריך ומנקה את המקור.
+- **"Mark dead campaigns"** מציב את ה-kill switch על כל שורה שבה ה-ROI ירד מתחת ל-0.5 שלושה ימים רצופים.
+- **"Recompute ROI column"** מריץ recalc מכוון של עמודה H (ROI) כשהעמודה נערכה ידנית וצריך recalc טרי.
+
+## מלכודות מקצועיות
+
+- **macros מוקלטות שמשתמשות ב-`getCurrentCell()`.** הן מעצבות את התא שבו המשתמש במקרה נמצא. מחליפים את `spreadsheet.getCurrentCell()` ב-`sheet.getRange("F2:F61")` (או במה שה-macro באמת אמורה לכוון אליו) ברגע שאחרי ההקלטה.
+- **macros שמקבעות בקוד A1 references ששוברים כשמוסיפים עמודות.** macro שמכוונת ל-`F2:F61` תמשיך לכוון ל-F2:F61 גם אחרי שהצוות מוסיף עמודה "Country" בין E ל-F, ועכשיו ה-macro מעצבת את העמודה הלא נכונה. או שמקראים לעמודה לפי שם (מאתרים אותה לפי טקסט הכותרת) או שמשתמשים ב-named ranges שזזים עם הוספות.
+- **macros שלא ניתנות לביטול בצורה נקייה.** כתיבות של Apps Script לא ב-undo stack. macro שדורסת את ה-range הלא נכון משאירה את המשתמש בלי תרופה חוץ מ-File → Version history. מציבים שער על macros הרסניות עם `ui.alert(..., ui.ButtonSet.YES_NO)`.
+- **macros שלוקחות יותר מ-30 שניות.** Simple triggers (כולל macros שמופעלות מתפריט Tools) יש להן soft timeout של 30 שניות בחלק מהקונטקסטים, ו-hard timeout של 6 דקות באחרים. macro שלולפת תא-תא על 50,000 שורות תגיע למגבלה. קריאות batch עם `getValues()` וכתיבות batch עם `setValues()` (הדפוס של שיעור 4) שומרות את רוב ה-macros טוב מתחת לשנייה.
+- **`menuName` ו-`functionName` שמתרחקים זה מזה.** ה-`functionName` ברשומת המניפסט ושם ה-function בפועל ב-JS מותאמים לפי string. שינוי שם של function ב-JS בלי לעדכן את המניפסט משאיר את Tools → Macros מציג את השם הישן אבל מצביע על כלום, לוחצים ולא קורה כלום.
+- **קיצור מקלדת שמתנגש עם קיצור של הדפדפן.** `Ctrl+Alt+Shift+1` ברובו בטוח אבל Sheets לפעמים מציגה קיצורים פנימיים חדשים. אם קיצור של macro מפסיק לעבוד, בודקים ב-Tools → Macros → Manage macros כדי לוודא שהוא עדיין ממופה, ובוחרים צירוף אחר אם צריך.

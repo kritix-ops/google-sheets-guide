@@ -1,0 +1,103 @@
+{
+  "app": {
+    "name": "Sheets Guide",
+    "tagline": "Pick a lesson, do the work in real Sheets, get graded."
+  },
+  "nav": {
+    "curriculum": "Curriculum",
+    "comingSoon": "Coming soon"
+  },
+  "tracks": {
+    "formulas": {
+      "label": "Formulas",
+      "tagline": "References, lookups, arrays, REGEX, LAMBDA, Tables."
+    },
+    "modeling": {
+      "label": "Data modeling",
+      "tagline": "Pivot tables, charts, validation, sharing, forms."
+    },
+    "apps-script": {
+      "label": "Apps Script",
+      "tagline": "Custom functions, triggers, sidebars, external APIs."
+    },
+    "scale": {
+      "label": "Scale & debugging",
+      "tagline": "Million-row sheets, IMPORTRANGE, BigQuery, TimesFM, broken sheets."
+    },
+    "ai-in-sheets": {
+      "label": "AI in Sheets",
+      "tagline": "Gemini, =AI(), Fill with Gemini, calibrated trust."
+    }
+  },
+  "home": {
+    "welcomeWithName": "Welcome, {name}.",
+    "welcome": "Welcome.",
+    "intro": "The curriculum builds from cell references through Apps Script and large-scale debugging. Each lesson provisions a fresh Google Sheet in your Drive. When you finish, the app reads the sheet back and tells you exactly what worked and what didn't.",
+    "startWith": "Start with {title}",
+    "lessonsInProgress": "Lessons authoring in progress."
+  },
+  "account": {
+    "menuLabel": "Account menu",
+    "signedIn": "Signed in",
+    "signOut": "Sign out",
+    "defaultLanguage": "Default language",
+    "defaultLanguageHelp": "When you open the app, start in this language."
+  },
+  "locale": {
+    "switchTo": "Switch to {language}",
+    "english": "English",
+    "hebrew": "Hebrew",
+    "labelEn": "EN",
+    "labelHe": "עב"
+  },
+  "lesson": {
+    "translationPending": "Hebrew translation in progress",
+    "viewInEnglish": "Showing English content for now."
+  },
+  "assignmentPanel": {
+    "heading": "Assignment",
+    "intro": "Work in real Google Sheets. When you finish, click Grade my work.",
+    "startAssignment": "Start assignment",
+    "startFresh": "Start fresh attempt",
+    "openSheet": "Open your sheet",
+    "gradeMyWork": "Grade my work",
+    "readingSheet": "Reading your sheet",
+    "feedback": "Feedback",
+    "passed": "Passed",
+    "notYet": "Not yet",
+    "gradedBy": "graded by {by}",
+    "confirmFreshStart": "You already have an attempt in progress. Start fresh? (Your current sheet stays in Drive.)",
+    "sheetProvisioned": "Sheet provisioned. Opening in a new tab.",
+    "sidebarFailed": "Sheet ready (sidebar provisioning failed: {error})",
+    "scoreSeeFeedback": "{score} / 100. See feedback below.",
+    "passedScore": "Passed: {score} / 100",
+    "couldNotStart": "Could not start: {error}",
+    "couldNotGrade": "Could not grade: {error}"
+  },
+  "sidebar": {
+    "openLesson": "Open the full lesson",
+    "tasks": "tasks",
+    "showAnswer": "Show answer",
+    "hideAnswer": "Hide answer",
+    "checkMyWork": "Check my work",
+    "checkAgain": "Check again",
+    "checking": "Checking...",
+    "checkedAgo": "Checked {ago}",
+    "justNow": "just now",
+    "secondsAgo": "{n}s ago",
+    "minutesAgo": "{n}m ago",
+    "hoursAgo": "{n}h ago",
+    "missingAttemptTitle": "Missing attempt id.",
+    "missingAttemptBody": "Open this sidebar from the assignment Start flow."
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "signIn": {
+    "intro": "Learn Google Sheets from novice to expert. Real assignments, instant grading on your actual sheets.",
+    "continueWithGoogle": "Continue with Google",
+    "scopeNote": "You will be asked to grant access to Google Sheets, Drive, and Apps Script. OAuth tokens stay on this machine."
+  }
+}

@@ -1,0 +1,110 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Sheet linking: cross-tab navigation and HYPERLINK
+
+A real workbook is a web of related sheets. The dashboard shows a cell that says `$1,245.60`, and somewhere three tabs over there is the row that earned it. Without explicit links, the path from "this looks weird" to "let me look at the source row" is "find the right tab, scroll, hope you remembered the row number". Linking turns that into one click.
+
+The team uses linking everywhere. The brief tracker has a `Folder` column that takes you straight to the Drive folder for that campaign. The QA tab has a "broken cells to review" list where every entry is a clickable jump to the offending cell. The performance dashboard has a `Drill in` column that lands you on the underlying row. Each of these is the same primitive, a clickable cell, but stitched together they make the workbook feel less like a stack of grids and more like an app.
+
+## Two link surfaces in Sheets
+
+Sheets gives you two ways to put a link on a cell:
+
+1. **Insert → Link** (or `Ctrl+K`). This opens an overlay where you paste a URL and pick a label. The link lives as rich-text formatting on the cell's display value; the underlying value stays whatever you typed.
+2. **The `HYPERLINK()` formula.** A computed link. The formula evaluates to a clickable cell whose label and URL can both be derived from other cells.
+
+When to use each:
+
+| Want this | Use |
+|---|---|
+| One-off link from a static cell ("see the brief") | Insert → Link |
+| A link in every row of a column, generated from row data | `HYPERLINK` formula |
+| A link that should only appear when a condition is met | `HYPERLINK` inside `IF` |
+| A link inside `ARRAYFORMULA` over a whole column | `HYPERLINK` formula |
+
+If you find yourself manually pasting Insert → Link into row after row, stop and switch to `HYPERLINK`. That is the signal.
+
+## The HYPERLINK formula
+
+The signature is short:
+
+```
+=HYPERLINK(url, [label])
+```
+
+Both arguments take cell references and computed strings, not just literals:
+
+```
+=HYPERLINK("https://docs.google.com/spreadsheets/d/abc123", "Source spreadsheet")
+=HYPERLINK(B2, C2)                                  url and label both come from cells
+=HYPERLINK("https://example.com/orders/"&A2, A2)    URL built from a row key
+```
+
+The label is optional. If you skip it, Sheets shows the URL itself, which is fine for one-off references and ugly for anything used at scale.
+
+## Internal links: the `#gid=` anchor
+
+To link inside the current workbook, Sheets uses the URL fragment `#gid=SHEET_ID&range=A1`. The `gid` is a per-tab identifier that you can read off the active URL. Open the target tab and the URL ends with `...#gid=2089475112` or similar. Drop that into a `HYPERLINK`:
+
+```
+=HYPERLINK("#gid=2089475112&range=B47", "Jump to row 47 on Raw")
+=HYPERLINK("#gid=0&range=A1", "Back to top")
+```
+
+The first tab in any new spreadsheet has `gid=0`. The `range=` part can be a single cell or a multi-cell range; Sheets scrolls to it and selects it.
+
+The team uses this pattern in two places. The QA tab generates a clickable list of cells to review (the formula concatenates `#gid=` plus the offending cell address). The dashboard's `Drill in` column on every summary row jumps to the matching row on the raw tab.
+
+## Cross-workbook links
+
+A full URL with `#gid=` works across spreadsheets. The link opens the target sheet, lands on the right tab, and selects the right cell:
+
+```
+=HYPERLINK(
+  "https://docs.google.com/spreadsheets/d/abc123/edit#gid=0&range=A1",
+  "Source spreadsheet"
+)
+```
+
+This is the cleanest way to bind a dashboard cell to "the workbook this came from". When the source workbook moves to a new owner, you update one URL in one place and every link inherits the fix.
+
+## Conditional links
+
+The pattern that earns its keep: a link that only appears when a condition is met.
+
+```
+=IF(G2>F2, HYPERLINK("https://example.com/details/"&A2, "Review winning row"), "")
+```
+
+Losing rows show blank. Winning rows show a clickable label. This is the right shape for "show me only what I need to act on" columns. Think a "review" column that lights up for rows that need attention, an "approve" column that lights up for rows past their deadline. Without the `IF` wrapper you would link every row, including the ones that are fine, and the column becomes noise.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="CAMPAIGNS_LARGE has 60 rows in A2:G61. Three link patterns sit in column J on the same tab."
+/>
+
+Click **Start lesson** to provision a fresh copy of the campaign table. The data sits in `A1:G61`, with link-block labels seeded in column I. Fill in column J:
+
+- **`J1`**: external `HYPERLINK` to a Google Sheet, any URL on `docs.google.com` with a display label.
+- **`J2`**: internal cross-tab link via `HYPERLINK("#gid=...&range=...", "...")`.
+- **`J3`**: conditional link, `IF(G2>F2, HYPERLINK(...), "")`, so only profitable rows render the link.
+
+The grader checks each formula's shape (which functions you used, which anchor form, which comparison). It does not check the rendered link target. `HYPERLINK` evaluates to the label, not the URL, so checking the cell value would not tell us whether the link works.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **The dashboard's drill-down column.** Every roll-up row on the daily dashboard has a `HYPERLINK` to the source row on the raw campaigns tab, built from the row's date and buyer. Click a number, see the row that produced it.
+- **The brief tracker's folder column.** Each campaign brief has a Drive folder. The folder column is `=HYPERLINK(folder_url, "Open folder")`, generated from a folder-ID column the team maintains by hand.
+- **The QA tab's "broken cells" list.** A runtime check tags rows that fail validation and writes a row per failure with a `HYPERLINK("#gid=...&range="&cell_addr, "Go fix")` so the on-call buyer can step through every problem cell with one click each.
+
+## Pro pitfalls
+
+- **`HYPERLINK` is not clickable from the formula bar.** You click the rendered cell, not the formula text. Selecting the cell to edit it without clicking the link takes a brief moment of muscle memory.
+- **Renaming a tab does not break `#gid=` links, but renaming the formula's tab-name reference does.** If you ever wrote `'Raw data'!A1` style links and then renamed the tab to `Raw`, everything broke. The `#gid=NUMBER` form is rename-proof because the `gid` is permanent for the life of the tab. Prefer it for any link you intend to keep.
+- **Insert → Link survives copy-paste only with paste-format.** If you copy a cell with a rich-text link and `Ctrl+Shift+V` (paste values), the link is gone. The formula form survives both paste modes.
+- **`ARRAYFORMULA(HYPERLINK(...))` works, but with a quirk.** Each row gets the formula, but in some Sheets versions only the top row is reliably clickable; the rows below render the label correctly but click as if they were plain text. The safe pattern is one `HYPERLINK` per row (filled down), not one `ARRAYFORMULA` over the whole column.
+- **Imported tabs lose their `gid`.** When `IMPORTRANGE` pulls data from another spreadsheet, the imported range has no `gid` of its own. It inherits the importing tab's gid. So `#gid=` links built on the source spreadsheet's gids will not work inside the importing one. Build the links in the source workbook, then surface them via `IMPORTRANGE` if you need to.

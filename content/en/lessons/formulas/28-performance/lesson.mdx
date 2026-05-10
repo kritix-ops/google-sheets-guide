@@ -1,0 +1,155 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# Formula performance: making slow workbooks fast
+
+A 50-row practice sheet is fast no matter what. A real adtech workbook with 50,000 rows of campaign data, 30 dashboards, and a chain of IMPORTRANGE pulls is a different beast: and the difference between "feels instant" and "30 seconds to recalc" is almost always a small number of bad patterns.
+
+This is the closing lesson of the formulas track. It's the synthesis: the patterns from earlier lessons that scale, the patterns that don't, and a checklist for diagnosing a slow workbook in the wild.
+
+## The recalculation model
+
+Sheets recalculates **dependent** cells when **referenced** cells change. The cost of a recalc is roughly proportional to the total number of formulas times the average cost per formula. Two ways to win:
+
+1. **Reduce the formula count.** One ARRAYFORMULA covering 1,000 rows is one formula, not 1,000.
+2. **Reduce the per-formula cost.** Cheaper functions, smaller ranges, no volatility.
+
+Both matter. The biggest wins usually come from #1: collapsing 1,000 fill-down formulas into one array formula or one MAP/REDUCE call.
+
+## The volatile functions list
+
+Volatile functions recalculate on **every** change in the workbook, not just changes to their inputs. Use sparingly:
+
+| Function | Volatile? | Why |
+|---|---|---|
+| `NOW`, `TODAY` | Yes | Time-dependent |
+| `RAND`, `RANDBETWEEN`, `RANDARRAY` | Yes | Each call should be different |
+| `INDIRECT` | Yes | Reference is a string, can't be statically tracked |
+| `OFFSET` | Yes | Position is computed |
+| `IMPORTRANGE` | Cached, but expensive | Network round-trip |
+| `IMPORT*` (the rest) | Cached, but expensive | Network round-trip |
+
+**Strategies:**
+
+- One `INDIRECT` per dashboard, not per cell. The volatility cost is per call.
+- Replace `OFFSET` with `INDEX` where possible: INDEX is non-volatile.
+- Wrap IMPORTRANGE results in LET (lesson 20) so the import resolves once per formula, not once per reference.
+- Don't put `=NOW()` in a column of 10,000 rows. Put it in one cell, reference that cell elsewhere.
+
+## Full-column references: when they're free, when they're not
+
+`SUM(E:E)` looks beautifully clean. In a sheet with 12 rows of data, it's identical to `SUM(E2:E13)`. In a sheet with 5 million implicit cells (Sheets defaults to 26,000+ rows even on a "small" sheet), `SUM(E:E)` walks the entire column.
+
+Modern Sheets is smart enough to skip empty cells in many cases: but not always, and not consistently. Two failure modes:
+
+1. **One stray value far down the column** (a stray "1" in row 9,000 from a copy-paste accident) makes Sheets walk that far.
+2. **Volatile or import-based formulas with full-column refs** rebuild the full column on every recalc.
+
+**Rules:**
+
+- For sheets with stable size, use bounded ranges: `SUM(E2:E13)`, not `SUM(E:E)`.
+- For sheets that grow, use **tables** (lesson 17): `SUM(Campaigns[Spend])`: auto-extends, no full-column scan.
+- If you must use `E:E`, use it once at the top of a section in a LET binding, and reference the bound name from there.
+
+## ARRAYFORMULA / MAP: one formula instead of N
+
+A column of `=B2*1.1`, `=B3*1.1`, `=B4*1.1`, ... down to row 1000 is 1,000 formulas. Replace with:
+
+```
+=ARRAYFORMULA(B2:B1000 * 1.1)
+```
+
+or
+
+```
+=MAP(B2:B1000, LAMBDA(x, x * 1.1))
+```
+
+Either way, one formula. On recalc, Sheets evaluates one expression, not 1,000.
+
+**Diagnostic:** if a column has the same formula filled down 500+ rows, replace with one array formula. The savings are large and the formula is more readable.
+
+## QUERY vs chains of FILTER + SORT + LOOKUP
+
+A pivot-style report often grows organically: a FILTER to scope the data, a SORT, a few VLOOKUPs to enrich, an aggregation at the end. Each stage materializes a 2D array; each subsequent stage walks that array.
+
+A single QUERY (lessons 12-13) collapses all those stages into one expression evaluated once:
+
+```
+=QUERY(
+  Campaigns,
+  "SELECT Buyer, SUM(Revenue) WHERE Spend > 200 GROUP BY Buyer ORDER BY SUM(Revenue) DESC LIMIT 10",
+  1
+)
+```
+
+One pass, one result. Replaces 4-5 dependent cells of intermediate work.
+
+## The "compute once, reference many" pattern
+
+Two formulas referencing the same expensive subcalculation cause Sheets to compute it twice (sometimes: Sheets has a query optimizer, but it's not always perfect, especially with IMPORTRANGE and array operations). Use LET (lesson 20) to bind the subcalculation once:
+
+```
+=LET(
+  data, IMPORTRANGE("...", "Campaigns!A:F"),
+  total_spend, SUM(INDEX(data, , 5)),
+  total_revenue, SUM(INDEX(data, , 6)),
+  (total_revenue - total_spend) / total_spend
+)
+```
+
+The IMPORTRANGE happens once. Without LET, you'd run it twice (one per SUM).
+
+## Conditional formatting overhead
+
+Conditional formatting rules apply to ranges. A rule on `A1:Z10000` evaluates 260,000 cells on every change. The team has had dashboards bog down because someone applied a "highlight if > average" rule to the whole sheet instead of the relevant rows.
+
+**Rules:**
+
+- Scope conditional formatting to the smallest range possible: `A2:F100`, not `A:F`.
+- Prefer **table-based conditional formatting** (lesson 17): auto-extends, doesn't run on empty cells.
+- Avoid stacking many rules on the same range. Each rule re-evaluates per cell change.
+
+## The diagnostic checklist
+
+Workbook feels slow? Walk this list:
+
+1. **Open File → Spreadsheet settings → Calculation → Recalculation: On change.** Confirm not stuck on something weird.
+2. **Count the IMPORTRANGEs.** More than 5 in one workbook means you're spending most of your time on network. Consolidate to one IMPORTRANGE per source, with a QUERY/LET wrapper.
+3. **Find the largest data tab.** Use Ctrl+End to jump to the last filled cell. If it's far below where data ends (you scrolled to row 50,000 by accident), delete the empty rows.
+4. **Search for `INDIRECT`.** Each one is volatile. Replace with named ranges or INDEX where possible.
+5. **Search for `OFFSET`.** Same story; replace with INDEX.
+6. **Search for full-column references** (`A:A`, `B:B`). Each is a candidate for tables or bounded ranges.
+7. **Look at filled-down formula columns.** A column with the same formula in 500 rows is a candidate for ARRAYFORMULA.
+8. **Check the chart count.** Charts re-render on data changes. A dashboard with 30 charts on the same source is heavy; consider sparklines (lesson 26) or fewer larger charts.
+9. **Pivot table count.** Each pivot is its own engine. 10 pivots on the same data are 10 recalculations of the same source.
+10. **Conditional formatting rules.** Open Format → Conditional formatting and check the ranges. Wide ranges get expensive fast.
+
+## Used in the wild
+
+- **The team's main rollup dashboard** went from 8-second recalcs to 1-second by collapsing 50 IMPORTRANGE cells into 5 IMPORTRANGE-wrapped-in-QUERY cells, plus using LET to share the imports across formulas.
+- **A buyer scorecard** with 200 fill-down formulas became one ARRAYFORMULA. Recalc dropped from 2 seconds to imperceptible.
+- **Conditional formatting on `A:Z`** in a 10,000-row dashboard caused 1-second lag on every keystroke. Scoped to `A2:Z500` (the actual data range) and the lag disappeared.
+- **A QUERY chained through 4 intermediate cells** for filter → sort → top-10 was rewritten as one QUERY string. One expression, no intermediates, half the time.
+
+## Pro pitfalls
+
+- **Premature optimization.** A 50-row personal sheet doesn't need ARRAYFORMULA. The cost of writing a more complex formula is worth it only when the data is large or the workbook will be heavily used. Optimize when you measure a problem, not before.
+- **"Just rebuild it" is sometimes the right answer.** A workbook that grew over a year of accreted patches is sometimes faster to rebuild from scratch with the right structure than to incrementally fix.
+- **Performance fixes that change semantics.** Switching from VLOOKUP to INDEX/MATCH is a refactor; check that the results match before declaring victory. Wrong-but-fast is worse than slow-but-right.
+- **Sheets has soft limits.** ~10 million cells per workbook, ~50,000 IMPORTRANGE cells across all sheets, complex calculation chains can hit "calculation limit reached" errors. If you're near these limits, the answer isn't a faster formula: it's BigQuery (Track 4).
+- **Don't trust apparent speed in an empty sheet.** A pattern that's fine at 100 rows can be quadratic at 10,000. Test at the size you'll actually use.
+
+## End of Track 1
+
+Track 1 covered the formulas a senior media buyer actually uses every day: references and grids, lookups and conditionals, aggregations and text manipulation, dates and arrays, QUERY and FILTER, regex and tables, LAMBDA and helpers, statistical and financial, cross-sheet plumbing and IMPORTRANGE, and now performance.
+
+The next tracks build on this:
+
+- **Track 2: Data modeling.** Pivot tables, charts, validation, sharing, forms.
+- **Track 3: Apps Script.** Custom functions, triggers, sidebars, external APIs.
+- **Track 4: Scale & debugging.** Million-row sheets, IMPORTRANGE patterns, BigQuery, TimesFM, broken sheets.
+- **Track 5: AI in Sheets.** Gemini, =AI(), Fill with Gemini, calibrated trust.
+
+## Now do it for real
+
+Click **Start lesson** to provision a slow-by-design dashboard. You'll find three performance problems (a volatile function used 100x, a full-column reference, and a fill-down formula that should be ARRAYFORMULA'd) and replace them with the correct patterns. The grader checks that the rewrites give the same results with measurably less work.

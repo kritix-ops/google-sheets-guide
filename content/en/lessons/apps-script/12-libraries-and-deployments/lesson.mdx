@@ -1,0 +1,160 @@
+# Apps Script libraries and deployments: head vs versioned, sharing across projects
+
+Every Apps Script project so far has been self-contained. The custom function lives in the bound script, the menu lives in the bound script, the trigger lives in the bound script. That's fine for one workbook. It falls apart the moment three workbooks each have their own copy of `normalizeBuyer` and one of them has a stale version. **Libraries** are how Apps Script lets you write a piece of code once and import it everywhere. Combined with **deployments** (the versioning surface), they're how the team keeps a single source of truth for shared utilities across a dozen workbooks.
+
+## What a library actually is
+
+A library is a standalone Apps Script project: *not* bound to any spreadsheet: whose functions other projects can call. The project hosting the functions is identified by a **scriptId** (the long string in its URL). Any other Apps Script project can declare a dependency on that scriptId in its manifest, and from then on the library's functions become accessible under a chosen alias.
+
+Concretely, on the library side:
+
+```js
+// In the standalone "SheetsLib" project: scriptId "1abc..."
+function normalizeBuyer(name) {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function countryToRegion(iso2) {
+  const map = { US: "NA", CA: "NA", DE: "EU", FR: "EU", BR: "LATAM" /* ... */ };
+  return map[iso2.toUpperCase()] ?? "OTHER";
+}
+
+function roiBucket(roi) {
+  if (roi < 0.7) return "loss";
+  if (roi < 1.1) return "flat";
+  if (roi < 2.0) return "profitable";
+  return "hero";
+}
+```
+
+That project gets published as a deployment (more on that below), and the team's other workbooks import it.
+
+## Importing a library
+
+The library shows up in two places: the project's manifest and the source code that uses it. The manifest declares the dependency:
+
+```json
+{
+  "timeZone": "America/New_York",
+  "dependencies": {
+    "libraries": [{
+      "userSymbol": "Shared",
+      "libraryId": "1abc...placeholder",
+      "version": "3",
+      "developmentMode": false
+    }]
+  }
+}
+```
+
+The four fields:
+
+| Field | What it does |
+|---|---|
+| `userSymbol` | The local alias you'll use to call functions. `"Shared"` means `Shared.normalizeBuyer(...)` in your source. Has to be a valid JS identifier. |
+| `libraryId` | The scriptId of the library project (the long string from its URL). |
+| `version` | A pinned version number (`"1"`, `"2"`, `"3"`). Apps Script bumps this every time the library author publishes a new deployment. |
+| `developmentMode` | When `true`, every call hits the library's HEAD (latest unsaved code) instead of the pinned version. Useful while developing the library; dangerous in production. |
+
+Source uses the symbol:
+
+```js
+function tagRows() {
+  const sheet = SpreadsheetApp.getActive().getSheetByName("Campaigns");
+  const rows = sheet.getRange("B2:E61").getValues();
+  const out = rows.map((row) => [
+    Shared.normalizeBuyer(row[0]),       // calls into the library
+    row[1],
+    row[2],
+    Shared.countryToRegion(row[3]),       // calls into the library
+  ]);
+  sheet.getRange("F2:I61").setValues(out);
+}
+```
+
+Apps Script resolves `Shared.*` at execution time by fetching the library's published version `"3"` (per the manifest) and calling into it. The first time, the consumer is prompted for any OAuth scopes the library needs: `Shared.normalizeBuyer` is pure JS so it doesn't add any, but a library function that emails or hits Drive would expand the consumer's scope list at install time.
+
+## HEAD vs versioned (the central tradeoff)
+
+Apps Script libraries have two ways to resolve to actual code:
+
+- **HEAD** (`developmentMode: true`): the consumer always runs the library's current unsaved code. Convenient while you're iterating, because the consumer picks up your edits as soon as you save the library.
+- **Versioned** (`developmentMode: false`, `version: "N"`): the consumer runs the snapshot the library author published as version N. The library author can keep editing freely; nothing the consumer runs changes until the consumer bumps `version` to `"N+1"`.
+
+The team's rule: every team workbook pins a version. Every shared library has a deployment for every version that's still in use. Bumping a library's version is a deliberate action: you publish a new deployment, you decide which workbooks bump first, and you can roll back by switching a workbook's `version` back.
+
+`developmentMode: true` exists for the library author's testing. It is **never the right setting in a production consumer.** A workbook on `developmentMode: true` re-fetches the library's HEAD on every call, which slows execution significantly, and the library author can break every consumer with one bad save.
+
+## Deployments: publishing a snapshot
+
+A deployment is how you mint a version. From the library's Apps Script editor:
+
+1. Deploy → New deployment.
+2. Type: **Library**. (Web app and Add-on deployments are a different category: lesson 13 covers web app deployments.)
+3. Description: write what changed since the last version ("Added `roiBucket`. Renamed `normalize` → `normalizeBuyer`."). The description shows up in the version dropdown for consumers.
+4. Click Deploy. Apps Script assigns an integer version and locks the current code as that version's content.
+
+Consumers updating their manifest's `version` to the new number pick up the new code. Consumers on older versions keep running the older code unchanged. Both versions exist as long as the library project exists.
+
+## Finding a library's scriptId
+
+The library's URL in the Apps Script editor looks like `script.google.com/u/0/home/projects/1abc.../edit`. The middle segment is the scriptId. Library consumers paste that scriptId into their manifest's `libraryId` field, or use the editor's Resources → Libraries dialog (which writes the same JSON for you).
+
+## Sharing the library
+
+A consumer needs at least "Viewer" access to the library's Apps Script project to import it. The library author shares the project the same way they'd share any Drive file. For team-wide libraries, the standard pattern is:
+
+1. The library project owner shares it with the team's Google Group (`adtech@flexelent.com` or similar).
+2. Anyone in the group can add the library to their workbook.
+3. Owners and editors can deploy new versions; viewers can only consume.
+
+## Now do it for real
+
+The starter file `Lesson.gs` declares `callSharedHelper()` as a stub. You have two tasks:
+
+1. **Edit the appsscript manifest** to add a library dependency. The shape:
+   ```json
+   {
+     "timeZone": "America/New_York",
+     "dependencies": {
+       "libraries": [{
+         "userSymbol": "Shared",
+         "libraryId": "1abc...placeholder",
+         "version": "1",
+         "developmentMode": false
+       }]
+     }
+   }
+   ```
+   The `libraryId` is a placeholder: we're not actually wiring up a real library for this lesson. The grader checks the *shape* and that `userSymbol` is a real name (not "placeholder" or "YOUR_SYMBOL").
+
+2. **Replace the body of `callSharedHelper`** to call a function on your chosen `userSymbol`:
+   ```js
+   function callSharedHelper() {
+     return Shared.normalizeBuyer("Yoav Cohen");
+   }
+   ```
+   Whatever you typed in the manifest's `userSymbol` field has to match the prefix in your source. If you used `"Utils"` in the manifest, the body has to call `Utils.something(...)`.
+
+The grader cross-references the two files. Edit either one without the other and the rules will tell you exactly which side is wrong.
+
+## Used in the wild
+
+The team's flagship example is **`SheetsLib`**: a standalone Apps Script project owned by the head buyer's Google account, shared with the team group. It exports:
+
+- `normalizeBuyer(name)`: strips whitespace and unifies casing.
+- `normalizeVertical(name)`: ensures the `" PR"` suffix, trims, fixes casing.
+- `countryToRegion(iso2)`: `"DE" → "EU"`, `"US" → "NA"`, etc. A 200-line table living in one place.
+- `roiBucket(roi)`: `"loss" | "flat" | "profitable" | "hero"`.
+- `parseAdtechCampaignName(name)`: splits the team's structured campaign names into their semantic parts.
+
+Every team workbook: the Aggregator, the per-platform raws, the dashboards: imports `SheetsLib` under `userSymbol: "Shared"`. When the country list needs to grow (a new region launches), the head buyer edits `countryToRegion`, ships a new version (`"4" → "5"`), and pings the team. Each workbook owner bumps their `version` field at their own pace. By Friday everyone is on version 5; the rollout was orderly, every consumer logged the bump, and rolling back if something breaks is one number change in the manifest.
+
+## Pro pitfalls
+
+- **Editing the library doesn't update the consumers until you ship a new deployment.** Apps Script libraries are NOT live by default: the version pin freezes the code. A change to `countryToRegion` in the library editor that isn't deployed is invisible to every consumer on a pinned version. Deploy → New deployment, every time.
+- **`developmentMode: true` in production.** It works at first, then it stops. Calls take noticeably longer (the library fetches HEAD every time), and the moment the library author saves a half-finished refactor, every consumer breaks. Use HEAD only in the library author's own test workbook.
+- **Circular library dependencies.** Project A imports B, B imports A. Apps Script will let you save both manifests but the call will fail at runtime with a cryptic resolution error. Keep the dependency graph a tree.
+- **Library scope expansion.** Importing a library that uses `DriveApp` adds the Drive scope to *your* project's authorization. Consumers see this on the consent screen as "this script wants Drive access" even if their own code doesn't touch Drive. Audit your library's scopes before sharing widely: a library that only does string manipulation should not be requesting Calendar or Gmail scopes.
+- **A breaking change in the library can break every consumer at once.** If everyone runs HEAD or the library author force-updates every consumer to the new version, one rename of an exported function takes down every team workbook simultaneously. The discipline is: ship the new function under the new name, keep the old name as a thin alias for one version, drop the alias in version N+2. This is the same discipline a library author practices in any package ecosystem.
+- **The `userSymbol` is the consumer's choice, not the library author's.** Two workbooks can import the same library under different symbols (`Shared` vs `Utils`). That's allowed but it makes shared snippets between workbooks confusing: pick one symbol as a team and use it everywhere.

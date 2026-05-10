@@ -1,0 +1,126 @@
+import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
+
+# Advanced lookups: דו-כיווני, דינמי, ומעבר ל-VLOOKUP
+
+שיעור 4 כיסה את VLOOKUP, INDEX/MATCH, ו-XLOOKUP למקרה הרגיל של "מצא את הערך בטבלה". השיעור הזה מכסה את הוריאציות המבולגנות יותר מהעולם האמיתי: lookups דו-כיווניים (מצא את התא בשורה X ובעמודה Y), בחירת עמודה דינמית (עמודת ה-lookup משתנה לפי קלט מהמשתמש), שאילתות בסגנון Pivot של "תן לי את התא ב-buyer זה × vertical זה", והתאמה משוערת או לפי טווח.
+
+## Lookups דו-כיווניים: INDEX(MATCH, MATCH)
+
+דוח בסגנון Pivot עם media buyers בשורות ו-verticals בעמודות. כדי למצוא את ה-"spend של Yoav Cohen על Used Cars PR" צריך לעשות lookup *לשני* הצירים, גם השורה (לפי שם ה-media buyer) וגם העמודה (לפי שם ה-vertical), ולהחזיר את התא בנקודת החיתוך שלהם.
+
+```
+=INDEX($B$2:$F$10, MATCH("Yoav Cohen", $A$2:$A$10, 0), MATCH("Used Cars PR", $B$1:$F$1, 0))
+```
+
+שלושה חלקים:
+
+1. מערך הנתונים: `$B$2:$F$10` (גוף ה-Pivot, בלי כותרות).
+2. אינדקס השורה: `MATCH("Yoav Cohen", $A$2:$A$10, 0)`, מאתר את השורה של Yoav בעמודת ה-media buyers.
+3. אינדקס העמודה: `MATCH("Used Cars PR", $B$1:$F$1, 0)`, מאתר את העמודה של ה-vertical בשורת הכותרת.
+
+INDEX מחזיר את התא בנקודת החיתוך. ה-`0` בכל MATCH אומר התאמה מדויקת (שיעור 4 כיסה את זה).
+
+התבנית הזו היא סוס העבודה של כל דוח השוואת-Pivot-מול-Pivot שהצוות בונה.
+
+## XLOOKUP עם טריק של מערך-החזרה
+
+XLOOKUP יכול להחזיר שורה או עמודה שלמה, לא רק תא בודד. שילוב של שני XLOOKUPs נותן lookup דו-כיווני:
+
+```
+=XLOOKUP("Used Cars PR", $B$1:$F$1, XLOOKUP("Yoav Cohen", $A$2:$A$10, $B$2:$F$10))
+```
+
+ה-XLOOKUP הפנימי מאתר את השורה של Yoav ומחזיר את כל השורה. ה-XLOOKUP החיצוני מחפש את "Used Cars PR" בכותרות העמודות ובוחר את הערך מתוך השורה הזו.
+
+זהה מבחינה פונקציונלית ל-INDEX/MATCH. קצת יותר קריא כי כל שלב "עושה lookup" של משהו, במקום לחשב מיקומים ולעשות אינדוקס.
+
+<TryIt
+  data={[
+    ["Buyer / Vertical", "Used Cars PR", "Solar Panels PR", "Pet Insurance PR"],
+    ["Yoav Cohen", 660, 0, 0],
+    ["Sarah Levi", 0, 0, 0],
+    ["David Mizrahi", 0, 1124.6, 0],
+    ["Maya Goldberg", 0, 0, 245.8],
+  ]}
+  inputCell="F1"
+  expectedFormula='=INDEX(B2:D5,MATCH("David Mizrahi",A2:A5,0),MATCH("Solar Panels PR",B1:D1,0))'
+  task={<>חפשו את ה-revenue של David Mizrahi ב-Solar Panels PR מתוך ה-Pivot. השתמשו ב-INDEX עם שני MATCH-ים (אחד לשורה, אחד לעמודה).</>}
+  hint={<>INDEX(array, row_num, col_num). מאתרים את David בעמודה A, ואת Solar Panels PR בשורה 1.</>}
+  answer={<>התוצאה היא 1124.6. INDEX/MATCH/MATCH הוא ה-lookup הדו-כיווני הקנוני. אותו אפקט עם XLOOKUP-של-XLOOKUP קצר בתו אחד וטיפה יותר קריא, שניהם בסדר. דבקו במה שהצוות שלכם משתמש בו באופן עקבי.</>}
+/>
+
+## בחירת עמודה דינמית: VLOOKUP + MATCH
+
+מקרה אדטק נפוץ: dropdown מאפשר למשתמש לבחור איזו מטריקה להציג (Spend, Revenue, ROI). VLOOKUP זקוק לאינדקס עמודה, אבל האינדקס משתנה לפי ה-dropdown.
+
+```
+=VLOOKUP($A2, $A$2:$F$13, MATCH($G$1, $A$1:$F$1, 0), FALSE)
+```
+
+הארגומנט השלישי (`MATCH($G$1, ...)`) מחשב את אינדקס העמודה דינמית. אם `G1` מכיל "Revenue", MATCH מחזיר 6, ו-VLOOKUP מחזיר את עמודת ה-Revenue. אם `G1` משתנה ל-"Spend", MATCH מחזיר 5, ו-VLOOKUP מחזיר אוטומטית את ה-Spend.
+
+בלי הטריק הזה, היו כותבים `=IF(G1="Spend", VLOOKUP(...,5,...), IF(G1="Revenue", VLOOKUP(...,6,...), ...))`, IF מקונן שתופח ככל שמתווספות עמודות. עם MATCH, נוסחה אחת מטפלת בכל המטריקות.
+
+## התאמה משוערת והתאמת טווח
+
+XLOOKUP ו-MATCH תומכים בארגומנט רביעי של match mode. השימושים הגדולים:
+
+**Lookup של דרגה מול טבלת טווח.** מגדירים ספים של דרגות בטבלה קטנה:
+
+| Min Spend | Tier |
+|---|---|
+| 0 | T3 |
+| 1000 | T2 |
+| 5000 | T1 |
+| 25000 | Whale |
+
+כדי לסווג media buyer עם spend של $3,400:
+
+```
+=XLOOKUP(3400, A2:A5, B2:B5, "n/a", -1)
+```
+
+ה-match mode `-1` הוא "התאמה מדויקת או הפריט הקטן הבא", מאתר 1000 (T2). עם `1` היה מאתר את הגדול הבא, עם `2` עושה wildcard matching (מקרה שימוש נפרד).
+
+מקבילה ב-VLOOKUP: מעבירים `TRUE` (או משמיטים) כארגומנט הרביעי ומוודאים שעמודת ה-lookup ממוינת בסדר עולה. **VLOOKUP עם `TRUE` דורש נתונים ממוינים, XLOOKUP עם `-1` לא.** זו אחת הסיבות ש-XLOOKUP הוא עכשיו ההמלצה ברירת המחדל.
+
+## Lookups מול IMPORTRANGE
+
+IMPORTRANGE מחזיר טווח דו-ממדי מגיליון אחר. אפשר לעטוף אותו בכל lookup:
+
+```
+=XLOOKUP(A2, IMPORTRANGE("...", "campaigns!B:B"), IMPORTRANGE("...", "campaigns!F:F"), "Not found")
+```
+
+שני IMPORTRANGE-ים, שניהם יקרים. **עוטפים אותם ב-LET יחיד** (שיעור 20) כדי לחשב את הייבוא פעם אחת:
+
+```
+=LET(
+  imported, IMPORTRANGE("...", "campaigns!A:F"),
+  XLOOKUP(A2, INDEX(imported, , 2), INDEX(imported, , 6), "Not found")
+)
+```
+
+ייבוא אחד, נמצא בשימוש פעמיים דרך INDEX לפריסת עמודות. חצי מסיבובי הרשת.
+
+## נפוץ בשטח
+
+- **Drill-downs ב-Pivot.** Pivots של "Buyers × Verticals → revenue" נמצאים בכל מקום, INDEX/MATCH/MATCH או XLOOKUP-של-XLOOKUP בוחרים כל תא מכל Pivot.
+- **Dashboards מונעי dropdown.** נוסחת lookup יחידה שעמודת ההחזרה שלה נבחרת על ידי dropdown, משנים את ה-dropdown, משנים את המטריקה, בלי עריכה של נוסחאות.
+- **סיווגי דרגות.** Spend → דרגה, ROI → תווית פסק דין, ימים-מאז-השקה → cohort. Lookups במצב טווח מול טבלאות ספים קטנות.
+- **Lookups בין-גיליונות לפי "as-of".** XLOOKUP אל גיליון של תקופות כדי למשוך את שער ההמרה האחרון, את התקציב האחרון, את היעד האחרון. לרוב משולב עם מיון של גיליון התקופות בסדר יורד ושימוש ב-`1` בשביל "ההתאמה הראשונה" כדי לקבל את העדכני ביותר.
+- **התאמות דו-כיווניות.** השוואה בין "מה שעקבנו אחריו" לבין "מה שהפלטפורמה דיווחה". שני Pivots, INDEX/MATCH/MATCH על כל אחד, חיסור.
+
+## מלכודות מקצועיות
+
+- **לנעול את טווחי ה-lookup עם `$`.** `INDEX($B$2:$F$10, ...)` ממלא נקי על פני שורות ועמודות, `INDEX(B2:F10, ...)` זז כשממלאים, ושובר את ה-lookup.
+- **MATCH מחזיר `#N/A` אם לא נמצא.** עוטפים ב-`IFNA(MATCH(...), "Unknown")` או ב-`IFERROR` (שיעור 9), ובודקים שאכן רוצים fallback ולא כשל שקט.
+- **`MATCH(value, range, 0)` הוא התאמה מדויקת.** שכחה של הארגומנט השלישי גוררת ברירת מחדל של `1` (משוערת), שמחזירה בשקט את השורה הלא נכונה כשהנתונים לא ממוינים.
+- **VLOOKUP דורש שעמודת ה-lookup תהיה העמודה הראשונה של הטווח.** ל-XLOOKUP ול-INDEX/MATCH אין הגבלה כזו. אם מוצאים את עצמכם מסדרים מחדש עמודות כדי שה-VLOOKUP יעבוד, עוברים ל-XLOOKUP.
+- **`if_not_found` של XLOOKUP שותק על אי התאמת טיפוסים.** lookup של מספר מול עמודה של מספרים בפורמט טקסט ("0042" מול 42) מחזיר "if_not_found" במקום שגיאה. ממירים טיפוסים מראש עם VALUE() או TEXT().
+- **Wildcard matching (`MATCH(..., ..., 2)`) מתייחס ל-`*` ול-`?` כ-wildcards.** מפתיע כשערך ה-lookup מכיל `*` מילולי (למשל, קוד קמפיין עם `*`). מבריחים עם `~*`.
+- **Lookups דו-כיווניים לא מטפלים בקלות ב-"כל שורה, כל עמודה".** אם שני הצירים יכולים להיות מעורפלים, INDEX/MATCH/MATCH הופך מכוער מהר. בנקודה הזו, שוקלים QUERY (שיעור 12) או המסת ה-Pivot לטבלה ארוכה קודם.
+
+## עכשיו לעבודה אמיתית
+
+לחצו על **Start lesson** כדי להעלות Pivot של media buyer × vertical. תכתבו שלושה lookups: INDEX/MATCH/MATCH דו-כיווני לתא של media buyer × vertical יחיד, VLOOKUP עם עמודה דינמית שמגיב ל-dropdown, ו-XLOOKUP במצב טווח לסיווג דרגות.

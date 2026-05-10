@@ -1,0 +1,142 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# PropertiesService and CacheService: persistent and short-lived storage
+
+Apps Script runs in a sandbox without a local disk. Anything your script wants to remember across runs has to live somewhere managed by Google. The two surfaces for that are **`PropertiesService`** (durable key/value storage that persists forever) and **`CacheService`** (fast short-lived storage that evicts after up to six hours). Every production trigger the team writes uses one or the other: API tokens in Properties so the trigger doesn't ship them in the source, the daily exchange rate in Cache so 200 cells don't all hit the FX API.
+
+## Three scopes, two services
+
+Both services expose the same three scopes:
+
+| Scope | What's shared | Use it for |
+|---|---|---|
+| **Script** | All users of this script project. | Team-wide config: API endpoints, default rate tables, the Drive folder ID where exports go. |
+| **Document** | This script bound to this spreadsheet. Different files get separate stores. | Workbook-specific state: last-refresh timestamps, the canonical FX rate for this file's reporting period. |
+| **User** | The current user. Different team members get separate stores. | Per-user prefs: which dashboard view someone defaults to, their personal API token. |
+
+The getters mirror the scope names:
+
+```js
+const scriptProps = PropertiesService.getScriptProperties();
+const docProps    = PropertiesService.getDocumentProperties();
+const userProps   = PropertiesService.getUserProperties();
+
+const scriptCache = CacheService.getScriptCache();
+const docCache    = CacheService.getDocumentCache();
+const userCache   = CacheService.getUserCache();
+```
+
+Pick the scope that matches the data's lifecycle. The wrong choice is the bug that bites three months later when "for some reason" Maya sees one rate and Yoav sees another.
+
+## The two services in 60 seconds
+
+```js
+// PropertiesService: durable, write-and-forget.
+const props = PropertiesService.getDocumentProperties();
+props.setProperty("usdIlsRate", "3.72");        // values must be strings
+const rate = props.getProperty("usdIlsRate");    // returns "3.72" or null
+
+// CacheService: short-lived, TTL in SECONDS.
+const cache = CacheService.getDocumentCache();
+cache.put("usdIlsRate", "3.72", 3600);           // expires in 1 hour
+const cached = cache.get("usdIlsRate");           // returns "3.72" or null
+```
+
+Three details that bite:
+
+- **Properties values are strings.** `setProperty` coerces whatever you pass to a string. `getProperty` returns the string. You parse it back to a number / boolean / JSON yourself.
+- **Cache TTL is in seconds, not milliseconds.** `cache.put(k, v, 60)` lives for one minute. `cache.put(k, v, 60000)` lives for the maximum cache lifetime (six hours, capped); the function does not throw and the bug only surfaces when items vanish too soon or too late.
+- **Both `get` and `getProperty` return `null` on miss.** Always check for `null` before calling `.length` or arithmetic on the value.
+
+## The three-tier pattern
+
+The pattern every team trigger uses for "fetch the FX rate":
+
+```js
+function getOrFetchRate() {
+  const cache = CacheService.getDocumentCache();
+  const cached = cache.get("usdIlsRate");
+  if (cached !== null) return Number(cached);
+
+  const props = PropertiesService.getDocumentProperties();
+  const stored = props.getProperty("usdIlsRate");
+  if (stored !== null) {
+    cache.put("usdIlsRate", stored, 3600);
+    return Number(stored);
+  }
+
+  return 3.7;
+}
+```
+
+Read top to bottom: cache first (microsecond lookup), Properties second (a few milliseconds, durable), default last (the function still works on day one when nothing's been written). When properties hit, the function warms the cache so the next call inside the hour is a cache hit. Every call returns a number; the caller doesn't have to deal with the null case.
+
+This shape generalizes. Swap "rate" for "API token", "buyer list", "last refresh", any value you fetch repeatedly. The cost of forgetting tier one is a slow trigger. The cost of forgetting tier three is a `TypeError: cannot convert null to number`.
+
+## Limits worth remembering
+
+| Surface | Per-value limit | Total limit | TTL |
+|---|---|---|---|
+| Properties value | 9 KB | 500 KB per property store | Forever |
+| Cache value | 100 KB | (none documented) | Max 6 hours |
+
+A common trap: dumping a large JSON blob into Properties. The team's "active buyer list" grew from 8 names to 240 across two years; the original code did `props.setProperty("buyers", JSON.stringify(list))` and one day silently truncated mid-string. The fix is splitting into multiple keys (`buyers_chunk_0`, `buyers_chunk_1`) or moving to a Drive file referenced by ID. Properties is a config store, not a database.
+
+Cache values can be bigger (100 KB) but they evict on time and on memory pressure. A cache value the size of a small CSV is fine; the size of a whole dataset is not.
+
+## Properties is NOT for secrets
+
+Anyone who can edit the bound script can read every key in `getScriptProperties` and `getDocumentProperties`. The string `Authorization: Bearer XYZ123` lives in plain text. If the secret leaks, the API behind it is exposed.
+
+For actual secrets the team uses Google Cloud Secret Manager, fetched at runtime via `UrlFetchApp.fetch` with a service-account token. That setup is overkill for a per-team dashboard with no PII, but it's the correct shape the moment a real API key is involved. Properties is for **configuration that doesn't need to be hidden**: endpoints, sheet IDs, the FX rate.
+
+## Concurrent writers race
+
+Two triggers running at the same time both call `setProperty` on the same key. One write wins; the other is silently overwritten. For "last-write-wins" data (the latest FX rate) that's fine. For increment-by-one counters and append-style lists it's a data loss bug.
+
+The fix is `LockService.getScriptLock()`:
+
+```js
+const lock = LockService.getScriptLock();
+lock.waitLock(5000);
+try {
+  const props = PropertiesService.getScriptProperties();
+  const current = Number(props.getProperty("runCount") || 0);
+  props.setProperty("runCount", String(current + 1));
+} finally {
+  lock.releaseLock();
+}
+```
+
+Two triggers can both try to grab the lock; one waits up to five seconds for the other to release. The increment is now safe. Same lock pattern works for Cache, the spreadsheet itself, or any other shared store.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61. The lesson's exchange rate read is the same lookup the team's USD-to-ILS conversion needs across every dashboard sheet."
+/>
+
+The starter file `Lesson.gs` declares `function getOrFetchRate()` with an empty body. Implement the three-tier pattern:
+
+1. Read `CacheService.getDocumentCache()`. If the key `"usdIlsRate"` is present, return it as a number.
+2. Read `PropertiesService.getDocumentProperties()`. If `"usdIlsRate"` is there, warm the cache (1-hour TTL) and return it as a number.
+3. Fall back to the literal `3.7` if both stores are empty.
+
+Test it by opening the script editor and running the function once with the stores empty (you should get 3.7), then again after setting `usdIlsRate` to `"3.85"` in Properties via the Apps Script console (you should get 3.85, and a second call within the hour should be a cache hit).
+
+## Used in the wild
+
+- **API tokens in script properties.** The team's Taboola pull trigger reads its API key with `PropertiesService.getScriptProperties().getProperty("TABOOLA_TOKEN")` and uses it in the `Authorization` header. Rotating the key is a one-line update via the editor's Project settings → Script properties; no code change.
+- **Daily FX rate cached for the day.** The morning trigger fetches the rate from the National Bank API, writes it to Properties (durable, survives cache eviction), and warms the cache for an hour. Every `=usdToILS(F2, getOrFetchRate())` call across the workbook during the day is then a cache hit.
+- **Per-user dashboard preferences.** When the sidebar lets a user toggle between "by buyer" and "by vertical" views, the choice goes into `UserProperties` so reopening the sidebar tomorrow picks up where they left off.
+- **The bound workbook's last-refresh timestamp.** `DocumentProperties.setProperty("lastRefresh", new Date().toISOString())` at the end of every successful pull. The sidebar reads it and shows "Refreshed 4 minutes ago" so the team trusts the dashboard isn't stale.
+
+## Pro pitfalls
+
+- **Treating Properties as secrets storage.** Anyone with edit access to the script project can read every key. Real secrets (API tokens that grant data access, customer PII) belong in Google Cloud Secret Manager, not in Properties. The "API token" use case is fine when the API is internal and the script is behind workspace SSO; it's not fine for a public API key.
+- **CacheService TTL in milliseconds.** A common mistake transplanted from JS land. The third argument to `cache.put` is **seconds**. `cache.put(k, v, 60 * 60 * 1000)` doesn't fail. It gets clamped to the 6-hour max, and the bug presents as "the cache lasts way longer than I expected."
+- **Confusing "no value" with "expired" on cache misses.** Both return `null`. You can't tell from the return value whether the key was never written or whether it was written and then evicted. If your logic needs to distinguish (rare), the second check against Properties is what tells you.
+- **The 9 KB per-property limit silently truncates.** Properties stores JSON-stringified blobs without complaint; long ones get cut mid-string and the JSON parse on the way back fails. For anything that can grow (a list of buyers, a recent-edits log), use a Drive file referenced by ID and read it via `DriveApp.getFileById(id).getBlob().getDataAsString()`.
+- **Concurrent writers losing increments.** Two triggers writing the same counter without `LockService` will silently drop one of the writes. The lesson's three-tier reader is read-only and safe; the moment you start writing back, wrap the write in `LockService.getScriptLock()`.
+- **Forgetting to coerce Properties values back to a type.** `props.getProperty("usdIlsRate")` returns the string `"3.7"`, not the number `3.7`. `+rate` or `Number(rate)` does the coercion. Skip it and the downstream multiplication does string repetition (`"3.7" * 412.5` → number, by coincidence, because JS) or worse, in some corner cases, NaN.

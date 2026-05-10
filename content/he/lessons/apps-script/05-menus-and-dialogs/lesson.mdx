@@ -1,0 +1,152 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# תפריטים מותאמים ו-dialogs
+
+spreadsheet שמריץ את הקוד שלכם רק כשפותחים את עורך Apps Script לא ממש שימושי לשאר הצוות. תפריטים מותאמים הם הדרך לחשוף function כפעולה של לחיצה אחת בסרגל הכלים של ה-spreadsheet, ה-media buyer פותח את ה-spreadsheet, רואה תפריט "Reports" ליד Help, לוחץ "Email weekly summary", והסקריפט רץ. Dialogs הם הדרך שבה הסקריפטים האלה מדברים בחזרה: alert כשמשהו הסתיים, prompt כשהסקריפט צריך מספר, sidebar כשיש פאנל שלם של בקרות להציג.
+
+## ה-trigger `onOpen`
+
+תפריט מותאם חי רק כל זמן שה-spreadsheet פתוח. כל פעם שה-spreadsheet נטען בדפדפן של מישהו, Apps Script מפעיל את ה-trigger המיוחד `onOpen` והתפריט צריך להיבנות מחדש:
+
+```js
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("Reports")
+    .addItem("Show spend total", "alertSpend")
+    .addItem("Email weekly summary", "emailWeeklySummary")
+    .addToUi();
+}
+```
+
+`onOpen` הוא **simple trigger**, Apps Script מפעיל אותו אוטומטית כל פעם שהקובץ נפתח, בלי שלב התקנה ובלי auth prompt. הבעיה היא ש-simple triggers רצים ב-auth context מצומצם: הם יכולים לקרוא את ה-spreadsheet ולבנות UI, אבל לא יכולים לשלוח אימייל, לקרוא ל-`UrlFetchApp`, או לעשות שום דבר שדורש OAuth scopes מלאים. ה-handlers של פריטי התפריט (`alertSpend`, `emailWeeklySummary`) רצים כשהמשתמש לוחץ עליהם, ובנקודה הזו יש להם את ה-auth context המלא.
+
+**הסתייגות של הקורס.** הפרויקט המקושר בקורס הזה כבר מצהיר על `onOpen()` לצרכים שלו (אתחול של ה-sidebar). JavaScript שומר רק הכרזה אחת לכל מזהה, כך ש-`function onOpen()` שני ב-`Lesson.gs` שלכם או ידרוס בשקט את זה ששלחנו או יידרס על ידו. כדי לעקוף את זה, המטלה מבקשת לכתוב function רגילה בשם `addReportsMenu()` ולהריץ אותה ידנית מהתפריט הנפתח Run בעורך Apps Script. הצורה של הגוף זהה למה ש-`onOpen` אמיתי היה מכיל. בכל spreadsheet שתבנו מחוץ לקורס הזה, הדפוס בייצור הוא מה שלמעלה: מצהירים על `onOpen`, בונים את התפריט בתוכו, והתפריט מופיע אוטומטית בכל טעינה.
+
+## `createMenu` ו-`addItem`
+
+בונה התפריט הוא chain. קוראים אותו מלמעלה למטה:
+
+```js
+SpreadsheetApp.getUi()       // מקבל את אובייקט ה-UI של ה-spreadsheet
+  .createMenu("Reports")      // מתחיל תפריט עליון חדש
+  .addItem("Refresh Taboola", "refreshTaboola")
+  .addItem("Mark dead campaigns", "markDeadCampaigns")
+  .addSeparator()
+  .addItem("Email weekly summary", "emailWeeklySummary")
+  .addToUi();                 // מצרף לסרגל הכלים
+```
+
+שלושה דברים ששווה לדעת על `addItem`:
+
+1. **הארגומנט השני הוא שם ה-function כ-STRING.** Apps Script לא מאמת אותו בזמן שמירה. טעות הקלדה `"emaiWeeklySummary"`, שומרים, לוחצים על הפריט, התפריט בשקט לא עושה כלום. הבאג צץ בזמן הלחיצה, לא בזמן השמירה.
+2. **הארגומנט הראשון הוא תווית התפריט שהמשתמש רואה.** שומרים אותו קצר. ה-dropdown של סרגל הכלים חותך שמות ארוכים.
+3. **`addToUi()` חובה.** בלעדיו, התפריט נבנה בזיכרון של JavaScript ולעולם לא מצורף לסרגל הכלים.
+
+`createMenu` תומך גם בתת-תפריטים דרך `addSubMenu(otherMenu)`, שימושי כשלצוות יש שישה פריטי "Refresh X" שיעמיסו אחרת את הרמה העליונה.
+
+## `ui.alert` והווריאציות שלו
+
+ה-dialog הפשוט ביותר הוא `alert`. הוא משהה את הסקריפט, מציג תיבה מודלית עם הודעה וכפתור OK, וממשיך כשהמשתמש לוחץ OK:
+
+```js
+const ui = SpreadsheetApp.getUi();
+ui.alert("Refresh complete. 248 new rows pulled.");
+```
+
+שתי צורות נוספות מכסות את שאר משטח ה-alert:
+
+```js
+// עם כותרת ועם set של כפתורים מותאם:
+ui.alert(
+  "Confirm refresh",
+  "This will overwrite rows 2–500 of the Aggregator tab. Continue?",
+  ui.ButtonSet.YES_NO,
+);
+
+// ערך ההחזרה אומר באיזה כפתור המשתמש לחץ:
+const response = ui.alert(
+  "Confirm refresh",
+  "This will overwrite rows 2–500 of the Aggregator tab. Continue?",
+  ui.ButtonSet.YES_NO,
+);
+if (response === ui.Button.YES) {
+  refreshAggregator();
+} else {
+  ui.alert("Refresh cancelled.");
+}
+```
+
+הקבועים של button-set (`OK`, `OK_CANCEL`, `YES_NO`, `YES_NO_CANCEL`) ושל button (`OK`, `CANCEL`, `YES`, `NO`, `CLOSE`) חיים על אובייקט ה-`ui` עצמו, לא כ-strings חופשיות.
+
+## `ui.prompt` לקבלת ערך
+
+כשהסקריפט צריך שהמשתמש יקליד משהו, טווח תאריכים, שם של media buyer, יעד ROI, משתמשים ב-`prompt`:
+
+```js
+const response = ui.prompt(
+  "Bulk-edit ROI threshold",
+  "Enter the new threshold (e.g. 1.25):",
+  ui.ButtonSet.OK_CANCEL,
+);
+
+if (response.getSelectedButton() === ui.Button.OK) {
+  const text = response.getResponseText();
+  const value = parseFloat(text);
+  if (Number.isFinite(value)) {
+    applyThreshold(value);
+  } else {
+    ui.alert(`"${text}" isn't a number.`);
+  }
+}
+```
+
+ערך ההחזרה הוא object של `PromptResponse`, לא מחרוזת. שתי methods לזכור: `getSelectedButton()` (באיזה כפתור המשתמש לחץ, כולל CLOSE אם הוא לחץ X) ו-`getResponseText()` (הקלט שהוקלד בפועל). מתחילים נופלים במלכודת של התייחסות לערך ההחזרה כאל המחרוזת עצמה ומקבלים `[object PromptResponse]` בלוגיקה שבהמשך.
+
+## מתי לבחור ב-sidebar במקום
+
+תפריטים ו-dialogs מכסים פעולות חד-פעמיות וקלט חד-פעמי. ברגע שצריך פאנל קבוע, טופס עם חמישה שדות, תצוגת סטטוס שמתעדכנת בזמן שסקריפט ארוך רץ, בורר טווח תאריכים שנשאר גלוי בזמן שהמשתמש עובד, הכלי הנכון הוא **sidebar**. Sidebars הם פאנלים של HTML שעוגנים בצד ימין של ה-spreadsheet. ככה ה-sidebar companion שמבצע grading לשיעורים האלה מציג את רשימת הבדיקות שלו.
+
+שיעור 9 מכסה sidebars מקצה לקצה. הגרסה הקצרה: `ui.showSidebar(HtmlService.createHtmlOutputFromFile("Sidebar"))` פותח פאנל, ה-HTML שבתוכו מדבר עם ה-functions בשרת דרך `google.script.run`. בינתיים, רק כדאי לדעת שפריט תפריט שפותח sidebar הוא הדפוס הסטנדרטי כש-dialogs חד-פעמיים לא מספיקים.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="לוג ה-Campaigns תופס את A1:G61. J1 מוזרק מראש עם סכום ה-spend הכולל (אותו מספר ש-recomputeSpend של שיעור 4 הייתה כותבת). המשימה: להוסיף תפריט Reports ו-handler בשם alertSpend שקורא את J1."
+/>
+
+קובץ ה-starter `Lesson.gs` מצהיר על שני stubs של functions. שתי משימות:
+
+1. ממלאים את `addReportsMenu()` כך שיבנה תפריט "Reports" עם פריט אחד שמסומן "Show spend total" שמריץ את ה-function `alertSpend`. משתמשים ב-chain `SpreadsheetApp.getUi().createMenu("Reports").addItem("Show spend total", "alertSpend").addToUi()`.
+2. ממלאים את `alertSpend()` כך שיקרא את הערך של J1 ויציג אותו דרך `SpreadsheetApp.getUi().alert("Total spend: " + value)`.
+
+מריצים את `addReportsMenu` מהתפריט הנפתח Run בעורך Apps Script פעם אחת. תפריט Reports מופיע בסרגל הכלים של ה-spreadsheet. לוחצים Reports → Show spend total. alert מקפיץ עם הסכום. (ב-spreadsheet שתבנו מחוץ לקורס הזה תשימו את ה-chain של `createMenu` בתוך `onOpen` ותדלגו על שלב ה-Run הידני, ראו את הסתייגות הקורס למעלה.)
+
+## נפוץ בשטח
+
+ל-spreadsheets האמיתיים של הצוות יש תפריט Reports שנראה בערך ככה:
+
+| פריט תפריט | Handler | מה הוא עושה |
+|---|---|---|
+| Refresh Taboola | `refreshTaboola` | מפעיל את ה-pull הלילי על דרישה במקום לחכות ל-trigger. |
+| Refresh Outbrain | `refreshOutbrain` | אותו דבר, ל-Outbrain. |
+| Mark dead campaigns | `markDeadCampaigns` | מציב את ה-kill switch על כל שורה שבה ה-ROI ירד מתחת ל-0.5 במשך שלושה ימים. |
+| Email weekly summary | `emailWeeklySummary` | `MailApp.sendEmail` עם דאטה של שבעת הימים האחרונים מה-Aggregator מצורף. |
+| Create month-end backup | `archiveMonth` | משכפל את ה-tab של ה-Aggregator לגיליון עם חותמת תאריך. |
+
+כל פריט הוא function ב-JavaScript בפרויקט המקושר. התפריט הוא משטח ה-API של הצוות, ה-media buyer אף פעם לא פותח את עורך Apps Script, הוא לוחץ על פריטים בסרגל הכלים.
+
+השימוש הכבד הנוסף ב-dialogs:
+
+- **`ui.alert` בסוף סקריפטים ארוכים** כדי שה-media buyer ידע שהסקריפט הסתיים. בלי ה-alert, סקריפט שרץ שתי דקות נראה כאילו לא קרה כלום.
+- **`ui.prompt` לסקריפט האינטראקטיבי הנדיר.** ה-macro של "rename a buyer across all tabs" מבקש את השם הישן ואת השם החדש דרך שתי קריאות `prompt` ברצף, ואז עושה את ההחלפות ב-batch אחד.
+- **`ui.alert(..., ButtonSet.YES_NO)` לפני פעולות הרסניות.** כל סקריפט שדורס טווח של תאים מקבל שער YES_NO כך שלחיצה לא נכונה לא תהרוס יום עבודה.
+
+## מלכודות מקצועיות
+
+- **פריטי תפריט מקבלים את שם ה-function כ-STRING, טעויות הקלדה נכשלות בשקט.** `.addItem("Run", "RunCampaign")` עובד בזמן שמירה אבל לא עושה כלום בזמן לחיצה אם ה-function ב-JS היא `runCampaign` (r קטנה). תמיד מעתיקים-מדביקים את שם ה-function מההכרזה של ה-function, אף פעם לא מקלידים מחדש.
+- **`ui.alert` חוסם את הסקריפט.** הסקריפט עוצר עד שהמשתמש לוחץ על הכפתור. trigger לילי שקורא ל-`ui.alert` ייתקע ובסוף יקבל timeout, `ui.alert` הוא לריצות שמתחיל המשתמש בלבד, לא ל-triggers מתוזמנים. סקריפטים שרצים מ-trigger כותבים לגיליון או שולחים אימייל במקום.
+- **`ui.prompt` מחזיר `PromptResponse`, לא מחרוזת.** `const x = ui.prompt("name"); doSomething(x)` לא מעביר את הטקסט שהוקלד, הוא מעביר את ה-response object. משתמשים ב-`x.getResponseText()` כדי לחלץ את הקלט עצמו, ובודקים את `x.getSelectedButton()` כדי לראות אם המשתמש לחץ OK, Cancel, או X.
+- **תפריט מותאם שנעלם.** המשתמש פתח את ה-spreadsheet אבל התפריט לא שם. שלוש סיבות: הסקריפט לא אושר (פותחים את Apps Script, לוחצים Run על איזושהי function, מאשרים את ה-auth prompt); `onOpen` זרק exception (בודקים את ה-Execution log); הסקריפט מקושר לעותק אחר של הקובץ (לכל עותק של spreadsheet יש פרויקט מקושר משלו, שכפול הקובץ משכפל גם את הסקריפט, אבל את העותק החדש עדיין צריך לאשר בפתיחה הראשונה).
+- **שני סקריפטים שכל אחד מצהיר על `onOpen`.** spreadsheet עם כמה bound libraries בנוסף לקוד inline יכול לסיים עם שתי functions בשם `onOpen`; זה שנטען שני מנצח, התפריט של הראשון נעלם. התיקון הוא לאחד את כל הגדרות התפריט ל-`onOpen` אחד שקורא ל-helper functions לפי תחום.
+- **פריט תפריט שפותח sidebar מתוך context של simple trigger.** `ui.showSidebar` דורש את ה-scope `script.container.ui` ו-auth context מלא. בתוך `onOpen` הפשוט זה עובד כי `onOpen` ברשימה הלבנה ל-UI; מ-trigger מבוסס-זמן הוא זורק. אם צריך לפתוח sidebar מ-job מתוזמן, הדפוס הנכון הוא לכתוב שורת סטטוס ל-spreadsheet ולגרום ל-`onOpen` של הפתיחה הידנית הבאה לזהות אותה ולפתוח את ה-sidebar אז.

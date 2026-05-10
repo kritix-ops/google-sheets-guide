@@ -1,0 +1,139 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Apps Script + the Sheets advanced service: when SpreadsheetApp isn't enough
+
+`SpreadsheetApp` is the friendly surface most of Track 3 has used: high-level objects, sensible defaults, OAuth handled implicitly. It covers about 80% of what the team does in the bound script. The remaining 20% (programmatic pivot tables, bulk conditional formatting, cross-spreadsheet copy-paste, anything that touches the Sheets v4 REST API directly) needs the **Sheets advanced service**. It's a thin global called `Sheets` that maps 1:1 to the Sheets v4 REST endpoints, exposes more power, and trades some convenience for control.
+
+## When to reach for the advanced service
+
+| Task | `SpreadsheetApp` | Advanced service |
+|---|---|---|
+| Read a few cells, set a value | ✓ One line | Overkill |
+| Iterate a 5,000-row sheet | ✓ With batching | ✓ Same idea, slightly faster |
+| Create a pivot table programmatically | ✗ Not supported | ✓ `Sheets.Spreadsheets.batchUpdate` with an `addPivotTable` request |
+| Add 20 conditional-format rules at once | Slow (one call per rule) | ✓ One `batchUpdate` with 20 `addConditionalFormatRule` items |
+| Copy formatting from sheet A to sheet B (different workbooks) | Awkward | ✓ `batchUpdate` with `copyPaste` requests |
+| Run a Sheets API request the way the REST docs document it | ✗ Surface mismatched | ✓ Mirrors the REST shape |
+
+If you've ever read the [Sheets API REST reference](https://developers.google.com/sheets/api) and thought "I wish I could call that from Apps Script", the advanced service is what bridges the gap. Anything in the REST docs has a Sheets advanced service equivalent.
+
+## Enabling it (manifest dance)
+
+The advanced service has to be opted into per-script. Two ways to do it:
+
+1. **Editor UI**: in the Apps Script editor's left rail, click **Services** → **+** → **Google Sheets API** → **Add**. The editor adds an entry to your manifest automatically and you're done.
+2. **Manifest edit**: open `appsscript.json` (Project Settings → check "Show appsscript.json manifest file in editor") and add the `dependencies.enabledAdvancedServices` entry yourself:
+
+```json
+{
+  "timeZone": "America/New_York",
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Sheets",
+        "serviceId": "sheets",
+        "version": "v4"
+      }
+    ]
+  }
+}
+```
+
+The fields:
+
+| Field | What it does |
+|---|---|
+| `userSymbol` | The name of the global the editor creates. Conventionally `Sheets` so your code calls `Sheets.Spreadsheets.values.get(...)`. You can rename it; nobody does. |
+| `serviceId` | Google's internal service ID. For Sheets it's `"sheets"`. Other advanced services: `"drive"`, `"gmail"`, `"calendar"`. |
+| `version` | API version. Sheets is on `v4`. |
+
+After saving, the editor enables the corresponding API in the underlying GCP project automatically (for "default" projects). When you run the function for the first time, the OAuth consent prompt now includes the broader scope the advanced service needs.
+
+## The shape of advanced-service calls
+
+The two methods that cover most adtech work:
+
+```js
+function readSheetValues() {
+  const spreadsheetId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  const response = Sheets.Spreadsheets.values.get(
+    spreadsheetId,
+    "Campaigns!F2:G61"
+  );
+  // response = { range: "Campaigns!F2:G61", majorDimension: "ROWS", values: [[412.5, 587.4], ...] }
+  const rows = response.values || [];
+  return rows;
+}
+
+function writeOneCell() {
+  const spreadsheetId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  Sheets.Spreadsheets.values.update(
+    { values: [[12345]] },         // request body
+    spreadsheetId,
+    "Campaigns!J1",                // A1 range (including sheet name)
+    { valueInputOption: "RAW" }    // query parameters
+  );
+}
+```
+
+Three things worth pinning down:
+
+- **Argument order matches REST.** Body first (when there is one), then the path params, then the query params. Read methods don't have a body and start with the path params.
+- **Ranges include the sheet name.** `"Campaigns!F2:G61"`, not `"F2:G61"`. The advanced service doesn't know the active sheet the way `SpreadsheetApp.getActiveSheet()` does.
+- **`valueInputOption` matters.** `"RAW"` writes the value as-is. `"USER_ENTERED"` parses it as if a user typed it (so `"=SUM(...)"` becomes a formula, `"5/12/2026"` becomes a date). The default in the REST API is the more conservative `"RAW"`, but it's worth setting explicitly.
+
+## `batchUpdate` is the workhorse
+
+The other surface is `Sheets.Spreadsheets.batchUpdate`, which accepts an array of **requests** in one call. The requests can do anything: add a sheet, add a pivot table, set conditional formats, freeze rows, hide columns, copy/paste between ranges. Sample:
+
+```js
+Sheets.Spreadsheets.batchUpdate(
+  {
+    requests: [
+      { addSheet: { properties: { title: "Monthly Rollup" } } },
+      { addConditionalFormatRule: { rule: { ... } } },
+      { repeatCell: { range: { ... }, cell: { ... }, fields: "userEnteredFormat" } },
+    ],
+  },
+  spreadsheetId,
+);
+```
+
+One round-trip applies all three requests atomically. Add 20 conditional-format rules with 20 entries in the array; you get one network call instead of 20. The team's pivot-builder script that used to take 90 seconds (creating sheets one at a time, setting formats one at a time) now takes 4 seconds with everything in a single `batchUpdate`.
+
+## Reading the response
+
+Every advanced-service call returns a plain JS object that matches the REST response shape. `values.get` returns `{ range, majorDimension, values }`. `batchUpdate` returns `{ spreadsheetId, replies, updatedSpreadsheet? }`, where `replies` is the array of per-request results (an `addSheet` request's reply includes the new sheet's `sheetId`, which you can chain into a follow-up request).
+
+This is the part that makes the advanced service powerful. The reply object carries the IDs and metadata you need to chain further work, in a way `SpreadsheetApp`'s `Sheet` objects can't.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61. The lesson sums the entire Spend column via the advanced service and writes the total to J1."
+/>
+
+Two parts to this assignment:
+
+1. **Enable the Sheets advanced service** in the manifest. Click **Services** → **+** → **Google Sheets API** → **Add** in the editor. Confirm that `appsscript.json` now has the `dependencies.enabledAdvancedServices` entry with `serviceId: "sheets"`.
+2. **Implement `batchUpdateUsingAdvancedService`.** The starter is empty. Read `F2:G61` via `Sheets.Spreadsheets.values.get`, sum the first element of each returned row (that's the spend; the second is revenue), and write the total to J1 via `Sheets.Spreadsheets.values.update` with `valueInputOption: "RAW"`.
+
+The first time you run it, accept the broader OAuth scope. From then on the advanced service is available across the project, including from other functions and triggers.
+
+## Used in the wild
+
+- **Programmatic pivot generator.** The team needs a per-buyer-per-platform pivot regenerated every Monday on the current week's data. `SpreadsheetApp` has no pivot-create method; `Sheets.Spreadsheets.batchUpdate` with an `updateCells` request that supplies a `pivotTable` field does. One Monday-morning trigger, one batchUpdate call, fresh pivot.
+- **Cross-workbook formatting copy.** When a new monthly dashboard sheet is created (from a template), the formatting from last month's sheet has to be copied over: conditional formats, frozen rows, column widths. A single `batchUpdate` with `copyPaste` requests (`pasteType: "PASTE_FORMAT"`) handles all of it; with `SpreadsheetApp` it would be ten separate calls.
+- **Bulk conditional formatting on new monthly columns.** Every month a new spend / revenue / ROI column gets added to the per-buyer sheet. Twenty conditional-format rules to maintain (green if ROI > 1.5, yellow if 1.0-1.5, red below). One `batchUpdate` with twenty `addConditionalFormatRule` entries; takes 2 seconds vs 40 with the per-rule `SpreadsheetApp` path.
+- **Sheets API pagination on huge ranges.** A 500,000-cell range exceeds Apps Script's response size limit when read via `SpreadsheetApp`. The advanced service supports paging through ranges in chunks (`A1:A50000`, `A50001:A100000`, ...); each call gets a manageable response.
+
+## Pro pitfalls
+
+- **`Sheets is not defined`** in the function body means the manifest entry isn't there yet. The editor's Services panel adds it; saving the manifest by hand also works. The error doesn't fire until the function runs, so don't trust "it compiles"; run once to verify.
+- **`valueInputOption: "USER_ENTERED"` parses too eagerly.** Writing the string `"5/12/2026"` as `USER_ENTERED` gets interpreted as a date (May 12 in US locale, December 5 in EU locale, depending on the workbook). For raw text and pre-computed numbers, `"RAW"` is safer. For values that should behave as if typed (formulas like `"=SUM(F2:F61)"`), `"USER_ENTERED"` is required.
+- **Advanced services count against the same per-day quotas as `SpreadsheetApp` PLUS the Sheets API quotas.** The Sheets API has its own per-project quota (300 read requests/minute, 60 write requests/minute, free tier). A trigger that batchUpdates 100 times in an hour can hit the write limit; the API returns a 429 and the script errors with `Quota exceeded for quota metric 'Write requests'`. Use `batchUpdate` with multiple requests rather than multiple `batchUpdate` calls.
+- **Batch update request bodies are large and stringy.** When something goes wrong, the error message names a request index but no detail. The fix is `console.log(JSON.stringify(requests, null, 2))` before the call so you can see the exact payload. Pasting it into the Sheets API "Try it" sandbox often surfaces the schema mismatch faster than re-running in Apps Script.
+- **Drive advanced service is even more expensive than Sheets.** When you enable Drive's advanced service to traverse folders or modify file metadata, every call returns a heavy metadata payload by default. Use the `fields` parameter (`{ fields: "id, name" }`) to slim the response. Without it, a 500-file iteration can hit response-size limits.
+- **Enabling an advanced service expands OAuth scopes.** The script's authorization screen now asks for broader access (e.g., "See and modify your Sheets"). On a shared script project, every user has to re-consent on their next run. Don't enable advanced services casually on production scripts the whole team uses; coordinate the rollout.
+- **The `userSymbol` is yours but conventionally matches the API.** You can write `"userSymbol": "MySheets"` and then call `MySheets.Spreadsheets.values.get(...)`, but it's confusing. Keep it as `"Sheets"` so your code matches the docs and stack overflow answers.

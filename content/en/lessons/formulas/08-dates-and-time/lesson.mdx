@@ -1,0 +1,114 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+export const DATE_NUMBERS = [
+  ["Date", "Stored as"],
+  ["2026-01-01", 46023],
+  ["2026-05-01", 46143],
+  ["2026-05-31", 46173],
+  ["2026-12-31", 46387],
+];
+
+# Dates and time: TODAY, NOW, EOMONTH, NETWORKDAYS, date math
+
+Lesson 3 introduced the date-as-number trick. This lesson goes deep on the date functions a working pro reaches for every week: anchoring to "now", building from parts, jumping to month-ends, counting business days, and computing duration between two dates. In adtech work, dates are everywhere: campaign launch dates, billing period boundaries, fiscal quarter starts, days-since-last-conversion. Get this lesson right and your dashboards stop drifting.
+
+## TODAY and NOW: anchored to the current moment
+
+`TODAY()` returns today's date (no time). `NOW()` returns the current date and time. Both take no arguments and recalculate every time the sheet opens or recalculates. That's a feature: formulas built on top of them stay current.
+
+It's also a trap. If you write `=TODAY()-A2` to compute "days since launch", that value changes every day. If you want a snapshot for a quarterly report, paste the value (`Ctrl+Shift+V → Values only`) instead of leaving the formula live.
+
+<MiniGrid
+  data={DATE_NUMBERS}
+  caption="Same dates, different views. The right column is what Sheets actually stores."
+/>
+
+## DATE: build a date from parts
+
+`DATE(year, month, day)` builds a date from its parts. Useful for hardcoded reference dates (year-ends, fiscal boundaries, campaign launch dates) and for combining year/month/day from other cells into a single date value.
+
+<TryIt
+  data={DATE_NUMBERS}
+  inputCell="D1"
+  expectedFormula="=DATE(2026,5,1)"
+  task={<>Build the date for May 1, 2026: the start of the team's current billing period. The result in <code>D1</code> should display as a date (the underlying number is <code>46143</code>).</>}
+  hint={<>Three arguments in order: year, month, day.</>}
+  answer={<>DATE clamps invalid dates rather than erroring. <code>DATE(2026, 13, 1)</code> rolls forward to January 2027. <code>DATE(2026, 2, 30)</code> rolls forward to March 2 (since Feb 2026 only has 28 days). This means you can do month math by passing values outside the normal range: sometimes useful (next-month-start = <code>DATE(YEAR(today), MONTH(today)+1, 1)</code>), sometimes a footgun.</>}
+/>
+
+## EOMONTH: end-of-month, with offset
+
+`EOMONTH(date, months)` returns the last day of the month that's `months` away from the input date. `EOMONTH(today, 0)` is the end of this month. `EOMONTH(today, -1)` is the end of last month. `EOMONTH(today, 11)` is a year from now's end-of-month.
+
+In adtech work, EOMONTH is how you compute billing period end-dates that follow you through the month. The formula `=EOMONTH(DATE(2026,5,1), 0)` always returns May 31, no matter what day in May you run it.
+
+<TryIt
+  data={DATE_NUMBERS}
+  inputCell="D1"
+  expectedFormula="=EOMONTH(DATE(2026,5,1),0)"
+  task={<>Find the last day of May 2026 (the team's current billing period end). Build the input date with <code>DATE(2026,5,1)</code> and use <code>EOMONTH</code> with offset 0.</>}
+  hint={<>The second argument is months from the input date. <code>0</code> means same month.</>}
+  answer={<>EOMONTH always returns the last day of the resulting month: May 31 here, Feb 28 in non-leap years, Feb 29 in leap years. Companion function: <code>EDATE(date, months)</code> jumps the same number of months but keeps the same day-of-month. EDATE is how you compute "renewal date is exactly 12 months from start"; EOMONTH is how you compute "billing closes at end of month".</>}
+/>
+
+## NETWORKDAYS: business days between two dates
+
+`NETWORKDAYS(start, end, [holidays])` counts the working days (Mon-Fri) between two dates, inclusive on both ends. Optional third argument is a range of holiday dates to also exclude.
+
+In adtech: "ad-days remaining in the month" = `NETWORKDAYS(TODAY(), EOMONTH(TODAY(), 0))`. Useful for budget pacing alerts.
+
+<TryIt
+  data={DATE_NUMBERS}
+  inputCell="D1"
+  expectedFormula="=NETWORKDAYS(DATE(2026,5,1),DATE(2026,5,31))"
+  task={<>Count the business days in May 2026. The result should be <code>21</code>.</>}
+  hint={<><code>NETWORKDAYS(start, end)</code>. Pass two <code>DATE</code> values for the endpoints.</>}
+  answer={<>May 1, 2026 is a Friday and May 31 is a Sunday. Of the 31 days, 10 fall on weekends (5 Saturdays + 5 Sundays), so 31 − 10 = 21 weekdays. The variant <code>NETWORKDAYS.INTL(start, end, weekend_code, [holidays])</code> lets you customize which days count as weekend: useful for non-Western workweeks where Friday/Saturday are off, like in some MENA markets.</>}
+/>
+
+## DATEDIF: duration between two dates
+
+`DATEDIF(start, end, unit)` returns the difference in years, months, or days. The unit is a string code: `"Y"`, `"M"`, `"D"`, `"YM"` (months ignoring years), `"YD"` (days ignoring years), `"MD"` (days ignoring months and years). Common adtech use: months a buyer has been on the team, months since campaign launched, time-to-deadline.
+
+<TryIt
+  data={DATE_NUMBERS}
+  inputCell="D1"
+  expectedFormula='=DATEDIF(DATE(2025,1,1),DATE(2026,5,1),"M")'
+  task={<>Compute the number of full months between January 1, 2025 and May 1, 2026. The result should be <code>16</code>.</>}
+  hint={<>Three arguments: start date, end date, unit. The unit <code>"M"</code> returns full months.</>}
+  answer={<>DATEDIF rounds DOWN to the unit. Sixteen months exactly returns 16. The unit <code>"YM"</code> is genuinely useful for "X years and Y months" output: combine <code>DATEDIF(start, end, "Y")</code> with <code>DATEDIF(start, end, "YM")</code>. DATEDIF is undocumented in the function picker but well-supported. Common use in adtech: tracking buyer tenure on the team for performance reviews and quota-setting.</>}
+/>
+
+## Common patterns
+
+| Goal | Formula |
+|---|---|
+| Today's date | `=TODAY()` |
+| Days since campaign launch | `=TODAY()-A2` |
+| End of this month (billing close) | `=EOMONTH(TODAY(), 0)` |
+| End of next month | `=EOMONTH(TODAY(), 1)` |
+| First of this month | `=DATE(YEAR(TODAY()), MONTH(TODAY()), 1)` |
+| Same day next year (renewal) | `=EDATE(A2, 12)` |
+| Business days remaining this month | `=NETWORKDAYS(TODAY(), EOMONTH(TODAY(), 0))` |
+| Months on the team | `=DATEDIF(start_date, TODAY(), "M")` |
+
+`YEAR`, `MONTH`, `DAY`, `WEEKDAY`, `WEEKNUM` extract individual parts from a date. `HOUR`, `MINUTE`, `SECOND` do the same for times. They're all 1-argument functions taking a date or datetime.
+
+## Used in the wild
+
+- **Billing period boundaries.** Every dashboard has a "current period" header with start and end dates from EOMONTH. The whole report filters off these named cells, so changing them rolls forward the view.
+- **"Days since" columns.** A live `TODAY()-launch_date` column on every campaign log so the team can sort by freshness. Watch the recalculation cost on big sheets.
+- **Cohort-based reports.** Group campaigns by launch month with `EOMONTH(launch_date, 0)` as the bucketing key, then SUMIFS by bucket.
+- **Pacing alerts.** Combine `NETWORKDAYS(TODAY(), EOMONTH(TODAY(),0))` with budget remaining to compute "burn rate needed to hit target".
+
+## Pro pitfalls
+
+- **`TODAY()` makes a sheet recalculate every day.** Fine for dashboards. Expensive for sheets with 50,000 rows that all reference TODAY indirectly. Move it to a single named cell at the top and reference that cell, so TODAY only fires once.
+- **IMPORTRANGE'd dates often arrive as text strings, not numbers.** A cell that displays "2026-05-01" might be the actual date number 46143 OR the literal string "2026-05-01". Date math fails silently on the string version. Coerce with `DATEVALUE(A2)` or wrap in `+0` to force numeric.
+- **`EOMONTH` returns serial dates that need formatting.** The formula returns 46173 for end of May 2026; format the cell as Date or you'll see a number.
+- **`DATEDIF`'s `"MD"` unit has known quirky edge cases.** Stick to `"Y"`, `"M"`, `"D"`, `"YM"` for production code.
+- **`NETWORKDAYS` doesn't know about regional holidays unless you pass them.** Use a holidays range and reference it from one named range so all NETWORKDAYS calls share the same calendar.
+
+## Now do it for real
+
+Click **Start lesson** to provision the sheet. You'll build a date with `DATE`, find an end-of-month with `EOMONTH`, count business days with `NETWORKDAYS`, and compute months between two dates with `DATEDIF`: the standard date toolkit for adtech reporting.

@@ -1,0 +1,146 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Quotas and batching: making Apps Script survive real data
+
+Every Apps Script call to a Google service is a network round-trip. Your script lives on Google infrastructure, the spreadsheet lives on Google infrastructure, and a `getValue()` on F2 still goes through their internal RPC layer. One call on one cell finishes in a few milliseconds and you don't notice. The same code in a loop over 5,000 rows finishes in five minutes, if it finishes at all before the 6-minute execution timeout kills it. The fix is **batching**: collapse the per-cell calls into one range read and one range write. The pattern shows up everywhere (Sheets, Drive, Gmail, UrlFetchApp) and it's the single biggest performance lever Apps Script offers.
+
+## The cost of a round-trip
+
+Open the Apps Script editor's Executions panel, run the naive shape on 100 rows:
+
+```js
+function nightlyNaive() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  for (let row = 2; row <= 101; row++) {
+    const spend = sheet.getRange(row, 6).getValue();
+    sheet.getRange(row, 10).setValue(spend * 3.7);
+  }
+}
+```
+
+That's 200 round-trips: 100 reads, 100 writes. Each one is a few tens of milliseconds. Total: ~6 seconds. Now imagine the same code on the 5,000-row monthly aggregator: 10,000 round-trips, ~5 minutes. On the 50,000-row yearly archive: way past the 6-minute consumer quota, and the script aborts mid-loop with the rows it didn't reach still empty.
+
+The batched shape:
+
+```js
+function nightlyBatched() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  const spend = sheet.getRange("F2:F101").getValues();         // ONE read
+  const ils = spend.map(row => [row[0] * 3.7]);                 // JS-side, free
+  sheet.getRange("J2:J101").setValues(ils);                    // ONE write
+}
+```
+
+Two round-trips, regardless of row count. The 5,000-row job that took 5 minutes now takes 3 seconds. The 50,000-row job that timed out now takes 30 seconds. Same logic, two changes: `getValues` instead of a loop of `getValue`, `setValues` of a 2D array instead of a loop of `setValue`.
+
+## The 2D shape that bites
+
+`getValues()` always returns a 2D array, even for single columns. For `F2:F101` you get:
+
+```
+[[412.5], [285.3], [612.0], [187.25], ...]
+```
+
+100 inner arrays, each with one element. The reach for the spend on row 2 is `values[0][0]`, not `values[0]`. The map that converts to ILS has to return the same shape:
+
+```js
+const ils = spend.map(row => [row[0] * 3.7]);
+//                            ^^^^^^^^^^^^^^
+//                            Note the wrapping [].
+```
+
+A learner who writes `spend.map(row => row[0] * 3.7)` gets a 1D array (`[1526.25, 1055.61, ...]`) and `setValues` throws:
+
+```
+Exception: The number of rows in the data does not match the number of rows in the range.
+```
+
+It's the most common batching mistake. The shape rule: **`setValues` expects a 2D array of the same shape as the range.** A single-column write is `[[x], [y], [z]]`. A single-row write is `[[x, y, z]]`. A single-cell write is `[[x]]` (or just use `setValue` for one cell).
+
+## Drive and other services follow the same pattern
+
+The team's vertical-rename script used to do this:
+
+```js
+const folder = DriveApp.getFolderById(FOLDER_ID);
+for (const oldName of OLD_NAMES) {
+  const file = folder.getFilesByName(oldName).next();         // round-trip per file
+  file.setName(file.getName().replace(" pr", " PR"));          // another
+}
+```
+
+10 files = 20 round-trips. The batched version iterates the folder once:
+
+```js
+const folder = DriveApp.getFolderById(FOLDER_ID);
+const files = folder.getFiles();                                // ONE iterator
+const toRename = [];
+while (files.hasNext()) {
+  const f = files.next();
+  if (f.getName().endsWith(" pr")) toRename.push(f);
+}
+toRename.forEach(f => f.setName(f.getName().replace(" pr", " PR")));
+```
+
+The iterator is paged internally; one network call covers ~100 files. For a folder of 50 files this is now 2 round-trips instead of 100.
+
+UrlFetchApp has its own batch primitive: `UrlFetchApp.fetchAll([req1, req2, req3])` runs requests in parallel and returns an array of responses. For 30 endpoint fetches it cuts wall-clock time by 10×.
+
+## Quotas to know
+
+Apps Script's docs list the hard quotas. The ones that bite the team:
+
+| Quota | Consumer (gmail.com) | Workspace |
+|---|---|---|
+| Execution time per run | 6 min | 30 min |
+| URL Fetch calls per day | 20,000 | 100,000 |
+| URL Fetch payload size | 50 MB | 50 MB |
+| Email recipients per day | 100 | 1,500 |
+| Triggers per script per user | 20 | 20 |
+| Properties / Cache reads per minute | (none documented, but throttled) | (same) |
+
+The two that bite first:
+
+- **6-minute execution timeout (consumer accounts).** The per-cell pattern hits this on anything above ~5,000 rows. The batched pattern doesn't.
+- **20,000 UrlFetchApp calls/day on consumer.** A trigger that pulls per-campaign data with one call per row, run hourly, blows past this on a normal day. Use `fetchAll` and batch the requests upstream.
+
+A subtle one: there's no documented quota on `SpreadsheetApp.getRange().getValue()` per minute, but in practice the round-trip layer throttles around 600-1,000 calls/minute. Past that, calls start blocking, and the execution timer keeps ticking against the 6-minute budget.
+
+## Other batching tools
+
+A few primitives that pair with the batch pattern:
+
+- **`SpreadsheetApp.flush()`** forces any queued writes to commit immediately. Useful when a downstream read should see the writes (`setValues(...); flush(); getValues(...);`). Apps Script normally batches writes opportunistically; `flush` makes the seam explicit.
+- **`Utilities.sleep(ms)`** for inserting deliberate pauses between bursts. UrlFetchApp throttles at ~600/min; a `sleep(100)` between batches of 10 keeps you under the rate limit on long pulls.
+- **`LockService.getScriptLock()`** when two triggers might run at the same time and race on the same range. The lock serializes them so the batched writes don't interleave.
+- **`fetchAll([{url, method, headers}, ...])`** for parallel UrlFetch calls. The whole array fires concurrently; the response array preserves order.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61 (60 rows of campaign data). Your job: convert F2:F61 (USD spend) into J2:J61 (ILS spend) with a batched read and batched write."
+/>
+
+The starter file `Lesson.gs` already has a working `refactorMe()`, but it's the slow per-cell version, 60 reads and 60 writes. The grader and the realistic workload both punish that shape. Refactor it:
+
+1. Replace the `for` loop's `getValue` calls with one `sheet.getRange("F2:F61").getValues()`.
+2. Build a 2D array (`[[row[0] * 3.7], [row[0] * 3.7], ...]`) using `.map`. Each element is itself a 1-cell array.
+3. Replace the per-cell `setValue` calls with one `sheet.getRange("J2:J61").setValues(ils)`.
+
+Delete the loop entirely. The point is the comparison: 120 round-trips → 2.
+
+## Used in the wild
+
+- **Nightly Taboola pull, refactored.** The original script wrote 5,000 rows one cell at a time and took 20 minutes (and timed out occasionally). Refactored to one `setValues` call with a 5,000-row 2D array, it finishes in 30 seconds. Same logic, two API calls instead of 5,000.
+- **The IMPORTRANGE → Apps Script migration path.** When the upstream sheet has 50,000 rows and `IMPORTRANGE` makes the dashboard take 90 seconds to open, the team switches to a daily Apps Script pull: `Sheets.Spreadsheets.values.get` (or `SpreadsheetApp.openById(...)`) once on the source, one `setValues` to the local mirror, dashboard reads from local. Trades real-time freshness (which IMPORTRANGE didn't really have either) for instant load.
+- **Per-buyer trigger that emails a roll-up.** Reads the whole `Campaigns` tab once, computes per-buyer totals in JS, writes to a dashboard tab in one go, then sends one email per buyer (with `UrlFetchApp.fetchAll` if the buyer-portal API needs notifying too). The whole flow takes 4 seconds for 8 buyers; the per-cell version took 90 seconds.
+
+## Pro pitfalls
+
+- **`setValues` expects 2D arrays even for single-column writes.** `[[x], [y], [z]]`, not `[x, y, z]`. The error message points at row count, which sends learners chasing a row-count bug when the actual mistake is shape.
+- **Off-by-one when the range size doesn't match the array.** `getRange("J2:J60").setValues(arr60Rows)` throws because the range is 59 rows. Match the row count exactly or use `getRange(2, 10, arr.length, arr[0].length)` to size the range from the array itself.
+- **`SpreadsheetApp.flush()` is sometimes load-bearing.** A trigger that writes then immediately reads the same range can see the OLD values because the write is still queued. `flush()` between them makes the read see the write. Usually unnecessary; when it matters, the symptom is a "this can't be possible" intermittent bug.
+- **Mixing batch and per-cell calls negates the savings.** One `getValues` then a `for` loop with `setValue` per row is the same 60-round-trip cost as the original. Either fully batched on both sides or not at all.
+- **Triggers timing out mid-write leave partial data.** When a 5,000-row write times out at the 6-minute mark, the rows that were committed before the timeout stay; the rest don't. A subsequent run sees an inconsistent sheet. Wrap big batches in a try/catch and write a "last completed row" marker so re-runs can resume.
+- **`UrlFetchApp.fetch` in a loop hits the 600/min throttle.** Use `fetchAll` for parallel requests, or `Utilities.sleep(100)` between bursts to stay under the rate limit on long pulls. The throttle error is silent; the call just blocks longer and longer until the execution timer kills the run.

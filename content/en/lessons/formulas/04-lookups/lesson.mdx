@@ -1,0 +1,237 @@
+import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
+
+# Lookups: VLOOKUP, HLOOKUP, INDEX/MATCH, XLOOKUP
+
+Sheets has four ways to look up a value in a table. They all do roughly the same job. Three have inherited limitations from the 1980s. One is the modern winner. This lesson tells you which one to reach for and why, using the most common adtech case: matching campaign rows against a separate metadata table.
+
+The setup: every campaign has a **vertical** (the topic, like "Car Deals PR"). A separate **Verticals** table holds the category and average CPC for each vertical. To enrich the campaign log with category info, you need a lookup.
+
+<MiniGrid
+  data={CAMPAIGNS}
+  caption="The campaigns sheet. We'll enrich each row with its vertical's category."
+  highlight={["C2"]}
+/>
+
+<MiniGrid
+  data={VERTICALS_LOOKUP}
+  caption="The Verticals sheet (in real life this lives on another tab, often pulled in via IMPORTRANGE)."
+  highlight={["A2", "B2"]}
+/>
+
+## VLOOKUP: the legacy default
+
+`VLOOKUP` scans the **first column** of a range, finds the first match, and returns a value from another column in the same row. Four arguments: `search_key`, `range`, `column_index`, `[is_sorted]`. The `is_sorted` flag should almost always be `FALSE` for an exact match.
+
+<StepThrough
+  frames={[
+    {
+      caption: <>Search for <code>"Car Deals PR"</code> (the first campaign's vertical) in the first column of the Verticals lookup.</>,
+      body: (
+        <MiniGrid
+          data={VERTICALS_LOOKUP}
+          highlight={["A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11"]}
+          caption="VLOOKUP only scans the first column of the range you give it."
+        />
+      ),
+    },
+    {
+      caption: <>Found at row 2 (Car Deals PR).</>,
+      body: (
+        <MiniGrid
+          data={VERTICALS_LOOKUP}
+          highlight={["A2"]}
+          highlightTone="success"
+          caption="Match."
+        />
+      ),
+    },
+    {
+      caption: <>Return the value from <strong>column 2</strong> of the lookup range: the category, "Autos & Vehicles".</>,
+      body: (
+        <MiniGrid
+          data={VERTICALS_LOOKUP}
+          highlight={["B2"]}
+          highlightTone="success"
+          caption="Result: Autos & Vehicles."
+        />
+      ),
+    },
+  ]}
+/>
+
+In the assignment, the Verticals table sits at columns I-K of the same sheet. In real workbooks it'd be on a separate tab, referenced as `Verticals!A:C` or pulled in via `IMPORTRANGE`.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=VLOOKUP(C2,I2:K11,2,FALSE)"
+  task={<>Use <code>VLOOKUP</code> to find the category for the first campaign's vertical (Car Deals PR). The result in <code>H2</code> should be <code>Autos & Vehicles</code>.</>}
+  hint={<>Four arguments: search key (<code>C2</code>, the vertical name), range (<code>I2:K11</code>, the verticals lookup), column number (<code>2</code> for category), and <code>FALSE</code> for exact match.</>}
+  answer={<>The third argument is the column number <strong>within the range</strong>, not within the sheet. Since the range starts at column I, "Category" is column 2 of the range. The fourth argument <code>FALSE</code> forces an exact match: leaving it off (or passing <code>TRUE</code>) tells VLOOKUP the data is sorted, which can return wrong matches silently if it isn't. Always pass <code>FALSE</code> unless you're explicitly doing a range-bucket lookup.</>}
+/>
+
+The biggest VLOOKUP trap: it can **only** scan left-to-right. If your lookup column is to the right of the column you want to return, VLOOKUP can't help. Real adtech case: the verticals sheet has columns Vertical, Category, Avg CPC. To find which vertical has a given Avg CPC, VLOOKUP can't do it because Avg CPC is to the right of Vertical.
+
+## HLOOKUP: VLOOKUP rotated 90 degrees
+
+`HLOOKUP` scans the **first row** of a range and returns a value from another row in the same column. Same argument layout as VLOOKUP, but oriented horizontally. You'll rarely need it because tables are almost always vertical. (Quarterly summary boards are the exception, where months sit across columns.)
+
+## INDEX/MATCH: the flexible classic
+
+The INDEX/MATCH combo splits the lookup into two functions. `MATCH(search_key, range)` returns the **position** of the match. `INDEX(range, position)` returns the value at that position. Combine them and you have a lookup that doesn't care about column order.
+
+<StepThrough
+  frames={[
+    {
+      caption: <><code>MATCH(C2, I2:I11, 0)</code> returns <code>1</code>: Car Deals PR is at position 1 of the lookup range. The <code>0</code> means exact match.</>,
+      body: (
+        <MiniGrid
+          data={VERTICALS_LOOKUP}
+          highlight={["A2"]}
+          caption="MATCH counts within the range. A2 is position 1."
+        />
+      ),
+    },
+    {
+      caption: <><code>INDEX(J2:J11, 1)</code> returns the value at position 1 of <code>J2:J11</code>.</>,
+      body: (
+        <MiniGrid
+          data={VERTICALS_LOOKUP}
+          highlight={["B2"]}
+          highlightTone="success"
+          caption="Position 1 of J2:J11 is B2: Autos & Vehicles."
+        />
+      ),
+    },
+    {
+      caption: <>Combined: <code>=INDEX(J2:J11, MATCH(C2, I2:I11, 0))</code> returns Autos & Vehicles.</>,
+      body: (
+        <MiniGrid
+          data={VERTICALS_LOOKUP}
+          highlight={["A2", "B2"]}
+          highlightTone="success"
+          caption="Two functions, one lookup."
+        />
+      ),
+    },
+  ]}
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=INDEX(J2:J11,MATCH(C2,I2:I11,0))"
+  task={<>Use <code>INDEX/MATCH</code> to find the category for the first campaign's vertical. Same result as the VLOOKUP, but with two functions composed.</>}
+  hint={<><code>MATCH</code> takes the search key, the range to search, and a match type (<code>0</code> for exact). <code>INDEX</code> takes the range to read from and the position.</>}
+  answer={<>Read it inside-out: <code>MATCH(C2, I2:I11, 0)</code> evaluates first, returning <code>1</code> (Car Deals PR is the first vertical in the lookup). Then <code>INDEX(J2:J11, 1)</code> returns the first category. Result: Autos & Vehicles. INDEX/MATCH was the "right" answer for a decade because it works left-to-right or right-to-left and has predictable performance on huge sheets. The downside: two functions to write and maintain.</>}
+/>
+
+## XLOOKUP: the modern winner
+
+`XLOOKUP` shipped to Sheets in 2022. One function, no column-index quirks, works in any direction, and has a built-in not-found branch.
+
+<Compare>
+  <ComparePanel label="VLOOKUP" tone="negative">
+    <pre className="mt-1 overflow-x-auto rounded-md bg-surface-elevated p-3 font-mono text-xs">
+{`=VLOOKUP(search,
+         range,
+         column_number,
+         is_sorted)`}
+    </pre>
+  </ComparePanel>
+  <ComparePanel label="XLOOKUP" tone="positive">
+    <pre className="mt-1 overflow-x-auto rounded-md bg-surface-elevated p-3 font-mono text-xs">
+{`=XLOOKUP(search,
+         lookup_range,
+         return_range,
+         [if_not_found],
+         [match_mode],
+         [search_mode])`}
+    </pre>
+  </ComparePanel>
+</Compare>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=XLOOKUP(C2,I2:I11,J2:J11)"
+  task={<>Use <code>XLOOKUP</code> to find the category for the first campaign's vertical. Same result, simpler formula.</>}
+  hint={<>Three arguments are enough: search key, lookup range, return range.</>}
+  answer={<>The lookup range and return range are passed as separate arguments. They line up row-for-row: row 1 of <code>I2:I11</code> is "Car Deals PR", row 1 of <code>J2:J11</code> is "Autos & Vehicles". No column-number arithmetic, no <code>FALSE</code> flag for exact match (XLOOKUP defaults to exact). Just three arguments.</>}
+/>
+
+The fourth argument is the **not-found value**. Without it, missing matches return `#N/A`. With it, you get a clean fallback: critical for production sheets where new verticals get added by other teams and your dashboards shouldn't break.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=XLOOKUP("Crypto Trading PR",I2:I11,J2:J11,"Uncategorized")'
+  task={<>Search for the vertical "Crypto Trading PR" (which isn't in the Verticals table) and return <code>"Uncategorized"</code> instead of <code>#N/A</code>.</>}
+  hint={<>The fourth argument to <code>XLOOKUP</code> is the value to return when no match is found.</>}
+  answer={<>Without a not-found argument, XLOOKUP returns <code>#N/A</code> when it can't find the search key. The fourth argument lets you supply a fallback. This is one of the biggest XLOOKUP quality-of-life wins over VLOOKUP, where you'd have to wrap the whole formula in <code>IFERROR(VLOOKUP(...), "Uncategorized")</code>. In a campaign sheet that pulls verticals from an upstream IMPORTRANGE, an unknown vertical doesn't crash your dashboard: it gets a clean label and you investigate later.</>}
+/>
+
+XLOOKUP also reads right-to-left. Find the vertical with the highest Avg CPC:
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=XLOOKUP(MAX(K2:K11),K2:K11,I2:I11)"
+  task={<>Find the vertical with the highest Avg CPC in the lookup table. The lookup column is K2:K11 (CPC), the return column is I2:I11 (Vertical name).</>}
+  hint={<>Use <code>MAX(K2:K11)</code> as the search key. The lookup range is the CPC column; the return range is the vertical column.</>}
+  answer={<>VLOOKUP can't do this: it scans the first column and returns from a column to the right. XLOOKUP doesn't care about left-to-right; the lookup range and return range can be in any order. The result is "Online MBA PR" with an Avg CPC of $2.15: the most expensive vertical to bid on. This pattern is how you find "the campaign with the worst ROI", "the buyer with the highest spend", "the platform with the lowest CPC": anytime the answer is "the row that has X in column Y".</>}
+/>
+
+## When each one wins
+
+| Situation | Reach for |
+|---|---|
+| New formula in a new sheet | **XLOOKUP** |
+| Lookup column is to the right of the return column | XLOOKUP or INDEX/MATCH |
+| Sheet shared with people on Excel 2019 or older | INDEX/MATCH (XLOOKUP shipped to Excel in 2020) |
+| Maintaining old formulas | Whatever's there. Don't rewrite VLOOKUP into XLOOKUP unless something else is changing |
+| Quick disposable lookup | XLOOKUP |
+| Horizontal table | HLOOKUP, or transpose the data first |
+
+<QuickCheck
+  question="You're writing a new formula in a brand-new Sheets file. The lookup column is to the LEFT of the return column. Which function is the right default?"
+  options={[
+    {
+      id: "a",
+      label: <code>VLOOKUP</code>,
+      correct: false,
+      explanation: "VLOOKUP works here, but its column-index argument is fragile (insert a column and the formula silently returns wrong data). XLOOKUP is safer.",
+    },
+    {
+      id: "b",
+      label: <code>INDEX/MATCH</code>,
+      correct: false,
+      explanation: "INDEX/MATCH works, but it's two functions where one will do. Use XLOOKUP unless you need legacy Excel compatibility.",
+    },
+    {
+      id: "c",
+      label: <code>XLOOKUP</code>,
+      correct: true,
+      explanation: "Modern, single function, clean signature, built-in not-found branch, works in any direction. The default for new lookups in Sheets.",
+    },
+  ]}
+/>
+
+## Used in the wild
+
+In the team's actual workbooks, lookups appear constantly: and they're constantly breaking. The patterns:
+
+- **Vertical → category enrichment.** Every campaign sheet has an XLOOKUP column joining to a central Verticals tab via IMPORTRANGE.
+- **Buyer → team enrichment.** Same shape: XLOOKUP from the campaign log into a Buyers reference table.
+- **Lookup the current period.** A single named cell holding "current_period" (e.g., "2026-05") is XLOOKUP'd from a Periods table to get start/end dates that filter every dashboard.
+
+## Pro pitfalls
+
+- **VLOOKUP's column-index argument is brittle.** If someone inserts a column inside your lookup range, the column number now points at different data: and your formula returns wrong values without erroring. XLOOKUP avoids this by referencing return columns by range, not by number.
+- **INDIRECT/IMPORTRANGE'd lookup tables can return text instead of numbers.** If a CPC comes back as "1.42" (string) instead of 1.42 (number), XLOOKUP comparison still works for exact match but math on the result breaks. Coerce with `VALUE()` or `*1`.
+- **IMPORTRANGE permission revoked.** When the source workbook owner revokes editor access on the destination workbook, every IMPORTRANGE-fed lookup returns `#REF!`. The fix is to re-grant permission, but the symptom (cascade of #REF! across many formulas) looks scary. Track 4 covers diagnosing this.
+- **Trailing whitespace or case differences in the lookup key cause silent #N/A.** Wrap both sides in `TRIM(LOWER(...))` if your data is from disparate sources.
+
+## Now do it for real
+
+Click **Start lesson** to provision the campaign log with the Verticals table at columns I-K. You'll write four lookup styles for the same target (the first campaign's vertical category), then use XLOOKUP's right-to-left power to find the highest-CPC vertical.

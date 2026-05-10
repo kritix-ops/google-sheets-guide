@@ -1,0 +1,91 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# SEQUENCE, RANDARRAY, and dynamic array generators
+
+Some of the most useful formulas don't take an input range: they generate one. `SEQUENCE` makes a numeric range. `RANDARRAY` makes random numbers. `MAKEARRAY` calls a function for each cell of a grid. They're array-aware on their own (no `ARRAYFORMULA` wrapper needed) and they let you build derived data without manual fill-down.
+
+## SEQUENCE: a counted list
+
+`SEQUENCE(rows, [columns], [start], [step])` builds a sequence of numbers. The simplest form, `=SEQUENCE(10)`, gives the numbers 1 through 10 down a column.
+
+```
+=SEQUENCE(10)              → 1, 2, 3, ..., 10 (down)
+=SEQUENCE(1, 10)           → 1, 2, 3, ..., 10 (across)
+=SEQUENCE(12, 1, 0, 30)    → 0, 30, 60, ..., 330 (12 values, step 30)
+```
+
+In adtech: building a row of months for a 12-month projection table, or numbering campaigns for a position-based summary.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula="=SEQUENCE(12)"
+  task={<>Generate the numbers 1 through 12 in column H. The result should fill <code>H1:H12</code>.</>}
+  hint={<>Single argument: the number of rows. <code>SEQUENCE(12)</code>.</>}
+  answer={<>SEQUENCE with one argument generates a vertical column. With two, it generates a grid (rows × columns). The third and fourth arguments let you control the starting value and step. A common adtech use: <code>SEQUENCE(12, 1, DATE(2026,1,1), 30)</code>: 12 rows, starting from Jan 1 2026, stepping forward 30 days. (Better: combine SEQUENCE with EOMONTH for month boundaries.)</>}
+/>
+
+## SEQUENCE for date series
+
+Combine SEQUENCE with EDATE or EOMONTH to build month series for projections.
+
+```
+=ARRAYFORMULA(EOMONTH(DATE(2026,1,1), SEQUENCE(12)-1))
+```
+
+This gives end-of-month dates for each of the 12 months in 2026: Jan 31, Feb 28, Mar 31, .... You'd use it as the column headers for a monthly projection table.
+
+## RANDARRAY: random numbers
+
+`RANDARRAY(rows, [columns], [min], [max], [whole_numbers])` generates random values. Recalculates on every sheet change, like `RAND()`. Useful for A/B test bucketing, sampling, simulations.
+
+```
+=RANDARRAY(10)                        → 10 random decimals between 0 and 1
+=RANDARRAY(10, 1, 1, 100, TRUE)       → 10 random integers 1-100
+```
+
+The classic adtech use: bucketing campaigns into A/B test groups. Compute a random number per row, then `IF(rand < 0.5, "A", "B")` to assign the variant. Beware: RANDARRAY recalculates on every change, so the bucket assignment will shift around. To freeze it, paste as values once you're satisfied.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula="=RANDARRAY(5,1,1,100,TRUE)"
+  task={<>Generate 5 random integers between 1 and 100 in column H.</>}
+  hint={<>Five arguments: rows, columns, min, max, whole_numbers. The fifth must be TRUE for integers.</>}
+  answer={<>RANDARRAY without the integer flag returns floats. The 5th argument <code>TRUE</code> makes them whole numbers. RANDARRAY values change every time the sheet recalculates: every paste, every formula edit, every sheet open. For a stable random assignment (e.g., A/B bucket), generate once, then copy and paste-as-values to lock the assignment. Alternative: use a stable hash on a cell value, e.g., <code>MOD(LEN(A2), 2)</code>, which doesn't change between recalculations.</>}
+/>
+
+## MAKEARRAY: per-cell custom function
+
+`MAKEARRAY(rows, columns, lambda)` calls a `LAMBDA` function for each cell of the resulting grid. The lambda receives the row and column indices and returns the cell's value.
+
+```
+=MAKEARRAY(5, 3, LAMBDA(r, c, r * c))
+```
+
+Returns a 5×3 multiplication table. More useful in practice when paired with conditional logic: building reference tables, generating coordinate-based data, simulations. Lessons 18-19 cover LAMBDA in depth.
+
+## Why these matter
+
+Together with the array-aware functions (`FILTER`, `SORT`, `UNIQUE`, `QUERY`), the dynamic array generators let you build derived datasets from a single formula instead of copying-down:
+
+- **A monthly projection table** from `SEQUENCE` + `EOMONTH` for the headers, then SUMIFS per cell pulling from a campaign log.
+- **A randomized sample** of 100 campaigns to spot-check, via `INDEX(campaigns, RANDARRAY(100, 1, 1, COUNTA(campaigns), TRUE))`.
+- **A coordinates table** for a heatmap, via `MAKEARRAY` and a lookup function.
+
+## Used in the wild
+
+- **Month-over-month projection tables** built from `SEQUENCE`-generated date headers.
+- **A/B test bucket assignment** with `RANDARRAY` once, then frozen via paste-values so the assignment doesn't drift.
+- **Quick sequence numbering** for "campaign #1, campaign #2, ..." position columns where the sheet doesn't have a stable ID.
+
+## Pro pitfalls
+
+- **`RANDARRAY` and `RAND` are volatile.** Every sheet change recalculates them. For a stable random sample, paste as values immediately.
+- **`SEQUENCE` and `RANDARRAY` need empty cells below.** They spill, so anything in the way returns `#REF!`.
+- **`SEQUENCE(1000000)` will lock up the sheet.** It does spill the entire range, taking memory.
+- **Dynamic arrays + ARRAYFORMULA can over-spill.** Wrapping `SEQUENCE` in `ARRAYFORMULA` is usually redundant and sometimes spills further than expected.
+
+## Now do it for real
+
+Click **Start lesson** to provision a sheet. You'll generate a vertical sequence with `SEQUENCE`, build a series of month-end dates by combining `SEQUENCE` with `EOMONTH`, and produce a frozen random sample with `RANDARRAY` (paste-as-values pattern).

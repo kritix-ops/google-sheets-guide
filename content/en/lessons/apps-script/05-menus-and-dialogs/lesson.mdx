@@ -1,0 +1,152 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Custom menus and dialogs
+
+A spreadsheet that runs your code only when you open the Apps Script editor isn't very useful to the rest of the team. Custom menus are how you surface a function as a one-click action in the spreadsheet toolbar: the buyer opens the workbook, sees a "Reports" menu next to Help, clicks "Email weekly summary", and the script runs. Dialogs are how those scripts talk back: an alert when something finished, a prompt when the script needs a number, a sidebar when there's a whole panel of controls to show.
+
+## The `onOpen` trigger
+
+A custom menu lives only while the spreadsheet is open. Every time the workbook loads in someone's browser, Apps Script fires the special trigger function `onOpen` and the menu has to be rebuilt:
+
+```js
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("Reports")
+    .addItem("Show spend total", "alertSpend")
+    .addItem("Email weekly summary", "emailWeeklySummary")
+    .addToUi();
+}
+```
+
+`onOpen` is a **simple trigger**: Apps Script fires it automatically whenever the file is opened, with no install step and no permission prompt. The catch is that simple triggers run in a stripped-down auth context: they can read the spreadsheet and build UI, but they cannot send email, call `UrlFetchApp`, or do anything that needs full OAuth scopes. The menu item handlers (`alertSpend`, `emailWeeklySummary`) run when the user clicks them, and at that point they have the full auth context.
+
+**Course caveat.** The bound project in this course already declares `onOpen()` for its own purposes (initializing the sidebar). JavaScript only keeps one declaration per identifier, so a second `function onOpen()` in your `Lesson.gs` would silently overwrite the one we shipped or be overwritten by it. To work around this, the assignment has you write a regular function called `addReportsMenu()` and run it manually from the Apps Script editor's Run dropdown. The shape of the body is identical to what a real `onOpen` would contain. In any workbook you build outside this course, the production pattern is what's above: declare `onOpen`, build the menu inside it, and the menu shows up automatically on every load.
+
+## `createMenu` and `addItem`
+
+The menu builder is a chain. Read it top-down:
+
+```js
+SpreadsheetApp.getUi()       // get the spreadsheet's UI object
+  .createMenu("Reports")      // start a new top-level menu
+  .addItem("Refresh Taboola", "refreshTaboola")
+  .addItem("Mark dead campaigns", "markDeadCampaigns")
+  .addSeparator()
+  .addItem("Email weekly summary", "emailWeeklySummary")
+  .addToUi();                 // attach to the toolbar
+```
+
+Three things worth knowing about `addItem`:
+
+1. **The second argument is the function name as a STRING.** Apps Script does not validate it at save time. Typo `"emaiWeeklySummary"`, save, click the item, the menu silently does nothing. The bug shows up at click time, not at save time.
+2. **The first argument is the menu label the user sees.** Keep it short. The toolbar dropdown clips long names.
+3. **`addToUi()` is mandatory.** Without it, the menu is built in JavaScript memory and never attached to the toolbar.
+
+`createMenu` also supports submenus via `addSubMenu(otherMenu)`, useful when the team has six "Refresh X" items that would otherwise clutter the top level.
+
+## `ui.alert` and its variants
+
+The simplest dialog is `alert`. It pauses the script, shows a modal box with a message and an OK button, and resumes when the user clicks OK:
+
+```js
+const ui = SpreadsheetApp.getUi();
+ui.alert("Refresh complete. 248 new rows pulled.");
+```
+
+Two more forms cover the rest of the alert surface:
+
+```js
+// With a title and a custom button set:
+ui.alert(
+  "Confirm refresh",
+  "This will overwrite rows 2–500 of the Aggregator tab. Continue?",
+  ui.ButtonSet.YES_NO,
+);
+
+// The return value tells you which button the user clicked:
+const response = ui.alert(
+  "Confirm refresh",
+  "This will overwrite rows 2–500 of the Aggregator tab. Continue?",
+  ui.ButtonSet.YES_NO,
+);
+if (response === ui.Button.YES) {
+  refreshAggregator();
+} else {
+  ui.alert("Refresh cancelled.");
+}
+```
+
+The button-set constants (`OK`, `OK_CANCEL`, `YES_NO`, `YES_NO_CANCEL`) and the button constants (`OK`, `CANCEL`, `YES`, `NO`, `CLOSE`) live on the `ui` object itself, not as free strings.
+
+## `ui.prompt` for a value
+
+When the script needs the user to type something (a date range, a buyer name, a target ROI), use `prompt`:
+
+```js
+const response = ui.prompt(
+  "Bulk-edit ROI threshold",
+  "Enter the new threshold (e.g. 1.25):",
+  ui.ButtonSet.OK_CANCEL,
+);
+
+if (response.getSelectedButton() === ui.Button.OK) {
+  const text = response.getResponseText();
+  const value = parseFloat(text);
+  if (Number.isFinite(value)) {
+    applyThreshold(value);
+  } else {
+    ui.alert(`"${text}" isn't a number.`);
+  }
+}
+```
+
+The return value is a `PromptResponse` object, not a string. Two methods to remember: `getSelectedButton()` (which button the user clicked, including CLOSE if they hit the X) and `getResponseText()` (the actual typed input). Beginners hit the trap of treating the return value as the string itself and getting `[object PromptResponse]` in their downstream logic.
+
+## When to reach for a sidebar instead
+
+Menus and dialogs cover one-shot actions and one-shot inputs. The moment you need a persistent panel (a form with five fields, a status display that updates as a long script runs, a date range picker that stays visible while the user works), the right tool is a **sidebar**. Sidebars are HTML panels that dock on the right of the spreadsheet. They're how the sidebar companion that grades these very lessons displays its check list.
+
+Lesson 9 covers sidebars end-to-end. The short version: `ui.showSidebar(HtmlService.createHtmlOutputFromFile("Sidebar"))` opens a panel, the HTML inside it talks to your server functions via `google.script.run`. For now, just know that a menu item that opens a sidebar is the standard pattern when one-shot dialogs aren't enough.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61. J1 is pre-seeded with the total spend (the same number lesson 4's recomputeSpend would have written). Your job: add a Reports menu and an alertSpend handler that reads J1."
+/>
+
+The starter file `Lesson.gs` declares two function stubs. Two tasks:
+
+1. Fill in `addReportsMenu()` so it builds a "Reports" menu with one item labelled "Show spend total" that runs the function `alertSpend`. Use the chain `SpreadsheetApp.getUi().createMenu("Reports").addItem("Show spend total", "alertSpend").addToUi()`.
+2. Fill in `alertSpend()` so it reads J1's value and displays it via `SpreadsheetApp.getUi().alert("Total spend: " + value)`.
+
+Run `addReportsMenu` from the Apps Script editor's Run dropdown once. The Reports menu appears in the spreadsheet toolbar. Click Reports → Show spend total. An alert pops up with the total. (In a workbook you build outside this course you'd put the `createMenu` chain inside `onOpen` and skip the manual Run step; see the course caveat above.)
+
+## Used in the wild
+
+The team's actual workbooks have a Reports menu that looks something like:
+
+| Menu item | Handler | What it does |
+|---|---|---|
+| Refresh Taboola | `refreshTaboola` | Fires the nightly pull on demand instead of waiting for the trigger. |
+| Refresh Outbrain | `refreshOutbrain` | Same, for Outbrain. |
+| Mark dead campaigns | `markDeadCampaigns` | Sets the kill switch on every row where ROI dropped below 0.5 for three days. |
+| Email weekly summary | `emailWeeklySummary` | `MailApp.sendEmail` with the previous seven days' Aggregator data attached. |
+| Create month-end backup | `archiveMonth` | Duplicates the Aggregator tab into a date-stamped sheet. |
+
+Every item is a JavaScript function in the bound project. The menu is the team's API surface: the buyer never opens the Apps Script editor; they click items in the toolbar.
+
+The other heavy use of dialogs:
+
+- **`ui.alert` at the end of long-running scripts** so the buyer knows the script finished. Without the alert, a script that runs for two minutes looks like nothing happened.
+- **`ui.prompt` for the rare interactive script.** The "rename a buyer across all tabs" macro asks for the old name and the new name via two `prompt` calls in a row, then does the renames in one batch.
+- **`ui.alert(..., ButtonSet.YES_NO)` before destructive operations.** Any script that overwrites a range of cells gets a YES_NO gate so a misclick doesn't nuke a day's work.
+
+## Pro pitfalls
+
+- **Menu items take the function name as a STRING, and typos fail silently.** `.addItem("Run", "RunCampaign")` works at save time but does nothing at click time if the JS function is `runCampaign` (lowercase r). Always copy-paste the function name from the function declaration, never retype it.
+- **`ui.alert` blocks the script.** The script pauses until the user clicks the button. A nightly trigger that calls `ui.alert` will hang and eventually time out. `ui.alert` is for user-initiated runs only, not for scheduled triggers. Triggered scripts log to a sheet or send an email instead.
+- **`ui.prompt` returns a `PromptResponse`, not a string.** `const x = ui.prompt("name"); doSomething(x)` doesn't pass the typed text; it passes the response object. Use `x.getResponseText()` to extract the actual input, and check `x.getSelectedButton()` to see whether the user clicked OK, Cancel, or the X.
+- **A custom menu disappearing.** The user opened the spreadsheet but the menu isn't there. Three causes: the script wasn't authorized (open Apps Script, click Run on any function, accept the auth prompt); `onOpen` threw an exception (check the Execution log); the script is bound to a different copy of the file (each copy of a spreadsheet has its own bound project: duplicate the file and you've duplicated the script too, but the new copy still has to be authorized on first open).
+- **Two scripts each declaring `onOpen`.** A workbook with multiple bound libraries plus inline code can end up with two `onOpen` functions; whichever loaded second wins, the first one's menu vanishes. The fix is to consolidate all menu setup into one `onOpen` that calls helper functions per concern.
+- **A menu item that opens a sidebar from a simple-trigger context.** `ui.showSidebar` requires the `script.container.ui` scope and a full auth context. Inside the simple `onOpen` it works because `onOpen` is whitelisted for UI; from a time-driven trigger it throws. If you need to open a sidebar from a scheduled job, the right pattern is to write a status row to the spreadsheet and have the next manual open's `onOpen` notice it and open the sidebar then.

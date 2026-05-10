@@ -1,0 +1,137 @@
+# The execution model: V8, services, quotas, scopes
+
+Apps Script looks like JavaScript and most of it is. What's different is the runtime environment: the engine that runs the code, the libraries it exposes, the limits it enforces, and the permission system that gates everything. Get a feel for this in lesson 2 and the rest of the track stops surprising you.
+
+## V8 vs Rhino
+
+Apps Script has two engines:
+
+| Runtime | Era | What you get |
+|---|---|---|
+| Rhino | 2009–2020 | An old ECMAScript 5.x dialect. No `let`/`const`, no arrow functions, no template literals, no destructuring, no `async`/`await`. |
+| V8 | 2020–today | The same engine that runs Chrome. Modern ECMAScript with everything the rest of JavaScript ecosystem assumes. |
+
+The manifest's `runtimeVersion` field picks. **V8 is the default and the only correct choice for new projects.** The reason Rhino still exists is backward compatibility with workbooks that have decade-old triggers still firing. If you inherit a Rhino project, switching is one manifest edit (`"runtimeVersion": "V8"`) plus testing: the rare incompatibility is around `this` binding inside callbacks and a few legacy global symbols that Rhino exposed (`importPackage`, etc.).
+
+In practice, V8 means you write Apps Script with the same JavaScript you write everywhere else:
+
+```js
+// Template literals, destructuring, optional chaining, all native:
+function summarize(campaign) {
+  const { buyer, vertical, spend } = campaign;
+  return `${buyer} on ${vertical}: $${spend?.toFixed(2) ?? "0.00"}`;
+}
+```
+
+This lesson's assignment makes you use a template literal explicitly: that's the V8-only feature most likely to bite you if you ever land in a Rhino project by accident.
+
+## Services
+
+Apps Script's standard library is organized into **services**: top-level objects you call methods on. The ones a typical adtech workbook uses:
+
+| Service | Used for |
+|---|---|
+| `SpreadsheetApp` | Reading and writing cells, ranges, sheets. The most-touched service. |
+| `DriveApp` | Listing, creating, moving, sharing files. The way you find sheets to IMPORTRANGE into. |
+| `UrlFetchApp` | Outbound HTTP. How nightly Taboola/Outbrain pulls happen. |
+| `MailApp` / `GmailApp` | Sending email. The "spend exceeded budget" alert mailer. |
+| `CalendarApp` | Reading and writing calendar events. Less common in adtech. |
+| `ScriptApp` | Trigger management, deployments, the script's own metadata. |
+| `Session` | The active user. `Session.getActiveUser().getEmail()` returns who's running this. |
+| `Utilities` | Date formatting, base64, blob handling, sleep. Helpers that don't fit anywhere else. |
+| `CacheService` / `PropertiesService` | Per-script key/value storage. Cache is short-lived; Properties is persistent. |
+| `LockService` | Mutex when two trigger runs could race. Mandatory for nightly batch jobs. |
+
+There are more (the "Advanced services" you enable in Resources let you call the Sheets API at a lower level, the BigQuery API, the Admin SDK, etc.): but for 90% of workbook code you live in the table above.
+
+Calling a service is a method-chain:
+
+```js
+const sheet = SpreadsheetApp.getActiveSpreadsheet()
+  .getSheetByName("Aggregator");
+const lastRow = sheet.getLastRow();
+const data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
+```
+
+Each method call is a round-trip to Google's servers. The lesson on `SpreadsheetApp` (lesson 4) covers how to batch reads and writes so you don't pay the round-trip per cell.
+
+## Quotas
+
+Apps Script enforces three kinds of limit:
+
+**Per-execution timeout.** A single script run can't last forever:
+
+| Account type | Maximum execution time |
+|---|---|
+| Consumer (gmail.com) | 6 minutes |
+| Workspace | 30 minutes |
+
+A script that hits this gets killed mid-write. The fix is to break long jobs into chunks and re-trigger via `ScriptApp.newTrigger(...).timeBased().at(...)`: the recipe for processing 200,000 campaign rows is a 50,000-row chunk on a trigger that re-arms itself.
+
+**Daily quotas per service.** Each service has its own daily cap. The ones that hurt most:
+
+| Service | Free quota | Workspace quota |
+|---|---|---|
+| `UrlFetchApp` | 20,000/day | 100,000/day |
+| `MailApp.sendEmail` | 100/day | 1,500/day |
+| Trigger total runtime | 90 min/day | 6 hours/day |
+| Sheets API custom function calls | 30,000/day | 30,000/day (same) |
+
+The numbers shift over time; the current ones live at `developers.google.com/apps-script/guides/services/quotas`. Two relevant patterns:
+
+- **One nightly trigger doing 20,000 UrlFetchApp calls saturates the free quota.** If you need more, parallelize across multiple Apps Script projects (each gets its own quota bucket) or move to a paid Workspace account.
+- **MailApp's 100/day limit is per script, not per user.** A single script that emails every team member daily about their campaigns saturates fast. Use `GmailApp.sendEmail` (1,500/day on free, 10,000 on Workspace) for higher-volume mailing.
+
+**Per-minute rate limits.** Most services also have a per-minute burst limit: `UrlFetchApp` allows about 600/minute. Hit it and you get a `Service invoked too many times in a short time` exception. The Apps Script wisdom is `Utilities.sleep(100)` between calls in a batch: cheap insurance.
+
+## OAuth scopes
+
+Every service call requires a permission grant. The manifest declares scopes explicitly:
+
+```json
+"oauthScopes": [
+  "https://www.googleapis.com/auth/spreadsheets.currentonly",
+  "https://www.googleapis.com/auth/script.container.ui",
+  "https://www.googleapis.com/auth/script.external_request"
+]
+```
+
+| Scope | What it unlocks |
+|---|---|
+| `spreadsheets.currentonly` | Read/write the active spreadsheet only. The narrowest useful scope. |
+| `spreadsheets` | Read/write any spreadsheet the user can access. |
+| `drive.file` | Read/write files this app created or that the user explicitly opened with it. |
+| `drive` | Full Drive access. The scariest scope to ask for. |
+| `script.container.ui` | Show sidebars, dialogs, custom menus. |
+| `script.external_request` | Call `UrlFetchApp`. |
+| `userinfo.email` | Read the active user's email. |
+
+**Always prefer narrow scopes.** A bound script that only needs the active workbook should use `spreadsheets.currentonly`, never `spreadsheets`. Two reasons:
+
+1. **The auth prompt looks less scary.** Users abandon scripts that ask for "Manage your spreadsheets in Drive" when "Manage just this spreadsheet" is what they actually do.
+2. **Damage if the script is compromised is bounded.** A script with `drive` scope that gets hijacked can exfiltrate every file. A script with `drive.file` can only touch files it created.
+
+On the first run, the user sees a consent screen listing every scope. They accept or refuse. Add a new service call later? Apps Script auto-expands the scope list, the next run prompts again. This is annoying for the user but it's how the permission contract stays explicit.
+
+## Now do it for real
+
+The bound project for this lesson has a `Lesson.gs` file with a `quotaSummary(perDay, perMinute)` stub. Two tasks:
+
+1. Edit the body to return the template literal `` `${perDay} per day, ${perMinute} per minute` ``. Template literals are V8-only: that's the lesson hook.
+2. In cell **A1**, call `=quotaSummary(20000, 600)`. Those are UrlFetchApp's consumer-account quota and per-minute rate, so the cell ends up reading "20000 per day, 600 per minute": the actual limits you'll be designing around when you write nightly pulls in lesson 11.
+
+## Used in the wild
+
+Real Apps Script projects in the team's workbooks:
+
+- **`appsscript.json` carries 4–6 scopes maximum.** Anything more is either overscoping or doing too many things in one project: split into a script per concern.
+- **`Utilities.sleep(100)` between every `UrlFetchApp.fetch`.** Belt and suspenders against the per-minute throttle.
+- **A nightly summary mailer that's split into two functions.** One queries the workbook for the data; the other formats and sends. Quota for `MailApp.sendEmail` is checked at the start of the second function: if exhausted, log it to the Aggregator and skip mailing for the night.
+
+## Pro pitfalls
+
+- **"My script ran yesterday but today it asks for permission again."** You added a new service call that needs a new scope. Apps Script auto-expanded the scope set; the next run re-prompts.
+- **The 6-minute timeout that hides behind triggers.** A nightly trigger that succeeds for months on small data silently starts failing the day the data grows past the limit. Log the start time at the top of every long-running function and the end time at the bottom; when the gap creeps toward 5 minutes, you know to refactor.
+- **`UrlFetchApp.fetch` returning the same response twice.** The cache for `muteHttpExceptions: false` calls is aggressive. Pass `muteHttpExceptions: true` and read the response code yourself, or append a cache-busting parameter to the URL.
+- **A custom function consuming UrlFetchApp quota.** Lesson 3 covers caching from the cell side; here's the quota side. Every distinct argument tuple to `=fetchSomething(x, y)` is one call. A spreadsheet with 50,000 cells calling a `UrlFetchApp`-based custom function will saturate the daily quota in one open.
+- **Multiple triggers racing on the same data.** Sunday-night trigger A re-runs because the previous run crashed; manual run B fires on Monday morning to backfill. Both write to the Aggregator simultaneously. Use `LockService.getScriptLock().tryLock(30 * 1000)` at the top of any trigger that mutates shared state.

@@ -1,0 +1,156 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Apps Script איטי: profiles ו-batch ops
+
+שיעור 16 ב-Track 3 לימד את התיקון של batch APIs: קוראים פעם אחת ב-`getValues()`, כותבים פעם אחת ב-`setValues()`, עושים את החישוב ב-JavaScript באמצע. השיעור הזה הוא שכבת האבחון שמתחת לתיקון הזה. יש לכם סקריפט שרץ לאט. אולי הוא עושה timeout. אולי ה-aggregator הלילי של הצוות התחיל לקחת שמונה עשרה דקות כשבחודש שעבר לקח שתיים. לפני שמשכתבים, צריך לדעת איזו שורה היא האיטית. ניחוש שורף יום. profiling לוקח עשר דקות.
+
+## ה-Executions panel: איפה הקריאה האיטית צצה
+
+כל הרצה של function ב-Apps Script נרשמת ב-Executions panel. בעורך החדש: **View > Executions**. ה-panel מציג הרצות אחרונות עם משך הזמן שלהן, הסטטוס (Completed, Failed, Timed out, Cancelled), המשתמש שהפעיל אותן, וסוג ה-trigger (Editor, Trigger, API). ממיינים לפי משך זמן בסדר יורד וההרצות האיטיות ביותר עולות לראש.
+
+כמה דברים שאפשר לקרוא מה-panel הזה בלי להוסיף instrumentation בכלל:
+
+- **עמודת ה-Duration.** function שמתחת לשנייה היא בסדר. function מעל 30 שניות חשודה. function מעל 60 שניות בחשבון Google רגיל היא באזור הסכנה (timeout של סקריפט הוא 6 דקות לחשבון רגיל, 30 דקות ב-Workspace). כל מה שעושה timeout בגבול הוא האות הכי יקר של ה-panel: הוא אומר שה-function לא רק איטית, היא חורגת מתקציב ה-runtime.
+- **עמודת ה-Trigger.** function שאיטית כשמריצים אותה מהעורך (trigger מסוג Editor) ומהירה כשמריצים אותה מ-trigger מבוסס זמן בדרך כלל אומרת ש-handshake הראשון של auth בעורך הוא הדומיננטי. מריצים אותה פעמיים מהעורך, ההרצה השנייה היא המספר הריאלי.
+- **שורות Failed ו-Timed out.** function שמסתיימת בעשר הרצות ועושה timeout באחת עשרה פוגעת בקיר quota או בקיר data (המקור גדל). משך הזמן של ההרצה האחת עשרה הוא התקרה שלכם.
+
+ה-Executions panel הוא הצעד הראשון הזול ביותר. אל תעשו profile עדיין; פשוט מסתכלים ב-panel. לפעמים התשובה היא "ה-function לא איטית, ה-trigger יורה כל דקה והתור התמלא". זה תיקון של configuration, לא של קוד.
+
+## console.time ו-console.timeEnd: זוג ה-profiling
+
+כשה-Executions panel אומר "ה-function הזו לוקחת 18 שניות" וצריך לדעת איזה 18 שניות, הכלי הזול ביותר הוא הזוג `console.time` / `console.timeEnd`:
+
+```js
+function aggregate() {
+  console.time("read");
+  const values = sheet.getRange("F2:F61").getValues();
+  console.timeEnd("read");
+
+  console.time("math");
+  const total = values.reduce((s, r) => s + r[0], 0);
+  console.timeEnd("math");
+
+  console.time("write");
+  sheet.getRange("J1").setValue(total);
+  console.timeEnd("write");
+}
+```
+
+מריצים את ה-function. פותחים **View > Logs** (או לוחצים על שורת ההרצה ב-Executions panel וגוללים לחלק ה-Logs). רואים שלוש שורות כמו `read: 412 ms`, `math: 1 ms`, `write: 188 ms`. עכשיו יודעים בדיוק איזה בלוק לאופטם. החשבון אף פעם לא הצוואר. הקריאות והכתיבות הן.
+
+ה-label הוא רק string. תואמים את אותו string ב-`time` וב-`timeEnd`. שוכחים לסגור אחד ו-`console.time` דולף בשקט, כלום לא מודפס, אין שגיאה, רק שורה חסרה ב-log.
+
+## למה לולאות תא-תא הן בדרך כלל האשם
+
+הצעד הברירת מחדל של מישהו חדש ב-Apps Script הוא לכתוב את ה-for-loop שהוא היה כותב בכל מקום אחר:
+
+```js
+function slowAggregate() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  let total = 0;
+  for (let row = 2; row <= 61; row++) {
+    total += sheet.getRange(row, 6).getValue();  // 60 round-trips
+  }
+  sheet.getRange("J1").setValue(total);
+}
+```
+
+כל `getRange().getValue()` הוא round-trip בפני עצמו לשרת. שישים שורות זה שישים round-trips. ב-aggregator הלילי האמיתי של הצוות מעל 12,000 שורות של קמפיינים, הדפוס הזה הגיע לשמונה עשרה דקות. השכתוב:
+
+```js
+function slowAggregate() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  console.time("read");
+  const values = sheet.getRange("F2:F61").getValues();
+  console.timeEnd("read");
+
+  let total = 0;
+  for (let row = 0; row < values.length; row++) {
+    total += values[row][0];
+  }
+  sheet.getRange("J1").setValue(total);
+}
+```
+
+קריאת `getValues()` אחת. round-trip אחד. ה-for-loop עכשיו עובר על array דו-ממדי בזיכרון, ש-JavaScript עושה במיקרו-שניות. ב-aggregator הלילי הגרסה המשוכתבת רצה ב-40 שניות.
+
+אותו דפוס חל על כתיבות. לולאה שקוראת ל-`setValue()` לכל תא היא שישים כתיבות; `setValues()` בודד הוא אחת. כותבים את הפלט כ-array דו-ממדי ומעבירים את כל ה-array ל-`setValues()`.
+
+## ה-timeouts של 6 דקות ו-30 דקות
+
+Apps Script הורג functions שלוקחות יותר מדי זמן. הגבול תלוי בסוג החשבון:
+
+| חשבון | timeout של custom function | timeout של script function |
+|---|---|---|
+| רגיל (gmail.com) | 30 שניות | 6 דקות |
+| Google Workspace | 30 שניות | 30 דקות |
+
+תקרת ה-6 דקות של חשבון רגיל היא זו שמפתיעה צוותי אדטק שה-media buyers שלהם מריצים סקריפטים מהחשבון האישי שלהם על spreadsheet צדדי. התיקון הוא חשבון Workspace בדומיין של הצוות או חלוקת העבודה לחלקים batched קטנים יותר שכל אחד מסתיים מתחת ל-6 דקות וממשיך דרך state ששמור ב-PropertiesService.
+
+function שעושה timeout לא עושה rollback. כל כתיבה שכבר הספיקה לקרות מתמידה. אם ה-aggregator עושה timeout 80% מתוך כתיבה של 12,000 שורות, יש לכם 9,600 שורות של נתונים חדשים ו-2,400 שורות מיושנות שעדיין מציגות את המספרים של אתמול, בלי שגיאה בתא שתסמן את הקו. עושים profile לפני ששולחים.
+
+## SpreadsheetApp.flush(): מתי, ומתי לא
+
+`SpreadsheetApp.flush()` מאלץ שינויים תלויים להתמיד בגיליון מיד. Apps Script בדרך כלל עושה batch לכתיבות, `flush()` אומר "תפסיק batching, שלח את מה שיש לך עכשיו".
+
+שימושי בשני מקרים צרים:
+
+- **צריך קריאה אחרי כתיבה באותה function.** כתבתם ערך לעמודה F ועכשיו רוצים לקרוא את עמודה G בשורה הבאה, כש-G היא נוסחה שתלויה ב-F. בלי `flush()`, הקריאה רואה G מיושן.
+- **רוצים שההתקדמות תהיה גלויה באמצע הריצה.** סקריפט שרץ זמן רב וכותב התקדמות לתא סטטוס צריך `flush()` בין הכתיבות כדי שהמשתמש יראה "Row 5000 of 12000" עולה.
+
+מזיק במקרה נפוץ אחד:
+
+- **בתוך לולאה, בין כתיבות.** זה מבטל את ה-batch. כל `flush()` הוא round-trip; קריאה לו 12,000 פעמים בלולאת כתיבה מוסיפה שנים עשר אלף round-trips על גבי הכתיבות. כל הרעיון של batching הוא לשלוח את העבודה ב-trip אחד.
+
+ברירת מחדל: לא קוראים ל-`flush()`. ה-runtime עושה flush לבד בסוף ה-function. מוסיפים אותו רק כשאחד משני המקרים הספציפיים שלמעלה נושך.
+
+## Utilities.sleep: ביטוח, לא אופטימיזציה
+
+`Utilities.sleep(ms)` עוצר ביצוע. אנשי מקצוע מפזרים sleep של 100ms בין קריאות ל-API חיצוני (UrlFetchApp, Drive, Calendar) כשמתקרבים לגבול קצב לשנייה, כי האלטרנטיבה היא quota error באמצע הלולאה. זה השימוש הלגיטימי.
+
+מה ש-`Utilities.sleep` לא מתקן:
+
+- קריאת `getValues` איטית. sleep לא הופך את ה-spreadsheet למהיר יותר.
+- timeout. sleep אוכל את תקציב ה-runtime שלכם על כלום.
+- כתיבה לא יציבה. אם הכתיבה נכשלה, sleep ואז retry זה בסדר, sleep לבד לא יגרום לה להצליח.
+
+מתייחסים ל-sleep ככלי החלקה של קצב, לא ככלי ביצועים. אם רואים `Utilities.sleep(2000)` בלולאה חמה, זה עיכוב של 2 שניות לאיטרציה, על התקציב.
+
+## Cloud Logging לשמירה מעבר ל-7 ימים
+
+האינטגרציה של Stackdriver / Cloud Logging עם Apps Script שומרת logs לזמן ארוך יותר מה-logs בעורך (שמתנקים אחרי 7 ימים). לסקריפט שמריצים רק פעם בשבוע, ה-logs בעורך כבר נעלמו עד שהיו עושים להם profile. התיקון הוא להפעיל Cloud Logging בפרויקט ה-Google Cloud המקושר ולהשתמש בקריאות `console.log`, הן זורמות ל-Cloud Logging אוטומטית. משם אפשר לעשות query להרצות העבר ולעשות אגרגציה של משכי זמן על פני שבועות.
+
+ל-aggregator הלילי של הצוות, ככה היה בונים chart של "duration של function בתשעים הימים האחרונים" כדי לזהות מתי לולאת התא-תא התחילה לפגוע בקיר של 6 הדקות (מה שבדרך כלל קורה חודשיים אחרי שהצוות הוסיף פלטפורמה והכפיל בשקט את כמות השורות).
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="לוג Campaigns תופס את A1:G61. ה-starter `Lesson.gs` כולל `slowAggregate()` איטי שקורא את עמודה F תא-תא. המשימה: לשכתב לקריאת getValues() אחת, לעטוף את הקריאה ב-console.time, ולכתוב את הסכום ל-J1."
+/>
+
+שלוש משימות ב-`Lesson.gs`:
+
+1. **משכתבים את הקריאה.** מחליפים את לולאת ה-`getValue()` תא-תא ב-`const values = sheet.getRange("F2:F61").getValues();` ואחריה for-loop בזיכרון על `values`. הפלט נשאר זהה, הזמן עובר משישים round-trips לאחד.
+2. **עוטפים את הקריאה ב-`console.time` וב-`console.timeEnd`.** משתמשים בכל label שרוצים (`"read"` הוא קונבנציונלי). הזוג חייב להתאזן: `console.time` פתוח בלי `timeEnd` תואם לא מדפיס כלום.
+3. **מריצים את `slowAggregate` מהעורך.** ה-function כותבת את ה-spend הכולל ל-J1. פותחים את ה-Executions panel אחר כך ומאשרים את משך הזמן. הסכום ב-J1 הוא מה שה-grader בודק.
+
+כשמריצים מחדש אחרי השכתוב, מקטע ה-Logs מתחת לשורת ה-Executions צריך להציג שורה של `read: <N> ms`. משווים מול המקור (מריצים את הגרסה האיטית פעם אחת קודם כדי לראות את הניגוד).
+
+## נפוץ בשטח
+
+הפול הלילי של Taboola של הצוות היה המקרה הקלאסי. ה-function קראה 12,000 שורות של קמפיינים מגיליון `Raw - Taboola`, חישבה סכומים יומיים לכל media buyer, וכתבה אותם ל-`Daily` tab. runtime מקורי: 18 דקות. ה-Executions panel סימן אותו בפעם הראשונה שהוא חצה את גבול 6 הדקות של חשבון רגיל (ה-media buyer הריצה אותו מהחשבון האישי gmail.com שלה; ה-trigger הלילי של הצוות היה על חשבון ה-Workspace שלה, אז גרסת ה-trigger אף פעם לא עשתה timeout, אבל הידנית עשתה, וככה האיטיות צצה). זוג `console.time` אחד מסביב לבלוק הקריאה אישר ש-95% מהזמן הייתה לולאת התא-תא. השכתוב היה עריכה של חצי שעה. ה-runtime החדש: 40 שניות. אותה לוגיקה בדיוק, נקראת בדרך הנכונה.
+
+עוד שני מקומות שבהם דפוס ה-profiling הזה מוכיח את עצמו על הצוות הזה:
+
+- **לולאת `setValue` שדוחפת ROI מחושב חזרה לגיליון המקור.** אותה צורה: משכתבים ל-`setValues()`, מצמידים `console.time`, יורדים מדקות לשניות.
+- **helper בסגנון custom function שנקרא מ-800 תאים.** כל קריאת תא הריצה lookup קטן. ה-profiling הראה שה-lookup עצמו היה במילישניות אבל ה-function הופעלה 800 פעמים בכל recalc. התיקון היה עטיפת `ARRAYFORMULA` שגרמה ל-helper לרוץ פעם אחת על כל הטווח.
+
+## מלכודות מקצועיות
+
+- **`console.time` בלי `console.timeEnd` תואם.** שקט. אין שורת log, אין שגיאה, כלום בפלט של Executions. אם ה-label לא צץ ב-log, מחפשים את הזוג שלא תואם.
+- **`flush()` בין כל כתיבה בלולאה.** הורג את ה-batch. כל קריאה היא round-trip על גבי הכתיבה. עוברים על הקוד ל-`flush()` בתוך לולאות `for`, ב-9 מתוך 10 מקרים הוא שם כי מישהו העתיק snippet וה-snippet היה שגוי.
+- **profiling בלולאה הפנימית.** קריאת `console.time` בתוך לולאה של 12,000 איטרציות מוסיפה overhead משלה. עושים profile ללולאה כשלם, לא איטרציה-איטרציה. אם צריך עיתוי לאיטרציה, דוגמים כל איטרציה מאית, לא כל אחת.
+- **הנחה שהחלק האיטי הוא החשוד המתבקש.** השורה האיטית ביותר ב-function היא לרוב שרשרת getter תמימה למראה: `sheet.getActiveRange().getValues()` מאלצת round-trip כדי להבין מה הטווח הפעיל, על גבי ה-round-trip לערכים. שומרים את אובייקט ה-range ב-`const` פעם אחת ומשתמשים בו שוב.
+- **ה-timeout של 6 דקות בחשבון רגיל כשה-trigger רץ על חשבון Workspace.** Production אף פעם לא רואה את ה-timeout כי triggers מקבלים את התקרה הארוכה. ה-media buyer שבדק ידנית מהחשבון האישי פגעה בו. מריצים את ה-function תחת אותו חשבון שמריץ את ה-trigger לפני שמכריזים שהיא מהירה.
+- **מסתכלים ב-Executions panel ורואים שהסקריפט רץ 5.9 דקות.** זה לא "כמעט הצליח". זה תקציב ה-runtime של חשבון רגיל שנשרף וה-function כנראה לא סיימה את ה-batch האחרון שלה. מתייחסים לכל משך זמן מעל 80% מהתקרה ככשל עתידי.

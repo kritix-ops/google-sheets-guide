@@ -1,0 +1,110 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Simple triggers: onOpen, onEdit, onSelectionChange
+
+Custom functions רצות רק כשתא מבקש מהן. הצעד הבא הוא קוד שרץ על *event* של גיליון: משתמש פותח את ה-spreadsheet, עורך תא, בוחר טווח אחר. Apps Script מטפל בזה דרך קבוצה קטנה של **שמות functions שמורים**. אם מצהירים על function ברמה העליונה עם אחד מהשמות האלה, ה-runtime מפעיל אותה אוטומטית בכל פעם שה-event המתאים קורה, בלי רישום, בלי הגדרה. אלה ה-**simple triggers**.
+
+ארבעת השמות השמורים שחשובים:
+
+| השם | מתי יורה |
+|---|---|
+| `onOpen(e)` | משתמש עם הרשאות עריכה פותח את ה-spreadsheet. |
+| `onEdit(e)` | משתמש עורך תא (paste, הקלדה, fill-down, מחיקה). |
+| `onSelectionChange(e)` | הבחירה הפעילה זזה לתא או לטווח אחר. |
+| `onChange(e)` | שינוי מבני: הוספת שורה, שינוי שם גיליון, עריכת עיצוב וכו'. |
+
+שני דברים שכדאי לשים לב אליהם מראש. **השמות רגישים לאותיות גדולות וקטנות.** `onedit` לא יורה. `OnEdit` לא יורה. רק `onEdit` יורה. ו-**ה-function חייבת להיות ברמה העליונה**, אותו כלל כמו ב-custom functions. הכרזה מקוננת או arrow שמושמת לקבוע בלתי נראות למערכת ה-triggers.
+
+## הערה על `onOpen` בקורס הזה
+
+הפרויקט המקושר של הקורס כבר מצהיר על `function onOpen()`, זה מה שמתקין את התפריט **Lesson → Show sidebar** כשפותחים את ה-spreadsheet. אי אפשר להצהיר על `onOpen` שני באותו פרויקט, Apps Script יסרב לשמור. המטלה של השיעור הזה מתמקדת ב-`onEdit` במקום. ב-spreadsheet שאתם הבעלים שלו, `onOpen` הוא שלכם לכתיבה. הדפוס זהה ל-`onEdit`: מצהירים ברמה העליונה, עושים משהו עם `e`, חוזרים.
+
+## אובייקט ה-event
+
+כל simple trigger מקבל אובייקט event, שעל פי המוסכמה נקרא `e`. הצורה משתנה מעט בין triggers; השדות הרלוונטיים ל-`onEdit` הם:
+
+```js
+function onEdit(e) {
+  e.range;     // אובייקט Range, התא או הטווח שנערך
+  e.value;     // הערך החדש (רק לעריכות של תא בודד; אחרת undefined)
+  e.oldValue;  // הערך הקודם (רק לעריכות של תא בודד)
+  e.user;      // אובייקט User; e.user.getEmail() הוא כתובת המייל של העורך
+  e.source;    // אובייקט ה-Spreadsheet שבו קרתה העריכה
+}
+```
+
+ה-`range` הוא השדה השימושי ביותר, הוא נושא את הגיליון, את השורה, את העמודה ואת הכתובת ב-A1, הכל במכה אחת. דפוס guard טיפוסי קורא אותו ראשון:
+
+```js
+function onEdit(e) {
+  const range = e.range;
+  if (range.getSheet().getName() !== "Campaigns") return;
+  if (range.getColumn() !== 6) return; // F = Spend
+  // מכאן אנחנו יודעים שהעריכה נחתה בעמודת ה-Spend ב-Campaigns.
+}
+```
+
+ל-`onChange` יש צורת event שונה: בלי `range`, בלי `value`, במקום שדה `changeType` עם ערכים כמו `"INSERT_ROW"`, `"REMOVE_COLUMN"`, `"FORMAT"`. אסור להעתיק גוף `onEdit` ל-`onChange` ולצפות שיתקמפל.
+
+## מגבלת ה-auth context
+
+Simple triggers רצים **בתור המשתמש שהפעיל את ה-event**, ב-scope auth צר בכוונה. הם יכולים:
+
+- לקרוא ולכתוב ל-spreadsheet הפעיל (`SpreadsheetApp.getActiveSpreadsheet()`)
+- להשתמש ב-`Utilities.*` לעיצוב ולפרסור
+- להריץ JS טהור
+
+הם **לא יכולים**:
+
+- לשלוח אימייל (`MailApp.sendEmail`, `GmailApp.sendEmail`)
+- לגשת לרשת (`UrlFetchApp.fetch`)
+- לגעת במסמכים אחרים (`SpreadsheetApp.openById`, `DriveApp.*`)
+- להציג sidebar או dialog (ה-UI context הפעיל לא שלהם לתבוע)
+- לשנות הרשאות Drive
+- לקרוא scripts חיצוניים
+
+המלכודת היא שהקריאות האלה **נכשלות בשקט**, בלי exception, בלי רישום ב-log, בלי כלום ב-Execution dashboard. ה-trigger נראה כאילו ירה כרגיל; האימייל פשוט לעולם לא יוצא. אם אתם מוצאים את עצמכם רוצים אחד מהשירותים המוגבלים, התשובה בשיעור הבא: **installable trigger**, רשום עם auth מלא.
+
+ל-simple triggers יש גם **תקציב של 30 שניות**. לולאה דרך גיליון של 60,000 שורות בתוך `onEdit` וה-runtime יהרוג אותה באמצע הלולאה. שומרים את ה-handlers של simple triggers קטנים.
+
+## מתי כל trigger הוא הכלי הנכון
+
+סיור קצר:
+
+- **`onOpen`**: המקום היחיד האמין להתקין תפריט מותאם. ה-spreadsheet נפתח, התפריט מופיע. כל דבר מורכב יותר (שינוי גובה שורות אוטומטי, צביעה מחדש של עמודת status) שייך ל-function שהתפריט *קורא לה*, לא ל-`onOpen` עצמו, כי מסלול הפתיחה נמצא על המסלול הקריטי של טעינת ה-spreadsheet.
+- **`onEdit`**: סוס העבודה. משתמשים בו להיגיינת נתונים בשורה: מילוי אוטומטי של ה-buyer מהמייל של העורך כשנוספת שורת קמפיין, נורמליזציה של שם vertical תוך כדי הקלדה, חותמת זמן של עריכה אחרונה. צריך להיזהר עם מה שנחשב "עריכה": הקלדה בתא, fill-down, paste, מחיקה, ו*לחיצה על checkbox* כולם יורים אותו. paste המוני יורה אותו פעם אחת עם כל טווח ה-paste כ-`e.range`.
+- **`onSelectionChange`**: יורה על כל לחיצת חץ במקלדת. רק דברים זולים: עדכון תא status, הדגשה של השורה הפעילה. handler של 100ms פה זה בסדר; של 500ms זה כבר מרגיש מקרטע.
+- **`onChange`**: יורה על שינויים מבניים שהאחרים מפספסים. הגנה אוטומטית על שורת כותרת כשמישהו מוסיף עמודה. מעקב אחרי שינויי שם גיליון לא מכוונים ב-spreadsheet שנוסחאות `IMPORTRANGE` במורד הזרם תלויות בשמות ה-tabs שלו.
+
+## נפוץ בשטח
+
+שני דפוסים מה-spreadsheets האמיתיים של הצוות:
+
+- **מילוי אוטומטי של ה-buyer מהמייל של העורך.** כששורת קמפיין חדשה מוקלדת בלוג היומי, `onEdit` קורא את `e.user.getEmail()`, מחפש את שם ה-buyer בגיליון רשימת ה-buyers הקנונית, וכותב אותו לעמודת Buyer. הכל בעשר שורות וחוסך לצוות שיוכי buyer שגויים ב-dashboards.
+- **סימון אוטומטי של עמודת Spend כשנוגעים בה שוב.** כש-buyer משנה מספר spend באמצע השבוע, `onEdit` חותם סימן קטן של "updated" עמודה אחת הצידה. סקירת השבוע מסתובבת סביב העמודה הזו כדי לסמן שורות שזזו מההעלאה.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="לוג ה-Campaigns תופס את A1:G61. עמודה F מחזיקה spend ב-USD. עמודה I מכילה את הכותרת `Last edited marker`; עמודה J היא תא הסימן. ה-onEdit שלכם צריך למלא את J לשורה שה-F שלה זה עתה נערך."
+/>
+
+קובץ ה-starter `Lesson.gs` כבר מצהיר על `function onEdit(e)` עם גוף ריק. שלוש בדיקות שהגוף צריך לבצע, לפי הסדר:
+
+1. **בדיקת גיליון.** אם `e.range.getSheet().getName()` הוא לא `"Campaigns"`, חוזרים מיד. בלי זה, ה-trigger יורה בכל tab, כולל ה-tabs העזריים של ה-sidebar וכל דבר אחר ב-spreadsheet.
+2. **בדיקת עמודה.** אם `e.range.getColumn()` הוא לא `6` (F היא העמודה השישית), חוזרים. אנחנו רוצים שהסימן יירה רק על עריכות של Spend, לא על כל עריכת תא בכל מקום בשורה.
+3. **כתיבת הסימן.** משתמשים ב-`range.getSheet().getRange(range.getRow(), 10).setValue("updated")` כדי לכתוב `"updated"` לעמודה J של השורה שנערכה.
+
+שומרים את הפרויקט. פותחים את ה-tab Campaigns. עורכים את F2. J2 אמור להתמלא ב-`"updated"`. עורכים את F3. J3 מתמלא. עורכים תא אחר, J נשאר במקומו.
+
+אם כלום לא קורה, פותחים את תצוגת **Executions** בסרגל הצדדי של Apps Script (אייקון השעון). כל ירייה של simple trigger נרשמת שם. ירייה שנכשלה נרשמת שם גם. אם השורה חסרה לגמרי, ה-trigger לא נרשם כ-function, בדרך כלל typo בשם ה-function (`OnEdit` עם O גדולה זה הנפוץ ביותר).
+
+## מלכודות מקצועיות
+
+- **`onEdit` לא יורה על כל הקשה במהלך עריכה בתא.** הוא לא, אבל ה-`onSelectionChange` הקשור יורה על כל לחיצת חץ במקלדת תוך תזוזה ב-sheet. אם מחברים עבודה כבדה ל-selection-change, כל תזוזת סמן מריצה אותה.
+- **paste המוני יורה את `onEdit` פעם אחת עם כל טווח ה-paste.** נוסחה שמניחה ש-`e.range` הוא תא בודד קורסת על `e.value` שהוא `undefined`. תמיד בודקים `range.getNumRows() * range.getNumColumns() === 1` לפני שקוראים את `e.value` / `e.oldValue`.
+- **ל-`onChange` יש צורת `e` שונה.** בלי `e.range`, בלי `e.value`. העתקת גוף handler מ-`onEdit` ל-`onChange` ולחכות שיעבוד זה debug של 20 דקות.
+- **שמות שמורים רגישים לאותיות גדולות וקטנות.** `function onedit` לא יורה. `function OnEdit` לא יורה. עורך Apps Script לא יזהיר אתכם.
+- **ה-timeout של 30 שניות לא סלחני.** אם ה-handler צריך לעבור על כל ה-sheet, זה הכלי הלא נכון. רושמים installable trigger מבוסס-זמן שרץ בלילה עם auth מלא ותקציב ארוך יותר.
+- **Simple triggers לא יכולים לשלוח אימייל, לגשת לרשת, או לגעת במסמכים אחרים.** הקריאה נכשלת בשקט. אם ה-handler "לא נראה לעבוד" ויש בפנים `e.user.getEmail()` או `UrlFetchApp.fetch`, זו הסיבה. משדרגים ל-installable trigger בשיעור הבא.

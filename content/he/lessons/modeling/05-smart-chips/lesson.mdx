@@ -1,0 +1,90 @@
+import { BUYERS_DETAIL } from "@/content/datasets/adtech";
+
+# Drop-downs ו-smart chips: people, file, finance, date, place chips
+
+שיעור 4 כיסה את החצי של ה-drop-down בתוך `Data → Data validation`: רשימות סגורות, טווחים, custom formulas. השיעור הזה הוא על החצי השני של סיפור הקלט המבוקר, **smart chips**, ה-`@`-mentions העשירים שמצמידים person, file, place, finance ticker או תאריך מ-Calendar לתוך תא בודד. שם של media buyer מוקלד כטקסט הוא רק string. אותו שם כ-person chip הוא קישור לפרופיל שלו, למייל שלו, לזמינות שלו ב-Calendar. עוברים מעל עם העכבר ורואים את הכל. התא נראה אותו תא. מתחת, יש שם reference מובנה למשהו מחוץ ל-spreadsheet.
+
+## חמשת סוגי ה-chip שבאמת תפגשו
+
+Sheets תומך בעוד סוגים, אבל בעבודת אדטק חמשת אלה הם מה שחוזר:
+
+| Chip | למה הוא מצביע | הקשר אדטק |
+|---|---|---|
+| Person | משתמש Workspace (שם, מייל, פרופיל, Calendar) | ה-owner של גיליון `Aggregator`, ה-media buyer ה-on-call לכל שורה |
+| File | קובץ ב-Drive (Sheet, Doc, Slide, Form, Folder) | מצמידים את ה-spreadsheet המקור ליד ה-IMPORTRANGE aggregator שלו, מקשרים את תיקיית ה-creatives לכל קמפיין |
+| Finance | טיקר מניה, קרן, או צמד מטבעות | סיגנלים של מניות מתחרים שקשורים לשיחות תקציב שבועיות |
+| Place | מיקום ב-Google Maps | הערות review של creatives ממוקדי-geo (העיר שבה המודעה רצה) |
+| Date / Calendar event | תאריך, או event מה-Calendar | תאריכי השקה, סימני freshness ב-dashboards, אבני דרך של media plan |
+
+שני הראשונים נושאים כמעט את כל המשקל ב-spreadsheets האמיתיים. attribution של אנשים והצמדה של קבצים הם התבניות שתחזרו עליהן מאות פעמים. שלושת האחרים מופיעים, אבל לעיתים רחוקות.
+
+## הכנסת chip: התבנית של @-mention
+
+בתוך כל תא, מקלידים `@` ו-Sheets פותח chip-picker. ה-picker מסנן תוך כדי הקלדה:
+
+- `@yoav` מסנן לאנשים ששמם תואם ל-yoav. בוחרים `Yoav Cohen` והתא מחזיק עכשיו person chip שמקושר לזהות ה-Workspace שלו.
+- `@May 10` מסנן לתאריכים ומציע date chip של "May 10, 2026".
+- `@AAPL` מסנן ל-finance ומציע chip של מניית Apple.
+- `@Master campaign log` מסנן לקבצי Drive שהשם שלהם תואם.
+
+ה-chip מוצג כגלולה קטנה עם השם של הישות ותצוגה מקדימה ב-hover. הטקסט הבסיסי של התא הוא רק `@`. טקסט התצוגה ויעד הקישור שניהם יושבים ב-metadata של ה-chip, לא בערך של התא.
+
+## איך ה-API רואה chip
+
+כל chip הוא `ChipRun` מצורף לתא. ל-run יש `startIndex` (המיקום בתווים בתוך התא שבו ה-chip יושב) ו-`Chip` payload שהוא או person chip או rich-link chip:
+
+```
+A1 = "@"           // ערך התא הוא רק ה-placeholder של @
+chipRuns[0]:
+  startIndex: 0
+  chip:
+    personProperties:
+      email: "yoav.cohen@flexelent.com"
+```
+
+או עבור file chip:
+
+```
+B2 = "@"
+chipRuns[0]:
+  startIndex: 0
+  chip:
+    richLinkProperties:
+      uri: "https://docs.google.com/spreadsheets/d/abc123"
+      mimeType: "application/vnd.google-apps.spreadsheet"
+```
+
+`mimeType` הוא מה שמספר את תת-הסוג של ה-chip: `application/vnd.google-apps.spreadsheet` ל-Sheet, `application/vnd.google-apps.document` ל-Doc, `application/vnd.google-apps.folder` לתיקיית Drive, וכן הלאה. ל-Place chips, finance chips ו-calendar chips יש ערכי `mimeType` משלהם, אבל משפחת `vnd.google-apps.*` מכסה כל קובץ Drive שהצוות מקשר ביומיום.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={BUYERS_DETAIL.slice(0, 4).map((b) => [b.name, b.team])}
+  caption="הרוסטר של ה-media buyers שהתרגיל משתמש בו. תוסיפו את השניים הראשונים כ-person chips, ואז file chip שמצביע על קובץ Drive שיש לכם גישה אליו."
+/>
+
+לחצו על **Start lesson** כדי להעלות את ה-spreadsheet. ואז יוצרים גיליון חדש בשם `Owners` ומוסיפים שלושה smart chips:
+
+- **`A2`**: person chip של Yoav Cohen (`yoav.cohen@flexelent.com`). בתא, מקלידים `@yoav.cohen` ובוחרים אותו מה-chip-picker.
+- **`A3`**: person chip של Dina Dayan (`dina.dayan@flexelent.com`).
+- **`B2`**: file chip שמצביע על Sheet, Doc, או קובץ Drive שיש לכם גישה אליו. מקלידים `@` ובוחרים קובץ מה-recents, או מדביקים URL של Drive ומאשרים את ה-prompt של "convert to chip".
+
+ה-grader קורא את `chipRuns` של כל תא דרך ה-Sheets API ובודק את סוג ה-chip, את המייל המקושר (לא רגיש לאותיות גדולות/קטנות), ואת ה-mimeType של הקובץ.
+
+## נפוץ בשטח
+
+ב-spreadsheets האמיתיים של הצוות:
+
+- **לכל גיליון `Aggregator` יש עמודת Owner עם person chips.** כשמשהו נשבר ב-11 בלילה, רוטציית ה-on-call עושה `@` על ה-chip והאדם הנכון מקבל page. שם בטקסט רגיל לא קורא לאף אחד.
+- **ב-master campaign log יש עמודת `Source folder` עם file chips.** ה-chip של כל שורה מצביע על תיקיית ה-Drive שמחזיקה את ה-creatives, את ה-screenshots של ה-landing page ואת ה-brief. קליק אחד מהשורה לארטיפקטים.
+- **ב-dashboards יש סימן freshness.** תא כותרת עם date chip אומר "Data through May 9, 2026" וה-chip הופך לקישור Calendar אם הצוות רוצה לקבוע review.
+- **Attribution לפי קמפיין.** כשתא ה-Buyer של שורה הוא person chip, סינון של הגיליון לפי buyer עדיין עובד כי Sheets מאנדקס את שם התצוגה של ה-chip. ה-chip הוא שדרוג נטו על טקסט רגיל פה.
+
+## מלכודות מקצועיות
+
+- **Chips לא שורדים `Paste special → Values only`.** המצב ההדבקה הזה משאיר את ה-`@` החשוף ומסיר את ה-chip. אם בונים spreadsheet על ידי הדבקה מ-spreadsheet אחר, צריך להזין שוב כל chip בצד היעד. copy-paste רגיל שומר על chips, values-only לא.
+- **חיפוש שם של אדם עם `FIND` או `REGEXMATCH` לא מוצא כלום.** הטקסט הבסיסי של התא הוא `@`. השם `Yoav Cohen` יושב ב-`personProperties` של ה-chip, לא בערך של התא. `FIND("Yoav", A2)` מחזיר `#VALUE!`. כדי לחפש על פני chips, צריך את ה-API או Apps Script.
+- **Chips נשברים לצופים מחוץ ל-Workspace.** person chip של `@yoav.cohen@flexelent.com` מופיע לפרילנסר עם Gmail אישי בתור גלולת chip, אבל קליק עליו מוביל ל-"אין לך גישה". ל-file chips יש בדיוק אותה צורת כשל אם קובץ ה-Drive המקושר לא משותף לצופה.
+- **`IMPORTRANGE` לא מעביר chips איתו.** כשגיליון `Aggregator` מושך מ-`Raw - Taboola` דרך `IMPORTRANGE`, התאים המיובאים מכילים את הטקסט שהיה במקור במקום ה-chip, וזה רק `@`. את ה-chips צריך ליצור מחדש בגיליון הצורך, או שהנתונים במקור צריכים לחיות גם בעמודות טקסט פשוטות לצידם.
+- **מיון של עמודת person chips עובד, אבל מפתח המיון הוא שם התצוגה של ה-chip, לא המייל.** שני media buyers עם אותו שם פרטי (`Yoav Cohen` ו-`Yoav Levi`) ממוינים לפי שם התצוגה המלא. אם צריך מיון מדויק לפי מייל, מוסיפים עמודת helper מוסתרת עם המייל שנשלף דרך Apps Script.
+- **chip בטווח מקור של `QUERY` הופך ל-`@` החשוף** בפלט של QUERY. QUERY קורא את ערך הטקסט של התא, לא את ה-metadata של ה-chip. אגרגציה של עמודות עם chips פירושה איבוד ה-chip בתוצאה.

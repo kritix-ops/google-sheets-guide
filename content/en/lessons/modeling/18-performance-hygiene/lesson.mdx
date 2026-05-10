@@ -1,0 +1,112 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Workbook performance hygiene
+
+A slow workbook is the death of productivity. Recalc time is not free: every formula in a chain delays every edit, every paste, every filter toggle. The good news is that 80% of workbook slowness comes from 5% of cells, and the patterns to fix them are mechanical. The patterns to avoid them in the first place are even more mechanical.
+
+This lesson is the workbook-level companion to Track 1 lesson 28 (which covered formula-level performance). Lesson 28 was about the speed of one formula. Lesson 18 is about how a whole workbook ages, how a clean structure stays fast at 80,000 rows and a sloppy one chokes at 8,000.
+
+## The big rocks, in rough order of cost
+
+When the team profiles a slow workbook, the same handful of patterns explain the bill:
+
+1. **Full-column references inside volatile or expensive functions.** `INDIRECT("Sheet!"&A1)` over `A:A` is the worst offender. `OFFSET(B1,...,COUNTA(B:B))` is right behind it.
+2. **Chained `ARRAYFORMULA` columns.** Each one recomputes its entire spilled range whenever any input cell changes. Stack three of them and you have a recalc cascade.
+3. **Conditional formatting rules with custom formulas on `A:A`** (or worse, on a whole sheet). The rule evaluates per cell on every recalc.
+4. **Dependency cycles you did not know about.** A formula in `Dashboard` reads from `Aggregator`, which reads from `Raw`, which has a cell that reads from `Dashboard`. Sheets does not always catch these cleanly.
+5. **`IMPORTRANGE` over a wide range, used in many cells.** The team has had a single workbook where one rename upstream caused 40 dashboard cells to recompute together.
+
+You will not fix all five at once. Walk down the list. The first two account for most of the wins.
+
+## Range scope: the #1 lever
+
+`SUM(F:F)` walks the entire column. In a sheet sized to 60 rows of data, the engine reads 1,000,000 cells (Sheets allocates a large grid even for "small" sheets) and skips empties. Most of the time it does this fast enough that nobody notices. Then someone pastes one stray value into row 90,000 and now the engine is reading 90,000 cells per recalc.
+
+`SUM(F2:F61)` walks 60. The cost is the difference. Use bounded ranges everywhere you know the row count.
+
+The same lever applies to `COUNTA`, `AVERAGE`, `MIN`, `MAX`, `COUNTIFS`, `SUMIFS`, every aggregator. Bound the range. The formula is one character longer; the recalc is two orders of magnitude shorter.
+
+## Letting the data grow without giving up the bound
+
+The objection is real: when the row count is unknown, hard-coding `F2:F61` will miss new rows. The pattern that solves this without surrendering performance is `LET + COUNTA + INDEX`:
+
+```
+=LET(
+  n,    COUNTA(A2:A1000),
+  SUM(F2:INDEX(F:F, n + 1))
+)
+```
+
+`COUNTA(A2:A1000)` counts non-empty cells in the first column of the data block, which is cheaper than `COUNTA(A:A)` because the search ceiling is finite. `INDEX(F:F, n+1)` returns the cell address at row `n+1`, which is the last data row (the +1 accounts for the header). `SUM` then walks exactly the rows you have, no further.
+
+This is the **"let it grow but do not over-reach"** pattern. The formula recomputes only when the row count changes, not when a value inside an existing row changes. New rows from `IMPORTRANGE` get picked up the moment they arrive.
+
+A 1000-row ceiling is a deliberate choice. If the team's data could exceed it, push the ceiling to 10,000. Pick a number that is generous for your real data but not the full column. Three orders of magnitude smaller than `F:F` is plenty.
+
+## Compute once, reference many
+
+The next lever after range scope: do the work once. If three cells need the total Spend, do not write `=SUM(F2:F61)` three times. Put it in one cell, name it (or reference it by address), and let every consumer read the result.
+
+```
+J1: =SUM(F2:F61)            (compute once)
+J2: =SUM(G2:F61)            (compute once)
+J3: =(J2-J1)/J1             (reference, do not recompute)
+```
+
+Three cells, three calculations. The alternative, where every dashboard tile rebuilds the SUM from scratch, is six calculations on the same data. Multiply that by every consumer of the metric across every dashboard and the savings are real.
+
+The same idea inside a single formula is `LET`:
+
+```
+=LET(
+  spend,   SUM(F2:F61),
+  revenue, SUM(G2:G61),
+  (revenue - spend) / spend
+)
+```
+
+`spend` and `revenue` each compute once even though the result formula references both.
+
+## The dependency graph
+
+Every formula has upstream cells (the ones it reads from) and downstream cells (the ones that read from it). A change to one cell triggers a recalc cascade through every dependent. Three rules follow:
+
+- **Long chains are slow.** A → B → C → D → E means a change to A walks through five recalculations to reach E. Flatten where you can: have D and E both read from B if neither depends on the others.
+- **Volatile functions force a recalc on every edit.** `TODAY`, `NOW`, `RAND`, `INDIRECT`, `OFFSET` (covered in lesson 28). One `INDIRECT` in your dashboard means the dashboard recomputes every time anyone types anywhere in the workbook.
+- **Circular references blow up.** Two formulas referencing each other's outputs cause Sheets to either stop calculating or oscillate. The error sometimes hides for weeks under a layer of `IFERROR` until someone removes the `IFERROR` and the workbook explodes.
+
+## The 50,000-row threshold
+
+Workbooks below 50,000 rows mostly do not care about performance. You will write `SUM(F:F)` and never notice. Workbooks above 50,000 rows start to care. The team's largest workbook is around 80,000 rows; the worst-performing formulas in it have been rewritten three times each, and every rewrite was a range-scope or compute-once change.
+
+The implication: write performant formulas from day one, even on small data, because workbooks grow. The cost of the discipline is one extra `COUNTA + INDEX` pattern per aggregate. The cost of skipping the discipline is rewriting the whole sheet at 60,000 rows when somebody finally complains.
+
+## Used in the wild
+
+Three patterns the team relies on every day:
+
+- **The Aggregator's `LET + COUNTA + INDEX` pattern.** The cross-platform Aggregator pulls campaign rows from six per-platform tabs via `IMPORTRANGE`. Each `IMPORTRANGE` writes a different number of rows on a different day. Every summary formula on the Aggregator uses `LET + COUNTA + INDEX` so new rows flow in without anyone updating bounds.
+- **The dashboard's "one SUM cell, ten consumers" pattern.** The buyer scorecard dashboard has one tile per metric. Every tile reads from a small block of "anchor cells" near the top of the tab where the underlying SUMs live. Change the source range once, every tile follows.
+- **The "never use INDIRECT in a recurring formula" rule.** Every team gets bitten by this once. `INDIRECT` is volatile and string-based, so it recomputes on every edit and breaks silently when you rename a tab. Use it for one-time cell pickers (e.g., "show me the row for the buyer in dropdown G2") and never for column-wide operations.
+
+## Pro pitfalls
+
+- **Full-column refs in conditional formatting are silently slow.** A custom-formula CF rule on `A:Z` evaluates every cell on every recalc. Scope CF rules to the smallest range that holds your data, and update them when the data grows. The slowdown does not show up in any obvious place; it is just everything-is-laggy.
+- **Naming a range does not fix performance.** A named range pointing at `Sheet1!F:F` is identical, performance-wise, to typing `Sheet1!F:F` directly. The name is for readability, not speed. Bound the underlying range too.
+- **`IMPORTRANGE` refresh triggers a full recalc of every formula that touches it.** When the upstream sheet changes, every consumer recomputes from scratch. Wrap `IMPORTRANGE` in `LET` (or pull it into one cell and read from there) so the import resolves once per formula, not once per reference.
+- **"I will come back and bound it later" never happens.** The "TODO: bound this range" comment becomes part of the workbook forever. Either bound it now or pick a deliberate ceiling with `LET + COUNTA + INDEX`. Do not leave a `:F:F` in production.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="CAMPAIGNS_LARGE has 60 rows. The summary block lives in column J on the same tab."
+/>
+
+Click **Start lesson** to provision a fresh copy of the campaigns tab with 60 rows of data in `A1:G61`. Labels are seeded in column I. Fill in column J:
+
+- **`J1`**: total Spend with a **bounded** range. Use `=SUM(F2:F61)`, never `SUM(F:F)`. The grader rejects full-column references on principle.
+- **`J2`**: total Revenue with `LET + COUNTA + INDEX` so the formula keeps working when rows are added. The skeleton: `=LET(n, COUNTA(A2:A1000), SUM(G2:INDEX(G:G, n+1)))`.
+- **`J3`**: portfolio ROI as `(J2 - J1) / J1`. Reference the cells you already computed; do not recompute the SUMs inside this formula.
+
+The grader checks each formula's shape AND its computed value. The shape rules enforce the discipline this lesson teaches: bounded ranges in J1, dynamic-bound pattern in J2, and reuse (not recomputation) in J3.

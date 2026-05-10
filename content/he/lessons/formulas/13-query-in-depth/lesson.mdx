@@ -1,0 +1,88 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# QUERY לעומק: GROUP BY, PIVOT, LABEL, וקפריזת ה-Col1
+
+שיעור 12 כיסה את היסודות של QUERY: SELECT, WHERE, ORDER BY, LIMIT. השיעור הזה נכנס לעומק עם הסעיפים שהופכים את QUERY מ"מסנן SQL" ל"כלי האגרגציה החזק ביותר ב-Sheets". `GROUP BY`, `PIVOT`, `LABEL`, פלוס המלכודות שתופסות כל אנליסט אדטק בסופו של דבר.
+
+## GROUP BY: אגרגציה לפי קטגוריה
+
+`GROUP BY` מקבץ שורות לקבוצות. בשילוב עם פונקציות אגרגציה (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`), הוא מייצר טבלאות סיכום.
+
+```
+=QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B", 1)
+```
+
+זה מחזיר שורה אחת לכל media buyer עם סך ה-revenue שלהם. ה-pivot הקלאסי באדטק של "spend לפי buyer" או "revenue לפי פלטפורמה".
+
+<MiniGrid
+  data={CAMPAIGNS}
+  caption="נתוני המקור שנקבץ."
+/>
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=QUERY(A1:F13,"SELECT B, SUM(F) GROUP BY B ORDER BY SUM(F) DESC",1)'
+  task={<>בנו סיכום revenue לכל media buyer, ממוין לפי revenue יורד. השתמשו ב-GROUP BY ו-SUM, ואז מיינו.</>}
+  hint={<>SELECT מפרט מה להשליך (B ו-SUM(F)). GROUP BY אומר ל-QUERY איך לקבץ לסלים. ORDER BY יכול להפנות ל-SUM(F) ישירות.</>}
+  answer={<>פונקציית האגרגציה SUM(F) מקבצת את כל השורות התואמות. GROUP BY B אומר "תקבץ שורות שחולקות את אותו ערך בעמודה B". ORDER BY SUM(F) DESC ממיין את הסיכום המתקבל לפי סך ה-revenue, הגדול ביותר ראשון. לתוצאה יש שורה אחת לכל media buyer פלוס כותרת. הכותרת של עמודת SUM היא "sum revenue" (אותיות קטנות) כברירת מחדל. השתמשו ב-LABEL כדי לשנות שם.</>}
+/>
+
+## LABEL: שינוי שם של עמודות כותרת
+
+עמודות אגרגציה מקבלות שם אוטומטי `sum revenue`, `count vertical` וכו'. כדי לשנות שם, מוסיפים סעיף `LABEL` בסוף:
+
+```
+=QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B LABEL SUM(F) 'Total Revenue'", 1)
+```
+
+`LABEL aggregate 'New Name'` עובד לכל עמודה, מאוגרגת או לא.
+
+## PIVOT: סיבוב לסיכום דו-ממדי
+
+`PIVOT` לוקח עמודה והופך את הערכים הייחודיים שלה לכותרות עמודה. בשילוב עם GROUP BY ואגרגציה, מקבלים טבלת pivot דו-ממדית.
+
+```
+=QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B PIVOT D", 1)
+```
+
+זה מחזיר: שורות = media buyers, עמודות = פלטפורמות, תאים = סך revenue. המטריצה הקלאסית באדטק של buyer-מול-פלטפורמה בנוסחה אחת.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=QUERY(A1:F13,"SELECT B, SUM(F) GROUP BY B PIVOT D",1)'
+  task={<>בנו pivot של media buyer-מול-פלטפורמה שמראה סך revenue. השורות הן media buyers, העמודות הן פלטפורמות.</>}
+  hint={<>GROUP BY B (שורות), PIVOT D (עמודות), SUM(F) (ערכי תא).</>}
+  answer={<>PIVOT מסובב את עמודת ה-pivot לכותרות לרוחב התוצאה. תאים ריקים (היכן ש-media buyer לא הריץ על אותה פלטפורמה) חוזרים ריקים. סדר הפלטפורמות בתוצאה הוא לפי אלפבית כברירת מחדל. שולטים בו דרך תת-queries או עיבוד-לאחר אם צריך. PIVOT עם QUERY מהיר יותר ודינמי יותר מתכונת ה-Pivot table המובנית לחישובים חד-פעמיים.</>}
+/>
+
+## הקפריזה של Col1
+
+כשמעבירים טווח *בלי* שורת כותרת ל-QUERY (או מעבירים `0` כארגומנט הכותרות), העמודות נקראות `Col1`, `Col2` וכו'. לא `A`, `B`, `C`. קל לפספס; מייצר שגיאות מבלבלות.
+
+```
+=QUERY(A2:F13, "SELECT Col2, SUM(Col6) GROUP BY Col2", 0)
+```
+
+כשמשתמשים ב-IMPORTRANGE בתוך QUERY, אותה מלכודת: לנתוני IMPORTRANGE אין כותרות באותו אופן, אז העמודות הופכות ל-Col1...ColN.
+
+## נפוץ בשטח
+
+- **ה-dashboard הראשי של הצוות.** QUERY יחיד עם GROUP BY media buyer, PIVOT פלטפורמה, SUM revenue ו-SUM spend. מייצר את המטריצה הקנונית של "מי עושה כסף איפה".
+- **דוחות ביצוע vertical.** GROUP BY vertical, SUM revenue, ORDER BY DESC. ה-verticals המובילים בביצועים ראשונים.
+- **סיכומי תקופה מוגבלי תאריכים.** GROUP BY media buyer עם WHERE date BETWEEN start AND end. מה כל media buyer עשה החודש לעומת החודש שעבר.
+- **ניתוח cohort.** GROUP BY launch_month (מחושב דרך TEXT(A, "yyyy-MM")) לשמירה חודש-מול-חודש.
+
+## מלכודות מקצועיות
+
+- **עמודת ה"label" לאגרגציה היא באותיות קטנות כברירת מחדל.** `SUM(F)` הופך לכותרת "sum revenue". השתמשו ב-LABEL כדי לשנות שם או ב-LABEL כדי לדכא עם מחרוזת ריקה `''`.
+- **GROUP BY דורש שכל עמודה לא-מאוגרגת ב-SELECT תהיה גם ב-GROUP BY.** `SELECT A, B, SUM(F) GROUP BY A` נותן שגיאה כי B לא מקובץ ולא מאוגרג. הוסיפו את B ל-GROUP BY או עטפו ב-MIN/MAX/וכו'.
+- **PIVOT עם יותר מדי ערכים מובחנים מנפח את רוחב התוצאה.** PIVOT על עמודה עם 1000 ערכים ייחודיים מחזיר 1000 עמודות תוצאה. סננו קודם.
+- **Col1 מול A.** מעבירים `1` לארגומנט הכותרות כשהטווח כולל כותרות; `0` אחרת. בלבול בין השניים שובר את הפניות העמודה.
+- **הפניות עמודה ב-IMPORTRANGE.** נתוני IMPORTRANGE בתוך QUERY משתמשים ב-Col1, Col2 וכו' כברירת מחדל. עטפו את IMPORTRANGE ב-QUERY נוספת או השתמשו בארגומנט הכותרת הנכון.
+- **עמודות תאריך ב-GROUP BY מקבצות לפי הערך המדויק, לא לפי חודש.** כדי לקבץ לפי חודש: `GROUP BY YEAR(A), MONTH(A)` ולבחור אותם במקום A ישירות.
+
+## עכשיו לעבודה אמיתית
+
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. תכתבו שלוש QUERYs: סיכום revenue לכל media buyer, pivot של media buyer-מול-פלטפורמה, ודוח סיכומי vertical עם label עמודה מותאם.

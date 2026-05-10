@@ -1,0 +1,69 @@
+# Diagnosing broken IMPORTRANGE
+
+`IMPORTRANGE` is the function that holds the team's workbook universe together: every aggregator tab is a stack of `IMPORTRANGE` calls reading from per-platform pulls, every dashboard is built on top of an aggregator, and the canonical lists of buyers and verticals all live in separate spreadsheets that downstream sheets reach for. It's also the function that breaks most often, in the most ways, with the least informative error messages. This lesson is the diagnostic playbook.
+
+## The five ways IMPORTRANGE breaks
+
+Almost every broken `IMPORTRANGE` falls into one of these five buckets:
+
+1. **The source workbook was deleted or trashed.** The cell returns `#REF!` with "Result too large" or "Did not find sheet" in the tooltip. The URL still parses; it just doesn't resolve to a live document.
+2. **Access was not granted, or was revoked.** The cell shows `#REF!` with "You need to connect these sheets" in the hover. This is the most fixable case: click the cell, click "Allow access", and the data flows.
+3. **The range string has a typo or points at a non-existent sheet.** `"Campaign!A:G"` when the source tab is `"Campaigns"` returns `#REF!` with "did not find sheet" in the tooltip. The URL is fine; the range argument is wrong.
+4. **The source workbook was renamed but the URL still works.** No error at all. The cell continues to return data because Google Drive URLs are keyed on the document id, not the name. The bug here is silent: the data flows from a workbook nobody trusts is the right source.
+5. **The source sheet (tab) inside the workbook was renamed.** Returns `#REF!`. Distinct from breakage 3 because the typo wasn't yours; somebody upstream changed the tab name without telling anyone.
+
+The first three are loud. The fourth is the dangerous one (silent wrong source). The fifth is the one that cascades through the team's aggregator stack every quarter when somebody decides to rename "Q1 2026" to "Q1-2026".
+
+## The diagnostic flow
+
+When an `IMPORTRANGE`-fed cell goes red, the order of checks matters because each one is fast and the ones earlier in the list catch the most common bugs:
+
+1. **Read the URL in the formula.** Does it look right? Copy it, open it in a new tab. If the workbook doesn't load at all, the source is gone or you've lost access.
+2. **Click through to the source.** Does the tab named in the range argument exist? Spelling matches? No leading space, no missing `s`?
+3. **Verify the range.** Is `A1:G61` still the right range? Did somebody shift the data block?
+4. **Verify access.** In the cell, does the small "Allow access" pill appear? `IMPORTRANGE` access is cached per-script-actor, not per-user, so the cell may need re-granting even if you personally have access to the source.
+5. **Force a refresh.** `IMPORTRANGE` caches results for up to 30 minutes after the source idles. A fix to the source may take that long to propagate to the destination. The blunt way to force a refresh is to edit the formula (add a space and remove it), which invalidates the cache for that one cell.
+
+In a workbook with hundreds of `IMPORTRANGE` cells, run this list cell by cell. There's no shortcut. The Drive API can list permissions and the Sheets API can list cells, but neither can tell you whether the *combination* is currently working.
+
+## The auth model nobody documents clearly
+
+`IMPORTRANGE` access uses a separate authorization channel from regular sheet sharing. When you grant access by clicking "Allow access" the first time, you're granting the destination workbook the right to pull from the source on your behalf. Two consequences that trip teams up:
+
+- **Auth is cached forever once granted.** You don't have to re-grant on every formula. This is great, until you offboard the person who granted the original access and the access is still cached.
+- **Auth is invisible per-script-actor.** When Apps Script (or anyone other than you) writes an `IMPORTRANGE` formula, the access has to be granted from *that* actor's auth context, not yours. A trigger that writes an `IMPORTRANGE` to a cell will land a `#REF!` until somebody opens the workbook in a session where the script's owner can click "Allow access".
+
+The "Allow access" button is the entire user interface for this system. There's no settings page that lists which workbooks the current sheet has access to. There's no audit of who granted what when. The only signal is the formula working or not.
+
+## Rate limits and the 30-minute cache
+
+`IMPORTRANGE` is subject to a rate limit on concurrent fetches per source workbook. The official number has shifted (it was 50 concurrent in 2022, bumped in 2024); the practical implication has not changed: if your aggregator workbook has 200 cells pointing at the same source workbook, they don't all fetch in parallel. They queue. On a fresh open, you'll see them populate row by row.
+
+The cache is 30 minutes idle. Once a cell has data, the source can change and the destination won't notice for up to half an hour. This is why "refresh by editing the formula" is in the diagnostic flow: it's faster than waiting.
+
+## Now do it for real
+
+Click **Start lesson** to provision the Dashboard tab with two pre-seeded broken `IMPORTRANGE` formulas:
+
+- **A1** points at `MISSING_SHEET_ID` (a non-existent workbook) and evaluates to `#REF!`. Switch the URL to a workbook id you actually have access to, and wrap the call in `IFERROR` with a fallback string so the cell never bare-faces `#REF!` to a downstream chart.
+- **B1** has a sheet-name typo: `"Campaign!A1:G61"` instead of `"Campaigns!A1:G61"`. Correct the range string. The URL is fine; the sheet inside it has an `s` at the end.
+- **C1** is empty. Write a defensive `IMPORTRANGE` from scratch: an `IFERROR` wrapper (or `IF(ISERROR(IMPORTRANGE(...)), "fetch failed", IMPORTRANGE(...))` for the more explicit shape). Any URL you have access to is fine; the grader checks the defensive structure, not the fetched data.
+
+The grader checks formula shape, not the fetched values, because `IMPORTRANGE` reaches a live external resource.
+
+## Used in the wild
+
+The team's aggregator workbook goes red roughly once a quarter, and the runbook the team follows is always the same:
+
+1. **Check the source URLs first.** Click through to each source in the formula bar. If a workbook is in the trash, the URL still resolves to "this document is in the trash" until permanent deletion. Recover from trash or restore from version history.
+2. **Verify access for the script actor, not just you.** The team's nightly aggregator refresh runs as a service account. If access was granted from a personal account that has since left the team, the service account's `IMPORTRANGE` calls return `#REF!` while a manual `IMPORTRANGE` written by a current employee works fine.
+3. **Manually refresh by editing and saving.** A space added and removed in the formula bar invalidates the 30-minute cache and forces a fresh fetch.
+4. **For range typos, search the workbook for `IMPORTRANGE(`.** A find-and-replace across formulas catches every cell that had the same typo, not just the one that flagged red.
+
+## Pro pitfalls
+
+- **Granting access from the wrong account.** The grant lives in the auth context of whoever clicked "Allow access". Service accounts and personal accounts grant separately. A formula that works for you may still return `#REF!` for the team's nightly cron.
+- **A workbook that's been "trashed" but the URL still resolves.** Google Drive keeps trashed documents around for 30 days. The URL resolves; the contents do not. `IMPORTRANGE` returns `#REF!` with no informative error.
+- **The chain failure that surfaces on the wrong cell.** Dashboard pulls from Aggregator pulls from Raw - Taboola pulls from the Taboola export workbook. The export workbook breaks; the visible `#REF!` is on the Dashboard cell two hops downstream. Diagnosis starts at the source, not at the visible error.
+- **`IMPORTRANGE(url, "A:Z")` without bounding the rows.** Pulls the full source sheet. If the source has a hidden 200,000-row archive, your destination just inherited it. Always bound the rows: `"Sheet1!A1:G5000"`.
+- **The silent rename.** The source workbook owner renames "Q1 2026" to "Q1-2026 (final)". The URL still resolves because Drive URLs are keyed on document id. Your `IMPORTRANGE` keeps working, pulling from a workbook whose name nobody recognizes. Three weeks later, somebody opens the source by name from Drive and creates a new "Q1 2026" file. Now two workbooks share the original name and the aggregator points at the old one. No error message will help you here; the diagnosis is reading the URL and confirming the file it resolves to is the one you intended.

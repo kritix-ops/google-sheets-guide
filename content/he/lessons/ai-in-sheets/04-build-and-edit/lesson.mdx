@@ -1,0 +1,103 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# בנייה ועריכה של spreadsheets עם Gemini
+
+ה-side panel של Gemini לוקח prompts בשפה טבעית ומייצר שינויים מבניים בגיליון שלכם: scorecards חדשים מעל נתונים קיימים, dashboard של P&L בגיליון חדש, ארגון מחדש של pivot media-buyer-מול-פלטפורמה. אתם מתארים את התוצאה, Gemini מנסח את התאים, הנוסחאות, הפורמט, וה-charts, אתם סוקרים את ההצעה ב-diff צד-לצד ואז עושים apply או discard.
+
+זה הפיצ'ר שכשהוא עובד, מחליף אחר צהריים של בניית dashboard ידנית בחמש דקות של prompting. כשהוא לא עובד, הוא מייצר אחר צהריים של דיבוג של dashboard עם שלוש נוסחאות שגויות בעדינות. ההבדל הוא ה-prompt והסקירה.
+
+## Build מול Edit
+
+ה-side panel מטפל בשני פעלים נפרדים:
+
+- **Build** יוצר מבנה חדש. "Build a P&L dashboard on a new tab." "Add a scorecard for total spend above the data." "Create a buyer-by-platform pivot to the right of the log."
+- **Edit** משנה מבנה קיים. "Format the spend column as currency." "Add a year-over-year column to the pivot." "Move the scorecard to the top of the tab."
+
+השניים דורשים prompts שונים. build prompts מוטים לכיוון תיאור ה-output: איזה סוג artifact, אילו שדות, איזו פריסה. edit prompts מוטים לכיוון תיאור השינוי: מה היה, מה צריך להשתנות, מה צריך להישאר.
+
+## איך נראה build prompt טוב
+
+שלוש תבניות שהצוות משתמש בהן בהצלחה:
+
+```
+Add a scorecard above the campaign log showing total spend and total revenue.
+```
+
+```
+Build a buyer-vs-platform pivot to the right of the data, summing revenue.
+```
+
+```
+On a new "Monthly Summary" tab, build a table grouping campaigns by month with total spend, total revenue, and ROI.
+```
+
+מה שעושה אותן עובדות:
+
+- **שם סוג ה-output.** Scorecard, pivot, table, chart. Gemini מכיר את הצורות שהם מגיעים בהן.
+- **שמות שדות.** "Total spend and total revenue" עדיף על "the totals". Gemini לא מנחש את שמות העמודות שלכם טוב.
+- **שם מיקום.** "Above the data", "to the right", "on a new tab". בלי זה, Gemini מנחש, לעתים קרובות לא טוב.
+- **scope משתמע.** הנתונים של הגיליון הפעיל הם המקור. אם רוצים מקור אחר, אומרים מפורש: "Use the rolled-up monthly summary on the `Daily Summary` tab."
+
+## לוח סקירת ההצעה
+
+אחרי ששולחים build prompt, ה-side panel מציג diff צד-לצד: הגיליון הנוכחי משמאל, הגיליון המוצע מימין. ההצעה מדגישה מה Gemini היה משנה: תאים חדשים, תאים שעודכנו, charts חדשים, טווחים שנמחקו.
+
+המשמעת היא לקרוא את ההצעה לפני apply. לא לסקור ברפרוף. לקרוא.
+
+חמישה דברים לבדוק:
+
+1. **ה-labels נכונים?** "Total Spend" או "Spend Total"? איות וקסטינג.
+2. **הנוסחאות מצביעות על התאים הנכונים?** `SUM(F2:F61)` בסדר. `SUM(F:F)` שגוי (לא חסום) ו-`SUM(E2:E61)` שגוי (עמודה לא נכונה).
+3. **הסכומים מתאימים לחישוב מהיר בראש?** אם אפשר להעריך את העמודה ולדעת שזה בערך $20K, scorecard שמראה $200K שגוי.
+4. **Gemini שינה תאים מחוץ למבנה החדש?** תופעות לוואי בלוג הקמפיינים עצמו נפוצות וגרועות.
+5. **Gemini מחק משהו?** מחפשים הסרות שמודגשות באדום.
+
+Apply עושה commit. Discard חוזר למצב הקודם. איטרציה זה בסדר: discard, מעדנים את ה-prompt, מנסים שוב.
+
+## מה Gemini מצליח בו
+
+- **Dashboards סטנדרטיים.** Scorecard מעל הנתונים, pivot מימין, כמה עמודות sparkline. אלה תבניות ש-Gemini ראה אלף פעמים.
+- **Conditional formatting על עמודות מספריות.** סקאלות צבע בסגנון heatmap, חוקי-סף.
+- **נוסחאות נפוצות.** `SUM`, `AVERAGE`, `COUNTIFS`, ROI = `(revenue - spend) / spend`.
+- **פירמוט מספרים.** Currency, אחוז, תאריך.
+
+## מה Gemini טועה בו בביטחון
+
+- **לוגיקה עסקית מותאמת.** "Calculate ROI weighted by media buyer seniority" מייצרת נוסחה סבירת-מראה שאינה השקלול האמיתי של הצוות. אגרגציות domain-specific דורשות אימות אנושי בכל פעם.
+- **שמות עמודות שלא קיימים.** Gemini הוזה עמודות סבירות. אם בנתונים יש `Profit` אבל ההצעה של Gemini מפנה ל-`Margin`, הנוסחה נשברת בשקט.
+- **קונבנציות פורמט.** סמלי מטבע, פורמט תאריכים, דיוק עשרוני. קונבנציות הצוות הישראלי (פורמט תאריך "MMM dd", מטבע `$#,##0`) אינם מה ש-Gemini ברירת מחדל אליו.
+- **Edge cases ב-pivots.** Pivots עם תאים ריקים במקור. Pivots על עמודות תאריך שבהן תאריכים שמורים כטקסט. ההצעה של Gemini לעתים קרובות לא מטפלת באלה.
+
+המודל הראשי בראש: Gemini הוא אנליסט ג'וניור חזק. הוא כותב artifacts נקיים, קונבנציונליים, ומהר. הוא לא יודע את קונבנציות הצוות שלכם או את הקפריזות של הנתונים. מאמתים, בכל פעם, לפני apply.
+
+## עכשיו לעבודה אמיתית
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="לוג הקמפיינים יושב ב-A1:G61. אתם מדמים את המצב שאחרי apply של scorecard ש-Gemini בנה מעל הלוג."
+/>
+
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים בן 60 השורות. ארבעה תאים למלא בגיליון Campaigns:
+
+- **L1** הוא ה-prompt בשפה טבעית שהייתם מקלידים ב-side panel. כוללים `scorecard` או `dashboard`, וגם `spend` או `revenue`.
+- **I1, J1, I2, J2** הם תאי ה-scorecard. I1 = `Total Spend`, J1 = סך כל 60 ערכי ה-spend, I2 = `Total Revenue`, J2 = סך כל 60 ערכי ה-revenue. אפשר לחשב את הערכים עם `=SUM(F2:F61)` ו-`=SUM(G2:G61)` אם רוצים, ה-grader בודק רק את הערכים המתקבלים, לא את הנוסחאות (כי applies בסגנון Fill כותבים literals).
+- **K1** מתעד את משמעת הסקירה: תזכורת ספרותית שמכילה `review` או `verify`, וגם `before applying`.
+
+אתם מייצרים את ה-artifact ואת ה-prompt שייצר אותו. ב-build session אמיתי, ה-prompt בא קודם ו-Gemini ממלא את ה-scorecard. כאן כותבים את שניהם.
+
+## נפוץ בשטח
+
+ב-aggregator האמיתי של הצוות:
+
+- **ה-prompt הראשון של כל monthly review session הוא `On a new "Monthly Summary" tab, build a table grouping campaigns by buyer with total spend, total revenue, and ROI.`** Gemini בונה את זה ב-10 שניות. מסתכלים, apply, ממשיכים.
+- **איטרציה היא ה-workflow.** Build → review → discard → refine → build שוב. שלוש איטרציות בממוצע כדי להגיע ל-artifact הנכון. היסטוריית ה-prompt חיה ב-note בגיליון כך שבונים עתידיים רואים מה עבד.
+- **dashboards בסיכון גבוה אף פעם לא עושים apply ב-build הראשון.** הצוות בונה, מייצא את ההצעה לשרשור comments, חבר צוות סוקר, ואז apply. כלל שתי-עיניים לכל מה שנוגע ב-scorecard ברמת הנהלה.
+
+## מלכודות מקצועיות
+
+- **נוסחאות שנראות נכונות אבל מחשבות את הדבר הלא-נכון.** הנוסחה `=SUMIFS(F2:F61, B2:B61, "Yoav")` של Gemini כמעט נכונה, הנכונה היא `=SUMIFS(F2:F61, B2:B61, "Yoav Cohen")`. תמיד spot-check 3 עד 5 תאים בהצעה מול המודל בראש שלכם.
+- **שמות עמודות שהוזו.** Gemini מפנה לפעמים ל-`Profit` כשהעמודה היא `Net Revenue`. הנוסחה מוערכת ל-`#REF!` או ל-אפס, תלוי בגרסה.
+- **פורמט שנלחם בקונבנציות הצוות.** מטבע עם שני מקומות אחרי הנקודה, תאריכים בפורמט US, אחוזים בלי דיוק. עושים איטרציה על ה-prompt כדי לעגן את הקונבנציות, או מתקנים אחרי apply.
+- **build prompt שמייצר 200 תאים מתוכם 5 שגויים.** קשה לאתר. משתמשים ב-diff view אגרסיבית. ממיינים לפי "modified" קודם אם ה-side panel מציע.
+- **ה-side panel לא רואה גיליונות אחרים.** prompt שאומר "use the data from the Aggregator tab" עובד רק אם Aggregator הוא הגיליון הפעיל כששולחים את ה-prompt. החלפת גיליונות באמצע session היא סיבה שקטה ל-builds שגויים.
+- **Apply-then-undo לא תמיד עובד נקי.** פעולות build הן בדרך כלל יחידת undo אחת, אבל builds מורכבים מרובי-שלבים יכולים להיות חלקיים. שומרים snapshot של ה-spreadsheet לפני builds בסיכון גבוה.

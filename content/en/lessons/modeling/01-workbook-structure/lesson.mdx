@@ -1,0 +1,85 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Structuring a workbook for clarity
+
+Track 1 was about formulas. Track 2 is about the workbook. The same formula in a clean workbook is a tool; in a messy one it's a liability that nobody else on your team can pick up. The first principle to internalize: **raw stays raw, summary lives separately, and the boundary is visible at a glance**. The cost of getting this wrong shows up later as broken `SUMIFS`, broken pivot tables, and a chart that mysteriously includes the "Total" row in its average.
+
+## The single source of truth
+
+A spreadsheet should have one block of cells that is the canonical raw data, and nothing should mutate it except the upstream pipeline (manual entry, IMPORTRANGE, an Apps Script pull). Everything else, the totals, ratios, dashboards, alerts, lives elsewhere and reads from the raw block.
+
+The team's actual workbook pattern looks like this in the wild:
+
+| Tab | What lives there |
+|---|---|
+| `Raw - Taboola` | IMPORTRANGE pull from the Taboola export sheet. Untouched. |
+| `Raw - Google` | IMPORTRANGE pull from Google Ads export. Untouched. |
+| `Raw - Outbrain` | IMPORTRANGE pull from Outbrain. Untouched. |
+| `Aggregator` | Joins the raw tabs into one normalized log via QUERY. Read-only output. |
+| `Dashboard` | All the SUMIFS, the buyer-vs-platform pivot, the ROI summary. Reads from `Aggregator`. |
+
+The boundary between "raw" and "derived" is a tab boundary, and tabs are renamed with a `Raw -` prefix so anyone who opens the workbook knows which surface is safe to touch.
+
+## Don't aggregate inside the raw block
+
+The most common rookie move is adding a "Total" row at the bottom of the raw log. It looks helpful. It breaks everything downstream:
+
+- **`SUMIFS` over the column counts the Total row twice** if the Total row's buyer cell is blank and your criterion is `<>""`.
+- **A pivot table built on the range will show "Total" as a buyer name** and put a phantom row in every breakdown.
+- **Dynamic charts that point at the bounded range** silently extend to include the Total row, dragging averages and trends.
+- **Sorting the range** scrambles the Total row into the middle of the data.
+
+The fix is to put the total *outside* the raw block. Either at the top of the same sheet (a summary zone the eye reads first), or on a separate Summary tab. Both work. The point is the raw rectangle stays a rectangle of raw rows, with no aggregation inside it.
+
+## The summary zone pattern
+
+When the workbook is small enough that a separate Summary tab feels heavy, put the summary cells on the same sheet, separated from the raw block by **one empty column**. The empty column is the visual cue that says "different zone". When you build dashboards on top, the dashboard formulas point at the raw rectangle's bounded range; the summary cells point at totals you've already computed once and want to reuse.
+
+The pattern in cells, with the raw log occupying `A1:G61` and the summary in `I:J`:
+
+```
+A         B          ...    G         H    I              J
+Date      Buyer            Revenue        Total Spend    =SUM(F2:F61)
+2026-04-06 Yoav Cohen      587.40         Total Revenue  =SUM(G2:G61)
+2026-04-06 Dina Dayan      198.00         Portfolio ROI  =(J2-J1)/J1
+...                                       Unique buyers  =COUNTA(UNIQUE(B2:B61))
+```
+
+Two reasons this layout is worth the discipline:
+
+1. **The raw range is a clean `A1:G61` rectangle.** Any pivot table, chart, or `QUERY` reads it without conditional logic to skip a Total row.
+2. **The summary cells are a small fixed block.** When you write the ROI formula, you reference `J1` and `J2`, not `SUM(F2:F61)` again. Change the bound from `F61` to `F500` and only the two `SUM` cells need an edit. The ROI cell follows automatically.
+
+## Header rows: one row, no merges
+
+Headers look innocent and are the second-biggest source of broken downstream work after Total rows.
+
+- **One header row.** Not two. A two-row header confuses every `QUERY` that tries to use header labels and breaks `header=1` semantics.
+- **No merged cells in headers.** Merging across "Q1 2026" and four sub-columns looks tidy in print, but `INDEX/MATCH` and `XLOOKUP` see only the first cell and `null` in the rest.
+- **Names that match the column's content, not the column's display.** `Spend` (matches what the formula bar reads) beats `Spend ($)` (which forces every formula referencing it to escape the parenthesis).
+
+If you inherit a workbook with a merged header row, the cheap fix is to add a hidden second row underneath with the un-merged labels and have every formula reference that row.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The raw log occupies A1:G61. Your summary block lives in I:J, separated by an empty H column."
+/>
+
+Click **Start lesson** to provision the 60-row campaign log. You'll fill in a 4-cell summary block in column J, with labels already seeded in column I. The block exercises three principles: bounded ranges (no `F:F`), reuse (J3 references J1 and J2 instead of re-computing the SUMs), and a `UNIQUE` count for distinct buyers. Each cell on its own is a one-liner; together they're a real summary zone.
+
+## Used in the wild
+
+In the team's actual workbooks:
+
+- **Every `Raw -` tab is a clean rectangle.** No totals, no notes, no merged headers. Comments live in cell notes, not in cells.
+- **The Aggregator tab is read-only by convention.** Editing it is forbidden because the next IMPORTRANGE refresh would overwrite the change. Sharing settings actually enforce this for the team.
+- **Summary blocks at the top-right of dashboards.** "Spend MTD", "Revenue MTD", "Portfolio ROI", "Active campaigns". Three to six cells max. The big tables and charts come below.
+
+## Pro pitfalls
+
+- **The Total row that breaks `SUMIFS`.** Recurring sin. Once you remove it, downstream formulas just work.
+- **Aggregating with `SUM(F:F)` instead of `SUM(F2:F61)`.** Full-column references look future-proof but force Sheets to walk every empty cell on every recalc. On a 50,000-row workbook this turns into seconds of lag per edit.
+- **Naming a tab after a date** (`2026-Q2`). When the quarter rolls over, every formula that references `'2026-Q2'!B2` breaks until somebody renames it. Use stable names (`Raw - Taboola`) and let the date live inside a column.
+- **Hidden rows masquerading as deleted data.** Filter views are safe, but manually-hidden rows still get summed by `SUM` and counted by `COUNTA`. Pivot tables also include them. If a row should be excluded, it should be either filtered or moved to an `Archived` tab.

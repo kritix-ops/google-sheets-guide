@@ -1,0 +1,151 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# Workspace integrations: Drive, Calendar, Gmail
+
+A bound Apps Script project doesn't only see the spreadsheet it lives in. The same script can read and write files in Drive, send mail through your Gmail account, and create events on your calendar, all from the same JavaScript code that already runs on edit-triggers and menu clicks. The catch is that each service has its own OAuth scope, and Apps Script will prompt the user once per new scope the first time the function runs. Lesson 4 covered the `SpreadsheetApp` surface; this lesson is about the three services that touch everything else in the workspace.
+
+## DriveApp: search, read, write files
+
+`DriveApp` is the entry point to Google Drive. Three shapes show up in real team scripts:
+
+```js
+// Fetch a file by ID. The ID comes from the URL: drive.google.com/file/d/<ID>/view
+const file = DriveApp.getFileById("1abc...");
+const csvText = file.getBlob().getDataAsString();   // raw bytes as a string
+
+// Search by name or by query. searchFiles returns an iterator, not an array.
+const iter = DriveApp.searchFiles('title contains "Taboola export"');
+while (iter.hasNext()) {
+  const f = iter.next();
+  Logger.log(f.getName() + " -> " + f.getId());
+}
+
+// Copy a file. makeCopy returns the new File object; rename or move it after.
+const copy = file.makeCopy("Taboola export 2026-05-11", DriveApp.getFolderById("0folder..."));
+```
+
+The iterator is the easy trap. `searchFiles` and `getFolders` both return Drive iterators, not arrays. `.map` and `.filter` don't exist on them: you must drive them with `.hasNext()` and `.next()`. A learner who writes `DriveApp.searchFiles(q).forEach(...)` gets a runtime error about "forEach is not a function", and the bug is the iterator, not the query.
+
+`DriveApp` needs the `https://www.googleapis.com/auth/drive` scope. There's a narrower `https://www.googleapis.com/auth/drive.file` that only sees files the user explicitly hands to your app (via picker or by being created by the script). The narrow scope is the right default for scripts that only touch their own output files; broaden only when you actually need to read existing user data.
+
+## CalendarApp: read and create events
+
+```js
+const cal = CalendarApp.getDefaultCalendar();   // the user's primary calendar
+const event = cal.createEvent(
+  "Campaign launch: Reverse Mortgage PR (UK)",
+  new Date("2026-05-12T09:00:00+03:00"),
+  new Date("2026-05-12T09:30:00+03:00"),
+  {
+    description: "Buyer: Ben Nahum. First $200 of spend goes to LP testing.",
+    guests: "ben.nahum@flexelent.com,info@flexelent.com",
+    sendInvites: true,
+  }
+);
+```
+
+CalendarApp is the lightest of the three. You get a Calendar, you call `createEvent` (one-off) or `createAllDayEvent` or `createEventSeries` (recurring), and the event lands on the calendar with optional guest invites. Reads work the same way: `cal.getEventsForDay(new Date())` returns an array (this one is an array, not an iterator), and each Event exposes `getTitle`, `getStartTime`, `getEndTime`, `getDescription`, and so on.
+
+The scope is `https://www.googleapis.com/auth/calendar`. A script that only creates events for the running user (no other calendars touched) gets by with the narrower `calendar.events` scope: worth setting in the manifest if the script is going to be shared widely.
+
+## MailApp vs GmailApp: simpler vs richer
+
+Two services send mail. They look similar at the call site but differ in what they can do and what scope they need.
+
+| | `MailApp` | `GmailApp` |
+|---|---|---|
+| Send mail | Yes | Yes |
+| Read inbox / threads | No | Yes |
+| Attach files | Yes | Yes |
+| Modify drafts, labels, threads | No | Yes |
+| Scope needed | `script.send_mail` (send only) | `gmail.modify` or `mail.google.com` |
+| Daily quota (consumer accounts) | 100 emails / day | 100 emails / day |
+| Daily quota (Workspace) | 1,500 emails / day | 1,500 emails / day |
+
+If the script only needs to send one outbound message per run, use `MailApp`. The scope is narrower (you won't accidentally hand your script read access to your inbox), the API is smaller, and the quota is the same. The team's daily spend mailer uses `MailApp` for exactly that reason.
+
+```js
+MailApp.sendEmail({
+  to: "info@flexelent.com",
+  subject: "Daily spend report: 2026-05-11",
+  body: "Total spend yesterday: $32,418.20\n\nFull breakdown: https://docs.google.com/spreadsheets/...",
+});
+```
+
+The options bag matters. The single-argument forms (`MailApp.sendEmail(to, subject, body)`) work but lock you out of features like `htmlBody`, `cc`, `bcc`, `attachments`, `replyTo`, and `name` (the From display name, not the recipient: see the pitfalls below). Default to the object form on day one and you won't have to rewrite the call when the team asks for HTML formatting.
+
+## Cross-service patterns
+
+The full power of Workspace scripts shows up when one function chains all three:
+
+```js
+function ingestDailyTaboolaCsv() {
+  // 1. Drive: locate today's CSV export
+  const iter = DriveApp.searchFiles(
+    'title contains "Taboola export 2026-05-11" and mimeType = "text/csv"'
+  );
+  if (!iter.hasNext()) {
+    MailApp.sendEmail({
+      to: "info@flexelent.com",
+      subject: "Taboola export missing for 2026-05-11",
+      body: "No CSV found in Drive. The Taboola scheduled export probably failed; check the platform dashboard.",
+    });
+    return;
+  }
+  const csv = Utilities.parseCsv(iter.next().getBlob().getDataAsString());
+
+  // 2. SpreadsheetApp: write the rows
+  const sheet = SpreadsheetApp.getActive().getSheetByName("Taboola raw");
+  sheet.clear();
+  sheet.getRange(1, 1, csv.length, csv[0].length).setValues(csv);
+
+  // 3. Calendar: schedule the review meeting
+  CalendarApp.getDefaultCalendar().createEvent(
+    "Taboola data review",
+    new Date("2026-05-11T17:00:00+03:00"),
+    new Date("2026-05-11T17:30:00+03:00"),
+    { description: "Review newly ingested Taboola rows in the Aggregator tab." }
+  );
+
+  // 4. MailApp: confirm the ingest landed
+  MailApp.sendEmail({
+    to: "info@flexelent.com",
+    subject: "Taboola export ingested: " + (csv.length - 1) + " rows",
+    body: "Review meeting on the calendar at 17:00.",
+  });
+}
+```
+
+Four services, one function, one trigger. The first time the team's owner runs it, Apps Script prompts for Drive, Sheets, Calendar, and Gmail scopes all at once. From then on it runs silently.
+
+## Now do it for real
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The Campaigns log occupies A1:G61. The total spend has been pre-computed and sits in J1. Your job: read J1 and send a daily spend report email."
+/>
+
+The starter file `Lesson.gs` declares `function emailSpendReport()` with a TODO. Three steps:
+
+1. Read the spend total from J1 on the Campaigns tab: `const spend = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns").getRange("J1").getValue();`.
+2. Send an email with `MailApp.sendEmail({ to: ..., subject: ..., body: ... })`. The recipient can be `info@flexelent.com` or any address you control.
+3. Make sure the body actually includes the total (template literal: `` `Total spend today: $${spend}` ``).
+
+Click Run on `emailSpendReport` in the editor. Accept the gmail scope prompt the first time. Re-run; check your inbox.
+
+## Used in the wild
+
+The team has three Workspace-touching scripts that run every day:
+
+- **The morning spend digest.** A time-driven trigger calls `emailSpendReport` at 09:00 with the previous day's total, top three verticals, and bottom three. Goes to every active media buyer.
+- **The Friday Drive cleanup.** A `searchFiles` query finds every "raw export" file older than 30 days, copies them to an archive folder, and removes the originals. Saves the team's Drive quota for the current week's exports.
+- **Campaign-launch calendar drops.** When a buyer clicks "Launch" in a custom sidebar (Track 3 lesson 5 covers that), the script creates a Calendar event 24 hours out as a placeholder review check-in.
+
+## Pro pitfalls
+
+- **`MailApp.sendEmail`'s `name` field is the FROM display name, not the recipient.** Beginner code that reads `MailApp.sendEmail({ to: "info@flexelent.com", name: "info@flexelent.com", ... })` sends a message FROM "info@flexelent.com" (display) and TO "info@flexelent.com": which works, but isn't what the writer thought they were doing. The recipient is always `to:` (or `bcc:` / `cc:`).
+- **`DriveApp.searchFiles` returns an iterator, not an array.** No `.map`, no `.forEach`, no `.length`. Drive iterators are streams; you walk them with `.hasNext()` / `.next()` and collect into an array yourself if you need one.
+- **Gmail send quotas are stricter than they look.** 100 / day for consumer accounts, 1,500 / day for Workspace, and they reset on a rolling 24-hour window, not at midnight. A script that loops `sendEmail` 100 times in one minute will hit the per-minute send rate limit before it hits the daily one and start throwing. Batch into one message with a longer body, or rate-limit with `Utilities.sleep(1000)` between sends.
+- **`DriveApp.createFile` in a bound script puts the file in the SCRIPT OWNER's Drive, not the running user's Drive.** If your script is owned by Yoav and run by Dina, the file ends up in Yoav's Drive with Dina as an editor (if you remembered to share it). To create in the running user's Drive, use `Drive.Files.create(...)` with the advanced Drive service instead: that one runs as the user.
+- **`CalendarApp.getDefaultCalendar()` returns the calendar owned by whoever runs the script, not the script's owner.** On a script with "Execute as me" the script owner is "me", so Dina's run still creates events on Yoav's calendar. The two execution modes ("as me" vs "as the user accessing") matter here exactly as much as they do for web apps in lesson 13.
+- **Asking for `https://mail.google.com/` (full Gmail access) when you only send mail.** Apps Script's authorization prompt shows the full scope description, and "Read, compose, send, and permanently delete all your email" scares users out of running the script. Drop down to `script.send_mail` if all you do is send.

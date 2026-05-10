@@ -1,0 +1,123 @@
+import { CAMPAIGNS } from "@/content/datasets/adtech";
+
+# REGEX in depth: REGEXMATCH, REGEXEXTRACT, REGEXREPLACE
+
+When `LEFT`/`MID`/`SUBSTITUTE` aren't expressive enough: when patterns are variable, when extraction needs flexible matching, when validation needs more than a literal substring: REGEX is the answer. Sheets uses Google's RE2 engine. **No lookarounds, no backreferences, no recursive patterns.** Otherwise standard PCRE-flavored regex.
+
+In adtech, REGEX is how you validate campaign code formats, extract platform names from arbitrary strings, normalize messy data from disparate sources, and write reliable WHERE clauses against text columns.
+
+## The three functions
+
+| Function | Purpose | Returns |
+|---|---|---|
+| `REGEXMATCH(text, pattern)` | Test if pattern matches | TRUE / FALSE |
+| `REGEXEXTRACT(text, pattern)` | Extract the first match | The matched substring |
+| `REGEXREPLACE(text, pattern, replacement)` | Replace all matches | New string |
+
+All three patterns are RE2 strings, written in double quotes. Inside the pattern, escape `\` characters with another `\` (so `\\d` for "digit").
+
+## REGEXMATCH: validation
+
+Validate that a campaign code follows the team's standard `Platform_VerticalPR_Audience_YYYY-MM` format:
+
+```
+=REGEXMATCH(A2, "^[A-Za-z]+_[A-Za-z]+PR_[A-Za-z]+_\\d{4}-\\d{2}$")
+```
+
+Returns TRUE if the cell matches the pattern, FALSE otherwise. Combine with conditional formatting (Track 2) to flag rows that fail.
+
+<TryIt
+  data={[
+    ["Code", "Valid?"],
+    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
+  ]}
+  inputCell="B2"
+  expectedFormula='=REGEXMATCH(A2,"^[A-Za-z]+_[A-Za-z]+PR_[A-Za-z]+_\\d{4}-\\d{2}$")'
+  task={<>Validate that the campaign code in A2 matches the standard format. Return TRUE if it does.</>}
+  hint={<>The pattern: starts with letters, then "_", then letters ending in "PR", then "_", then letters, then "_", then YYYY-MM date. Anchor with <code>^</code> and <code>$</code>.</>}
+  answer={<>Anchors are critical. <code>^</code> matches start, <code>$</code> matches end: without them, the pattern can match a substring inside garbage text. <code>[A-Za-z]+</code> is one or more letters. <code>\\d{`{4}`}</code> is exactly 4 digits (the backslash is doubled because Sheets' string parsing eats one). Without anchors, "garbageTaboola_UsedCarsPR_DesktopUS_2026-05garbage" would also match: usually not what you want.</>}
+/>
+
+## REGEXEXTRACT: pull a piece
+
+Extract the platform name from a campaign code, regardless of what comes after.
+
+```
+=REGEXEXTRACT(A2, "^([A-Za-z]+)_")
+```
+
+Parentheses create a capture group; REGEXEXTRACT returns the first capture group. If you don't use parentheses, it returns the whole match.
+
+<TryIt
+  data={[
+    ["Code", "Platform"],
+    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
+  ]}
+  inputCell="B2"
+  expectedFormula='=REGEXEXTRACT(A2,"^([A-Za-z]+)_")'
+  task={<>Extract just the platform name (the part before the first underscore) from the campaign code in A2. Result should be <code>Taboola</code>.</>}
+  hint={<>Use a capture group <code>(...)</code> around what you want to extract. Anchor with <code>^</code> and follow with the literal underscore.</>}
+  answer={<>The capture group <code>(...)</code> tells REGEXEXTRACT what to return. <code>^([A-Za-z]+)_</code> captures one-or-more letters at the start, requiring an underscore right after. The underscore is matched but not captured. If you wrote <code>"^([A-Za-z]+)"</code> without the trailing underscore, the regex would still match "Taboola" but might also match shorter prefixes like "T" depending on greediness: anchoring on the structural delimiter is safer.</>}
+/>
+
+## REGEXREPLACE: substitute with a pattern
+
+Replace all matches with a new string. Useful for stripping unwanted characters, normalizing separators, or restructuring strings.
+
+```
+=REGEXREPLACE(A2, "_\\d{4}-\\d{2}$", "")
+```
+
+Removes the trailing "_YYYY-MM" from a campaign code, leaving the rest. The team uses this for de-versioning campaign IDs across periods.
+
+In the replacement string, you can reference capture groups with `$1`, `$2`, etc.:
+
+```
+=REGEXREPLACE(A2, "^([A-Za-z]+)_(.+)$", "$2_$1")
+```
+
+This swaps the first segment to the end: "Taboola_UsedCarsPR_DesktopUS_2026-05" → "UsedCarsPR_DesktopUS_2026-05_Taboola".
+
+<TryIt
+  data={[
+    ["Code", "Without date"],
+    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
+  ]}
+  inputCell="B2"
+  expectedFormula='=REGEXREPLACE(A2,"_\\d{4}-\\d{2}$","")'
+  task={<>Strip the trailing "_YYYY-MM" date from the campaign code in A2. Result should be <code>Taboola_UsedCarsPR_DesktopUS</code>.</>}
+  hint={<>Pattern: an underscore, four digits, a dash, two digits, end-of-string. Replace with empty string.</>}
+  answer={<>The <code>$</code> anchor at the end ensures we only match the trailing date, not a date in the middle. Without it, REGEXREPLACE would also strip dates from any "_YYYY-MM_" suffix earlier in the string. <code>\\d{`{4}`}</code> is exactly 4 digits; <code>{`{2}`}</code> matches exactly 2. The replacement is the empty string: the matched substring is removed entirely.</>}
+/>
+
+## RE2 limitations
+
+Sheets uses RE2, which is fast and safe but lacks some PCRE features:
+
+- **No lookahead or lookbehind.** `(?=...)`, `(?<=...)`, `(?!...)`, `(?<!...)` are unsupported.
+- **No backreferences in the pattern.** `\\1` to refer to a capture group inside the pattern doesn't work. You can use `$1` in the REGEXREPLACE *replacement*, but not in the *pattern*.
+- **No recursive patterns.** Subroutines, conditionals, balanced patterns are out.
+- **Case-insensitive flag works inline:** `(?i)pattern`.
+
+If you need lookarounds, you usually need to restructure with multiple captures or post-process with another formula. For most adtech use cases (validation, extraction, normalization), RE2 is more than enough.
+
+## Used in the wild
+
+- **Validate campaign codes match the team's naming convention.** REGEXMATCH in a helper column, conditional formatting flags rows that fail.
+- **Extract dates from messy filename or campaign-name columns.** REGEXEXTRACT for "find the YYYY-MM-DD inside this string".
+- **Normalize separators** (` ` vs `_` vs `-`) with REGEXREPLACE before joining sheets.
+- **Strip the " PR" suffix from verticals** using REGEXREPLACE: more robust than LEFT+LEN if some verticals stop following the convention.
+- **Find phone numbers, emails, URLs** with classic regex patterns inside long text fields like ad copy.
+
+## Pro pitfalls
+
+- **Backslash escaping is doubled.** `\\d` in the formula means `\d` in the regex (digit). One backslash gets eaten by Sheets' string parsing.
+- **REGEXEXTRACT with no match returns `#N/A`.** Wrap in IFNA with a fallback.
+- **REGEXMATCH on numeric cells coerces to text first.** A number 2026 becomes the string "2026" before matching: usually fine, occasionally surprising.
+- **Greedy vs lazy.** `.+` is greedy (matches as much as possible). `.+?` is lazy (as little as possible). Wrong choice silently extracts the wrong thing.
+- **Special characters in REGEXREPLACE replacement.** `$` is a special character (backreference); to insert a literal `$`, use `$$`.
+- **Patterns are case-sensitive by default.** "PR" doesn't match "pr". Use `(?i)` inline flag for case-insensitive.
+
+## Now do it for real
+
+Click **Start lesson** to provision a sheet with sample campaign codes. You'll write three REGEX formulas: a REGEXMATCH validator, a REGEXEXTRACT to pull the platform out, and a REGEXREPLACE to strip the trailing date.
