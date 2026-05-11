@@ -4,6 +4,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `ARRAYFORMULA` was introduced in lesson 2 as the Sheets workaround for Excel's auto-spilling. This lesson goes deep on when to reach for it, when not to, and how to use it without bringing your sheet to its knees on big data. In adtech work, ARRAYFORMULA is how you keep computed columns (profit, ROI, EPC, normalized names) maintainable across a dataset that grows every day: one formula at the top, no fill-down required.
 
+<FunctionRef name="ARRAYFORMULA" />
+
 ## What it does and why you need it
 
 In Excel 365, `=B2:B13 - A2:A13` spills into 12 cells automatically. Sheets returns only the first value. Wrapping in `ARRAYFORMULA` tells Sheets to broadcast the operation across the whole range.

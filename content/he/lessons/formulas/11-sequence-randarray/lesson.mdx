@@ -6,7 +6,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## SEQUENCE: רשימה ספורה
 
-`SEQUENCE(rows, [columns], [start], [step])` בונה רצף של מספרים. הצורה הפשוטה ביותר, `=SEQUENCE(10)`, נותנת את המספרים 1 עד 10 במורד עמודה.
+`SEQUENCE` בונה רצף של מספרים. הצורה הפשוטה ביותר, `=SEQUENCE(10)`, נותנת את המספרים 1 עד 10 במורד עמודה. מושכים אליה כשצריך מספרים שלמים רצופים, תאריכים במרווחים שווים (משולב עם `EDATE`/`EOMONTH`), או ציר ספור לטבלת תחזית.
+
+<FunctionRef name="SEQUENCE" />
 
 ```
 =SEQUENCE(10)              → 1, 2, 3, ..., 10 (במורד)
@@ -37,11 +39,16 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## RANDARRAY: מספרים אקראיים
 
-`RANDARRAY(rows, [columns], [min], [max], [whole_numbers])` מייצר ערכים אקראיים. מחושב מחדש בכל שינוי בגיליון, כמו `RAND()`. שימושי ל-bucketing של בדיקות A/B, דגימה, סימולציות.
+`RANDARRAY` מייצר ערכים עשרוניים אקראיים בין 0 ל-1. מחושב מחדש בכל שינוי בגיליון, כמו `RAND()`. שימושי ל-bucketing של בדיקות A/B, דגימה, סימולציות.
+
+חשוב: RANDARRAY של Sheets פשוטה במכוון יותר מזו של Excel. החתימה ב-Sheets היא `RANDARRAY([rows], [columns])` בלבד. אין arguments מובנים של min, max או שלמים. כדי לקבל שלמים אקראיים בטווח, עוטפים את הפלט העשרוני בחשבון ו-`ROUND` או `INT`.
+
+<FunctionRef name="RANDARRAY" />
 
 ```
-=RANDARRAY(10)                        → 10 עשרוניים אקראיים בין 0 ל-1
-=RANDARRAY(10, 1, 1, 100, TRUE)       → 10 שלמים אקראיים בין 1 ל-100
+=RANDARRAY(10)                              → 10 עשרוניים אקראיים ב-[0, 1)
+=RANDARRAY(10, 1)                           → אותו דבר, עמודה יחידה מפורשת
+=ARRAYFORMULA(INT(RANDARRAY(10,1) * 100) + 1)  → 10 שלמים אקראיים 1-100
 ```
 
 השימוש הקלאסי באדטק: חלוקת קמפיינים לקבוצות בדיקת A/B. לחשב מספר אקראי לכל שורה, ואז `IF(rand < 0.5, "A", "B")` כדי להקצות את הווריאנט. שימו לב: RANDARRAY מחושב מחדש בכל שינוי, אז שיוך הקבוצה יזוז. כדי להקפיא אותו, מדביקים כערכים ברגע שמרוצים.
@@ -49,15 +56,17 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
-  expectedFormula="=RANDARRAY(5,1,1,100,TRUE)"
-  task={<>צרו 5 שלמים אקראיים בין 1 ל-100 בעמודה H.</>}
-  hint={<>חמישה ארגומנטים: שורות, עמודות, מינימום, מקסימום, whole_numbers. החמישי חייב להיות TRUE לשלמים.</>}
-  answer={<>RANDARRAY בלי דגל השלמים מחזיר עשרוניים. הארגומנט החמישי <code>TRUE</code> הופך אותם למספרים שלמים. ערכי RANDARRAY משתנים בכל פעם שהגיליון מחושב מחדש: בכל הדבקה, בכל עריכת נוסחה, בכל פתיחה של גיליון. לשיוך אקראי יציב (למשל, סל A/B), צרו פעם אחת, אז העתיקו והדביקו-כערכים כדי לנעול את השיוך. חלופה: השתמשו ב-hash יציב על ערך תא, למשל <code>MOD(LEN(A2), 2)</code>, שלא משתנה בין חישובים.</>}
+  expectedFormula="=ARRAYFORMULA(INT(RANDARRAY(5,1)*100)+1)"
+  task={<>צרו 5 שלמים אקראיים בין 1 ל-100 בעמודה H. RANDARRAY של Sheets מחזיר רק עשרוניים ב-[0, 1), אז עוטפים בחשבון וב-INT כדי לקנה מידה לטווח שלכם.</>}
+  hint={<>מכפילים RANDARRAY בגודל 5×1 ב-100, אז לוקחים INT כדי להוריד את העשרוניים, אז מוסיפים 1 כדי שהטווח יהיה 1-100 במקום 0-99.</>}
+  answer={<>בניגוד ל-Excel, RANDARRAY של Sheets לא מקבל arguments של min/max/integer. המתכון הוא <code>ARRAYFORMULA(INT(RANDARRAY(rows,1) * (max-min+1)) + min)</code>. ערכי RANDARRAY משתנים בכל פעם שהגיליון מחושב מחדש: בכל הדבקה, בכל עריכת נוסחה, בכל פתיחה של גיליון. לשיוך אקראי יציב (למשל, סל A/B), צרו פעם אחת, אז העתיקו והדביקו-כערכים כדי לנעול את השיוך. חלופה: השתמשו ב-hash יציב על ערך תא, למשל <code>MOD(LEN(A2), 2)</code>, שלא משתנה בין חישובים.</>}
 />
 
 ## MAKEARRAY: פונקציה מותאמת לכל תא
 
-`MAKEARRAY(rows, columns, lambda)` קורא לפונקציית `LAMBDA` לכל תא של הרשת המתקבלת. ה-lambda מקבל את אינדקסי השורה והעמודה ומחזיר את ערך התא.
+`MAKEARRAY(rows, columns, lambda)` קורא לפונקציית `LAMBDA` לכל תא של הרשת המתקבלת. ה-lambda מקבל את אינדקסי השורה והעמודה ומחזיר את ערך התא. שיעורים 18 ו-19 מכסים את `LAMBDA`, `MAP`, `REDUCE`, ושאר משפחת ה-array-of-lambdas לעומק.
+
+<FunctionRef name="MAKEARRAY" />
 
 ```
 =MAKEARRAY(5, 3, LAMBDA(r, c, r * c))

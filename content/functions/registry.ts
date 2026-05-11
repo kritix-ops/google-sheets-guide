@@ -1847,6 +1847,139 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/3093349?hl=en",
   },
 
+  SEQUENCE: {
+    name: "SEQUENCE",
+    category: "array",
+    summary: {
+      en: "Generates a spilled grid of consecutive numbers. With one argument, a single column; with two, a rectangle. Optional start and step control the values.",
+      he: "מייצר טבלת מספרים רציפים שזורמת. עם argument אחד, עמודה יחידה; עם שניים, מלבן. start ו-step אופציונליים שולטים בערכים.",
+    },
+    syntax: "SEQUENCE(rows, [columns], [start], [step])",
+    params: [
+      {
+        name: "rows",
+        type: "number",
+        description: {
+          en: "How many rows to generate.",
+          he: "כמה שורות לייצר.",
+        },
+      },
+      {
+        name: "columns",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "How many columns. Omit for a single column.",
+          he: "כמה עמודות. השמיטו לעמודה יחידה.",
+        },
+      },
+      {
+        name: "start",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "The first number in the sequence.",
+          he: "המספר הראשון ברצף.",
+        },
+      },
+      {
+        name: "step",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "How much to add between consecutive values. Can be negative to count down.",
+          he: "כמה להוסיף בין ערכים רצופים. יכול להיות שלילי כדי לספור למטה.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled rows × columns grid of consecutive numbers. Array-aware: no ARRAYFORMULA needed.",
+      he: "טבלה שזורמת בגודל rows × columns של מספרים רצופים. מודע-מערכים: לא צריך ARRAYFORMULA.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/9368244?hl=en",
+  },
+
+  RANDARRAY: {
+    name: "RANDARRAY",
+    category: "array",
+    summary: {
+      en: "Returns a spilled grid of random decimals between 0 and 1. Volatile (recalculates on every change). Sheets' RANDARRAY is intentionally simpler than Excel's: no min, max, or integer options.",
+      he: "מחזיר טבלה שזורמת של מספרים עשרוניים אקראיים בין 0 ל-1. תנודתית (מחושבת מחדש בכל שינוי). RANDARRAY של Sheets פשוטה במכוון יותר מזו של Excel: אין אופציות של min, max או שלמים.",
+    },
+    syntax: "RANDARRAY([rows], [columns])",
+    params: [
+      {
+        name: "rows",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "How many rows. Must be supplied if columns is supplied.",
+          he: "כמה שורות. חייב להיות מסופק אם columns מסופק.",
+        },
+      },
+      {
+        name: "columns",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "How many columns. Omit for a single column.",
+          he: "כמה עמודות. השמיטו לעמודה יחידה.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled grid of decimals in [0, 1). For integers or a custom range, wrap with arithmetic: ROUND(min + RANDARRAY(...) * (max-min), 0).",
+      he: "טבלה שזורמת של עשרוניים ב-[0, 1). למספרים שלמים או טווח מותאם, עוטפים בחשבון: ROUND(min + RANDARRAY(...) * (max-min), 0).",
+    },
+    docsUrl: "https://support.google.com/docs/answer/9211904?hl=en",
+  },
+
+  MAKEARRAY: {
+    name: "MAKEARRAY",
+    category: "lambda",
+    summary: {
+      en: "Builds a spilled grid by calling a LAMBDA once per cell with the row and column indices. The functional-programming way to generate derived data.",
+      he: "בונה טבלה שזורמת על ידי קריאה ל-LAMBDA פעם אחת לכל תא עם ה-indexes של שורה ועמודה. הדרך התכנותית-פונקציונלית לייצר מידע נגזר.",
+    },
+    syntax: "MAKEARRAY(rows, columns, LAMBDA(row_index, column_index, formula))",
+    params: [
+      {
+        name: "rows",
+        type: "number",
+        description: {
+          en: "Number of rows.",
+          he: "מספר שורות.",
+        },
+      },
+      {
+        name: "columns",
+        type: "number",
+        description: {
+          en: "Number of columns.",
+          he: "מספר עמודות.",
+        },
+      },
+      {
+        name: "LAMBDA",
+        type: "lambda(row_index, column_index)",
+        description: {
+          en: "A LAMBDA that takes two arguments (1-indexed row and column) and returns a single value. Array-returning lambdas are not allowed.",
+          he: "LAMBDA שמקבל שני arguments (שורה ועמודה 1-indexed) ומחזיר ערך יחיד. lambdas שמחזירים מערך אסורים.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled rows × columns grid where each cell holds the lambda's output for its (row_index, column_index).",
+      he: "טבלה שזורמת בגודל rows × columns שבה כל תא מחזיק את הפלט של ה-lambda עבור ה-(row_index, column_index) שלו.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/12569202?hl=en",
+  },
+
   QUERY: {
     name: "QUERY",
     category: "query",

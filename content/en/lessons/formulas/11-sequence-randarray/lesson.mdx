@@ -6,7 +6,9 @@ Some of the most useful formulas don't take an input range: they generate one. `
 
 ## SEQUENCE: a counted list
 
-`SEQUENCE(rows, [columns], [start], [step])` builds a sequence of numbers. The simplest form, `=SEQUENCE(10)`, gives the numbers 1 through 10 down a column.
+`SEQUENCE` builds a sequence of numbers. The simplest form, `=SEQUENCE(10)`, gives the numbers 1 through 10 down a column. Reach for it when you need consecutive integers, evenly-spaced dates (combined with `EDATE`/`EOMONTH`), or a counted axis for a projection table.
+
+<FunctionRef name="SEQUENCE" />
 
 ```
 =SEQUENCE(10)              → 1, 2, 3, ..., 10 (down)
@@ -37,11 +39,16 @@ This gives end-of-month dates for each of the 12 months in 2026: Jan 31, Feb 28,
 
 ## RANDARRAY: random numbers
 
-`RANDARRAY(rows, [columns], [min], [max], [whole_numbers])` generates random values. Recalculates on every sheet change, like `RAND()`. Useful for A/B test bucketing, sampling, simulations.
+`RANDARRAY` generates random decimal values between 0 and 1. Recalculates on every sheet change, like `RAND()`. Useful for A/B test bucketing, sampling, simulations.
+
+Important: Sheets' `RANDARRAY` is intentionally simpler than Excel's. The Sheets signature is `RANDARRAY([rows], [columns])` only: no built-in min, max, or integer arguments. To get random integers in a range, wrap the decimal output with arithmetic and `ROUND` or `INT`.
+
+<FunctionRef name="RANDARRAY" />
 
 ```
-=RANDARRAY(10)                        → 10 random decimals between 0 and 1
-=RANDARRAY(10, 1, 1, 100, TRUE)       → 10 random integers 1-100
+=RANDARRAY(10)                              → 10 random decimals in [0, 1)
+=RANDARRAY(10, 1)                           → same thing, explicit single column
+=ARRAYFORMULA(INT(RANDARRAY(10,1) * 100) + 1)  → 10 random integers 1-100
 ```
 
 The classic adtech use: bucketing campaigns into A/B test groups. Compute a random number per row, then `IF(rand < 0.5, "A", "B")` to assign the variant. Beware: RANDARRAY recalculates on every change, so the bucket assignment will shift around. To freeze it, paste as values once you're satisfied.
@@ -49,15 +56,17 @@ The classic adtech use: bucketing campaigns into A/B test groups. Compute a rand
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
-  expectedFormula="=RANDARRAY(5,1,1,100,TRUE)"
-  task={<>Generate 5 random integers between 1 and 100 in column H.</>}
-  hint={<>Five arguments: rows, columns, min, max, whole_numbers. The fifth must be TRUE for integers.</>}
-  answer={<>RANDARRAY without the integer flag returns floats. The 5th argument <code>TRUE</code> makes them whole numbers. RANDARRAY values change every time the sheet recalculates: every paste, every formula edit, every sheet open. For a stable random assignment (e.g., A/B bucket), generate once, then copy and paste-as-values to lock the assignment. Alternative: use a stable hash on a cell value, e.g., <code>MOD(LEN(A2), 2)</code>, which doesn't change between recalculations.</>}
+  expectedFormula="=ARRAYFORMULA(INT(RANDARRAY(5,1)*100)+1)"
+  task={<>Generate 5 random integers between 1 and 100 in column H. Sheets' RANDARRAY only returns decimals in [0, 1), so wrap with arithmetic and INT to scale to your range.</>}
+  hint={<>Multiply a 5×1 RANDARRAY by 100, then take INT to drop the decimals, then add 1 so the range becomes 1-100 instead of 0-99.</>}
+  answer={<>Unlike Excel, Sheets' RANDARRAY does not accept min/max/integer arguments. The recipe is <code>ARRAYFORMULA(INT(RANDARRAY(rows,1) * (max-min+1)) + min)</code>. RANDARRAY values change every time the sheet recalculates: every paste, every formula edit, every sheet open. For a stable random assignment (e.g., A/B bucket), generate once, then copy and paste-as-values to lock the assignment. Alternative: use a stable hash on a cell value, e.g., <code>MOD(LEN(A2), 2)</code>, which doesn't change between recalculations.</>}
 />
 
 ## MAKEARRAY: per-cell custom function
 
-`MAKEARRAY(rows, columns, lambda)` calls a `LAMBDA` function for each cell of the resulting grid. The lambda receives the row and column indices and returns the cell's value.
+`MAKEARRAY(rows, columns, lambda)` calls a `LAMBDA` function for each cell of the resulting grid. The lambda receives the row and column indices and returns the cell's value. Lessons 18 and 19 cover `LAMBDA`, `MAP`, `REDUCE`, and the rest of the array-of-lambdas family in depth.
+
+<FunctionRef name="MAKEARRAY" />
 
 ```
 =MAKEARRAY(5, 3, LAMBDA(r, c, r * c))
