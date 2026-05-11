@@ -48,6 +48,24 @@ export const DATE_NUMBERS = [
 
 <FunctionRef name="EOMONTH" />
 
+### דוגמה 1: דמו צעצוע
+
+צפו ב-EOMONTH זז לאורך offset. אותו תאריך קלט עם offsets שונים נותן סופי חודש שונים.
+
+<RefDemo
+  data={[
+    ["Anchor date", "Offset", "Result"],
+    ["2026-05-15", 0, ""],
+    ["2026-05-15", -1, ""],
+    ["2026-05-15", 1, ""],
+  ]}
+  formula="=EOMONTH(A2,B2)"
+  formulaCell="C2"
+  fillTo="C4"
+  expectedFills={["=EOMONTH(A2,B2)", "=EOMONTH(A3,B3)", "=EOMONTH(A4,B4)"]}
+  caption="EOMONTH(anchor, 0) שווה 31 במאי. עם -1, 30 באפריל. עם +1, 30 ביוני. היום של ה-anchor לא משנה, רק החודש זז."
+/>
+
 <TryIt
   data={DATE_NUMBERS}
   inputCell="D1"
@@ -87,6 +105,54 @@ export const DATE_NUMBERS = [
   task={<>חשבו את מספר החודשים המלאים בין 1 בינואר 2025 ל-1 במאי 2026. התוצאה אמורה להיות <code>16</code>.</>}
   hint={<>שלושה ארגומנטים: תאריך התחלה, תאריך סוף, יחידה. היחידה <code>"M"</code> מחזירה חודשים מלאים.</>}
   answer={<>DATEDIF מעגל כלפי מטה ליחידה. בדיוק 16 חודשים מחזיר 16. היחידה <code>"YM"</code> ממש שימושית לפלט של "X שנים ו-Y חודשים": משלבים <code>DATEDIF(start, end, "Y")</code> עם <code>DATEDIF(start, end, "YM")</code>. DATEDIF לא מתועד ב-function picker אבל נתמך היטב. שימוש נפוץ באדטק: מעקב אחרי ותק של media buyer בצוות לצורך הערכות ביצועים והגדרת יעדים.</>}
+/>
+
+### מלכודות נפוצות: חשבון תאריכים
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=A2 >= "2026-05-01"`}</code></pre>
+    <p className="mt-2 text-sm">השוואת תא תאריך למחרוזת במרכאות. Sheets לפעמים ממיר ולפעמים לא. עם תאריכים שמגיעים דרך IMPORTRANGE כטקסט, זה יכול להחזיר FALSE לכל שורה בשקט.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=A2 >= DATE(2026,5,1)`}</code></pre>
+    <p className="mt-2 text-sm">שני הצדדים תאריכים אמיתיים (מספרים מתחת למכסה). ההשוואה עובדת בין שה-A2 הוקלד כתאריך, חושב על ידי EOMONTH או הגיע מתא אחר. ההרגל הנכון בכל מקום שבו לוגיקת תאריכים מופיעה.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "m")`}</code></pre>
+    <p className="mt-2 text-sm">קוד יחידה באותיות קטנות. <code>DATEDIF</code> רגיש: רוב הגרסאות מקבלות אותיות קטנות אבל חלק קטן שוגה. הצוות ראה את זה נכשל בצורה שונה בשני workbooks סמוכים.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "M")`}</code></pre>
+    <p className="mt-2 text-sm">אותיות גדולות. עשו הרגל מאותיות גדולות: <code>"Y"</code>, <code>"M"</code>, <code>"D"</code>, <code>"YM"</code>, <code>"YD"</code>, <code>"MD"</code>. הימנעו מ-<code>"MD"</code> לגמרי; יש לו edge cases מוכרים בגבולות חודש.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="עמודת ה-Spend חיה בטאב אגרגטור שמושך מטאבים פר-פלטפורמה דרך IMPORTRANGE. תאריכים מגיעים לפעמים כתאריכים אמיתיים, לפעמים כמחרוזות טקסט כמו '2026-05-01'. רוצים נוסחה שמסננת ל'שורות ממאי 2026' בלי קשר. איזו עמידה?"
+  options={[
+    {
+      id: "a",
+      label: <code>=A2 {">"}= "2026-05-01"</code>,
+      correct: false,
+      explanation: "השוואת טקסט. עובד לסדר מיון על מחרוזות YYYY-MM-DD במקרה, אבל נכשל ברגע שתאריך אחד הוא מספר אמיתי (למשל 46143) ואחד טקסט. סוגים מעורבים נמצאים בקטגוריות שונות.",
+    },
+    {
+      id: "b",
+      label: <code>=DATEVALUE(A2{"&"}"") {">"}= DATE(2026,5,1)</code>,
+      correct: true,
+      explanation: "כופים את A2 למספר (DATEVALUE מטפל בטקסט, הטריק &\"\" מטפל גם בתאריכים אמיתיים בפועל) ומשווים לתאריך אמיתי. עמיד לקלט בסוגים מעורבים.",
+    },
+    {
+      id: "c",
+      label: <code>=MONTH(A2) = 5</code>,
+      correct: false,
+      explanation: "מחזיר TRUE גם למאי 2025 וגם למאי 2027. משלב עיוורון-לשנה עם מחלקת באג שונה. השתמשו בהשוואת תאריכים מלאה כשמסננים לפי תקופה.",
+    },
+  ]}
 />
 
 ## תבניות נפוצות

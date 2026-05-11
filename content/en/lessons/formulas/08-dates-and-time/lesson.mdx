@@ -48,6 +48,24 @@ In adtech work, EOMONTH is how you compute billing period end-dates that follow 
 
 <FunctionRef name="EOMONTH" />
 
+### Worked example 1: toy demo
+
+Watch EOMONTH glide across an offset. The same input date with different offsets gives different end-of-month results.
+
+<RefDemo
+  data={[
+    ["Anchor date", "Offset", "Result"],
+    ["2026-05-15", 0, ""],
+    ["2026-05-15", -1, ""],
+    ["2026-05-15", 1, ""],
+  ]}
+  formula="=EOMONTH(A2,B2)"
+  formulaCell="C2"
+  fillTo="C4"
+  expectedFills={["=EOMONTH(A2,B2)", "=EOMONTH(A3,B3)", "=EOMONTH(A4,B4)"]}
+  caption="EOMONTH(anchor, 0) = May 31. With -1, April 30. With +1, June 30. The day of the anchor doesn't matter; only the month is shifted."
+/>
+
 <TryIt
   data={DATE_NUMBERS}
   inputCell="D1"
@@ -87,6 +105,54 @@ In adtech: "ad-days remaining in the month" = `NETWORKDAYS(TODAY(), EOMONTH(TODA
   task={<>Compute the number of full months between January 1, 2025 and May 1, 2026. The result should be <code>16</code>.</>}
   hint={<>Three arguments: start date, end date, unit. The unit <code>"M"</code> returns full months.</>}
   answer={<>DATEDIF rounds DOWN to the unit. Sixteen months exactly returns 16. The unit <code>"YM"</code> is genuinely useful for "X years and Y months" output: combine <code>DATEDIF(start, end, "Y")</code> with <code>DATEDIF(start, end, "YM")</code>. DATEDIF is undocumented in the function picker but well-supported. Common use in adtech: tracking buyer tenure on the team for performance reviews and quota-setting.</>}
+/>
+
+### Easy traps: date math
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=A2 >= "2026-05-01"`}</code></pre>
+    <p className="mt-2 text-sm">Comparing a date cell to a quoted string. Sheets sometimes coerces, sometimes doesn't. With dates that arrive via IMPORTRANGE as text, this can silently return FALSE for every row.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=A2 >= DATE(2026,5,1)`}</code></pre>
+    <p className="mt-2 text-sm">Both sides are real dates (numbers under the hood). The comparison works whether A2 was typed as a date, computed by EOMONTH, or arrived from another cell. The right habit anywhere date logic shows up.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "m")`}</code></pre>
+    <p className="mt-2 text-sm">Lowercase unit code. <code>DATEDIF</code> is finicky: most versions accept lowercase but a small subset error out. The team has seen this fail differently across two adjacent workbooks.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "M")`}</code></pre>
+    <p className="mt-2 text-sm">Uppercase unit. Make uppercase a habit: <code>"Y"</code>, <code>"M"</code>, <code>"D"</code>, <code>"YM"</code>, <code>"YD"</code>, <code>"MD"</code>. Avoid <code>"MD"</code> entirely; it has known edge cases at month boundaries.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="The Spend column lives on an aggregator tab that pulls from per-platform sheets via IMPORTRANGE. Dates arrive sometimes as real dates, sometimes as text strings like '2026-05-01'. You want a formula that filters to 'rows from May 2026' regardless. Which is robust?"
+  options={[
+    {
+      id: "a",
+      label: <code>=A2 {">"}= "2026-05-01"</code>,
+      correct: false,
+      explanation: "Text comparison. Works for sort order on YYYY-MM-DD strings by accident, but fails the moment one date is a real number (e.g., 46143) and one is text. Mixed types compare as different categories.",
+    },
+    {
+      id: "b",
+      label: <code>=DATEVALUE(A2{"&"}"") {">"}= DATE(2026,5,1)</code>,
+      correct: true,
+      explanation: "Coerce A2 to a number (DATEVALUE handles text, the &\"\" trick handles real dates as well in practice) and compare to a real date. Robust to mixed-type input.",
+    },
+    {
+      id: "c",
+      label: <code>=MONTH(A2) = 5</code>,
+      correct: false,
+      explanation: "Returns TRUE for May 2025 AND May 2027 too. Combines year-blindness with a different bug class. Use full-date comparison when filtering by period.",
+    },
+  ]}
 />
 
 ## Common patterns
