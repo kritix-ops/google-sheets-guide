@@ -1,6 +1,8 @@
 # Apps Script libraries and deployments: head vs versioned, sharing across projects
 
-Every Apps Script project so far has been self-contained. The custom function lives in the bound script, the menu lives in the bound script, the trigger lives in the bound script. That's fine for one workbook. It falls apart the moment three workbooks each have their own copy of `normalizeBuyer` and one of them has a stale version. **Libraries** are how Apps Script lets you write a piece of code once and import it everywhere. Combined with **deployments** (the versioning surface), they're how the team keeps a single source of truth for shared utilities across a dozen workbooks.
+Every Apps Script project so far has been self-contained. The custom function lives in the bound script, the menu lives in the bound script, the trigger lives in the bound script. That is fine for one workbook. It falls apart the moment three workbooks each have their own copy of `normalizeBuyer` and one of them has a stale version. **Libraries** are how Apps Script lets you write a piece of code once and import it everywhere. Combined with **deployments** (the versioning surface), they are how the team keeps a single source of truth for shared utilities across a dozen workbooks.
+
+This lesson covers four things: what a library actually is (a standalone Apps Script project with a known scriptId), how to import one (manifest + a userSymbol), the head-vs-versioned tradeoff (the central discipline question), and the deployment workflow that mints versions. The team's `SheetsLib` is the canonical example throughout: a shared library of normalizers and bucketers that every workbook imports under `userSymbol: "Shared"`.
 
 ## What a library actually is
 
@@ -51,7 +53,7 @@ The four fields:
 
 | Field | What it does |
 |---|---|
-| `userSymbol` | The local alias you'll use to call functions. `"Shared"` means `Shared.normalizeBuyer(...)` in your source. Has to be a valid JS identifier. |
+| `userSymbol` | The local alias you will use to call functions. `"Shared"` means `Shared.normalizeBuyer(...)` in your source. Has to be a valid JS identifier. |
 | `libraryId` | The scriptId of the library project (the long string from its URL). |
 | `version` | A pinned version number (`"1"`, `"2"`, `"3"`). Apps Script bumps this every time the library author publishes a new deployment. |
 | `developmentMode` | When `true`, every call hits the library's HEAD (latest unsaved code) instead of the pinned version. Useful while developing the library; dangerous in production. |
@@ -72,41 +74,132 @@ function tagRows() {
 }
 ```
 
-Apps Script resolves `Shared.*` at execution time by fetching the library's published version `"3"` (per the manifest) and calling into it. The first time, the consumer is prompted for any OAuth scopes the library needs: `Shared.normalizeBuyer` is pure JS so it doesn't add any, but a library function that emails or hits Drive would expand the consumer's scope list at install time.
+Apps Script resolves `Shared.*` at execution time by fetching the library's published version `"3"` (per the manifest) and calling into it. The first time, the consumer is prompted for any OAuth scopes the library needs: `Shared.normalizeBuyer` is pure JS so it does not add any, but a library function that emails or hits Drive would expand the consumer's scope list at install time.
 
 ## HEAD vs versioned (the central tradeoff)
 
 Apps Script libraries have two ways to resolve to actual code:
 
-- **HEAD** (`developmentMode: true`): the consumer always runs the library's current unsaved code. Convenient while you're iterating, because the consumer picks up your edits as soon as you save the library.
+- **HEAD** (`developmentMode: true`): the consumer always runs the library's current unsaved code. Convenient while you are iterating, because the consumer picks up your edits as soon as you save the library.
 - **Versioned** (`developmentMode: false`, `version: "N"`): the consumer runs the snapshot the library author published as version N. The library author can keep editing freely; nothing the consumer runs changes until the consumer bumps `version` to `"N+1"`.
 
-The team's rule: every team workbook pins a version. Every shared library has a deployment for every version that's still in use. Bumping a library's version is a deliberate action: you publish a new deployment, you decide which workbooks bump first, and you can roll back by switching a workbook's `version` back.
+The team's rule: every team workbook pins a version. Every shared library has a deployment for every version that is still in use. Bumping a library's version is a deliberate action: you publish a new deployment, you decide which workbooks bump first, and you can roll back by switching a workbook's `version` back.
 
 `developmentMode: true` exists for the library author's testing. It is **never the right setting in a production consumer.** A workbook on `developmentMode: true` re-fetches the library's HEAD on every call, which slows execution significantly, and the library author can break every consumer with one bad save.
+
+<Compare>
+  <ComparePanel label="Wrong: HEAD in production" tone="negative">
+    <pre className="font-mono text-xs"><code>{`{
+  "userSymbol": "Shared",
+  "libraryId": "1abc...",
+  "version": "3",
+  "developmentMode": true
+}`}</code></pre>
+    <p className="mt-2 text-sm">Every call re-fetches HEAD. Slow. The library author can break every consumer by saving a half-finished refactor. Fine for the author's test workbook only.</p>
+  </ComparePanel>
+  <ComparePanel label="Right: pinned version" tone="positive">
+    <pre className="font-mono text-xs"><code>{`{
+  "userSymbol": "Shared",
+  "libraryId": "1abc...",
+  "version": "3",
+  "developmentMode": false
+}`}</code></pre>
+    <p className="mt-2 text-sm">Frozen at version 3 until you intentionally bump to 4. Author's edits don't affect you. Roll back by setting version back to "2".</p>
+  </ComparePanel>
+</Compare>
 
 ## Deployments: publishing a snapshot
 
 A deployment is how you mint a version. From the library's Apps Script editor:
 
-1. Deploy → New deployment.
+1. Deploy then New deployment.
 2. Type: **Library**. (Web app and Add-on deployments are a different category: lesson 13 covers web app deployments.)
-3. Description: write what changed since the last version ("Added `roiBucket`. Renamed `normalize` → `normalizeBuyer`."). The description shows up in the version dropdown for consumers.
+3. Description: write what changed since the last version ("Added `roiBucket`. Renamed `normalize` to `normalizeBuyer`."). The description shows up in the version dropdown for consumers.
 4. Click Deploy. Apps Script assigns an integer version and locks the current code as that version's content.
 
 Consumers updating their manifest's `version` to the new number pick up the new code. Consumers on older versions keep running the older code unchanged. Both versions exist as long as the library project exists.
 
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: edit the library, save",
+      body: (
+        <>
+          You add <code>parseAdtechCampaignName</code> to the SheetsLib
+          project. Save. The HEAD revision now contains the new function;
+          no consumer sees it yet because they are all pinned to a version.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: Deploy then New deployment",
+      body: (
+        <>
+          You click Deploy then New deployment, pick Library, write a
+          description ("Added <code>parseAdtechCampaignName</code>"), click
+          Deploy. Apps Script assigns version 4.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: a consumer bumps their manifest",
+      body: (
+        <>
+          The Aggregator workbook's owner opens that workbook's manifest and
+          changes <code>"version": "3"</code> to <code>"version": "4"</code>.
+          Save. The next call to <code>Shared.parseAdtechCampaignName(...)</code>{" "}
+          resolves to version 4's code.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: stragglers stay on 3",
+      body: (
+        <>
+          A different workbook still has <code>"version": "3"</code>. It
+          keeps running the old code. Nothing breaks. The team rolls
+          everyone up to version 4 at their own pace, possibly over a week.
+        </>
+      ),
+    },
+  ]}
+/>
+
 ## Finding a library's scriptId
 
-The library's URL in the Apps Script editor looks like `script.google.com/u/0/home/projects/1abc.../edit`. The middle segment is the scriptId. Library consumers paste that scriptId into their manifest's `libraryId` field, or use the editor's Resources → Libraries dialog (which writes the same JSON for you).
+The library's URL in the Apps Script editor looks like `script.google.com/u/0/home/projects/1abc.../edit`. The middle segment is the scriptId. Library consumers paste that scriptId into their manifest's `libraryId` field, or use the editor's Resources then Libraries dialog (which writes the same JSON for you).
 
 ## Sharing the library
 
-A consumer needs at least "Viewer" access to the library's Apps Script project to import it. The library author shares the project the same way they'd share any Drive file. For team-wide libraries, the standard pattern is:
+A consumer needs at least "Viewer" access to the library's Apps Script project to import it. The library author shares the project the same way they would share any Drive file. For team-wide libraries, the standard pattern is:
 
 1. The library project owner shares it with the team's Google Group (`adtech@flexelent.com` or similar).
 2. Anyone in the group can add the library to their workbook.
 3. Owners and editors can deploy new versions; viewers can only consume.
+
+<QuickCheck
+  question="You ship a new version of SheetsLib that renames countryToRegion to countryToRegionV2. Three consumer workbooks call Shared.countryToRegion(...). What happens?"
+  options={[
+    {
+      id: "a",
+      label: "All three consumers immediately break because the function name changed.",
+      correct: false,
+      explanation: "Consumers are pinned to a version. The rename only affects them when they bump their manifest's version. Pre-bump, they still resolve to the old version and the old function.",
+    },
+    {
+      id: "b",
+      label: "Nothing breaks until each consumer bumps their version field. After they bump, calls to countryToRegion in their source will fail until they update the call site too.",
+      correct: true,
+      explanation: "Right. The version pin protects consumers from changes they didn't ask for. The bump is the deliberate action that brings the new code in. The team's discipline: keep the old name as a thin alias for one version, drop it in version N+2.",
+    },
+    {
+      id: "c",
+      label: "Apps Script auto-renames the call sites in consumer source.",
+      correct: false,
+      explanation: "There is no auto-rename. Consumer source is unchanged by a library deployment. The version pin means it keeps resolving to the old name until the consumer's manifest changes.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -126,7 +219,7 @@ The starter file `Lesson.gs` declares `callSharedHelper()` as a stub. You have t
      }
    }
    ```
-   The `libraryId` is a placeholder: we're not actually wiring up a real library for this lesson. The grader checks the *shape* and that `userSymbol` is a real name (not "placeholder" or "YOUR_SYMBOL").
+   The `libraryId` is a placeholder: we are not actually wiring up a real library for this lesson. The grader checks the *shape* and that `userSymbol` is a real name (not "placeholder" or "YOUR_SYMBOL").
 
 2. **Replace the body of `callSharedHelper`** to call a function on your chosen `userSymbol`:
    ```js
@@ -143,18 +236,20 @@ The grader cross-references the two files. Edit either one without the other and
 The team's flagship example is **`SheetsLib`**: a standalone Apps Script project owned by the head buyer's Google account, shared with the team group. It exports:
 
 - `normalizeBuyer(name)`: strips whitespace and unifies casing.
-- `normalizeVertical(name)`: ensures the `" PR"` suffix, trims, fixes casing.
-- `countryToRegion(iso2)`: `"DE" → "EU"`, `"US" → "NA"`, etc. A 200-line table living in one place.
-- `roiBucket(roi)`: `"loss" | "flat" | "profitable" | "hero"`.
+- `normalizeVertical(name)`: ensures the ` PR` suffix, trims, fixes casing.
+- `countryToRegion(iso2)`: `"DE"` to `"EU"`, `"US"` to `"NA"`, etc. A 200-line table living in one place.
+- `roiBucket(roi)`: `"loss"`, `"flat"`, `"profitable"`, `"hero"`.
 - `parseAdtechCampaignName(name)`: splits the team's structured campaign names into their semantic parts.
 
-Every team workbook: the Aggregator, the per-platform raws, the dashboards: imports `SheetsLib` under `userSymbol: "Shared"`. When the country list needs to grow (a new region launches), the head buyer edits `countryToRegion`, ships a new version (`"4" → "5"`), and pings the team. Each workbook owner bumps their `version` field at their own pace. By Friday everyone is on version 5; the rollout was orderly, every consumer logged the bump, and rolling back if something breaks is one number change in the manifest.
+Every team workbook: the Aggregator, the per-platform raws, the dashboards: imports `SheetsLib` under `userSymbol: "Shared"`. When the country list needs to grow (a new region launches), the head buyer edits `countryToRegion`, ships a new version (`"4"` to `"5"`), and pings the team. Each workbook owner bumps their `version` field at their own pace. By Friday everyone is on version 5; the rollout was orderly, every consumer logged the bump, and rolling back if something breaks is one number change in the manifest.
 
 ## Pro pitfalls
 
-- **Editing the library doesn't update the consumers until you ship a new deployment.** Apps Script libraries are NOT live by default: the version pin freezes the code. A change to `countryToRegion` in the library editor that isn't deployed is invisible to every consumer on a pinned version. Deploy → New deployment, every time.
+- **Editing the library does not update the consumers until you ship a new deployment.** Apps Script libraries are NOT live by default: the version pin freezes the code. A change to `countryToRegion` in the library editor that is not deployed is invisible to every consumer on a pinned version. Deploy then New deployment, every time.
 - **`developmentMode: true` in production.** It works at first, then it stops. Calls take noticeably longer (the library fetches HEAD every time), and the moment the library author saves a half-finished refactor, every consumer breaks. Use HEAD only in the library author's own test workbook.
 - **Circular library dependencies.** Project A imports B, B imports A. Apps Script will let you save both manifests but the call will fail at runtime with a cryptic resolution error. Keep the dependency graph a tree.
-- **Library scope expansion.** Importing a library that uses `DriveApp` adds the Drive scope to *your* project's authorization. Consumers see this on the consent screen as "this script wants Drive access" even if their own code doesn't touch Drive. Audit your library's scopes before sharing widely: a library that only does string manipulation should not be requesting Calendar or Gmail scopes.
+- **Library scope expansion.** Importing a library that uses `DriveApp` adds the Drive scope to *your* project's authorization. Consumers see this on the consent screen as "this script wants Drive access" even if their own code does not touch Drive. Audit your library's scopes before sharing widely: a library that only does string manipulation should not be requesting Calendar or Gmail scopes.
 - **A breaking change in the library can break every consumer at once.** If everyone runs HEAD or the library author force-updates every consumer to the new version, one rename of an exported function takes down every team workbook simultaneously. The discipline is: ship the new function under the new name, keep the old name as a thin alias for one version, drop the alias in version N+2. This is the same discipline a library author practices in any package ecosystem.
-- **The `userSymbol` is the consumer's choice, not the library author's.** Two workbooks can import the same library under different symbols (`Shared` vs `Utils`). That's allowed but it makes shared snippets between workbooks confusing: pick one symbol as a team and use it everywhere.
+- **The `userSymbol` is the consumer's choice, not the library author's.** Two workbooks can import the same library under different symbols (`Shared` vs `Utils`). That is allowed but it makes shared snippets between workbooks confusing: pick one symbol as a team and use it everywhere.
+- **A library function that calls `SpreadsheetApp.getActiveSpreadsheet()` returns the CONSUMER's active spreadsheet, not the library's.** This is what you want most of the time, but the first time you write a library you may assume it returns "where the library code lives", which is a standalone project with no active spreadsheet. Pass IDs and ranges into library functions instead of relying on active-sheet context.
+- **Performance penalty per library call.** Each `Shared.normalizeBuyer(...)` invocation crosses a project boundary; on the order of milliseconds per call. Inside a tight loop on 50,000 rows that is 30+ seconds. For hot paths, mirror the small function into the consumer project and only rely on the library for the canonical source.
