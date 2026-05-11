@@ -5,9 +5,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 Every spreadsheet is built from sheets, and each sheet is a grid of cells. A cell has an address: column letter plus row number. In the table below, **B5** is the cell at column B, row 5: the fourth campaign's media buyer, Eitan Kohen. This is the campaign log you'll keep coming back to in this course.
 
 <MiniGrid
-  data={CAMPAIGNS}
+  data={CAMPAIGNS.map((row, r) =>
+    r === 0 ? [...row, "Profit"] : [...row, `=F${r + 1}-E${r + 1}`]
+  )}
   highlight={["B5"]}
-  caption="A campaign log. Click any cell. Hover to see formulas where they exist."
+  caption="A campaign log with a computed Profit column. Click any cell. Hover a cell in column G to see the formula behind it."
 />
 
 ## References shift when you copy
