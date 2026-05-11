@@ -104,3 +104,50 @@ export const grades = sqliteTable("grade", {
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
 });
+
+// Admin access control. `allowedUsers` is the single source of truth for
+// who can sign in and what role they hold. Keyed by email because the
+// row exists before a user has ever signed in (and thus before the
+// NextAuth-managed `users` row exists). Role determines admin / editor /
+// viewer capabilities; viewers can read lessons but have no admin UI.
+//
+// Bootstrap path: when this table is empty, emails in the env var
+// `AUTH_INITIAL_ADMINS` are seeded as admins on first successful sign-in.
+
+export type AppRole = "admin" | "editor" | "viewer";
+
+export const allowedUsers = sqliteTable("allowed_user", {
+  email: text("email").primaryKey(),
+  role: text("role").$type<AppRole>().notNull(),
+  addedBy: text("added_by").references(() => users.id, { onDelete: "set null" }),
+  addedAt: integer("added_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  // Optional admin-visible note for context ("guest editor, May 2026").
+  note: text("note"),
+});
+
+// Audit log for admin actions. Survives user deletion (actor email is
+// denormalized). beforeJson / afterJson capture the change for forensics.
+
+export type AdminAction =
+  | "user.add"
+  | "user.remove"
+  | "user.role_change"
+  | "content.publish"
+  | "bootstrap.initial_admin";
+
+export const adminAudit = sqliteTable("admin_audit", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  actorId: text("actor_id").references(() => users.id, { onDelete: "set null" }),
+  actorEmail: text("actor_email").notNull(),
+  action: text("action").$type<AdminAction>().notNull(),
+  // For user.* actions: the email being acted on.
+  // For content.publish: "track/slug/lang".
+  target: text("target").notNull(),
+  beforeJson: text("before_json", { mode: "json" }).$type<unknown>(),
+  afterJson: text("after_json", { mode: "json" }).$type<unknown>(),
+  at: integer("at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});

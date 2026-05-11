@@ -1,4 +1,5 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { eq } from "drizzle-orm";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
@@ -14,15 +15,47 @@ const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/script.scriptapp",
 ].join(" ");
 
-// Allowlist of emails permitted to sign in. Single-user app: defaults to
-// open (any email) when unset so local development works without ceremony,
-// but production deploys MUST set this to lock the public URL down. See
-// _plans/2026-05-11-hosted-deployment.md Issue B.
-function isEmailAllowed(email: string | null | undefined): boolean {
-  const raw = process.env.AUTH_ALLOWED_EMAILS;
-  if (!raw) return true;
-  const allowed = raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
-  return allowed.includes((email ?? "").toLowerCase());
+const { allowedUsers, adminAudit } = schema;
+
+// Sign-in gate. The `allowed_user` table is the single source of truth for
+// who can sign in and what role they hold. Bootstrap path: when the table
+// has no admin yet, an email listed in `AUTH_INITIAL_ADMINS` (comma-
+// separated) is seeded as admin on its first sign-in and the action is
+// recorded in `admin_audit`. After bootstrap, admins manage the allowlist
+// through the admin UI; this env var stops mattering. See
+// _plans/2026-05-11-admin-and-content-management.md.
+async function checkOrBootstrap(email: string): Promise<boolean> {
+  const existing = await db.query.allowedUsers.findFirst({
+    where: eq(allowedUsers.email, email),
+  });
+  if (existing) return true;
+
+  const anyAdmin = await db
+    .select({ email: allowedUsers.email })
+    .from(allowedUsers)
+    .where(eq(allowedUsers.role, "admin"))
+    .limit(1);
+  if (anyAdmin.length > 0) return false;
+
+  const initialAdmins = (process.env.AUTH_INITIAL_ADMINS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (!initialAdmins.includes(email)) return false;
+
+  await db.transaction(async (tx) => {
+    await tx.insert(allowedUsers).values({
+      email,
+      role: "admin",
+    });
+    await tx.insert(adminAudit).values({
+      actorEmail: email,
+      action: "bootstrap.initial_admin",
+      target: email,
+      afterJson: { role: "admin" },
+    });
+  });
+  return true;
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -35,7 +68,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "database" },
   callbacks: {
     async signIn({ user }) {
-      return isEmailAllowed(user.email);
+      const email = user.email?.toLowerCase();
+      if (!email) return false;
+      return checkOrBootstrap(email);
     },
     async session({ session, user }) {
       if (session.user) {

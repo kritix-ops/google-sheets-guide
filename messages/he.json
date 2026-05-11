@@ -115,5 +115,36 @@
     "intro": "ללמוד Google Sheets מאפס ועד מומחה. תרגילים אמיתיים, ציון מיידי על הגיליונות שלכם.",
     "continueWithGoogle": "המשיכו עם Google",
     "scopeNote": "תתבקשו להעניק גישה ל-Google Sheets, Drive, ו-Apps Script. ה-OAuth tokens נשמרים על המחשב הזה בלבד."
+  },
+  "admin": {
+    "title": "ניהול",
+    "nav": {
+      "users": "משתמשים",
+      "content": "תוכן"
+    },
+    "users": {
+      "title": "ניהול משתמשים",
+      "description": "הוסיפו ונהלו מי יכול להתחבר ובאיזה תפקיד.",
+      "addTitle": "הוספת משתמש",
+      "email": "אימייל",
+      "role": "תפקיד",
+      "note": "הערה (אופציונלי)",
+      "addedAt": "נוסף",
+      "actions": "פעולות",
+      "add": "הוסף",
+      "save": "שמור",
+      "remove": "הסר",
+      "you": "(אתם)",
+      "empty": "אין משתמשים עדיין. הוסיפו את הראשון כדי להתחיל.",
+      "roles": {
+        "admin": "Admin",
+        "editor": "Editor",
+        "viewer": "Viewer"
+      }
+    },
+    "content": {
+      "title": "ניהול תוכן",
+      "comingSoon": "עורך השיעורים יגיע באבן-הדרך הבאה."
+    }
   }
 }
