@@ -8,37 +8,101 @@ A workbook that lagged for half a second yesterday lags for eight today. Nobody 
 2. **Full-column references** that walk a million empty cells on every recalc.
 3. **Recalc cascades** where one cell's change triggers a chain of downstream formulas.
 
-You need to be able to recognize each one in formula text. Once you can spot them, the fix is usually a five-second edit per formula.
+You need to be able to recognize each one in formula text. Once you can spot them, the fix is usually a five-second edit per formula. Pros do this audit by eye in the formula bar; you'll get there with practice.
 
-## Volatile functions
+## Volatile functions: the silent recalc tax
 
-Six functions in Sheets are volatile: `TODAY`, `NOW`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`. "Volatile" means Sheets recomputes them every time *any* cell anywhere in the workbook changes, plus on a one-minute timer for time-based ones. A workbook with one `TODAY()` is fine. A workbook with `TODAY()` inside an `ARRAYFORMULA` over 50,000 rows is 50,000 volatile cells, each pulling its dependents into the recalc on every keystroke.
+Six functions in Sheets are volatile: `TODAY`, `NOW`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`. "Volatile" means Sheets recomputes them every time *any* cell anywhere in the workbook changes, plus on a one-minute timer for the time-based ones. A workbook with one `TODAY()` is fine. A workbook with `TODAY()` inside an `ARRAYFORMULA` over 50,000 rows is 50,000 volatile cells, each pulling its dependents into the recalc on every keystroke.
 
-The dangerous ones to look for in a slow workbook:
+The two volatile lookups in particular are the ones that turn an aggregator workbook from snappy to sluggish without warning: `INDIRECT` is how teams glue dynamic tab names onto formulas, and `OFFSET` is how the older guides taught "find the last row." Both feel innocent in the formula bar.
+
+<FunctionRef name="INDIRECT" />
+
+<FunctionRef name="OFFSET" />
+
+The dangerous shapes to spot in a slow workbook:
 
 - **`INDIRECT("Sheet1!A1")`** is volatile AND breaks the moment Sheet1 is renamed. Use a direct reference when you can.
-- **`OFFSET(A1, 0, 0, COUNTA(A:A), 1)`** is the "find the last row" trick. It's volatile, and the `COUNTA(A:A)` inside is also a full-column ref. Two slow things in one formula.
+- **`OFFSET(A1, 0, 0, COUNTA(A:A), 1)`** is the "find the last row" trick. It is volatile, and the `COUNTA(A:A)` inside is also a full-column ref. Two slow things in one formula.
 - **`TODAY()` inside `ARRAYFORMULA`** is the worst one. A single `TODAY` is cheap; `ARRAYFORMULA(TODAY()-A2:A1000)` is a thousand volatile cells.
 
 The cure is usually the same: replace the volatile call with a static value (a hardcoded date string), a cell reference to a date the user updates manually, or a non-volatile alternative (use `INDEX(A:A, n)` instead of `OFFSET`).
 
+<Compare>
+  <ComparePanel label="Volatile, slow, fragile" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=OFFSET(A1, 0, 0, COUNTA(A:A), 1)`}</code></pre>
+    <p className="mt-2 text-sm">Volatile (recomputes on every workbook edit), and the inner <code>COUNTA(A:A)</code> walks a million cells. Two slow things in one formula. Standard pattern in dashboards built before 2020.</p>
+  </ComparePanel>
+  <ComparePanel label="Non-volatile, bounded" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=INDEX(A:A, COUNTA(A$2:A$5000) + 1)`}</code></pre>
+    <p className="mt-2 text-sm"><code>INDEX</code> is non-volatile, <code>COUNTA</code> is bounded. Same "last row" semantics at a fraction of the recalc cost. Or even simpler: name the range and grow it manually.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Looks innocent" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(TODAY() - A2:A1000)`}</code></pre>
+    <p className="mt-2 text-sm">One <code>TODAY()</code> in the formula, but the array expansion creates 999 volatile cells. Every keystroke anywhere in the workbook recomputes the whole column.</p>
+  </ComparePanel>
+  <ComparePanel label="One volatile cell, not 999" tone="positive">
+    <pre className="font-mono text-xs"><code>{`B1: =TODAY()
+J2: =ARRAYFORMULA(B$1 - A2:A1000)`}</code></pre>
+    <p className="mt-2 text-sm">Compute <code>TODAY()</code> once in a single cell. Reference it from the array formula. One volatile cell instead of 999. Same output.</p>
+  </ComparePanel>
+</Compare>
+
 ## Full-column references
 
-`SUM(F:F)` looks future-proof. It also forces Sheets to read every cell in column F before computing the sum. Sheets caps a sheet at one million rows by default, so that's potentially a million cells of work to add up sixty numbers.
+`SUM(F:F)` looks future-proof. It also forces Sheets to read every cell in column F before computing the sum. Sheets caps a sheet at one million rows by default, so that is potentially a million cells of work to add up sixty numbers.
 
 The fix is to bound the range explicitly: `SUM(F2:F61)`, or `SUM(F2:F5000)` if you want headroom for the next two years of growth. The common objections:
 
 - **"What if new rows arrive?"** Bound to `F2:F5000` or use a named range that you grow when needed. The extra empty cells in `F2:F5000` are cheap because Sheets sees them as a contiguous block, not as individual addresses.
 - **"`ARRAYFORMULA` lets me reference `F:F` and it still works."** Sometimes. Other times the spill exceeds your patience and the workbook freezes. Bound it.
-- **"`COUNTA(B:B)` is convenient as a row count."** Yes. It's also slow. `COUNTA(B2:B5000)` does the same job at 0.5% of the work.
+- **"`COUNTA(B:B)` is convenient as a row count."** Yes. It is also slow. `COUNTA(B2:B5000)` does the same job at 0.5% of the work.
 
 `File > Settings > Spreadsheet stats` shows the formula count and recalc time. If the workbook reports more than a couple of seconds, full-column references are almost always part of it.
+
+<Compare>
+  <ComparePanel label="Walks a million cells" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F:F, B:B, "Yoav Cohen", D:D, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">Three full-column refs in one formula. On a dashboard with 30 such cells, every edit reads 90 million cells. This is the canonical "the dashboard is slow" formula.</p>
+  </ComparePanel>
+  <ComparePanel label="Bounded, identical result" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F$2:F$5000, B$2:B$5000, "Yoav Cohen", D$2:D$5000, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">Same logic, 5000-row ceiling on each range. Headroom for two years of campaign growth. Reads 15,000 cells instead of 3,000,000.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="A dashboard with 20 SUMIFS cells, each using F:F and B:B as ranges, lags 4 seconds per keystroke. Which change drops recalc the most?"
+  options={[
+    {
+      id: "a",
+      label: <>Replace <code>SUMIFS</code> with <code>QUERY</code> using <code>GROUP BY</code>.</>,
+      correct: false,
+      explanation: "QUERY is more expressive but not faster on the same range. If F:F is still F:F, the read cost is unchanged.",
+    },
+    {
+      id: "b",
+      label: <>Bound every range to <code>F$2:F$5000</code> and <code>B$2:B$5000</code>.</>,
+      correct: true,
+      explanation: "The lag comes from reading 1,000,000 cells per range. Bounding to 5,000 cuts each read by 200x. SUMIFS itself is fast; the range size is the bottleneck.",
+    },
+    {
+      id: "c",
+      label: <>Wrap each cell in <code>IFERROR(..., 0)</code>.</>,
+      correct: false,
+      explanation: "IFERROR catches errors. It does not change how many cells the inner formula scans.",
+    },
+  ]}
+/>
 
 ## Recalc cascades
 
 A single edit triggers recomputation of every cell that references it, recursively. If `J1 = SUM(F2:F61)` and `K1 = J1 / J2` and `L1 = K1 * 100` and twenty other cells reference `L1`, editing one number in F cascades through twenty-three cells. With a hundred dependent cells and a couple of volatile functions in the mix, each keystroke is hundreds of milliseconds of work.
 
-You don't usually need to redesign the dependency graph. You need to make sure:
+You do not usually need to redesign the dependency graph. You need to make sure:
 
 - **Aggregations happen once.** `J1 = SUM(F2:F61)` is one SUM. Twenty cells that each compute `SUM(F2:F61)/something` is twenty SUMs. Reuse the summary cell.
 - **Conditional formats are bounded.** A conditional format that targets `A:Z` is a rule that fires across a million cells. Bound to `A1:Z1000`.
@@ -57,7 +121,7 @@ Click **Start lesson** to provision the campaigns log with the seeded slow versi
 - **J2** is seeded as `=COUNTA(B:B)`. Replace with `=COUNTA(B2:B61)`.
 - **J3** is seeded as `=TODAY()-1`, the "report date" for the run. Replace with a non-volatile value: a hardcoded string like `"2026-05-10"`, or a reference to a date cell that the team updates manually when running the report.
 
-The point isn't that any one of these is catastrophic on a 60-row sheet. It's that you'll inherit a workbook with thirty cells like these and the same three fixes apply to all of them.
+The point is not that any one of these is catastrophic on a 60-row sheet. It is that you'll inherit a workbook with thirty cells like these and the same three fixes apply to all of them.
 
 ## Used in the wild
 
@@ -68,12 +132,14 @@ The team's main attribution workbook lagged eight seconds per edit by mid-2025. 
 - 1 conditional format rule covering `A:Z` on a sheet with 14,000 rows. Bounded to `A1:Z14000`.
 - 1 `ARRAYFORMULA(TODAY() - A2:A)` that was lighting up the recalc on every minute tick. Replaced with a static `Report date` cell at the top of the sheet.
 
-Recalc dropped from 8s to 0.6s. The workbook didn't get smaller; the work per edit did.
+Recalc dropped from 8s to 0.6s. The workbook did not get smaller; the work per edit did.
 
 ## Pro pitfalls
 
-- **`INDIRECT("Sheet1!A1")` is the silent assassin.** Volatile, breaks on rename, and looks innocent in a formula bar. If you find one in a workbook that lags, it's almost certainly part of the cause.
+- **`INDIRECT("Sheet1!A1")` is the silent assassin.** Volatile, breaks on rename, and looks innocent in a formula bar. If you find one in a workbook that lags, it is almost certainly part of the cause. Lesson 4.7 covers the cycle case where `INDIRECT` hides a circular reference.
 - **A volatile function inside `ARRAYFORMULA` is N volatile cells.** `ARRAYFORMULA(TODAY()-A2:A1000)` is 999 volatile cells.
-- **"`OFFSET` to find the last row" is the old guide answer.** It's also volatile and slow. Use `INDEX(A:A, COUNTA(A:A))` or, better, name a range and grow it manually.
+- **"`OFFSET` to find the last row" is the old guide answer.** It is also volatile and slow. Use `INDEX(A:A, COUNTA(A:A))` or, better, name a range and grow it manually.
 - **`File > Settings > Spreadsheet stats` is your friend.** It tells you the cell count, formula count, IMPORTRANGE count, and how many of those are volatile. Look at it whenever a workbook feels sluggish.
-- **A formula bar full of nested IFs is fine.** The slow thing isn't formula complexity; it's range size and volatility. Don't refactor a clean `IFS` chain; refactor the `SUM(F:F)` two rows down.
+- **A formula bar full of nested IFs is fine.** The slow thing is not formula complexity; it is range size and volatility. Do not refactor a clean `IFS` chain; refactor the `SUM(F:F)` two rows down.
+
+Lesson 4.3 takes the bounded-range discipline one layer up: every `IMPORTRANGE` the team owns lives or dies by the same rule, with the added twist that the source workbook can change shape under you between refreshes.

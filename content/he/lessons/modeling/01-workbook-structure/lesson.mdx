@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 Track 1 דיבר על נוסחאות. Track 2 מדבר על ה-spreadsheet. אותה נוסחה ב-spreadsheet מסודר היא כלי, ב-spreadsheet מבולגן היא חוב טכני שאף אחד אחר בצוות לא יכול לאסוף. העיקרון הראשון להפנים: **raw נשאר raw, הסיכום יושב בנפרד, והגבול ביניהם נראה במבט אחד**. מחיר הטעות פה צץ אחר כך: `SUMIFS` שבור, Pivot tables שבורים, ו-chart שכולל באופן מסתורי את שורת ה-"Total" בממוצע שלו.
 
+spreadsheet שמציית לכלל הזה נקרא כמו אפליקציה קטנה. שורות חדשות מגיעות וה-dashboard מתעדכן. מישהו מצטרף לצוות ומוצא את הנתונים הקנוניים בגיליון ששמו מתחיל ב-`Raw -`. נוסחה נשברת ואפשר להתחקות אחריה במהלך קפיצה אחת או שתיים חזרה לבלוק ה-raw. spreadsheet שמתעלם מהכלל הזה הוא מבוך: סכומים מוטמעים ב-raw, raw מוטמע בסיכומים, כל dashboard הוא חד-פעמי שאף אחד אחר לא יכול לתחזק.
+
 ## המקור היחיד של האמת
 
 ל-spreadsheet צריך להיות בלוק תאים אחד שהוא הנתונים הגולמיים הקנוניים, ושום דבר לא משנה אותו חוץ מה-pipeline שמעלה (הקלדה ידנית, IMPORTRANGE, פול של Apps Script). כל השאר, הסכומים, היחסים, ה-dashboards, ההתראות, יושב במקום אחר וקורא מהבלוק הגולמי.
@@ -20,6 +22,35 @@ Track 1 דיבר על נוסחאות. Track 2 מדבר על ה-spreadsheet. או
 
 הגבול בין "raw" ל-"derived" הוא גבול של גיליון, וגיליונות מקבלים שם עם prefix של `Raw -` כדי שכל מי שפותח את ה-spreadsheet יידע איזה משטח בטוח לגעת בו.
 
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="ששת השורות הראשונות מתוך הלוג הגולמי של הצוות בן 60 שורות. A1:G61 הוא המלבן החסום; בלוק הסיכום יושב ב-I:J באותו גיליון, מופרד על ידי עמודה ריקה H."
+/>
+
+<QuickCheck
+  question="חבר/ה לצוות פותח/ת את ה-spreadsheet ורואה ארבעה גיליונות: 'Campaigns', 'Aggregator', 'Dashboard', 'Notes'. איזה גיליון הוא ככל הנראה הנתונים הגולמיים הקנוניים בגיליון שנבנה לפי הקונבנציות של הצוות?"
+  options={[
+    {
+      id: "a",
+      label: <code>Dashboard</code>,
+      correct: false,
+      explanation: "Dashboard נמצא במורד הזרם. הוא קורא מ-Aggregator, אף פעם לא מחזיק נתונים גולמיים.",
+    },
+    {
+      id: "b",
+      label: <code>Aggregator</code>,
+      correct: false,
+      explanation: "Aggregator מאחד מספר גיליונות raw ללוג מנורמל אחד. זה פלט לקריאה בלבד, לא ה-raw הקנוני.",
+    },
+    {
+      id: "c",
+      label: <code>Campaigns</code>,
+      correct: true,
+      explanation: "אף אחד מהגיליונות לא משתמש ב-prefix הקונבנציונלי 'Raw -', אבל Campaigns הוא היחיד שמחזיק שורות של נתוני מקור. ב-workbook עם שמות תקינים הוא היה 'Raw - Campaigns'.",
+    },
+  ]}
+/>
+
 ## לא לעשות אגרגציה בתוך הבלוק הגולמי
 
 הטעות הכי שכיחה של מתחילים היא להוסיף שורת "Total" בתחתית הלוג הגולמי. זה נראה מועיל. זה שובר הכל במורד הזרם:
@@ -30,6 +61,26 @@ Track 1 דיבר על נוסחאות. Track 2 מדבר על ה-spreadsheet. או
 - **מיון של הטווח** משחיל את שורת ה-Total לאמצע הנתונים.
 
 התיקון הוא לשים את הסכום *מחוץ* לבלוק הגולמי. או בראש אותו גיליון (אזור סיכום שהעין קוראת קודם), או בגיליון Summary נפרד. שניהם עובדים. הנקודה היא שהמלבן הגולמי נשאר מלבן של שורות גולמיות, בלי אגרגציה בתוכו.
+
+<Compare>
+  <ComparePanel label="שבור: Total בתוך ה-raw" tone="negative">
+    <pre className="font-mono text-xs"><code>{`A          B           ... F        G
+Date       Buyer            Spend    Revenue
+2026-05-01 Yoav Cohen       342.18   487.30
+...
+2026-05-10 Ben Nahum        478.30   982.70
+           TOTAL            3933.68  5694.10  ← בתוך המלבן`}</code></pre>
+    <p className="mt-2 text-sm">Pivot table על <code>A1:G62</code> מציג "TOTAL" כ-buyer. ה-chart על Spend כולל את עמודת הטוטל, מגמד כל שורה אמיתית. מיון לפי Buyer משחיל את הטוטל לאלפבית.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד: Total מחוץ ל-raw" tone="positive">
+    <pre className="font-mono text-xs"><code>{`A          B           ... F        G   H   I              J
+Date       Buyer            Spend    Rev      Total Spend    =SUM(F2:F61)
+2026-05-01 Yoav Cohen       342.18   487.30   Total Revenue  =SUM(G2:G61)
+...                                           Portfolio ROI  =(J2-J1)/J1
+2026-05-10 Ben Nahum        478.30   982.70`}</code></pre>
+    <p className="mt-2 text-sm">המלבן הגולמי נשאר <code>A1:G61</code>. בלוק הסיכום יושב ב-<code>J:J</code>, מופרד על ידי <code>H</code> ריק. Pivots, charts ומיונים על הטווח הגולמי נשארים נקיים.</p>
+  </ComparePanel>
+</Compare>
 
 ## הצורה של אזור הסיכום
 
@@ -50,6 +101,30 @@ Date      Buyer            Revenue        Total Spend    =SUM(F2:F61)
 1. **הטווח הגולמי הוא מלבן `A1:G61` נקי.** כל Pivot table, chart, או `QUERY` קורא אותו בלי לוגיקה מותנית כדי לדלג על שורת Total.
 2. **תאי הסיכום הם בלוק קבוע קטן.** כשכותבים את נוסחת ה-ROI, מפנים ל-`J1` ול-`J2`, לא ל-`SUM(F2:F61)` שוב. שינוי הגבול מ-`F61` ל-`F500` ורק שני תאי ה-`SUM` צריכים תיקון. תא ה-ROI הולך אחריהם אוטומטית.
 
+<QuickCheck
+  question="כותבים את ה-ROI של ה-portfolio כ-=SUM(G2:G61)/SUM(F2:F61)-1 ב-J3, וחוזרים על ה-SUM-ים שכבר קיימים ב-J1 וב-J2. למה זה פחות טוב מ-=J2/J1-1?"
+  options={[
+    {
+      id: "a",
+      label: "זה מחזיר מספר אחר",
+      correct: false,
+      explanation: "שתי הנוסחאות מחזירות אותו מספר. ההבדל הוא במחיר התחזוקה, לא בנכונות.",
+    },
+    {
+      id: "b",
+      label: "זה מכריח עריכה מחדש של שלושה תאים כשטווח הנתונים מתרחב משורה 61 לשורה 500, במקום שניים",
+      correct: true,
+      explanation: "Compute once, reference many. כל SUM כפול הוא מקום שתשכחו לעדכן כשהנתונים גדלים. J3 שקורא מ-J1 ו-J2 הוא תיקון אחד מרחק מכל שינוי טווח.",
+    },
+    {
+      id: "c",
+      label: "Sheets שומר את J2 ו-J1 ב-cache מהר יותר מ-SUM חדש",
+      correct: false,
+      explanation: "Sheets לא 'שומר ב-cache' reference לתא מהר יותר מ-SUM. הסיבה לשימוש חוזר היא תחזוקה, לא ביצועים.",
+    },
+  ]}
+/>
+
 ## שורת כותרת: שורה אחת, בלי merge
 
 כותרות נראות תמימות והן הסיבה השנייה הכי גדולה לעבודה שבורה במורד הזרם, אחרי שורות Total.
@@ -59,6 +134,18 @@ Date      Buyer            Revenue        Total Spend    =SUM(F2:F61)
 - **שמות שתואמים את התוכן של העמודה, לא את התצוגה שלה.** `Spend` (תואם למה שה-formula bar קורא) עדיף על `Spend ($)` (שמכריח כל נוסחה שמפנה אליו לעטוף את הסוגריים).
 
 אם יורשים spreadsheet עם שורת כותרת ממוזגת, התיקון הזול הוא להוסיף שורה שנייה מוסתרת מתחת עם ה-labels הלא-ממוזגים ולגרום לכל נוסחה להפנות לשורה ההיא.
+
+<Compare>
+  <ComparePanel label="כותרת שבורה" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Row 1: |    Identity    |       Money        |
+Row 2: | Date | Buyer  | Spend | Revenue | ROI |`}</code></pre>
+    <p className="mt-2 text-sm">שתי שורות כותרת עם קבוצות "Identity" ו-"Money" ממוזגות. <code>QUERY</code> עם <code>header=1</code> קורא את שורה 1 (לרוב תאי null) בתור ה-labels של העמודות. כל הפניית עמודה נשברת.</p>
+  </ComparePanel>
+  <ComparePanel label="כותרת תקינה" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Row 1: | Date | Buyer | Spend | Revenue | ROI |`}</code></pre>
+    <p className="mt-2 text-sm">שורה אחת, בלי merges, שמות שתואמים לתוכן. <code>QUERY</code>, <code>XLOOKUP</code> ו-<code>INDEX/MATCH</code> קוראים את הכותרות כצפוי.</p>
+  </ComparePanel>
+</Compare>
 
 ## עכשיו לעבודה אמיתית
 

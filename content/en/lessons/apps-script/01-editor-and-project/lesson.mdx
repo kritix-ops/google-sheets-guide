@@ -1,32 +1,65 @@
 # The Apps Script editor and project structure
 
-Apps Script is JavaScript that runs inside Google Workspace. The code lives in a **project**: a folder of files Google hosts, attached either to a specific document (a "bound" project) or to nothing at all (a "standalone" project). The lessons in this track all use bound projects: every workbook you open with this course has a project attached to it under Extensions → Apps Script. The sidebar you're reading right now is one file in that project. The custom functions you'll write in lesson 3 are another. Everything sits in one place.
+Apps Script is JavaScript that runs inside Google Workspace. It is not a plug-in, not a macro language with its own syntax, not Excel's VBA wearing a hoodie. It is regular JavaScript (the V8 dialect, lesson 2) executed on Google's servers, with a standard library that maps onto Sheets, Drive, Gmail, Calendar, Docs, and a few dozen other Workspace services. If you can write a `for` loop in any other JavaScript codebase, you can write Apps Script.
+
+The code lives in a **project**: a folder of files Google hosts, attached either to a specific document (a "bound" project) or to nothing at all (a "standalone" project). The lessons in this track all use bound projects. Every workbook you open with this course has a project attached to it under Extensions → Apps Script. The sidebar you are reading right now is one file in that project. The custom functions you will write in lesson 3 are another. The triggers in lessons 7 and 8 are a third. Everything sits in one place, version-controlled by Google, accessible only from inside the workbook.
+
+This first lesson is about the surface area: where the editor lives, what files a project contains, how the manifest works, and the small set of habits that keep a project navigable as it grows from three files to thirty. The deeper APIs (`SpreadsheetApp`, triggers, libraries) start in lesson 2.
 
 ## Opening the editor
 
 From any open Google Sheet:
 
 1. **Extensions → Apps Script.** This opens the editor in a new tab.
-2. **Wait for the file tree on the left to load.** First open of a brand-new bound project takes a couple of seconds.
-3. **The default layout:** file tree on the left, code editor in the middle, execution log/output panel at the bottom.
+2. **Wait for the file tree on the left to load.** First open of a brand-new bound project takes a couple of seconds while Google provisions the storage.
+3. **The default layout:** file tree on the left, code editor in the middle, execution log/output panel at the bottom, the Run/Debug toolbar at the top, and the left-rail icons (Files, Triggers, Executions, Project Settings, Editor, Libraries, Services) along the far edge.
 
-The first time the editor opens for a workbook you don't own, Google may prompt you to accept the project's auth scopes. The prompt is hostile by design ("Sheets Guide isn't verified: proceed anyway?"). For the course's bound projects, click "Advanced → Go to Sheets Guide (unsafe)". It's your own bound script; "unsafe" here just means Google hasn't reviewed it because nobody publishes a per-workbook script.
+The first time the editor opens for a workbook you do not own, Google may prompt you to accept the project's auth scopes. The prompt is deliberately hostile ("Sheets Guide isn't verified: proceed anyway?"). For the course's bound projects, click "Advanced → Go to Sheets Guide (unsafe)". It is your own bound script; "unsafe" here just means Google has not reviewed it because nobody publishes a per-workbook script.
 
-## What's in a project
+The same Extensions → Apps Script entry point also works from inside a Google Doc, a Form, or a Slide. The editor is shared across Workspace; only the bindings change.
+
+## What is in a project
 
 A bound Apps Script project contains files of three types:
 
 | Type | Extension | What it is |
 |---|---|---|
 | Server JS | `.gs` | JavaScript that runs on Google's servers. Most of your code. |
-| HTML | `.html` | Sidebar and dialog content. Rendered inside the Sheets UI. |
-| JSON manifest | `appsscript.json` | The project's settings: timezone, oauthScopes, runtime version. Always exactly one file with this name. |
+| HTML | `.html` | Sidebar and dialog content. Rendered inside the Sheets UI. Lesson 9 covers this in depth. |
+| JSON manifest | `appsscript.json` | The project's settings: timezone, oauthScopes, runtime version, dependencies. Always exactly one file with this name. |
 
-The file tree shows files in the order they were created. Drag to reorder. There's no folder structure: projects are flat. To organize a growing project, name files with a prefix: `lib_Dates.gs`, `lib_Strings.gs`, `triggers_Daily.gs`, `triggers_OnEdit.gs`. The editor sorts alphabetically and the prefix groups related files.
+The file tree shows files in the order they were created. Drag to reorder. **There is no folder structure: projects are flat.** This catches developers from any other ecosystem off guard. You cannot make a `lib/` directory. To organize a growing project, name files with a prefix: `lib_Dates.gs`, `lib_Strings.gs`, `triggers_Daily.gs`, `triggers_OnEdit.gs`, `ui_Sidebar.gs`. The editor sorts alphabetically and the prefix groups related files. This is the team's convention; the runtime does not care.
+
+### What "Server JS" really means
+
+A `.gs` file's contents are plain JavaScript, but the runtime is **not** a browser. There is no `window`, no `document`, no `localStorage`, no `fetch` (that role is played by `UrlFetchApp` instead, covered in lesson 11). There is also no Node-style `require` and no npm. Every dependency comes either from Apps Script's built-in services or from a library imported through the manifest (lesson 12). Code runs on Google infrastructure with a 6-minute execution budget on consumer accounts and 30 minutes on Workspace.
+
+Every top-level function declaration in any `.gs` file is callable from the editor's Run dropdown, from a menu item, from a trigger, or (if it matches the custom-function rules in lesson 3) from a cell. There is no `main()`, no manifest entry to register functions individually: declaring them is enough.
+
+<Compare>
+  <ComparePanel label="Works in Apps Script" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function projectName() {
+  return SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getName();
+}`}</code></pre>
+    <p className="mt-2 text-sm">Top-level <code>function</code> declaration. Reachable from cells, the Run dropdown, and triggers.</p>
+  </ComparePanel>
+  <ComparePanel label="Silently invisible" tone="negative">
+    <pre className="font-mono text-xs"><code>{`const projectName = () => {
+  return SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getName();
+};`}</code></pre>
+    <p className="mt-2 text-sm">Arrow assigned to a <code>const</code>. The runtime saves it, but it does not appear in the Run dropdown and a cell calling <code>=projectName()</code> errors with <code>#NAME?</code>. Lesson 3 explains why.</p>
+  </ComparePanel>
+</Compare>
 
 ## The manifest is editable
 
-The `appsscript.json` manifest is normally hidden ("Project Settings → Show 'appsscript.json' manifest file in editor"). Turn it on; you'll need to edit it for triggers, OAuth scopes, advanced services, and add-on manifests. A representative manifest:
+The `appsscript.json` manifest is normally hidden. Turn it on: **Project Settings → Show "appsscript.json" manifest file in editor**. You will need to edit it for triggers, OAuth scopes, advanced services, library dependencies, and add-on manifests. Hiding it by default protects beginners from breaking the project with a typo; the moment you reach lesson 6 (macros) or lesson 12 (libraries) you will be editing it weekly.
+
+A representative manifest:
 
 ```json
 {
@@ -40,35 +73,129 @@ The `appsscript.json` manifest is normally hidden ("Project Settings → Show 'a
 }
 ```
 
-- **`timeZone`** controls how the project interprets dates and what timezone `new Date()` operates in. The course's manifest uses `America/New_York` (it's what the team's Taboola reports default to). Set it to `Asia/Jerusalem` for projects whose triggers should fire on Israel time.
-- **`exceptionLogging: "STACKDRIVER"`** routes errors to Cloud Logging, which is where you'll go when a nightly trigger silently fails. The alternative `"NONE"` swallows errors and is rarely what you want.
-- **`runtimeVersion: "V8"`** picks the modern JavaScript engine. The legacy Rhino runtime is still selectable for very old projects but you should never start a new one there. Lesson 2 covers what V8 gives you.
-- **`oauthScopes`** is the explicit list of permissions the project needs. Apps Script auto-detects these on first run when the field is empty, but explicit declaration is the better practice: it documents what the project touches and stops mysterious auth-prompt expansions when someone adds a new service call.
+The fields:
+
+| Field | Type | What it does |
+|---|---|---|
+| `timeZone` | IANA zone string | How the project interprets dates and what timezone `new Date()` operates in. The course's manifest uses `America/New_York` (matches the team's Taboola reports). Set to `Asia/Jerusalem` for projects whose triggers should fire on Israel time. |
+| `exceptionLogging` | `"STACKDRIVER"` or `"NONE"` | Routes errors to Cloud Logging or swallows them. Almost always `"STACKDRIVER"`. Lesson 14 covers Cloud Logging end to end. |
+| `runtimeVersion` | `"V8"` or `"DEPRECATED_ES5"` | Picks the JavaScript engine. **`"V8"` is the only correct choice for new projects.** Lesson 2 covers the Rhino legacy. |
+| `oauthScopes` | array of scope URLs | The explicit list of permissions the project needs. Apps Script auto-detects these on first run when the field is empty; explicit declaration is the better practice. |
+| `dependencies` | object | Library imports and advanced-service activations. Lesson 12 covers libraries; lesson 17 covers advanced services. |
+| `sheets.macros` | array | The macro registrations that surface in Tools → Macros. Lesson 6 covers this field in detail. |
+
+### Why declaring scopes explicitly matters
+
+Apps Script can detect the scopes a project needs by scanning the source for service calls (`MailApp.sendEmail` → mail-send scope, `UrlFetchApp.fetch` → external-request scope, etc.). It will populate the auth prompt accordingly on first run. So why declare them?
+
+Two reasons. First, an explicit `oauthScopes` array documents what the project touches, in one place, in a file diff'd in your team workbook's history. Second, auto-detection silently expands the scope set whenever you add a new service call, which means a teammate hits a fresh "do you accept these permissions?" prompt at random times without knowing why. Explicit declaration freezes the scope contract; new scopes only enter the prompt when you intentionally add them to the manifest.
+
+<QuickCheck
+  question="You see a teammate's bound project's appsscript.json contains scopes for spreadsheets, drive, gmail, and calendar, but the project only reads and writes the active spreadsheet. What is the right next move?"
+  options={[
+    {
+      id: "a",
+      label: "Leave it alone, Apps Script needs all those scopes to function.",
+      correct: false,
+      explanation: "Apps Script only needs the scopes the code actually calls. Unused scopes broaden the attack surface and scare users out of accepting the auth prompt.",
+    },
+    {
+      id: "b",
+      label: "Trim the scope list down to spreadsheets.currentonly, save, and have the team re-run the script once to refresh consent.",
+      correct: true,
+      explanation: "Least-privilege is the right default. The narrower the scope, the less damage a compromised script can do and the friendlier the consent prompt looks to teammates.",
+    },
+    {
+      id: "c",
+      label: "Switch the manifest to runtimeVersion DEPRECATED_ES5 to bypass scopes.",
+      correct: false,
+      explanation: "The runtime version has nothing to do with scopes. Rhino is a legacy engine; using it would break almost everything else in the project.",
+    },
+  ]}
+/>
 
 ## Adding a file
 
-Click the `+` next to "Files" in the left rail. The dropdown offers "Script" (`.gs`), "HTML" (`.html`), or "Apps Script Project" (which embeds another project as a library: covered in lesson 12).
+Click the `+` next to "Files" in the left rail. The dropdown offers three options:
 
-For this lesson, the bound project already has three files when you open it:
+| Option | Creates | Use it for |
+|---|---|---|
+| Script | `.gs` file | Server JavaScript. Most lessons use this. |
+| HTML | `.html` file | Sidebar and dialog markup (lesson 9). |
+| Apps Script Project | Library entry in the manifest | Importing another project's functions (lesson 12). |
 
-| File | Type | What's in it |
+For this lesson, the bound project already has four files when you open it:
+
+| File | Type | What is in it |
 |---|---|---|
 | `appsscript` | JSON | The manifest above. |
-| `Code` | SERVER_JS | The course's sidebar bootstrap. Don't touch this. |
-| `Lesson` | SERVER_JS | An empty `projectName()` stub. This is the file you'll edit. |
-| `Sidebar` | HTML | The sidebar iframe shell. Don't touch this. |
+| `Code` | SERVER_JS | The course's sidebar bootstrap and the reserved `onOpen()` that installs the Lesson menu. Do not touch this. |
+| `Lesson` | SERVER_JS | An empty `projectName()` stub. This is the file you will edit. |
+| `Sidebar` | HTML | The sidebar iframe shell. Do not touch this. |
 
-The `Lesson.gs` file is yours to edit on every lesson in Track 3. Lessons 1–17 will each seed a different stub here.
+The `Lesson.gs` file is yours to edit on every lesson in Track 3. Lessons 1 to 17 will each seed a different stub here.
 
-## Saving and running
+## Saving, running, and deploying
 
-Editing a file is auto-saved, but it isn't deployed until you press **Save project** (Ctrl/Cmd+S, or the floppy-disk icon). After save:
+Editing a file is auto-saved into the editor's local draft, but it is not committed to the project until you press **Save project** (Ctrl/Cmd+S, or the floppy-disk icon). After save:
 
-- **Code.gs files** are immediately callable from cells as custom functions and from the menu as macros.
+- **`.gs` files** are immediately callable from cells as custom functions and from the menu as macros.
 - **HTML files** update on the next sidebar open.
 - **The manifest** takes effect on the next execution; if you changed `oauthScopes`, the next run will ask the user to accept the new scope set.
 
 The Run dropdown at the top of the editor lets you pick any function in the project and execute it once for debugging. Use this to run a setup function manually before wiring it to a trigger, or to test a custom function from inside the editor without round-tripping through a cell.
+
+### Save versus deploy
+
+A common point of confusion: **Save is not deploy.** Save commits your edits to the project's HEAD revision; the editor and bound cells immediately see the new code. **Deploy** (Deploy → New deployment or Manage deployments) freezes a snapshot under a version number, which is how libraries (lesson 12) and web apps (lesson 13) get a stable consumer-facing surface. For a typical bound script that only runs from menus and triggers in the same workbook, you may never deploy: save is enough.
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: edit a file",
+      body: (
+        <>
+          You change <code>return null;</code> to{" "}
+          <code>return SpreadsheetApp.getActiveSpreadsheet().getName();</code>{" "}
+          in <code>Lesson.gs</code>. The editor shows an unsaved indicator on
+          the tab.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: save",
+      body: (
+        <>
+          Ctrl/Cmd+S commits the change to the project's HEAD revision. The
+          unsaved indicator disappears. From this moment, any cell calling{" "}
+          <code>=projectName()</code> sees the new body.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: first run prompts for auth",
+      body: (
+        <>
+          A cell types <code>=projectName()</code>. Apps Script realizes the
+          function reads the spreadsheet (the{" "}
+          <code>spreadsheets.currentonly</code> scope) and shows an auth
+          prompt. You accept once.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: cached output",
+      body: (
+        <>
+          The cell evaluates and shows the workbook's title. Apps Script
+          caches the result against the function arguments (none here). Until
+          something invalidates the cache, the cell holds the value across
+          reloads.
+        </>
+      ),
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -77,26 +204,31 @@ The bound project for this lesson has a `Lesson.gs` file with a `projectName()` 
 1. Open **Extensions → Apps Script** and edit `Lesson.gs`. Replace `return null;` with `return SpreadsheetApp.getActiveSpreadsheet().getName();`. Save the project.
 2. Back in the sheet, in cell **A1**, type `=projectName()`. The cell should display this workbook's title.
 
-You'll see one auth prompt the first time the cell evaluates: Apps Script needs permission to read the spreadsheet on your behalf. Accept it; subsequent runs use the same grant.
+You will see one auth prompt the first time the cell evaluates: Apps Script needs permission to read the spreadsheet on your behalf. Accept it; subsequent runs use the same grant.
 
 ## Used in the wild
 
-A team workbook's bound project usually contains:
+A team workbook's bound project usually contains a flat list of files grouped by prefix. A realistic snapshot from the adtech aggregator workbook:
 
 | File | Purpose |
 |---|---|
-| `appsscript` | Manifest. Sets the team's timezone, declares all needed scopes. |
-| `Code` or `Main` | The entry points: `onOpen`, custom menu items, sidebar launchers. |
-| `lib_*` | Reusable utility modules: date helpers, vertical normalizers, currency converters. |
-| `triggers_*` | Trigger handlers: nightly pulls, on-edit validators. |
-| `ui_*` | Sidebar and dialog HTML files. |
+| `appsscript` | Manifest. Sets the team's timezone (`America/New_York`), declares all needed scopes, lists the four macros that show up under Tools → Macros, and pins `SheetsLib` as a library dependency. |
+| `Code` (entry point) | The custom menu builder, called from `onOpen`. Three menus: Reports, Buyers, Cleanup. Each item delegates to a handler in a `triggers_*` or `actions_*` file. |
+| `lib_dates.gs` | Date helpers: parse the team's `YYYY-MM-DD` strings, compute the previous business day, format for display. |
+| `lib_verticals.gs` | Vertical-name normalizer (ensures ` PR` suffix), and the canonical buyer roster lookup. |
+| `triggers_nightly.gs` | The nightly aggregator that pulls Taboola, Outbrain, MediaGo, TikTok raw rows and writes them to the Aggregator tab. Lesson 8 covers how the trigger is registered. |
+| `triggers_onedit.gs` | The on-edit handler that auto-stamps the editor's email when a Spend cell is modified. Lesson 7 covers the simple-trigger version. |
+| `actions_bulk.gs` | The "Mark dead campaigns" and "Archive month" handlers wired to menu items. |
+| `ui_sidebar.html` | The campaign-builder sidebar that walks a buyer through naming and launching a new campaign. Lesson 9 covers HtmlService. |
 
-Splitting by prefix is the team's convention. No tooling enforces it; it's just a habit that makes a thirty-file project navigable.
+Splitting by prefix is the team's convention. No tooling enforces it; it is just a habit that makes a thirty-file project navigable. Notice that there is no `main.gs`: the entry point is the menu installer in `Code.gs`, and the user's first click on a menu item is what kicks off real work.
 
 ## Pro pitfalls
 
-- **Bound vs standalone.** A bound script's lifecycle is the spreadsheet's. Delete the spreadsheet and the script goes too. Need the same logic across many workbooks? Build a standalone script and pull it in as a library (covered in lesson 12).
-- **The script.google.com dashboard.** Bound scripts don't appear in your "My projects" list at script.google.com. To find them, open the workbook and go to Extensions → Apps Script: that's the only entry point.
-- **Renaming `Code.gs`.** Doesn't break anything. The Apps Script runtime doesn't care what the file is called. But everyone else opening the project will look for `Code.gs` first by habit, so keep the entry-point file at that name.
-- **Editing two tabs of the same project at once.** The Apps Script editor doesn't show real-time conflict warnings. Two tabs open on the same project will silently overwrite each other on save. If you're switching computers, close one tab before opening on the other.
-- **Apps Script versioning.** Every Save creates a new HEAD revision, but only versioned deployments are immutable. To roll back to "what was running yesterday," go to **Project Settings → Show appsscript.json** then **File → See version history**: yes, it's hidden two clicks deep.
+- **Bound vs standalone.** A bound script's lifecycle is the spreadsheet's. Delete the spreadsheet and the script goes too. Need the same logic across many workbooks? Build a standalone script and pull it in as a library (lesson 12).
+- **The script.google.com dashboard.** Bound scripts do not appear in your "My projects" list at script.google.com. To find them, open the workbook and go to Extensions → Apps Script. That is the only entry point. Teammates who lose track of "which workbook had that script" end up auditing every shared workbook one by one.
+- **Renaming `Code.gs`.** Does not break anything technically. The Apps Script runtime does not care what the file is called. But everyone else opening the project will look for `Code.gs` first by habit, so keep the entry-point file at that name.
+- **Editing two tabs of the same project at once.** The Apps Script editor does not show real-time conflict warnings. Two tabs open on the same project will silently overwrite each other on save. If you are switching computers, close one tab before opening on the other.
+- **Apps Script versioning.** Every Save creates a new HEAD revision, but only versioned deployments are immutable. To roll back to "what was running yesterday", go to the file menu in the editor (it is hidden two clicks deep on the new editor: top-left icon → File → See version history). Bookmark this; you will need it the first time a teammate's "harmless" edit breaks the nightly trigger.
+- **Auto-detected scopes drifting on every edit.** If you leave `oauthScopes` empty, Apps Script silently expands the scope set whenever you add a service call. Teammates suddenly see new permissions on their next run with no context for why. Declare scopes explicitly and the contract stays stable.
+- **The `appsscript.json` rename trap.** Some learners try to rename the manifest to `manifest.json` or similar; Apps Script will not pick it up. The filename is hard-coded. Same for `appsscript.json.bak` snapshots: the runtime ignores anything but the literal `appsscript.json`.

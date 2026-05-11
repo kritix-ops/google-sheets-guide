@@ -1,16 +1,22 @@
 # עורך Apps Script ומבנה הפרויקט
 
-Apps Script הוא JavaScript שרץ בתוך Google Workspace. הקוד יושב ב-**project**, תיקייה של קבצים ש-Google מארחת, מצורפת או למסמך מסוים ("bound") או לשום דבר ("standalone"). השיעורים ב-Track הזה משתמשים כולם ב-projects מסוג bound: לכל workbook שאתם פותחים בקורס הזה יש project מצורף תחת Extensions → Apps Script. ה-sidebar שאתם קוראים עכשיו הוא קובץ אחד באותו project. ה-custom functions שתכתבו בשיעור 3 יהיו קובץ נוסף. הכול במקום אחד.
+Apps Script הוא JavaScript שרץ בתוך Google Workspace. הוא לא plug-in, לא שפת מאקרו עם syntax משלה, ולא VBA של Excel עם זקן. הוא JavaScript רגיל (הניב של V8, שיעור 2) שרץ על שרתי Google, עם ספרייה סטנדרטית שממופה ל-Sheets, Drive, Gmail, Calendar, Docs ועוד עשרות שירותי Workspace. אם אתם יכולים לכתוב לולאת `for` בכל קוד JavaScript אחר, אתם יכולים לכתוב Apps Script.
+
+הקוד יושב ב-**project**, תיקייה של קבצים ש-Google מארחת, מצורפת או למסמך מסוים ("bound") או לשום דבר ("standalone"). השיעורים ב-Track הזה משתמשים כולם ב-projects מסוג bound. לכל workbook שאתם פותחים בקורס יש project מצורף תחת Extensions → Apps Script. ה-sidebar שאתם קוראים עכשיו הוא קובץ אחד באותו project. ה-custom functions שתכתבו בשיעור 3 יהיו קובץ נוסף. ה-triggers בשיעורים 7 ו-8 יהיו השלישי. הכל במקום אחד, עם version control של Google, נגיש רק מתוך ה-workbook.
+
+השיעור הראשון הזה עוסק במפת השטח: איפה העורך גר, אילו קבצים יש בפרויקט, איך ה-manifest עובד, וסט קטן של הרגלים ששומרים על פרויקט נווט ככל שהוא גדל משלושה קבצים לשלושים. ה-APIs העמוקים יותר (`SpreadsheetApp`, triggers, libraries) מתחילים בשיעור 2.
 
 ## פותחים את העורך
 
 מתוך Google Sheet פתוח:
 
 1. **Extensions → Apps Script.** העורך נפתח בטאב חדש.
-2. **מחכים שעץ הקבצים בצד יטען.** הפתיחה הראשונה של project bound חדש לוקחת שתי שניות.
-3. **הפריסה המוגדרת:** עץ קבצים בצד, עורך קוד במרכז, פאנל של execution log/output למטה.
+2. **מחכים שעץ הקבצים בצד יטען.** הפתיחה הראשונה של project bound חדש לוקחת שתי שניות בזמן ש-Google מקצה את ה-storage.
+3. **הפריסה המוגדרת:** עץ קבצים בצד, עורך קוד במרכז, פאנל של execution log/output למטה, סרגל Run/Debug למעלה, ואייקוני הרצועה השמאלית (Files, Triggers, Executions, Project Settings, Editor, Libraries, Services) בקצה.
 
 בפעם הראשונה שהעורך נפתח עבור workbook שלא בבעלותכם, Google עלולה לבקש שתאשרו את ה-auth scopes של הפרויקט. ה-prompt עוין בכוונה ("Sheets Guide isn't verified: proceed anyway?"). עבור ה-bound projects של הקורס, לוחצים "Advanced → Go to Sheets Guide (unsafe)". זה ה-bound script שלכם; "unsafe" כאן רק אומר ש-Google לא סקרה אותו כי אף אחד לא מפרסם script פר-workbook.
+
+אותה נקודת כניסה Extensions → Apps Script עובדת גם מתוך Google Doc, Form או Slide. העורך משותף בין כל Workspace; רק ה-bindings משתנים.
 
 ## מה יש בפרויקט
 
@@ -19,14 +25,41 @@ project של Apps Script מסוג bound מכיל קבצים משלושה סוג�
 | סוג | סיומת | מה זה |
 |---|---|---|
 | Server JS | `.gs` | JavaScript שרץ על שרתי Google. רוב הקוד שלכם. |
-| HTML | `.html` | תוכן sidebar ו-dialog. נרנדר בתוך ה-UI של Sheets. |
-| JSON manifest | `appsscript.json` | הגדרות הפרויקט: timezone, oauthScopes, runtime version. תמיד קובץ אחד בלבד בשם הזה. |
+| HTML | `.html` | תוכן sidebar ו-dialog. נרנדר בתוך ה-UI של Sheets. שיעור 9 מכסה את זה לעומק. |
+| JSON manifest | `appsscript.json` | הגדרות הפרויקט: timezone, oauthScopes, runtime version, dependencies. תמיד קובץ אחד בלבד בשם הזה. |
 
-עץ הקבצים מציג קבצים לפי סדר היצירה. גוררים כדי לשנות סדר. אין מבנה של תיקיות, projects שטוחים. כדי לארגן project שגדל, נותנים שמות עם prefix: `lib_Dates.gs`, `lib_Strings.gs`, `triggers_Daily.gs`, `triggers_OnEdit.gs`. העורך ממיין לפי אלפבית וה-prefix מקבץ קבצים קשורים.
+עץ הקבצים מציג קבצים לפי סדר היצירה. גוררים כדי לשנות סדר. **אין מבנה של תיקיות, projects שטוחים.** זה תופס מפתחים מכל ecosystem אחר לא מוכן. אי אפשר ליצור תיקיית `lib/`. כדי לארגן פרויקט שגדל, נותנים שמות עם prefix: `lib_Dates.gs`, `lib_Strings.gs`, `triggers_Daily.gs`, `triggers_OnEdit.gs`, `ui_Sidebar.gs`. העורך ממיין לפי אלפבית וה-prefix מקבץ קבצים קשורים. זו המוסכמה של הצוות; ל-runtime לא אכפת.
+
+### מה "Server JS" באמת אומר
+
+תוכן של קובץ `.gs` הוא JavaScript רגיל, אבל ה-runtime **אינו** דפדפן. אין `window`, אין `document`, אין `localStorage`, אין `fetch` (התפקיד הזה ממולא על ידי `UrlFetchApp` במקום, מכוסה בשיעור 11). אין גם `require` בסגנון Node ואין npm. כל dependency מגיע או משירותים מובנים של Apps Script או מספרייה מיובאת דרך ה-manifest (שיעור 12). הקוד רץ על תשתית של Google עם תקציב ביצוע של 6 דקות בחשבונות consumer ו-30 דקות ב-Workspace.
+
+כל function declaration ברמת ה-top של כל קובץ `.gs` קריא מה-Run dropdown של העורך, מפריט תפריט, מ-trigger, או (אם הוא מתאים לחוקי custom function משיעור 3) מתא. אין `main()`, אין רישום ב-manifest פר-function. ההצהרה לבדה מספיקה.
+
+<Compare>
+  <ComparePanel label="עובד ב-Apps Script" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function projectName() {
+  return SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getName();
+}`}</code></pre>
+    <p className="mt-2 text-sm">הצהרת <code>function</code> ברמת ה-top. נגיש מתאים, מ-Run dropdown, ומ-triggers.</p>
+  </ComparePanel>
+  <ComparePanel label="בלתי נראה בשקט" tone="negative">
+    <pre className="font-mono text-xs"><code>{`const projectName = () => {
+  return SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getName();
+};`}</code></pre>
+    <p className="mt-2 text-sm">arrow מוצמד ל-<code>const</code>. ה-runtime שומר אותו, אבל הוא לא מופיע ב-Run dropdown ותא שקורא <code>=projectName()</code> מחזיר <code>#NAME?</code>. שיעור 3 מסביר למה.</p>
+  </ComparePanel>
+</Compare>
 
 ## ה-manifest ניתן לעריכה
 
-קובץ ה-manifest `appsscript.json` מוסתר בדרך כלל ("Project Settings → Show 'appsscript.json' manifest file in editor"). מפעילים את זה; תצטרכו לערוך אותו עבור triggers, OAuth scopes, advanced services, ו-add-on manifests. דוגמה למשהו מייצג:
+קובץ ה-manifest `appsscript.json` מוסתר בדרך כלל. מפעילים אותו: **Project Settings → Show "appsscript.json" manifest file in editor**. תצטרכו לערוך אותו עבור triggers, OAuth scopes, advanced services, library dependencies, ו-add-on manifests. ההסתרה כברירת מחדל מגנה על מתחילים מלשבור את הפרויקט עם typo; ברגע שתגיעו לשיעור 6 (macros) או שיעור 12 (libraries) תערכו אותו שבועית.
+
+manifest מייצג:
 
 ```json
 {
@@ -40,35 +73,124 @@ project של Apps Script מסוג bound מכיל קבצים משלושה סוג�
 }
 ```
 
-- **`timeZone`** שולט באיך הפרויקט מפרש תאריכים ובאיזה timezone `new Date()` פועל. ה-manifest של הקורס משתמש ב-`America/New_York` (ככה Taboola מדווחת ברירת מחדל). מגדירים ל-`Asia/Jerusalem` עבור projects ש-triggers שלהם צריכים לפעול בשעון ישראל.
-- **`exceptionLogging: "STACKDRIVER"`** מנתב שגיאות ל-Cloud Logging, שם תלכו כש-trigger לילי כושל בשקט. החלופה `"NONE"` בולעת שגיאות וזה לעיתים נדירות מה שתרצו.
-- **`runtimeVersion: "V8"`** בוחר את מנוע ה-JavaScript המודרני. ה-runtime הישן Rhino עדיין ניתן לבחירה עבור projects ישנים מאוד, אבל אסור להתחיל project חדש שם. שיעור 2 מכסה מה ש-V8 נותן לכם.
-- **`oauthScopes`** היא הרשימה המפורשת של הרשאות שהפרויקט צריך. Apps Script מזהה אותן אוטומטית בהרצה הראשונה כשהשדה ריק, אבל הצהרה מפורשת היא תרגול עדיף: זה מתעד מה הפרויקט נוגע בו ועוצר התרחבות מסתורית של auth prompt כשמישהו מוסיף קריאה חדשה לשירות.
+השדות:
+
+| שדה | טיפוס | מה זה עושה |
+|---|---|---|
+| `timeZone` | מחרוזת IANA zone | איך הפרויקט מפרש תאריכים ובאיזה timezone `new Date()` פועל. ה-manifest של הקורס משתמש ב-`America/New_York` (תואם לדוחות של Taboola). מגדירים ל-`Asia/Jerusalem` עבור projects ש-triggers שלהם צריכים לפעול בשעון ישראל. |
+| `exceptionLogging` | `"STACKDRIVER"` או `"NONE"` | מנתב שגיאות ל-Cloud Logging או בולע אותן. כמעט תמיד `"STACKDRIVER"`. שיעור 14 מכסה את Cloud Logging מקצה לקצה. |
+| `runtimeVersion` | `"V8"` או `"DEPRECATED_ES5"` | בוחר את מנוע ה-JavaScript. **`"V8"` היא הבחירה הנכונה היחידה ל-projects חדשים.** שיעור 2 מכסה את המורשת של Rhino. |
+| `oauthScopes` | מערך של scope URLs | הרשימה המפורשת של הרשאות שהפרויקט צריך. Apps Script מזהה אותן אוטומטית בהרצה הראשונה כשהשדה ריק; הצהרה מפורשת היא תרגול עדיף. |
+| `dependencies` | object | imports של ספריות והפעלות של advanced services. שיעור 12 מכסה libraries; שיעור 17 מכסה advanced services. |
+| `sheets.macros` | מערך | רישומי המאקרו שעולים תחת Tools → Macros. שיעור 6 מכסה את השדה הזה בפירוט. |
+
+### למה הצהרת scopes מפורשת חשובה
+
+Apps Script יכול לזהות את ה-scopes שפרויקט צריך על ידי סריקת הקוד לקריאות שירות (`MailApp.sendEmail` ← scope של mail-send, `UrlFetchApp.fetch` ← scope של external-request, וכו'). הוא ימלא את ה-auth prompt בהתאם בהרצה הראשונה. אז למה להצהיר?
+
+שתי סיבות. ראשית, מערך `oauthScopes` מפורש מתעד במה הפרויקט נוגע, במקום אחד, בקובץ שנמצא ב-diff של היסטוריית ה-workbook של הצוות. שנית, זיהוי אוטומטי מרחיב בשקט את סט ה-scopes בכל פעם שמוסיפים קריאת שירות חדשה, מה שאומר שחבר צוות נתקל ב-prompt חדש של "האם אתם מקבלים את ההרשאות האלה?" בזמנים אקראיים בלי להבין למה. הצהרה מפורשת מקבעת את חוזה ה-scope; scopes חדשים נכנסים ל-prompt רק כשמכניסים אותם ל-manifest בכוונה.
+
+<QuickCheck
+  question="אתם רואים שב-appsscript.json של פרויקט bound של חבר צוות יש scopes ל-spreadsheets, drive, gmail וקלנדר, אבל הפרויקט רק קורא וכותב ל-spreadsheet הפעיל. מה הצעד הנכון?"
+  options={[
+    {
+      id: "a",
+      label: "להשאיר את זה כמו שהוא, Apps Script צריך את כל ה-scopes האלה כדי לפעול.",
+      correct: false,
+      explanation: "Apps Script צריך רק את ה-scopes שהקוד באמת קורא להם. scopes לא בשימוש מרחיבים את משטח התקיפה ומבריחים משתמשים מקבלת ה-auth prompt.",
+    },
+    {
+      id: "b",
+      label: "לקצץ את רשימת ה-scopes ל-spreadsheets.currentonly, לשמור, ולהריץ את ה-script פעם נוספת כדי לרענן את ה-consent.",
+      correct: true,
+      explanation: "least-privilege היא ברירת המחדל הנכונה. ה-scope הצר ככל האפשר, פחות נזק ש-script שנפרץ יכול לעשות וה-consent prompt נראה ידידותי יותר לחברי הצוות.",
+    },
+    {
+      id: "c",
+      label: "להחליף את ה-manifest ל-runtimeVersion DEPRECATED_ES5 כדי לעקוף scopes.",
+      correct: false,
+      explanation: "גרסת ה-runtime לא קשורה ל-scopes. Rhino הוא מנוע מורשת; להשתמש בו ישבור כמעט הכל בפרויקט.",
+    },
+  ]}
+/>
 
 ## מוסיפים קובץ
 
-לוחצים על `+` ליד "Files" ברצועה השמאלית. ה-dropdown מציע "Script" (`.gs`), "HTML" (`.html`), או "Apps Script Project" (שמטמיע project אחר כספרייה, מכוסה בשיעור 12).
+לוחצים על `+` ליד "Files" ברצועה השמאלית. ה-dropdown מציע שלוש אפשרויות:
 
-בשיעור הזה, ל-project המקושר יש שלושה קבצים כשפותחים אותו:
+| אפשרות | יוצר | להשתמש בשביל |
+|---|---|---|
+| Script | קובץ `.gs` | server JavaScript. רוב השיעורים משתמשים בזה. |
+| HTML | קובץ `.html` | markup של sidebar ו-dialog (שיעור 9). |
+| Apps Script Project | רשומת ספרייה ב-manifest | ייבוא של פונקציות מ-project אחר (שיעור 12). |
+
+בשיעור הזה, ל-project המקושר כבר יש ארבעה קבצים כשפותחים אותו:
 
 | קובץ | סוג | מה יש בו |
 |---|---|---|
 | `appsscript` | JSON | ה-manifest שלמעלה. |
-| `Code` | SERVER_JS | ה-bootstrap של ה-sidebar של הקורס. לא נוגעים. |
+| `Code` | SERVER_JS | ה-bootstrap של ה-sidebar של הקורס וה-`onOpen()` השמור שמתקין את תפריט Lesson. לא נוגעים. |
 | `Lesson` | SERVER_JS | stub ריק של `projectName()`. זה הקובץ שתערכו. |
 | `Sidebar` | HTML | shell ה-iframe של ה-sidebar. לא נוגעים. |
 
-הקובץ `Lesson.gs` שלכם לעריכה בכל שיעור ב-Track 3. שיעורים 1–17 ישתלו ב-stub שונה כאן.
+הקובץ `Lesson.gs` שלכם לעריכה בכל שיעור ב-Track 3. שיעורים 1 עד 17 ישתלו ב-stub שונה כאן.
 
-## שמירה והרצה
+## שמירה, הרצה ופריסה
 
-עריכה של קובץ נשמרת אוטומטית, אבל היא לא נפרסת עד שלוחצים **Save project** (Ctrl/Cmd+S, או אייקון הדיסקט). אחרי שמירה:
+עריכת קובץ נשמרת אוטומטית ל-draft המקומי של העורך, אבל היא לא מתחייבת לפרויקט עד שלוחצים **Save project** (Ctrl/Cmd+S, או אייקון הדיסקט). אחרי שמירה:
 
-- **קבצי Code.gs** הופכים מיד לקריאים מתאים כ-custom functions ומהתפריט כ-macros.
+- **קבצי `.gs`** הופכים מיד לקריאים מתאים כ-custom functions ומהתפריט כ-macros.
 - **קבצי HTML** מתעדכנים בפתיחה הבאה של ה-sidebar.
 - **ה-manifest** נכנס לתוקף בהרצה הבאה; אם שיניתם `oauthScopes`, ההרצה הבאה תבקש מהמשתמש לאשר את סט ה-scopes החדש.
 
 ה-dropdown של Run בראש העורך מאפשר לבחור כל function בפרויקט ולהריץ אותה פעם אחת לצורכי דיבאג. משתמשים בזה כדי להריץ function של setup ידנית לפני שמחברים אותה ל-trigger, או כדי לבדוק custom function מתוך העורך בלי לעבור דרך תא.
+
+### Save מול Deploy
+
+נקודת בלבול נפוצה: **Save זה לא Deploy.** Save מתחייב את העריכות שלכם ל-HEAD revision של הפרויקט; העורך והתאים המקושרים רואים מיד את הקוד החדש. **Deploy** (Deploy → New deployment או Manage deployments) מקפיא snapshot תחת מספר version, וזו הדרך שבה libraries (שיעור 12) ו-web apps (שיעור 13) מקבלים משטח יציב מול הצרכן. עבור script bound טיפוסי שרץ רק מתפריטים ו-triggers באותו workbook, ייתכן שלעולם לא תפרסו: Save מספיק.
+
+<StepThrough
+  frames={[
+    {
+      caption: "שלב 1: עריכת קובץ",
+      body: (
+        <>
+          אתם משנים <code>return null;</code> ל-{" "}
+          <code>return SpreadsheetApp.getActiveSpreadsheet().getName();</code>{" "}
+          ב-<code>Lesson.gs</code>. העורך מציג סימן unsaved על ה-tab.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 2: שמירה",
+      body: (
+        <>
+          Ctrl/Cmd+S מתחייב את השינוי ל-HEAD revision של הפרויקט. סימן ה-unsaved נעלם.
+          מהרגע הזה, כל תא שקורא ל-<code>=projectName()</code> רואה את ה-body החדש.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 3: ההרצה הראשונה דורשת auth",
+      body: (
+        <>
+          תא מקליד <code>=projectName()</code>. Apps Script מבין שה-function קורא את ה-spreadsheet
+          (ה-scope <code>spreadsheets.currentonly</code>) ומציג auth prompt. מאשרים פעם אחת.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 4: תוצאה ב-cache",
+      body: (
+        <>
+          התא מחושב ומציג את כותרת ה-workbook. Apps Script שומר ב-cache את התוצאה לפי
+          ארגומנטים של ה-function (אין כאן). עד שמשהו יבטל את ה-cache, התא מחזיק את הערך
+          בין רענונים.
+        </>
+      ),
+    },
+  ]}
+/>
 
 ## עכשיו לעבודה אמיתית
 
@@ -81,22 +203,27 @@ project של Apps Script מסוג bound מכיל קבצים משלושה סוג�
 
 ## נפוץ בשטח
 
-ל-project המקושר של workbook של צוות יש בדרך כלל:
+ל-project המקושר של workbook של צוות יש בדרך כלל רשימה שטוחה של קבצים מקובצים לפי prefix. snapshot מציאותי מ-workbook האגרגטור האדטק:
 
 | קובץ | מטרה |
 |---|---|
-| `appsscript` | Manifest. מגדיר את ה-timezone של הצוות, מצהיר על כל ה-scopes הנחוצים. |
-| `Code` או `Main` | נקודות הכניסה: `onOpen`, פריטי תפריט מותאם, מפעילי sidebar. |
-| `lib_*` | מודולים שימושיים לשימוש חוזר: עוזרי תאריכים, מנרמלי verticals, ממירי מטבע. |
-| `triggers_*` | handlers של triggers: פולים לילים, מאמתי on-edit. |
-| `ui_*` | קבצי HTML של sidebars ו-dialogs. |
+| `appsscript` | Manifest. מגדיר את ה-timezone של הצוות (`America/New_York`), מצהיר על כל ה-scopes הנחוצים, מפרט את ארבעת המאקרו שעולים תחת Tools → Macros, ומקבע את `SheetsLib` כ-dependency של library. |
+| `Code` (נקודת כניסה) | בונה התפריט המותאם, נקרא מ-`onOpen`. שלושה תפריטים: Reports, Buyers, Cleanup. כל פריט מאציל ל-handler בקובץ `triggers_*` או `actions_*`. |
+| `lib_dates.gs` | עוזרי תאריך: ניתוח של מחרוזות `YYYY-MM-DD` של הצוות, חישוב יום העסקים הקודם, פורמט לתצוגה. |
+| `lib_verticals.gs` | מנרמל שמות vertical (מבטיח סופית ` PR`), והחיפוש של רשימת ה-buyer הקנונית. |
+| `triggers_nightly.gs` | האגרגטור הלילי שמושך שורות raw של Taboola, Outbrain, MediaGo, TikTok וכותב אותן ל-tab של Aggregator. שיעור 8 מכסה איך ה-trigger נרשם. |
+| `triggers_onedit.gs` | ה-handler של on-edit שמחתים אוטומטית את כתובת המייל של העורך כשתא Spend משונה. שיעור 7 מכסה את גרסת ה-simple-trigger. |
+| `actions_bulk.gs` | ה-handlers של "Mark dead campaigns" ו-"Archive month" מחוברים לפריטי תפריט. |
+| `ui_sidebar.html` | ה-sidebar של בונה הקמפיינים שמלווה buyer דרך מתן שם והפעלה של קמפיין חדש. שיעור 9 מכסה את HtmlService. |
 
-חלוקה לפי prefix היא המוסכמה של הצוות. אף כלי לא אוכף את זה; זו פשוט הרגל שהופך project של שלושים קבצים לניתן לניווט.
+חלוקה לפי prefix היא המוסכמה של הצוות. אף כלי לא אוכף את זה; זו פשוט הרגל שהופך project של שלושים קבצים לניתן לניווט. שימו לב שאין `main.gs`: נקודת הכניסה היא מתקין התפריט ב-`Code.gs`, והקליק הראשון של המשתמש על פריט תפריט הוא מה שמתחיל עבודה אמיתית.
 
 ## מלכודות מקצועיות
 
-- **Bound vs standalone.** מחזור החיים של script bound הוא של ה-spreadsheet. אם מוחקים את ה-spreadsheet, ה-script הולך איתו. צריכים אותה לוגיקה בכמה workbooks? בונים standalone script ומושכים אותו כספרייה (מכוסה בשיעור 12).
-- **ה-dashboard ב-script.google.com.** scripts מסוג bound לא מופיעים ברשימת "My projects" שלכם ב-script.google.com. כדי למצוא אותם, פותחים את ה-workbook והולכים ל-Extensions → Apps Script, זו נקודת הכניסה היחידה.
-- **שינוי שם של `Code.gs`.** לא שובר כלום. ל-runtime של Apps Script לא אכפת איך הקובץ נקרא. אבל כל מי שיפתח את הפרויקט יחפש קודם את `Code.gs` מתוך הרגל, אז משאירים את קובץ נקודת הכניסה בשם הזה.
+- **Bound vs standalone.** מחזור החיים של script bound הוא של ה-spreadsheet. אם מוחקים את ה-spreadsheet, ה-script הולך איתו. צריכים אותה לוגיקה בכמה workbooks? בונים standalone script ומושכים אותו כספרייה (שיעור 12).
+- **ה-dashboard ב-script.google.com.** scripts מסוג bound לא מופיעים ברשימת "My projects" שלכם ב-script.google.com. כדי למצוא אותם, פותחים את ה-workbook והולכים ל-Extensions → Apps Script. זו נקודת הכניסה היחידה. חברי צוות שמאבדים מעקב אחרי "באיזה workbook היה ה-script הזה" עורכים ביקורת על כל workbook משותף אחד-אחד.
+- **שינוי שם של `Code.gs`.** טכנית לא שובר כלום. ל-runtime של Apps Script לא אכפת איך הקובץ נקרא. אבל כל מי שיפתח את הפרויקט יחפש קודם את `Code.gs` מתוך הרגל, אז משאירים את קובץ נקודת הכניסה בשם הזה.
 - **עריכת שני tabs של אותו project בו-זמנית.** עורך Apps Script לא מציג אזהרות conflict בזמן אמת. שני tabs פתוחים על אותו project ידרסו זה את זה בשקט בשמירה. אם עוברים בין מחשבים, סוגרים tab אחד לפני שפותחים בשני.
-- **גרסאות של Apps Script.** כל שמירה יוצרת HEAD revision חדש, אבל רק deployments עם version הם immutable. כדי לחזור ל-"מה שרץ אתמול", הולכים ל-**Project Settings → Show appsscript.json** ואז **File → See version history**, כן, זה מוסתר שתי לחיצות עמוק.
+- **גרסאות של Apps Script.** כל שמירה יוצרת HEAD revision חדש, אבל רק deployments עם version הם immutable. כדי לחזור ל-"מה שרץ אתמול", הולכים לתפריט הקובץ בעורך (זה מוסתר שתי לחיצות עמוק בעורך החדש: אייקון שמאל-עליון → File → See version history). שמרו את זה כסימנייה; תצטרכו את זה בפעם הראשונה ש"עריכה לא מזיקה" של חבר צוות תשבור את ה-trigger הלילי.
+- **scopes שמזוהים אוטומטית נסחפים בכל עריכה.** אם משאירים את `oauthScopes` ריק, Apps Script מרחיב בשקט את סט ה-scopes בכל פעם שמוסיפים קריאת שירות. חברי צוות פתאום רואים הרשאות חדשות בהרצה הבאה שלהם בלי הקשר. מצהירים על scopes במפורש והחוזה נשאר יציב.
+- **מלכודת שינוי שם של `appsscript.json`.** חלק מהלומדים מנסים לשנות את שם ה-manifest ל-`manifest.json` או דומה; Apps Script לא יקלוט אותו. שם הקובץ קבוע. אותו דבר עבור snapshots של `appsscript.json.bak`: ה-runtime מתעלם מכל דבר חוץ מ-`appsscript.json` המילולי.

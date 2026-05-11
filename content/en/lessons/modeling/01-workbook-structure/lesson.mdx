@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 Track 1 was about formulas. Track 2 is about the workbook. The same formula in a clean workbook is a tool; in a messy one it's a liability that nobody else on your team can pick up. The first principle to internalize: **raw stays raw, summary lives separately, and the boundary is visible at a glance**. The cost of getting this wrong shows up later as broken `SUMIFS`, broken pivot tables, and a chart that mysteriously includes the "Total" row in its average.
 
+A workbook that obeys this rule reads like a small app. New rows arrive and the dashboard updates. Someone joins the team and finds the canonical data on the tab whose name starts with `Raw -`. A formula breaks and you can trace it back through one or two hops to the raw block. A workbook that ignores this rule is a maze: totals embedded in raw, raw embedded in summaries, every dashboard a one-off that nobody else can maintain.
+
 ## The single source of truth
 
 A spreadsheet should have one block of cells that is the canonical raw data, and nothing should mutate it except the upstream pipeline (manual entry, IMPORTRANGE, an Apps Script pull). Everything else, the totals, ratios, dashboards, alerts, lives elsewhere and reads from the raw block.
@@ -20,6 +22,35 @@ The team's actual workbook pattern looks like this in the wild:
 
 The boundary between "raw" and "derived" is a tab boundary, and tabs are renamed with a `Raw -` prefix so anyone who opens the workbook knows which surface is safe to touch.
 
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  caption="The first six rows of the team's 60-row raw log. A1:G61 is the bounded rectangle; the summary block lives in I:J on the same tab, separated by an empty H column."
+/>
+
+<QuickCheck
+  question="A teammate opens the workbook and sees four tabs: 'Campaigns', 'Aggregator', 'Dashboard', 'Notes'. Which tab is most likely the canonical raw data on a sheet built to the team's conventions?"
+  options={[
+    {
+      id: "a",
+      label: <code>Dashboard</code>,
+      correct: false,
+      explanation: "Dashboard is downstream. It reads from Aggregator, never holds raw data.",
+    },
+    {
+      id: "b",
+      label: <code>Aggregator</code>,
+      correct: false,
+      explanation: "Aggregator joins multiple raw tabs into one normalized log. It's read-only output, not the canonical raw.",
+    },
+    {
+      id: "c",
+      label: <code>Campaigns</code>,
+      correct: true,
+      explanation: "None of the tabs use the conventional 'Raw -' prefix, but Campaigns is the only one that holds rows of source data. In a well-named workbook it would be 'Raw - Campaigns'.",
+    },
+  ]}
+/>
+
 ## Don't aggregate inside the raw block
 
 The most common rookie move is adding a "Total" row at the bottom of the raw log. It looks helpful. It breaks everything downstream:
@@ -30,6 +61,26 @@ The most common rookie move is adding a "Total" row at the bottom of the raw log
 - **Sorting the range** scrambles the Total row into the middle of the data.
 
 The fix is to put the total *outside* the raw block. Either at the top of the same sheet (a summary zone the eye reads first), or on a separate Summary tab. Both work. The point is the raw rectangle stays a rectangle of raw rows, with no aggregation inside it.
+
+<Compare>
+  <ComparePanel label="Broken: Total inside raw" tone="negative">
+    <pre className="font-mono text-xs"><code>{`A          B           ... F        G
+Date       Buyer            Spend    Revenue
+2026-05-01 Yoav Cohen       342.18   487.30
+...
+2026-05-10 Ben Nahum        478.30   982.70
+           TOTAL            3933.68  5694.10  ← inside the rectangle`}</code></pre>
+    <p className="mt-2 text-sm">Pivot table on <code>A1:G62</code> shows "TOTAL" as a buyer. The chart over Spend includes the total bar, dwarfing every real row. Sort by Buyer scrambles the total into the alphabet.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: Total outside raw" tone="positive">
+    <pre className="font-mono text-xs"><code>{`A          B           ... F        G   H   I              J
+Date       Buyer            Spend    Rev      Total Spend    =SUM(F2:F61)
+2026-05-01 Yoav Cohen       342.18   487.30   Total Revenue  =SUM(G2:G61)
+...                                           Portfolio ROI  =(J2-J1)/J1
+2026-05-10 Ben Nahum        478.30   982.70`}</code></pre>
+    <p className="mt-2 text-sm">Raw rectangle stays <code>A1:G61</code>. Summary block lives in <code>J:J</code>, separated by empty <code>H</code>. Pivots, charts, and sorts on the raw range stay clean.</p>
+  </ComparePanel>
+</Compare>
 
 ## The summary zone pattern
 
@@ -50,6 +101,30 @@ Two reasons this layout is worth the discipline:
 1. **The raw range is a clean `A1:G61` rectangle.** Any pivot table, chart, or `QUERY` reads it without conditional logic to skip a Total row.
 2. **The summary cells are a small fixed block.** When you write the ROI formula, you reference `J1` and `J2`, not `SUM(F2:F61)` again. Change the bound from `F61` to `F500` and only the two `SUM` cells need an edit. The ROI cell follows automatically.
 
+<QuickCheck
+  question="You write the portfolio ROI as =SUM(G2:G61)/SUM(F2:F61)-1 in J3, repeating the SUMs that already live in J1 and J2. Why is this a worse layout than =J2/J1-1?"
+  options={[
+    {
+      id: "a",
+      label: "It returns a different number",
+      correct: false,
+      explanation: "Both formulas return the same number. The difference is maintenance cost, not correctness.",
+    },
+    {
+      id: "b",
+      label: "It forces a re-edit of three cells when the data range expands from row 61 to row 500, instead of two",
+      correct: true,
+      explanation: "Compute once, reference many. Every duplicate SUM is a place you'll forget to update when the data grows. J3 reading from J1 and J2 is one fix away from any range change.",
+    },
+    {
+      id: "c",
+      label: "Sheets caches the J2 and J1 cells faster than a fresh SUM",
+      correct: false,
+      explanation: "Sheets's recalc doesn't 'cache' a cell reference faster than a SUM. The reason to reuse is maintenance, not performance.",
+    },
+  ]}
+/>
+
 ## Header rows: one row, no merges
 
 Headers look innocent and are the second-biggest source of broken downstream work after Total rows.
@@ -59,6 +134,18 @@ Headers look innocent and are the second-biggest source of broken downstream wor
 - **Names that match the column's content, not the column's display.** `Spend` (matches what the formula bar reads) beats `Spend ($)` (which forces every formula referencing it to escape the parenthesis).
 
 If you inherit a workbook with a merged header row, the cheap fix is to add a hidden second row underneath with the un-merged labels and have every formula reference that row.
+
+<Compare>
+  <ComparePanel label="Broken header" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Row 1: |    Identity    |       Money        |
+Row 2: | Date | Buyer  | Spend | Revenue | ROI |`}</code></pre>
+    <p className="mt-2 text-sm">Two-row header with merged "Identity" and "Money" groups. <code>QUERY</code> with <code>header=1</code> reads row 1 (mostly null cells) as the column labels. Every column reference breaks.</p>
+  </ComparePanel>
+  <ComparePanel label="Working header" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Row 1: | Date | Buyer | Spend | Revenue | ROI |`}</code></pre>
+    <p className="mt-2 text-sm">One row, no merges, content-matching names. <code>QUERY</code>, <code>XLOOKUP</code>, and <code>INDEX/MATCH</code> all read the headers as expected.</p>
+  </ComparePanel>
+</Compare>
 
 ## Now do it for real
 

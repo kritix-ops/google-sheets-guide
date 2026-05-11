@@ -1,51 +1,153 @@
-import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 # How Gemini sees a spreadsheet
 
-Before you can prompt Gemini in Sheets well, you have to understand what it actually sees when you press Enter. The answer is narrower than most people assume and it changes based on what's open, what's selected, and how big the data is. Treat Gemini as a teammate looking over your shoulder with a strict reading window. It sees what's on the screen, plus a structured snapshot of the active sheet. It does not have a live subscription to anything else in your Drive.
+Before you can prompt Gemini in Sheets well, you have to understand what it actually reads when you press Enter. The answer is narrower than most people assume, and it changes based on which tab is active, what range you point at, and how big the workbook is. Treat Gemini as a teammate looking over your shoulder with a strict reading window. It sees what's on the active sheet plus a structured snapshot of the cells around your prompt. It does not have a live subscription to the rest of your Drive.
 
-Get this wrong and your prompts feel haunted: results that contradict your data, summaries that miss the obvious, classifications that drift from row to row. Get it right and Gemini becomes a tight, fast junior analyst.
+This is the mental model the whole track depends on. Lessons 5.2 through 5.6 teach the AI function, Fill with Gemini, the build-and-edit side panel, AI analysis, and a decision framework for when not to use AI. Each one assumes you already know what Gemini actually sees in the moment you call it. Get this lesson wrong and your prompts will feel haunted: results that contradict your data, summaries that miss the obvious, classifications that drift from row to row. Get it right and Gemini becomes a tight, fast junior analyst.
 
 ## What Gemini reads automatically
 
-When you call `=AI()` or open the side panel, Gemini's context window pulls a snapshot of:
+When you call `=AI()` from a cell or open the side panel, Gemini's context window pulls a snapshot of the active sheet. There's no setup step; you don't list which columns are relevant. The model just looks at what you have, in roughly this order of priority: the range you passed as the second argument, the cells around the formula, then the broader sheet.
 
-- **Cell values** in the active sheet, sampled or summarized when the data is large.
-- **Formulas** as their text, not just their computed values. Gemini can read `=SUMIFS(...)` and reason about it.
-- **Sheet structure**: column headers, data types, sheet titles, named ranges.
-- **Recent edits**: the last few changes you made, useful for "fix what I just broke" prompts.
-- **Charts and pivots** on the active sheet, including their source ranges and types.
-- **Cell notes and comments** that are visible on the active sheet.
+The contents of that snapshot fall into six categories, and every one of them carries trade-offs in a real adtech workbook.
 
-To open the side panel: click the **Ask Gemini** button at the top right of the spreadsheet (next to the Share button), or use `Ctrl+Alt+G` on Windows / `Cmd+Ctrl+G` on Mac. The panel docks on the right and stays open while you work.
+| Category | What's in scope | Trade-off |
+|---|---|---|
+| Cell values | The values you'd see on screen, sampled or summarized when large | Sampling means large-sheet answers are approximations, not exact counts |
+| Formulas | Formula text, not just the computed value | Gemini reads `=SUMIFS(...)`, which is great; it can also misread a complex formula and confidently explain the wrong thing |
+| Sheet structure | Column headers, data types, sheet titles, named ranges | If your headers are ambiguous (`Buyer` vs `Media Buyer`), Gemini guesses, often wrongly |
+| Recent edits | The last few changes you made | Useful for "fix what I just broke" prompts; not a substitute for version history |
+| Charts and pivots | On the active sheet, including source ranges | If the chart's source range is broken, Gemini still describes the chart as if it were fine |
+| Cell notes and comments | Visible notes on the active sheet | PII left in a comment is in the snapshot |
 
-The key word is *active sheet*. Other tabs in the same spreadsheet may be sampled lightly or skipped depending on the prompt and the workbook size. Other spreadsheets in your Drive are not in scope unless you explicitly reference them or paste in their data.
+To open the side panel: click the **Ask Gemini** button at the top right of the spreadsheet (the sparkle icon next to the Share button), or use `Ctrl+Alt+G` on Windows / `Cmd+Ctrl+G` on Mac. The panel docks on the right and stays open while you work, anchored to the active tab.
+
+<FunctionRef name="AI" />
+
+The key word in the table is *active sheet*. Other tabs in the same spreadsheet may be sampled lightly or skipped entirely depending on the prompt and the workbook size. Other spreadsheets in your Drive are not in scope unless you paste in the data or, in newer Workspace plans, the side panel explicitly pulls them via Workspace Intelligence. Lessons 5.4 and 5.5 lean on this distinction.
+
+<QuickCheck
+  question="You write =AI('Summarize this dataset') in a cell on the 'Daily' tab but omit the range argument. Gemini's answer talks about your 'Campaigns' tab instead. What's the most likely cause?"
+  options={[
+    {
+      id: "a",
+      label: <>Gemini is hallucinating, the answer should be discarded.</>,
+      correct: false,
+      explanation: "Possible, but the more specific explanation is that without a range, Gemini snapshots the active sheet's neighborhood. If you were last looking at Campaigns or switched tabs mid-call, that's what landed in context.",
+    },
+    {
+      id: "b",
+      label: <>Without an explicit range, Gemini grounds on the cells around the formula and the active sheet's neighborhood; that's what shaped the answer.</>,
+      correct: true,
+      explanation: "Correct. Always pass a bounded range like A2:F31 when you care which data Gemini reads. The range argument is what pins the snapshot.",
+    },
+    {
+      id: "c",
+      label: <>The =AI() function always reads every tab in the workbook.</>,
+      correct: false,
+      explanation: "It does not. AI() is scoped to the active sheet plus whatever you pass as the second argument. Other tabs are out of scope unless explicitly referenced.",
+    },
+  ]}
+/>
 
 ## Truncation: the big-sheet problem
 
-A 60-row campaign log fits in one snapshot. A 50,000-row aggregator does not. When the active sheet is too big for the context window, Gemini sees a sample, not the full data. Which rows? Some mixture of the top, the bottom, and a stratified middle. You do not get to choose.
+A 60-row campaign log fits inside one snapshot. A 50,000-row aggregator does not. When the active sheet is too big for the context window, Gemini sees a sample, not the full data. The sample is some mixture of the top, the bottom, and a stratified middle. You do not get to choose which rows.
+
+The team feels this every time someone asks Gemini to summarize the master aggregator. The answer sounds confident; it cites specific buyers and specific numbers; the numbers are mostly right. The 5% of the time they're not, nobody notices because the sentence reads cleanly.
 
 Two operational consequences:
 
 1. **Summaries of large sheets are approximations.** "Which buyer spent the most last month" can be wrong if the relevant rows weren't in the sample.
-2. **Counts and totals from prose prompts are unreliable.** Use `SUM` and `COUNTIF` formulas for numbers. Use AI prompts for qualitative work like classification and summary.
+2. **Counts and totals from prose prompts are unreliable.** Use `SUM`, `COUNTIF`, or `QUERY` for numbers. Use AI prompts for qualitative work like classification and summary.
 
-The fix in practice: pre-aggregate. Run a `QUERY` that rolls the 50,000 rows up to one-per-buyer or one-per-day, put the result on a tab, and prompt Gemini on the rolled-up tab. The same prompt gets a much more accurate answer when the data fits.
+The fix in practice: pre-aggregate. Run a `QUERY` that rolls the 50,000 rows up to one-per-buyer or one-per-day, put the result on a tab, and prompt Gemini on the rolled-up tab. The same prompt gets a much more accurate answer when the data actually fits.
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=AI("Which buyer had the highest total spend in April?", Aggregator!A:H)`}</code></pre>
+    <p className="mt-2 text-sm">50,000 rows, unbounded range, prose prompt that asks for a number. Gemini sees a sample, picks a buyer that looked spendy in the sample, and writes a confident sentence. The actual answer can be wrong.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(Aggregator!A1:H50001,
+  "SELECT B, SUM(F) WHERE A >= date '2026-04-01'
+   AND A < date '2026-05-01' GROUP BY B
+   ORDER BY SUM(F) DESC LIMIT 1")`}</code></pre>
+    <p className="mt-2 text-sm">Deterministic, exact, free, returns the same answer every refresh. AI was never the right tool for this question.</p>
+  </ComparePanel>
+</Compare>
 
 ## What Gemini cannot see
 
-A few categories the team trips on constantly:
+A few categories the team trips on constantly. Surface them in your head every time you write a prompt, and you'll save a day a quarter on debugging.
 
-- **Cross-spreadsheet IMPORTRANGE sources.** Gemini sees the *resolved* values that landed in your sheet, not the source workbook. If your aggregator pulls Taboola data via IMPORTRANGE, Gemini sees the imported rows. It cannot tell you whether the source had more rows that did not import, whether the source range is bounded, or whether the source workbook has other tabs.
-- **Tabs you did not open recently.** Tabs in the same spreadsheet that haven't been touched may not be in the active context for an `=AI()` call placed on a different tab.
-- **Permissions and sharing.** Gemini does not know who has access to the file.
+- **Cross-spreadsheet IMPORTRANGE sources.** Gemini sees the *resolved* values that landed in your sheet, not the source workbook. If your aggregator pulls Taboola data via `IMPORTRANGE`, Gemini sees the imported rows. It cannot tell you whether the source had more rows that didn't import, whether the source range is bounded too narrowly, or whether the source workbook has other tabs. Track 1 lesson 27 and Track 4 lesson 3 cover IMPORTRANGE in depth.
+- **Tabs you did not open recently.** Tabs in the same spreadsheet that haven't been touched may not be in the active context for an `=AI()` call placed on a different tab. If you need cross-tab analysis, either click into the source tab first or pass the range explicitly.
+- **Permissions and sharing.** Gemini does not know who has access to the file. Don't ask it.
 - **Hidden rows that were filtered.** Filter views hide rows from your eye, and Gemini's sample may follow the same visibility rules. Manually hidden rows are a gray area; test before trusting.
+- **Data outside Sheets.** No Drive contents, no Gmail threads, no Calendar events unless the newer side-panel Workspace Intelligence is enabled in your plan. Don't assume it is. Ask your admin.
+
+<MiniGrid
+  data={CAMPAIGNS.slice(0, 7)}
+  caption="Toy data: 6 campaign rows. Small enough that Gemini sees every cell, every formula, every header. This is the only size where you should trust prompts like 'list the top three by revenue' without verification."
+/>
+
+## Non-determinism: the same prompt, two answers
+
+This is the property of AI that breaks the most spreadsheet intuitions. Every other function on your sheet is a pure function: same inputs, same output, every time. `=SUM(F2:F61)` always returns the same number. `=AI("Categorize: " & C2)` does not.
+
+Two calls of the same `AI()` formula with the same inputs can return two different strings. The model is non-deterministic by design. Run the formula on Monday, run it again on Friday after a refresh, and some of the cells will have shifted. The consequence is real: reports that should reconcile will disagree, and the cause is invisible because the cells look like any other cells.
+
+<Compare>
+  <ComparePanel label="The trap" tone="negative">
+    <pre className="font-mono text-xs"><code>{`H2: =AI("Risk: low/med/high. Spend " & F2 & " Rev " & G2)
+... dragged to H61
+
+Friday: a teammate refreshes the sheet.
+Some H values change.
+The dashboard "high risk count" was 7 yesterday, 9 today.`}</code></pre>
+    <p className="mt-2 text-sm">Nothing in the workbook tells you which cells shifted. The dashboard quietly disagrees with last week's report.</p>
+  </ComparePanel>
+  <ComparePanel label="The discipline" tone="positive">
+    <pre className="font-mono text-xs"><code>{`1. Run =AI(...) in H2:H61.
+2. Inspect the column.
+3. Copy H2:H61.
+4. Paste-special > values into H2:H61.
+5. Now H is frozen text; the dashboard is reproducible.`}</code></pre>
+    <p className="mt-2 text-sm">Paste-as-values is the audit trail. Re-run weekly if you need fresh classification; freeze each run.</p>
+  </ComparePanel>
+</Compare>
 
 ## Cost and quotas
 
-Every `=AI()` call and every side-panel prompt is billable per your Workspace plan. There's no "free tier" inside the Sheets product; the billing model is the same as Gemini in the rest of Workspace. Through July 15 2026 there's a promotional window with higher per-user quotas, after which usage settles to per-plan limits. The right person to ask is your Workspace admin.
+Every `=AI()` call and every side-panel prompt is billable per your Workspace plan. There is no "free tier" inside the Sheets product; the billing model is the same as Gemini in the rest of Workspace. Through July 15 2026 there's a promotional window with higher per-user quotas, after which usage settles to per-plan limits. The right person to ask is your Workspace admin.
 
-The trap to watch for: dragging an `=AI()` formula down 50,000 rows. That's 50,000 paid calls, and each one is slow (seconds, not milliseconds), so the recalc plus the bill stack up fast. Use AI sparingly on large sheets. Use formulas where you can.
+The trap to watch for: dragging an `=AI()` formula down a column of 5,000 or 50,000 rows. That's 5,000 or 50,000 paid calls, and each one is slow (seconds, not milliseconds), so the recalc plus the bill stack up fast. The cap on multi-cell runs is 350 cells per generate, but you can repeat the run, which compounds the cost. Use AI sparingly on large sheets. Use formulas where you can. Lesson 5.6 builds out the full decision framework.
+
+<QuickCheck
+  question="You're about to drag =AI('Classify this vertical: ' & C2) down 10,000 rows. Which concern matters most?"
+  options={[
+    {
+      id: "a",
+      label: <>Recalculation will be slow because each call takes seconds.</>,
+      correct: false,
+      explanation: "True, but it's the second-worst problem. The bigger concern is below.",
+    },
+    {
+      id: "b",
+      label: <>Every call is billed, and 10,000 paid calls per refresh adds up fast.</>,
+      correct: false,
+      explanation: "Also true, and a real cost issue. But there's a third concern that often dominates the other two.",
+    },
+    {
+      id: "c",
+      label: <>All of the above, plus a ~5% silent-error rate across 10,000 cells means roughly 500 wrong classifications nobody catches in review.</>,
+      correct: true,
+      explanation: "All three compound. Slow, expensive, and quietly wrong are each bad on their own; together they're a 'don't drag AI() down a long column' rule. Pre-aggregate or paste-as-values.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -69,11 +171,13 @@ In the team's actual aggregator workbook:
 - **A pinned summary cell sits at A1 of every dashboard.** A one-paragraph plain-English description of what the tab is for. Gemini reads it as the first thing in the snapshot and anchors on it, which makes side-panel prompts much more grounded.
 - **The 50,000-row aggregator never sees `=AI()` directly.** Instead, a `Daily Summary` tab rolls it up to 30 rows. Any AI work runs on the summary, not the raw log.
 - **Cost guardrails live in a separate tab.** Quota usage gets logged manually weekly so the team notices the spike before the bill arrives.
+- **The "freeze with paste-as-values" pattern is the audit trail.** Any AI-generated column that feeds a dashboard gets frozen before the dashboard reads from it. The live AI column never reaches a stakeholder report.
 
 ## Pro pitfalls
 
 - **Assuming Gemini can read the source of an IMPORTRANGE.** It cannot. It sees the resolved values that landed in your sheet. If the source range is truncated, Gemini sees the truncated import, not the full source.
 - **Two AI calls in a row return different things.** Gemini's view of the sheet changes between calls if you've edited anything. Even without edits, the model is non-deterministic. Don't rely on call N+1 reproducing call N.
-- **PII in the snapshot.** The active sheet is what Gemini reads. If you have customer emails, names, or any other PII visible, that data is in the context. Check your Workspace plan's data-handling terms before sending PII through Gemini.
+- **PII in the snapshot.** The active sheet is what Gemini reads. If you have customer emails, names, or any other PII visible, that data is in the context. Check your Workspace plan's data-handling terms before sending PII through Gemini. Lesson 5.6 expands the PII policy.
 - **`=AI()` dragged down a 50,000-row column.** Per-row AI calls compound fast. You'll hit your quota, blow up recalc time, and discover that 5% of the calls returned subtly wrong answers that nobody caught. Pre-aggregate first.
 - **Charts and pivots on hidden tabs.** They may or may not be in scope. The rule of thumb: if the side panel says "Working with X tab", that's what Gemini is reading. If you need it to read more, switch tabs first.
+- **Schema mismatch between prompt and headers.** You write "Categorize this Profit value" but the header reads `Net Revenue`. Gemini guesses there's a Profit column that doesn't exist, calculates a plausible-sounding number, and your dashboard quietly reads it. Always name fields with the exact header text.
