@@ -20,9 +20,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## IFERROR: לתפוס הכל
 
-`IFERROR(formula, fallback)` מריץ את הנוסחה. אם היא משגה, מחזיר את ה-fallback במקום. מטפל השגיאות שהכי משתמשים בו.
+`IFERROR(formula, fallback)` מריץ את הנוסחה. אם היא משגה, מחזיר את ה-fallback במקום. מטפל השגיאות שהכי משתמשים בו. הוא גם הקהה ביותר: הוא תופס כל סוג שגיאה עם fallback אחד, וזה נוח ולעיתים קרובות הבחירה הלא נכונה.
 
 המקרה הקלאסי באדטק: חישוב ROI. `=F2/E2` משגה כש-spend הוא אפס. עוטפים ב-IFERROR כדי להחזיר 0 (או "no spend" או מה שהגיוני ל-dashboard שלכם).
+
+<FunctionRef name="IFERROR" />
 
 <TryIt
   data={[
@@ -43,6 +45,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 זה משנה ל-XLOOKUPs באדטק. אם ה-vertical של קמפיין לא נמצא בטבלת ה-lookup של Verticals, מקבלים `#N/A`, וזה בסדר, מספקים fallback כמו "Unknown". אבל אם טבלת ה-Verticals שמיובאת ב-IMPORTRANGE עצמה שבורה (`#REF!` מהרשאות שנשללו), רוצים שהשגיאה הזאת תצוף ככה שיהיה אפשר לתקן אותה. IFERROR היה מסתיר את שתיהן באותה מידה, IFNA מסתיר רק את מקרה ההתאמה החסרה.
 
+<FunctionRef name="IFNA" />
+
 <TryIt
   data={[
     ["Vertical", "Category", ""],
@@ -59,6 +63,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 ## ISNA, ISERROR, בני הדודים של IFERROR מבית IF
 
 לפעמים רוצים *לבדוק* אם ערך הוא שגיאה, לא להחליף אותו. `ISNA(value)` מחזיר TRUE אם הערך הוא `#N/A`. `ISERROR(value)` מחזיר TRUE לכל שגיאה. שימושי בתוך `IF` ללוגיקה מותנית, "אם ה-lookup הצליח, עשה X, אם לא, עשה Y".
+
+<FunctionRef name="ISERROR" />
 
 ```
 =IF(ISNA(XLOOKUP(...)), "Add to backlog", "Already known")

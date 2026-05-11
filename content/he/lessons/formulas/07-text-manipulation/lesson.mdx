@@ -12,7 +12,13 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 - `RIGHT(text, n)` מחזיר את `n` התווים האחרונים
 - `MID(text, start, n)` מחזיר `n` תווים החל ממיקום `start` (1-indexed)
 
-שמות ה-verticals של הצוות כולם מסתיימים ב-`" PR"` לפי הקונבנציה. כדי לקבל רק את הנושא, להוריד את 3 התווים האחרונים, צריך `LEFT` בשילוב עם `LEN`.
+שמות ה-verticals של הצוות כולם מסתיימים ב-`" PR"` לפי הקונבנציה. כדי לקבל רק את הנושא, להוריד את 3 התווים האחרונים, צריך `LEFT` בשילוב עם `LEN` (הוצג בשיעור 3).
+
+<FunctionRef name="LEFT" />
+
+<FunctionRef name="RIGHT" />
+
+<FunctionRef name="MID" />
 
 <MiniGrid
   data={CAMPAIGNS}
@@ -31,9 +37,13 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## FIND: לאתר תו
 
-`FIND(needle, haystack, [start])` מחזיר את ה**מיקום** של ההתאמה הראשונה. הוא 1-indexed ורגיש ל-case. `SEARCH` הוא האח שלא רגיש ל-case.
+`FIND(needle, haystack, [start])` מחזיר את ה**מיקום** של ההתאמה הראשונה. הוא 1-indexed ורגיש ל-case. `SEARCH` הוא האח שלא רגיש ל-case, באותה צורה אבל סובלני להבדלי case. מושכים ל-`SEARCH` כשטקסט המקור מגיע מ-feeds לא עקביים במעלה הזרם; מושכים ל-`FIND` כש-case משנה (פירסור של קודי הקמפיין של הצוות שמבדילים בין "PR" ל-"pr").
 
 מרכיבים את `FIND` עם `LEFT`/`RIGHT`/`MID` כדי לחתוך לפי מפריד ידוע במקום מיקום ידוע. ל-vertical כמו `"Used Cars PR"`, המילה הראשונה היא כל מה שמשמאל לרווח הראשון, אבל המיקום משתנה לפי שם ה-vertical.
+
+<FunctionRef name="FIND" />
+
+<FunctionRef name="SEARCH" />
 
 <TryIt
   data={CAMPAIGNS}
@@ -59,7 +69,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## SUBSTITUTE: להחליף תת-מחרוזת באחרת
 
-`SUBSTITUTE(text, old, new, [occurrence])` מחליף כל מופע של `old` ב-`new`. מעבירים מספר `occurrence` כדי להחליף רק את המופע ה-n. שימושי לקיצור שמות לגרפים, לנרמול מפרידים לא עקביים או להסרת תווים לא רצויים.
+`SUBSTITUTE(text, old, new, [occurrence])` מחליף כל מופע של `old` ב-`new`. מעבירים מספר `occurrence` כדי להחליף רק את המופע ה-n. שימושי לקיצור שמות לגרפים, לנרמול מפרידים לא עקביים או להסרת תווים לא רצויים. כרטיס ה-reference המלא הוצג בשיעור 3 לצד `TRIM`; פה אנחנו מראים את הווריאנט שמודע-למיקום שלו דרך ה-occurrence_number האופציונלי.
 
 <TryIt
   data={CAMPAIGNS}

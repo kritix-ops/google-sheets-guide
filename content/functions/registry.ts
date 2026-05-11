@@ -1417,6 +1417,436 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/3094017?hl=en",
   },
 
+  LEFT: {
+    name: "LEFT",
+    category: "text",
+    summary: {
+      en: "Returns the leftmost N characters of a string. The standard way to grab a known-length prefix like a 2-letter buyer code or a 3-letter country code.",
+      he: "מחזיר את N התווים השמאליים של מחרוזת. הדרך הסטנדרטית לתפוס prefix באורך ידוע כמו קוד buyer בן 2 אותיות או קוד מדינה בן 3 אותיות.",
+    },
+    syntax: "LEFT(string, [number_of_characters])",
+    params: [
+      {
+        name: "string",
+        type: "string",
+        description: {
+          en: "The source text.",
+          he: "מחרוזת המקור.",
+        },
+      },
+      {
+        name: "number_of_characters",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "How many characters to return from the left. 0 returns an empty string; a count larger than the string returns the whole string.",
+          he: "כמה תווים להחזיר מהשמאל. 0 מחזיר מחרוזת ריקה; ספירה גדולה מהמחרוזת מחזירה את כל המחרוזת.",
+        },
+      },
+    ],
+    returns: {
+      en: "A substring containing the first N characters of the input.",
+      he: "תת-מחרוזת שמכילה את N התווים הראשונים של הקלט.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094079?hl=en",
+  },
+
+  RIGHT: {
+    name: "RIGHT",
+    category: "text",
+    summary: {
+      en: "Returns the rightmost N characters of a string. The mirror of LEFT; useful for suffixes like the team's mandatory ' PR' tag on vertical names.",
+      he: "מחזיר את N התווים הימניים של מחרוזת. המראה של LEFT; שימושי ל-suffixes כמו תג ה-' PR' שחובה בסוף שמות verticals של הצוות.",
+    },
+    syntax: "RIGHT(string, [number_of_characters])",
+    params: [
+      {
+        name: "string",
+        type: "string",
+        description: {
+          en: "The source text.",
+          he: "מחרוזת המקור.",
+        },
+      },
+      {
+        name: "number_of_characters",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "How many characters to return from the right.",
+          he: "כמה תווים להחזיר מהימין.",
+        },
+      },
+    ],
+    returns: {
+      en: "A substring containing the last N characters.",
+      he: "תת-מחרוזת שמכילה את N התווים האחרונים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094087?hl=en",
+  },
+
+  MID: {
+    name: "MID",
+    category: "text",
+    summary: {
+      en: "Returns a substring of given length starting at a 1-indexed position. The tool for slicing the middle of a campaign code at known offsets.",
+      he: "מחזיר תת-מחרוזת באורך נתון שמתחילה במיקום 1-indexed. הכלי לחיתוך האמצע של campaign code ב-offsets ידועים.",
+    },
+    syntax: "MID(string, starting_at, extract_length)",
+    params: [
+      {
+        name: "string",
+        type: "string",
+        description: {
+          en: "The source text.",
+          he: "מחרוזת המקור.",
+        },
+      },
+      {
+        name: "starting_at",
+        type: "number",
+        description: {
+          en: "Where to start (1 = first character). Values past the string's end return empty.",
+          he: "היכן להתחיל (1 = התו הראשון). ערכים שמעבר לסוף המחרוזת מחזירים ריק.",
+        },
+      },
+      {
+        name: "extract_length",
+        type: "number",
+        description: {
+          en: "How many characters to take. If you run past the end, MID returns whatever remains.",
+          he: "כמה תווים לקחת. אם רצים מעבר לסוף, MID מחזיר את מה שנשאר.",
+        },
+      },
+    ],
+    returns: {
+      en: "The requested middle slice.",
+      he: "החיתוך האמצעי המבוקש.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094129?hl=en",
+  },
+
+  FIND: {
+    name: "FIND",
+    category: "text",
+    summary: {
+      en: "Returns the 1-indexed position where a substring first appears inside text. Case-sensitive; SEARCH is the case-insensitive cousin. Errors with #VALUE! when no match exists.",
+      he: "מחזיר את המיקום 1-indexed שבו תת-מחרוזת מופיעה לראשונה בתוך טקסט. רגיש לאותיות; SEARCH הוא בן-הדוד שלא רגיש לאותיות. נכשל עם #VALUE! כשאין התאמה.",
+    },
+    syntax: "FIND(search_for, text_to_search, [starting_at])",
+    params: [
+      {
+        name: "search_for",
+        type: "string",
+        description: {
+          en: "The substring to look for. Case-sensitive: 'PR' will not match 'pr'.",
+          he: "התת-מחרוזת לחיפוש. רגישה לאותיות: 'PR' לא יתאים ל-'pr'.",
+        },
+      },
+      {
+        name: "text_to_search",
+        type: "string",
+        description: {
+          en: "The string to scan.",
+          he: "המחרוזת לסריקה.",
+        },
+      },
+      {
+        name: "starting_at",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "Where in text_to_search to begin scanning. Useful for finding the second occurrence by starting just after the first.",
+          he: "היכן ב-text_to_search להתחיל לסרוק. שימושי למציאת המופע השני על ידי התחלה ממש אחרי הראשון.",
+        },
+      },
+    ],
+    returns: {
+      en: "The 1-indexed position of the first match. #VALUE! if not found: wrap in IFERROR for production safety.",
+      he: "המיקום 1-indexed של ההתאמה הראשונה. #VALUE! אם לא נמצא: עוטפים ב-IFERROR לבטיחות ב-production.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094126?hl=en",
+  },
+
+  SEARCH: {
+    name: "SEARCH",
+    category: "text",
+    summary: {
+      en: "The case-insensitive twin of FIND. Returns the 1-indexed position of the first match. Supports the same ? and * wildcards as COUNTIF criteria.",
+      he: "התאום של FIND שלא רגיש לאותיות. מחזיר את המיקום 1-indexed של ההתאמה הראשונה. תומך באותם wildcards של ? ו-* כמו קריטריונים של COUNTIF.",
+    },
+    syntax: "SEARCH(search_for, text_to_search, [starting_at])",
+    params: [
+      {
+        name: "search_for",
+        type: "string",
+        description: {
+          en: "The substring or wildcard pattern to look for. Not case-sensitive.",
+          he: "התת-מחרוזת או תבנית ה-wildcard לחיפוש. לא רגיש לאותיות.",
+        },
+      },
+      {
+        name: "text_to_search",
+        type: "string",
+        description: {
+          en: "The string to scan.",
+          he: "המחרוזת לסריקה.",
+        },
+      },
+      {
+        name: "starting_at",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "1-indexed starting position.",
+          he: "מיקום התחלה 1-indexed.",
+        },
+      },
+    ],
+    returns: {
+      en: "The 1-indexed position of the first match. #VALUE! if not found.",
+      he: "המיקום 1-indexed של ההתאמה הראשונה. #VALUE! אם לא נמצא.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094154?hl=en",
+  },
+
+  NOW: {
+    name: "NOW",
+    category: "date",
+    summary: {
+      en: "Returns the current date and time. Volatile: recalculates on every edit, so heavy use on big sheets is expensive. The date-and-time twin of TODAY.",
+      he: "מחזיר את התאריך והשעה הנוכחיים. תנודתית: מחושבת מחדש בכל עריכה, אז שימוש כבד בגיליונות גדולים יקר. התאום של TODAY עם תאריך-ושעה.",
+    },
+    syntax: "NOW()",
+    params: [],
+    returns: {
+      en: "The current date and time as a date-time value.",
+      he: "התאריך והשעה הנוכחיים כערך date-time.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3092981?hl=en",
+  },
+
+  EOMONTH: {
+    name: "EOMONTH",
+    category: "date",
+    summary: {
+      en: "Returns the last day of the month offset by N months from a start date. The canonical way to compute billing-period ends and cohort buckets.",
+      he: "מחזיר את היום האחרון של חודש שהוא ב-offset של N חודשים מתאריך התחלה. הדרך הקנונית לחשב סופי תקופות חיוב ו-cohort buckets.",
+    },
+    syntax: "EOMONTH(start_date, months)",
+    params: [
+      {
+        name: "start_date",
+        type: "date",
+        description: {
+          en: "The starting date. Must be a real date value, not a text string. IMPORTRANGE'd text dates need DATEVALUE first.",
+          he: "תאריך ההתחלה. חייב להיות ערך תאריך אמיתי, לא מחרוזת טקסט. תאריכי טקסט מ-IMPORTRANGE צריכים DATEVALUE קודם.",
+        },
+      },
+      {
+        name: "months",
+        type: "number",
+        description: {
+          en: "Offset in months. 0 = end of the start_date's own month. Positive moves forward, negative moves backward. Decimals are truncated.",
+          he: "Offset בחודשים. 0 = סוף חודש ה-start_date עצמו. חיובי קדימה, שלילי אחורה. עשרוניים נחתכים.",
+        },
+      },
+    ],
+    returns: {
+      en: "A date value (the last day of the resulting month). Format the cell as Date or you'll see the serial number.",
+      he: "ערך תאריך (היום האחרון של החודש שמתקבל). עצבו את התא כתאריך או שתראו את המספר הסידורי.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093044?hl=en",
+  },
+
+  NETWORKDAYS: {
+    name: "NETWORKDAYS",
+    category: "date",
+    summary: {
+      en: "Counts working days (Mon-Fri) between two dates, inclusive on both ends. Optional holidays range gets subtracted too. The foundation of every budget pacing alert.",
+      he: "סופר ימי עבודה (שני-שישי) בין שני תאריכים, כולל את שני הקצוות. טווח holidays אופציונלי גם מופחת. הבסיס של כל alert של pacing תקציב.",
+    },
+    syntax: "NETWORKDAYS(start_date, end_date, [holidays])",
+    params: [
+      {
+        name: "start_date",
+        type: "date",
+        description: {
+          en: "The first day of the range. Must be a date value, not a text string.",
+          he: "היום הראשון בטווח. חייב להיות ערך תאריך, לא מחרוזת טקסט.",
+        },
+      },
+      {
+        name: "end_date",
+        type: "date",
+        description: {
+          en: "The last day of the range, inclusive.",
+          he: "היום האחרון בטווח, כולל.",
+        },
+      },
+      {
+        name: "holidays",
+        type: "range | array",
+        optional: true,
+        description: {
+          en: "A range or array of dates to also exclude. Reference a named range from a Config sheet so every NETWORKDAYS in the workbook uses the same calendar.",
+          he: "טווח או מערך של תאריכים גם להחריג. הפנו ל-named range מגיליון Config כדי שכל NETWORKDAYS ב-workbook ישתמש באותו לוח שנה.",
+        },
+      },
+    ],
+    returns: {
+      en: "A whole number: working days in the range. Use NETWORKDAYS.INTL for non-Mon-Fri workweeks.",
+      he: "מספר שלם: ימי עבודה בטווח. השתמשו ב-NETWORKDAYS.INTL לשבועות עבודה שאינם שני-שישי.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3092979?hl=en",
+  },
+
+  DATEDIF: {
+    name: "DATEDIF",
+    category: "date",
+    summary: {
+      en: "Returns the difference between two dates in years, months, or days based on a unit code. The tool for tenure, age, time-to-deadline calculations.",
+      he: "מחזיר את ההפרש בין שני תאריכים בשנים, חודשים או ימים על בסיס קוד יחידה. הכלי לחישובי tenure, גיל, זמן-עד-deadline.",
+    },
+    syntax: "DATEDIF(start_date, end_date, unit)",
+    params: [
+      {
+        name: "start_date",
+        type: "date",
+        description: {
+          en: "The earlier date.",
+          he: "התאריך המוקדם יותר.",
+        },
+      },
+      {
+        name: "end_date",
+        type: "date",
+        description: {
+          en: "The later date. Must be >= start_date or DATEDIF returns #NUM!.",
+          he: "התאריך המאוחר יותר. חייב להיות >= start_date או ש-DATEDIF מחזיר #NUM!.",
+        },
+      },
+      {
+        name: "unit",
+        type: "string",
+        accepts: [
+          { value: '"Y"', description: { en: "Whole years between the dates.", he: "שנים שלמות בין התאריכים." } },
+          { value: '"M"', description: { en: "Whole months.", he: "חודשים שלמים." } },
+          { value: '"D"', description: { en: "Days.", he: "ימים." } },
+          { value: '"YM"', description: { en: "Months remaining after subtracting whole years. Useful with 'Y' for 'X years and Y months' output.", he: "חודשים שנותרו לאחר חיסור שנים שלמות. שימושי עם 'Y' לפלט של 'X שנים ו-Y חודשים'." } },
+          { value: '"YD"', description: { en: "Days elapsed assuming dates fall within one year.", he: "ימים שעברו בהנחה שהתאריכים נופלים בתוך שנה אחת." } },
+          { value: '"MD"', description: { en: "Days after subtracting whole months. Has documented edge cases; avoid in production.", he: "ימים לאחר חיסור חודשים שלמים. יש מקרי קצה מתועדים; להימנע בפרודקשן." } },
+        ],
+        description: {
+          en: "The unit code (string in quotes) for the result.",
+          he: "קוד היחידה (מחרוזת במרכאות) לתוצאה.",
+        },
+      },
+    ],
+    returns: {
+      en: "A whole number in the requested unit. Always rounds down.",
+      he: "מספר שלם ביחידה המבוקשת. תמיד מעגל למטה.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/6055612?hl=en",
+  },
+
+  IFERROR: {
+    name: "IFERROR",
+    category: "logical",
+    summary: {
+      en: "Returns the value of an expression, or a fallback if the expression errors. The catch-all error wrapper: convenient, but a sledgehammer that hides every error type at once.",
+      he: "מחזיר את הערך של ביטוי, או fallback אם הביטוי שוגה. ה-wrapper הכללי לשגיאות: נוח, אבל הוא פטיש שמסתיר כל סוג שגיאה בבת אחת.",
+    },
+    syntax: "IFERROR(value, [value_if_error])",
+    params: [
+      {
+        name: "value",
+        type: "expression",
+        description: {
+          en: "The expression to try.",
+          he: "הביטוי לנסות.",
+        },
+      },
+      {
+        name: "value_if_error",
+        type: "any",
+        optional: true,
+        default: "blank",
+        description: {
+          en: "What to return if `value` is any error. Omitting it makes errors render as blank, which often creates downstream surprises.",
+          he: "מה להחזיר אם value הוא איזושהי שגיאה. השמטה גורמת לשגיאות להופיע כריקות, מה שיוצר לעיתים קרובות הפתעות במורד הזרם.",
+        },
+      },
+    ],
+    returns: {
+      en: "The original value when no error, otherwise the fallback.",
+      he: "הערך המקורי כשאין שגיאה, אחרת ה-fallback.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093304?hl=en",
+  },
+
+  IFNA: {
+    name: "IFNA",
+    category: "logical",
+    summary: {
+      en: "Returns the value of an expression, or a fallback when the expression is specifically #N/A. Lets every other error type pass through so real failures stay visible.",
+      he: "מחזיר את הערך של ביטוי, או fallback כשהביטוי הוא ספציפית #N/A. נותן לכל סוג שגיאה אחר לעבור כדי שכישלונות אמיתיים יישארו גלויים.",
+    },
+    syntax: "IFNA(value, value_if_na)",
+    params: [
+      {
+        name: "value",
+        type: "expression",
+        description: {
+          en: "The expression to evaluate.",
+          he: "הביטוי להערכה.",
+        },
+      },
+      {
+        name: "value_if_na",
+        type: "any",
+        description: {
+          en: "What to return when value is #N/A. Required argument: IFNA does not default to blank like IFERROR.",
+          he: "מה להחזיר כש-value הוא #N/A. argument חובה: IFNA לא נופל לברירת מחדל של ריק כמו IFERROR.",
+        },
+      },
+    ],
+    returns: {
+      en: "The original value if not #N/A; the fallback if #N/A; the original error otherwise (#REF!, #VALUE!, etc. pass through).",
+      he: "הערך המקורי אם לא #N/A; ה-fallback אם #N/A; השגיאה המקורית אחרת (#REF!, #VALUE! וכו' עוברים).",
+    },
+    docsUrl: "https://support.google.com/docs/answer/9365944?hl=en",
+  },
+
+  ISERROR: {
+    name: "ISERROR",
+    category: "info",
+    summary: {
+      en: "Returns TRUE if a value is any error (#N/A, #REF!, #DIV/0!, etc.), FALSE otherwise. Use inside IF to branch on whether a formula succeeded.",
+      he: "מחזיר TRUE אם ערך הוא כל שגיאה (#N/A, #REF!, #DIV/0! וכו'), FALSE אחרת. שימושי בתוך IF להסתעפות לפי אם נוסחה הצליחה.",
+    },
+    syntax: "ISERROR(value)",
+    params: [
+      {
+        name: "value",
+        type: "any",
+        description: {
+          en: "The value or formula result to test. ISERR is the variant that returns FALSE for #N/A.",
+          he: "הערך או תוצאת הנוסחה לבדיקה. ISERR הוא הווריאנט שמחזיר FALSE עבור #N/A.",
+        },
+      },
+    ],
+    returns: {
+      en: "TRUE if the value is any error type; FALSE otherwise.",
+      he: "TRUE אם הערך הוא כל סוג שגיאה; FALSE אחרת.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093349?hl=en",
+  },
+
   QUERY: {
     name: "QUERY",
     category: "query",

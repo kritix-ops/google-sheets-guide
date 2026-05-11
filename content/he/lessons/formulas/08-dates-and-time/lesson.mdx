@@ -18,6 +18,10 @@ export const DATE_NUMBERS = [
 
 זאת גם מלכודת. אם כותבים `=TODAY()-A2` כדי לחשב "ימים מאז ההשקה", הערך הזה משתנה כל יום. אם רוצים snapshot לדוח רבעוני, מדביקים את הערך (`Ctrl+Shift+V ← Values only`) במקום להשאיר את הנוסחה חיה.
 
+<FunctionRef name="TODAY" />
+
+<FunctionRef name="NOW" />
+
 <MiniGrid
   data={DATE_NUMBERS}
   caption="אותם תאריכים, תצוגות שונות. העמודה הימנית היא מה ש-Sheets בעצם שומר."
@@ -25,7 +29,7 @@ export const DATE_NUMBERS = [
 
 ## DATE: בנו תאריך מחלקים
 
-`DATE(year, month, day)` בונה תאריך מחלקיו. שימושי לתאריכי ייחוס מקובעים (סופי שנה, גבולות פיסקאליים, תאריכי השקת קמפיין) ולשילוב של year/month/day מתאים אחרים לערך תאריך אחד.
+`DATE(year, month, day)` בונה תאריך מחלקיו. שימושי לתאריכי ייחוס מקובעים (סופי שנה, גבולות פיסקאליים, תאריכי השקת קמפיין) ולשילוב של year/month/day מתאים אחרים לערך תאריך אחד. כרטיס ה-reference המלא הוצג בשיעור 3; אנחנו מסכמים את התנהגות ה-rollover למטה כי היא מתקשרת עם EOMONTH ו-DATEDIF בדרכים לא ברורות.
 
 <TryIt
   data={DATE_NUMBERS}
@@ -42,6 +46,8 @@ export const DATE_NUMBERS = [
 
 בעבודת אדטק, EOMONTH הוא איך מחשבים תאריכי סיום של תקופות חיוב שעוקבים אתכם לאורך החודש. הנוסחה `=EOMONTH(DATE(2026,5,1), 0)` תמיד מחזירה 31 במאי, לא משנה באיזה יום במאי מריצים אותה.
 
+<FunctionRef name="EOMONTH" />
+
 <TryIt
   data={DATE_NUMBERS}
   inputCell="D1"
@@ -57,6 +63,8 @@ export const DATE_NUMBERS = [
 
 באדטק: "ימי שידור שנשארו בחודש" = `NETWORKDAYS(TODAY(), EOMONTH(TODAY(), 0))`. שימושי להתראות על קצב שריפת תקציב.
 
+<FunctionRef name="NETWORKDAYS" />
+
 <TryIt
   data={DATE_NUMBERS}
   inputCell="D1"
@@ -69,6 +77,8 @@ export const DATE_NUMBERS = [
 ## DATEDIF: משך בין שני תאריכים
 
 `DATEDIF(start, end, unit)` מחזיר את ההפרש בשנים, חודשים או ימים. היחידה היא קוד מחרוזת: `"Y"`, `"M"`, `"D"`, `"YM"` (חודשים בלי לספור שנים), `"YD"` (ימים בלי לספור שנים), `"MD"` (ימים בלי לספור חודשים ושנים). שימוש נפוץ באדטק: חודשים שבהם media buyer בצוות, חודשים מאז שהקמפיין הושק, זמן עד דדליין.
+
+<FunctionRef name="DATEDIF" />
 
 <TryIt
   data={DATE_NUMBERS}

@@ -20,9 +20,11 @@ Sheets has a small fixed set of errors. Each tells you something specific:
 
 ## IFERROR: catch anything
 
-`IFERROR(formula, fallback)` runs the formula. If it errors, returns the fallback instead. The most-used error handler.
+`IFERROR(formula, fallback)` runs the formula. If it errors, returns the fallback instead. The most-used error handler. It's also the bluntest: it catches every error type with one fallback, which is convenient and often the wrong choice.
 
 The classic adtech case: ROI calculation. `=F2/E2` errors when spend is zero. Wrap in IFERROR to return 0 (or "no spend" or whatever makes sense for your dashboard).
+
+<FunctionRef name="IFERROR" />
 
 <TryIt
   data={[
@@ -43,6 +45,8 @@ The classic adtech case: ROI calculation. `=F2/E2` errors when spend is zero. Wr
 
 This matters for adtech XLOOKUPs. If a campaign's vertical isn't in the Verticals lookup table, you get `#N/A`: that's fine, supply a fallback like "Unknown". But if the IMPORTRANGE'd Verticals table itself is broken (`#REF!` from revoked permissions), you want that error to surface so you can fix it. IFERROR would hide both equally; IFNA hides only the missing-match case.
 
+<FunctionRef name="IFNA" />
+
 <TryIt
   data={[
     ["Vertical", "Category", ""],
@@ -59,6 +63,8 @@ This matters for adtech XLOOKUPs. If a campaign's vertical isn't in the Vertical
 ## ISNA, ISERROR, IFERROR's IF cousins
 
 Sometimes you want to *test* whether a value is an error rather than substitute it. `ISNA(value)` returns TRUE if value is `#N/A`. `ISERROR(value)` returns TRUE for any error. Useful inside `IF` for conditional logic: "if the lookup succeeded, do X; if not, do Y".
+
+<FunctionRef name="ISERROR" />
 
 ```
 =IF(ISNA(XLOOKUP(...)), "Add to backlog", "Already known")

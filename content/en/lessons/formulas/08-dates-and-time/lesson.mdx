@@ -18,6 +18,10 @@ Lesson 3 introduced the date-as-number trick. This lesson goes deep on the date 
 
 It's also a trap. If you write `=TODAY()-A2` to compute "days since launch", that value changes every day. If you want a snapshot for a quarterly report, paste the value (`Ctrl+Shift+V → Values only`) instead of leaving the formula live.
 
+<FunctionRef name="TODAY" />
+
+<FunctionRef name="NOW" />
+
 <MiniGrid
   data={DATE_NUMBERS}
   caption="Same dates, different views. The right column is what Sheets actually stores."
@@ -25,7 +29,7 @@ It's also a trap. If you write `=TODAY()-A2` to compute "days since launch", tha
 
 ## DATE: build a date from parts
 
-`DATE(year, month, day)` builds a date from its parts. Useful for hardcoded reference dates (year-ends, fiscal boundaries, campaign launch dates) and for combining year/month/day from other cells into a single date value.
+`DATE(year, month, day)` builds a date from its parts. Useful for hardcoded reference dates (year-ends, fiscal boundaries, campaign launch dates) and for combining year/month/day from other cells into a single date value. The full reference card was introduced in lesson 3; we recap the rollover behavior below because it interacts with EOMONTH and DATEDIF in non-obvious ways.
 
 <TryIt
   data={DATE_NUMBERS}
@@ -42,6 +46,8 @@ It's also a trap. If you write `=TODAY()-A2` to compute "days since launch", tha
 
 In adtech work, EOMONTH is how you compute billing period end-dates that follow you through the month. The formula `=EOMONTH(DATE(2026,5,1), 0)` always returns May 31, no matter what day in May you run it.
 
+<FunctionRef name="EOMONTH" />
+
 <TryIt
   data={DATE_NUMBERS}
   inputCell="D1"
@@ -57,6 +63,8 @@ In adtech work, EOMONTH is how you compute billing period end-dates that follow 
 
 In adtech: "ad-days remaining in the month" = `NETWORKDAYS(TODAY(), EOMONTH(TODAY(), 0))`. Useful for budget pacing alerts.
 
+<FunctionRef name="NETWORKDAYS" />
+
 <TryIt
   data={DATE_NUMBERS}
   inputCell="D1"
@@ -69,6 +77,8 @@ In adtech: "ad-days remaining in the month" = `NETWORKDAYS(TODAY(), EOMONTH(TODA
 ## DATEDIF: duration between two dates
 
 `DATEDIF(start, end, unit)` returns the difference in years, months, or days. The unit is a string code: `"Y"`, `"M"`, `"D"`, `"YM"` (months ignoring years), `"YD"` (days ignoring years), `"MD"` (days ignoring months and years). Common adtech use: months a buyer has been on the team, months since campaign launched, time-to-deadline.
+
+<FunctionRef name="DATEDIF" />
 
 <TryIt
   data={DATE_NUMBERS}

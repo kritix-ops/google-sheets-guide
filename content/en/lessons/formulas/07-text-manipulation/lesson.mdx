@@ -12,7 +12,13 @@ Three sibling functions, each takes a string and a count.
 - `RIGHT(text, n)` returns the last `n` characters
 - `MID(text, start, n)` returns `n` characters starting at position `start` (1-indexed)
 
-The team's vertical names all end with `" PR"` by convention. To get the topic only (strip those last 3 characters off), you need `LEFT` combined with `LEN`.
+The team's vertical names all end with `" PR"` by convention. To get the topic only (strip those last 3 characters off), you need `LEFT` combined with `LEN` (introduced in lesson 3).
+
+<FunctionRef name="LEFT" />
+
+<FunctionRef name="RIGHT" />
+
+<FunctionRef name="MID" />
 
 <MiniGrid
   data={CAMPAIGNS}
@@ -31,9 +37,13 @@ The team's vertical names all end with `" PR"` by convention. To get the topic o
 
 ## FIND: locate a character
 
-`FIND(needle, haystack, [start])` returns the **position** of the first match. It's 1-indexed and case-sensitive. `SEARCH` is the case-insensitive sibling.
+`FIND(needle, haystack, [start])` returns the **position** of the first match. It's 1-indexed and case-sensitive. `SEARCH` is the case-insensitive sibling, with the same shape but tolerant of case differences. Reach for `SEARCH` when the source text comes from inconsistent upstream feeds; reach for `FIND` when case matters (parsing the team's campaign codes that distinguish "PR" from "pr").
 
 You compose `FIND` with `LEFT`/`RIGHT`/`MID` to slice at a known delimiter rather than a known position. For a vertical like `"Used Cars PR"`, the first word is everything to the left of the first space: but the position differs per vertical name.
+
+<FunctionRef name="FIND" />
+
+<FunctionRef name="SEARCH" />
 
 <TryIt
   data={CAMPAIGNS}
@@ -59,7 +69,7 @@ You compose `FIND` with `LEFT`/`RIGHT`/`MID` to slice at a known delimiter rathe
 
 ## SUBSTITUTE: replace one substring with another
 
-`SUBSTITUTE(text, old, new, [occurrence])` replaces every occurrence of `old` with `new`. Pass an `occurrence` number to replace only the nth instance. Useful for shortening names for charts, normalizing inconsistent separators, or stripping unwanted characters.
+`SUBSTITUTE(text, old, new, [occurrence])` replaces every occurrence of `old` with `new`. Pass an `occurrence` number to replace only the nth instance. Useful for shortening names for charts, normalizing inconsistent separators, or stripping unwanted characters. The full reference card was introduced in lesson 3 alongside `TRIM`; here we show its position-aware variant via the optional occurrence_number.
 
 <TryIt
   data={CAMPAIGNS}
