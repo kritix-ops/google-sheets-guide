@@ -144,7 +144,21 @@
     },
     "content": {
       "title": "ניהול תוכן",
-      "comingSoon": "עורך השיעורים יגיע באבן-הדרך הבאה."
+      "description": "עורכים את הטקסט של השיעור בכל אחת מהשפות. עריכות נשמרות כטיוטות; פרסום ל-git הוא שלב נפרד.",
+      "lesson": "שיעור",
+      "languages": "שפות",
+      "drafts": "טיוטות",
+      "actions": "פעולות",
+      "edit": "ערוך",
+      "warningHeading": "עורכים טקסט, לא נוגעים ב-components",
+      "warningBody": "תגיות MDX כמו <MiniGrid> ו-<RefDemo> הן components אינטראקטיביים. שינוי של התגיות או של ה-props שלהן ישבור את השיעור. עורכים את הטקסט סביבן.",
+      "publishedSource": "מקור שפורסם",
+      "draftSaved": "טיוטה נשמרה",
+      "unsavedChanges": "שינויים שלא נשמרו",
+      "neverEdited": "אין עדיין טיוטה",
+      "save": "שמירת טיוטה",
+      "discard": "מחיקת טיוטה",
+      "missingFile": "אין קובץ לשפה הזו. צריך ליצור אותו ב-repo קודם."
     }
   }
 }

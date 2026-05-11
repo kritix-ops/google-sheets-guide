@@ -144,7 +144,21 @@
     },
     "content": {
       "title": "Content management",
-      "comingSoon": "Lesson editor coming in the next milestone."
+      "description": "Edit lesson prose in either language. Edits save as drafts; publishing to git is a separate step.",
+      "lesson": "Lesson",
+      "languages": "Languages",
+      "drafts": "Drafts",
+      "actions": "Actions",
+      "edit": "Edit",
+      "warningHeading": "Edit prose, leave components alone",
+      "warningBody": "MDX tags like <MiniGrid> and <RefDemo> are interactive components. Changing their tags or props will break the lesson. Edit the text around them.",
+      "publishedSource": "Published source",
+      "draftSaved": "Draft saved",
+      "unsavedChanges": "Unsaved changes",
+      "neverEdited": "No draft yet",
+      "save": "Save draft",
+      "discard": "Discard draft",
+      "missingFile": "No file exists for this language. Create it in the repo first."
     }
   }
 }

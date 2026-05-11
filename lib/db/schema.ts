@@ -151,3 +151,31 @@ export const adminAudit = sqliteTable("admin_audit", {
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
 });
+
+// Per-author lesson drafts. Source of truth for published lessons stays as
+// MDX files in the repo; this table holds in-flight edits before they are
+// pushed to git. Each editor has their own draft per (track, slug, lang);
+// the second editor to publish overwrites the first.
+
+export type LessonLang = "en" | "he";
+
+export const lessonDrafts = sqliteTable("lesson_draft", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // Track folder name: formulas, modeling, apps-script, scale, ai-in-sheets.
+  track: text("track").notNull(),
+  // Lesson folder name within the track: e.g. "01-grid-model".
+  slug: text("slug").notNull(),
+  lang: text("lang").$type<LessonLang>().notNull(),
+  // Full proposed MDX content for the lesson.
+  content: text("content").notNull(),
+  authorId: text("author_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  // Null until published; then captures the git commit SHA that landed
+  // this version on main.
+  publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+  publishedCommit: text("published_commit"),
+});
