@@ -31,7 +31,9 @@ Both formulas grade the first campaign (ROI = 487.30/342.18 ≈ 1.42) as `Profit
 
 ## IFS: condition, value, condition, value...
 
-`IFS` takes pairs: a condition and a value, repeated. It returns the value of the **first** condition that's true. If none match, it returns `#N/A`. Always end with a `TRUE` catch-all to avoid that.
+`IFS` takes pairs: a condition and a value, repeated. It returns the value of the **first** condition that's true. If none match, it returns `#N/A`. Always end with a `TRUE` catch-all to avoid that. The full signature and parameter table:
+
+<FunctionRef name="IFS" />
 
 <TryIt
   data={CAMPAIGNS}
@@ -44,9 +46,11 @@ Both formulas grade the first campaign (ROI = 487.30/342.18 ≈ 1.42) as `Profit
 
 ## SWITCH: equality matches
 
-`SWITCH` is `IFS` for equality checks. Pass an expression, then alternate match-and-return pairs, with an optional default at the end.
+`SWITCH` is `IFS` for equality checks. Pass an expression, then alternate match-and-return pairs, with an optional default at the end. The trade with `IFS`: `SWITCH` is dramatically shorter when every branch is an equality check, but it cannot do thresholds or ranges. Reach for `SWITCH` when the expression is a discrete code (platform name, status enum, region code) and for `IFS` when the branches are comparisons.
 
 The classic adtech use: translate platform names into broader categories so dashboards can show "Native vs. Social vs. Search" totals without listing each platform individually.
+
+<FunctionRef name="SWITCH" />
 
 <TryIt
   data={CAMPAIGNS}
@@ -59,7 +63,36 @@ The classic adtech use: translate platform names into broader categories so dash
 
 ## AND, OR, NOT: composing conditions
 
-A condition can be more than one comparison. `AND(...)` is true if every argument is true. `OR(...)` is true if any one is. `NOT(x)` flips a boolean.
+A condition can be more than one comparison. `AND(...)` is true if every argument is true. `OR(...)` is true if any one is. `NOT(x)` flips a boolean. The reference cards were introduced in lesson 3; here we focus on composing them inside `IF` and `IFS` to express the actual scaling rules the team uses.
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IFS(F2/E2>=0.9,"Break-even",
+     F2/E2>=1.2,"Profitable",
+     F2/E2>=2,"Star")`}</code></pre>
+    <p className="mt-2 text-sm">Branches ordered loosest-first. ROI of 2.5 matches the first condition (&gt;=0.9 is true) and returns "Break-even", which is wrong. Order matters: IFS returns the value paired with the FIRST TRUE condition.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IFS(F2/E2>=2,"Star",
+     F2/E2>=1.2,"Profitable",
+     F2/E2>=0.9,"Break-even",
+     TRUE,"Loss")`}</code></pre>
+    <p className="mt-2 text-sm">Strictest first. Each branch's range is "this and stricter has already been handled, so the surviving range is just down to the next threshold." End with TRUE as the catch-all.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SWITCH(D2,"Taboola","Native","Facebook","Social","TikTok","Social","Google","Search")`}</code></pre>
+    <p className="mt-2 text-sm">No default. A new platform like "Snapchat" via IMPORTRANGE returns <code>#N/A</code> and propagates errors through the dashboard.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SWITCH(D2,"Taboola","Native","Facebook","Social","TikTok","Social","Google","Search","Other")`}</code></pre>
+    <p className="mt-2 text-sm">Pass a trailing default. New platforms get labeled "Other" until someone updates the SWITCH (or, better, moves the mapping into a config sheet referenced by XLOOKUP).</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="Which expression labels rows as 'Scale candidate' when revenue beats spend AND spend is at least $200 (high-volume profitable rows)?"

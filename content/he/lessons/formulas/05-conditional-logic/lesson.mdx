@@ -31,7 +31,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## IFS: תנאי, ערך, תנאי, ערך...
 
-`IFS` מקבל זוגות: תנאי וערך, חוזר על עצמו. הוא מחזיר את הערך של **התנאי הראשון** שהוא TRUE. אם אף אחד לא מתאים, הוא מחזיר `#N/A`. תמיד מסיימים עם `TRUE` כ-catch-all כדי להימנע מזה.
+`IFS` מקבל זוגות: תנאי וערך, חוזר על עצמו. הוא מחזיר את הערך של **התנאי הראשון** שהוא TRUE. אם אף אחד לא מתאים, הוא מחזיר `#N/A`. תמיד מסיימים עם `TRUE` כ-catch-all כדי להימנע מזה. החתימה המלאה וטבלת הפרמטרים:
+
+<FunctionRef name="IFS" />
 
 <TryIt
   data={CAMPAIGNS}
@@ -44,9 +46,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## SWITCH: השוואות שוויון
 
-`SWITCH` הוא `IFS` להשוואות שוויון. מעבירים ביטוי, ואז זוגות מתחלפים של התאמה-החזרה, עם default אופציונלי בסוף.
+`SWITCH` הוא `IFS` להשוואות שוויון. מעבירים ביטוי, ואז זוגות מתחלפים של התאמה-החזרה, עם default אופציונלי בסוף. ה-tradeoff מול `IFS`: `SWITCH` קצר דרמטית כשכל ענף הוא בדיקת שוויון, אבל הוא לא יכול ספים או טווחים. מושכים ל-`SWITCH` כשהביטוי הוא קוד בדיד (שם פלטפורמה, enum של סטטוס, קוד אזור), ול-`IFS` כשהענפים הם השוואות.
 
 השימוש הקלאסי באדטק: תרגום של שמות פלטפורמות לקטגוריות רחבות יותר, ככה שה-dashboards יכולים להציג סך כולל של "Native מול Social מול Search" בלי לפרט כל פלטפורמה בנפרד.
+
+<FunctionRef name="SWITCH" />
 
 <TryIt
   data={CAMPAIGNS}
@@ -59,7 +63,36 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## AND, OR, NOT: הרכבת תנאים
 
-תנאי יכול להיות יותר מהשוואה אחת. `AND(...)` הוא TRUE אם כל ארגומנט הוא TRUE. `OR(...)` הוא TRUE אם לפחות אחד הוא. `NOT(x)` הופך boolean.
+תנאי יכול להיות יותר מהשוואה אחת. `AND(...)` הוא TRUE אם כל ארגומנט הוא TRUE. `OR(...)` הוא TRUE אם לפחות אחד הוא. `NOT(x)` הופך boolean. כרטיסי ה-reference הוצגו בשיעור 3; פה אנחנו מתמקדים בהרכבה שלהם בתוך `IF` ו-`IFS` כדי לבטא את חוקי ה-scaling שהצוות באמת משתמש בהם.
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IFS(F2/E2>=0.9,"Break-even",
+     F2/E2>=1.2,"Profitable",
+     F2/E2>=2,"Star")`}</code></pre>
+    <p className="mt-2 text-sm">הענפים מסודרים מהרך לחזק. ROI של 2.5 מתאים לתנאי הראשון (&gt;=0.9 הוא TRUE) ומחזיר "Break-even", וזה שגוי. הסדר חשוב: IFS מחזיר את הערך שמשויך לתנאי הראשון שהוא TRUE.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IFS(F2/E2>=2,"Star",
+     F2/E2>=1.2,"Profitable",
+     F2/E2>=0.9,"Break-even",
+     TRUE,"Loss")`}</code></pre>
+    <p className="mt-2 text-sm">המחמיר ראשון. הטווח של כל ענף הוא "זה ומחמיר יותר כבר טופלו, אז הטווח ששורד הוא רק עד הסף הבא". מסיימים עם TRUE כ-catch-all.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SWITCH(D2,"Taboola","Native","Facebook","Social","TikTok","Social","Google","Search")`}</code></pre>
+    <p className="mt-2 text-sm">אין default. פלטפורמה חדשה כמו "Snapchat" דרך IMPORTRANGE תחזיר <code>#N/A</code> ותפיץ שגיאות דרך ה-dashboard.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SWITCH(D2,"Taboola","Native","Facebook","Social","TikTok","Social","Google","Search","Other")`}</code></pre>
+    <p className="mt-2 text-sm">להעביר default בסוף. פלטפורמות חדשות מקבלות תווית "Other" עד שמישהו מעדכן את ה-SWITCH (או, יותר טוב, מעביר את המיפוי לגיליון config שמכוון אליו XLOOKUP).</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="איזה ביטוי מתייג שורות כ-'Scale candidate' כש-revenue גובר על spend וגם spend הוא לפחות $200 (שורות רווחיות בנפח גבוה)?"

@@ -962,6 +962,461 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/3093378?hl=en",
   },
 
+  IFS: {
+    name: "IFS",
+    category: "logical",
+    summary: {
+      en: "Evaluates condition / value pairs in order and returns the value paired with the first TRUE condition. Replaces stacked IF expressions with a flat, scannable list.",
+      he: "מעריך זוגות של תנאי / ערך בסדר ומחזיר את הערך שמשויך לתנאי הראשון שהוא TRUE. מחליף ביטויי IF מצטברים ברשימה שטוחה וקריאה.",
+    },
+    syntax: "IFS(condition1, value1, [condition2, value2, ...])",
+    params: [
+      {
+        name: "condition1",
+        type: "boolean | expression",
+        description: {
+          en: "The first condition to evaluate.",
+          he: "התנאי הראשון להערכה.",
+        },
+      },
+      {
+        name: "value1",
+        type: "any",
+        description: {
+          en: "What to return when condition1 is TRUE.",
+          he: "מה להחזיר כש-condition1 הוא TRUE.",
+        },
+      },
+      {
+        name: "condition2, value2, ...",
+        type: "pairs",
+        optional: true,
+        description: {
+          en: "Additional condition/value pairs. Evaluated left to right; first TRUE wins. End with TRUE as a catch-all to avoid #N/A.",
+          he: "זוגות נוספים של condition/value. מוערכים שמאל לימין; הראשון שהוא TRUE מנצח. סיימו ב-TRUE כברירת מחדל כדי להימנע מ-#N/A.",
+        },
+      },
+    ],
+    returns: {
+      en: "The value paired with the first TRUE condition. #N/A if no condition matches.",
+      he: "הערך שמשויך לתנאי הראשון שהוא TRUE. #N/A אם אף תנאי לא מתאים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/7014145?hl=en",
+  },
+
+  SWITCH: {
+    name: "SWITCH",
+    category: "logical",
+    summary: {
+      en: "Tests an expression against discrete cases and returns the value paired with the first match. The equality-check cousin of IFS; great for translating platform / status / region codes.",
+      he: "בודק ביטוי מול מקרים בדידים ומחזיר את הערך שמשויך להתאמה הראשונה. בן-הדוד של IFS להשוואות שוויון; מצוין לתרגום קודי פלטפורמה / סטטוס / אזור.",
+    },
+    syntax: "SWITCH(expression, case1, value1, [case2, value2, ...], [default])",
+    params: [
+      {
+        name: "expression",
+        type: "any",
+        description: {
+          en: "The value to compare against each case. Equality only; no >= / <= here.",
+          he: "הערך להשוואה מול כל case. שוויון בלבד; אין פה >= / <=.",
+        },
+      },
+      {
+        name: "case1",
+        type: "any",
+        description: {
+          en: "The first case to test for equality with the expression.",
+          he: "ה-case הראשון לבדיקת שוויון מול ה-expression.",
+        },
+      },
+      {
+        name: "value1",
+        type: "any",
+        description: {
+          en: "What to return when case1 matches.",
+          he: "מה להחזיר כש-case1 מתאים.",
+        },
+      },
+      {
+        name: "case2, value2, ...",
+        type: "pairs",
+        optional: true,
+        description: {
+          en: "Additional case/value pairs.",
+          he: "זוגות נוספים של case/value.",
+        },
+      },
+      {
+        name: "default",
+        type: "any",
+        optional: true,
+        default: "#N/A",
+        description: {
+          en: "The fallback when no case matches. Without it, no-match returns #N/A.",
+          he: "ערך ה-fallback כשאף case לא מתאים. בלעדיו, אי-התאמה מחזירה #N/A.",
+        },
+      },
+    ],
+    returns: {
+      en: "The value paired with the first matching case, or the default if no case matched.",
+      he: "הערך שמשויך ל-case הראשון שמתאים, או ה-default אם אף אחד לא מתאים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/7013690?hl=en",
+  },
+
+  COUNT: {
+    name: "COUNT",
+    category: "aggregation",
+    summary: {
+      en: "Counts how many cells in a range hold numeric values. Text, booleans, and empty cells are skipped.",
+      he: "סופר כמה תאים בטווח מחזיקים ערכים מספריים. טקסט, booleans ותאים ריקים מדולגים.",
+    },
+    syntax: "COUNT(value1, [value2, ...])",
+    params: [
+      {
+        name: "value1",
+        type: "number | range",
+        description: {
+          en: "The first value or range to count numeric cells in.",
+          he: "הערך או הטווח הראשון לספירה של תאים מספריים.",
+        },
+      },
+      {
+        name: "value2, ...",
+        type: "number | range",
+        optional: true,
+        description: {
+          en: "Additional values or ranges.",
+          he: "ערכים או טווחים נוספים.",
+        },
+      },
+    ],
+    returns: {
+      en: "A whole number: the count of numeric cells across all inputs.",
+      he: "מספר שלם: הספירה של תאים מספריים על פני כל הקלטים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093620?hl=en",
+  },
+
+  COUNTA: {
+    name: "COUNTA",
+    category: "aggregation",
+    summary: {
+      en: "Counts every non-empty cell in a range: numbers, text, booleans, errors, even cells holding an empty string. Use when you want 'how many rows actually have something here', not just numbers.",
+      he: "סופר כל תא שאינו ריק בטווח: מספרים, טקסט, booleans, שגיאות, אפילו תאים שמחזיקים מחרוזת ריקה. שימושי כשרוצים 'בכמה שורות באמת יש משהו פה', לא רק מספרים.",
+    },
+    syntax: "COUNTA(value1, [value2, ...])",
+    params: [
+      {
+        name: "value1",
+        type: "any | range",
+        description: {
+          en: "The first value or range to count non-empty cells in.",
+          he: "הערך או הטווח הראשון לספירה של תאים לא ריקים.",
+        },
+      },
+      {
+        name: "value2, ...",
+        type: "any | range",
+        optional: true,
+        description: {
+          en: "Additional values or ranges.",
+          he: "ערכים או טווחים נוספים.",
+        },
+      },
+    ],
+    returns: {
+      en: "A whole number: the count of non-empty cells. Includes empty-string cells (a formula that returned \"\"), which can surprise.",
+      he: "מספר שלם: הספירה של תאים לא ריקים. כולל תאים עם מחרוזת ריקה (נוסחה שהחזירה \"\"), מה שיכול להפתיע.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093991?hl=en",
+  },
+
+  COUNTIF: {
+    name: "COUNTIF",
+    category: "aggregation",
+    summary: {
+      en: "Counts cells in a range that match a single criterion. The criterion can be an exact value, a comparison like \">400\", or a wildcard pattern like \"Yoav*\".",
+      he: "סופר תאים בטווח שמתאימים לקריטריון יחיד. הקריטריון יכול להיות ערך מדויק, השוואה כמו \">400\", או תבנית wildcard כמו \"Yoav*\".",
+    },
+    syntax: "COUNTIF(range, criterion)",
+    params: [
+      {
+        name: "range",
+        type: "range",
+        description: {
+          en: "The range to scan.",
+          he: "הטווח לסריקה.",
+        },
+      },
+      {
+        name: "criterion",
+        type: "string | number | expression",
+        description: {
+          en: "What to match. Numbers match exactly; strings enclose comparison operators (\">400\") or wildcards (? for one char, * for any sequence). Case-insensitive for text.",
+          he: "מה להתאים. מספרים מתאימים במדויק; מחרוזות עוטפות אופרטורי השוואה (\">400\") או wildcards (? לתו אחד, * לרצף כלשהו). חסרי-רגישות לאותיות בטקסט.",
+        },
+      },
+    ],
+    returns: {
+      en: "A whole number: how many cells matched.",
+      he: "מספר שלם: כמה תאים התאימו.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093480?hl=en",
+  },
+
+  SUMIF: {
+    name: "SUMIF",
+    category: "aggregation",
+    summary: {
+      en: "Sums cells matching a single criterion. With two arguments, sums the same range it scans; with three, sums a parallel range. The argument order is the opposite of SUMIFS; mixing them up is the classic trap.",
+      he: "מסכם תאים שמתאימים לקריטריון יחיד. עם שני arguments, מסכם את אותו טווח שהוא סורק; עם שלושה, מסכם טווח מקביל. סדר ה-arguments הפוך מ-SUMIFS; בלבול ביניהם הוא המלכודת הקלאסית.",
+    },
+    syntax: "SUMIF(range, criterion, [sum_range])",
+    params: [
+      {
+        name: "range",
+        type: "range",
+        description: {
+          en: "The range to scan for matches.",
+          he: "הטווח לסריקה אחר התאמות.",
+        },
+      },
+      {
+        name: "criterion",
+        type: "string | number | expression",
+        description: {
+          en: "The match pattern. Same rules as COUNTIF: exact values, comparison strings, wildcards.",
+          he: "תבנית ההתאמה. אותם כללים כמו ב-COUNTIF: ערכים מדויקים, מחרוזות השוואה, wildcards.",
+        },
+      },
+      {
+        name: "sum_range",
+        type: "range",
+        optional: true,
+        description: {
+          en: "The range to sum when the criterion matches. If omitted, the same range is summed. Must be the same size as `range`.",
+          he: "הטווח לסכימה כשהקריטריון מתאים. אם משמיטים, אותו טווח מסוכם. חייב להיות באותו גודל כמו ה-range.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number: the total of matching cells.",
+      he: "מספר: הסכום של התאים התואמים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093583?hl=en",
+  },
+
+  COUNTIFS: {
+    name: "COUNTIFS",
+    category: "aggregation",
+    summary: {
+      en: "Counts cells matching multiple criteria across parallel ranges. The workhorse 'how many campaigns match all of these conditions' function.",
+      he: "סופר תאים שמתאימים למספר קריטריונים על פני טווחים מקבילים. פונקציית סוס-העבודה של 'כמה קמפיינים מתאימים לכל התנאים האלה'.",
+    },
+    syntax: "COUNTIFS(criteria_range1, criterion1, [criteria_range2, criterion2, ...])",
+    params: [
+      {
+        name: "criteria_range1",
+        type: "range",
+        description: {
+          en: "The first range to test.",
+          he: "הטווח הראשון לבדיקה.",
+        },
+      },
+      {
+        name: "criterion1",
+        type: "string | number | expression",
+        description: {
+          en: "The pattern to test against criteria_range1.",
+          he: "התבנית לבדיקה מול criteria_range1.",
+        },
+      },
+      {
+        name: "criteria_range2, criterion2, ...",
+        type: "pairs",
+        optional: true,
+        description: {
+          en: "Additional range/criterion pairs. Every range must have the same dimensions as the first.",
+          he: "זוגות נוספים של range/criterion. כל טווח חייב להיות באותם מימדים כמו הראשון.",
+        },
+      },
+    ],
+    returns: {
+      en: "A whole number: how many rows matched every criterion.",
+      he: "מספר שלם: כמה שורות התאימו לכל קריטריון.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3256550?hl=en",
+  },
+
+  SUMIFS: {
+    name: "SUMIFS",
+    category: "aggregation",
+    summary: {
+      en: "Sums a range filtered by multiple criteria across parallel ranges. The single most-used aggregation function in business spreadsheets: every buyer-vs-platform pivot is SUMIFS.",
+      he: "מסכם טווח שמסונן לפי מספר קריטריונים על פני טווחים מקבילים. פונקציית האגרגציה הכי בשימוש ב-spreadsheets עסקיים: כל pivot של buyer-מול-platform זה SUMIFS.",
+    },
+    syntax: "SUMIFS(sum_range, criteria_range1, criterion1, [criteria_range2, criterion2, ...])",
+    params: [
+      {
+        name: "sum_range",
+        type: "range",
+        description: {
+          en: "The range to sum. First argument, unlike SUMIF where it's last.",
+          he: "הטווח לסכימה. argument ראשון, בניגוד ל-SUMIF שבו הוא אחרון.",
+        },
+      },
+      {
+        name: "criteria_range1",
+        type: "range",
+        description: {
+          en: "The first range to filter on.",
+          he: "הטווח הראשון לסינון.",
+        },
+      },
+      {
+        name: "criterion1",
+        type: "string | number | expression",
+        description: {
+          en: "The pattern to apply to criteria_range1.",
+          he: "התבנית להחיל על criteria_range1.",
+        },
+      },
+      {
+        name: "criteria_range2, criterion2, ...",
+        type: "pairs",
+        optional: true,
+        description: {
+          en: "Additional range/criterion pairs. Each range must match sum_range's dimensions.",
+          he: "זוגות נוספים של range/criterion. כל טווח חייב להתאים למימדי sum_range.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number: the total of cells in sum_range whose parallel cells matched every criterion.",
+      he: "מספר: הסכום של תאים ב-sum_range שתאיהם המקבילים התאימו לכל קריטריון.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3238496?hl=en",
+  },
+
+  AVERAGEIFS: {
+    name: "AVERAGEIFS",
+    category: "aggregation",
+    summary: {
+      en: "Averages a range filtered by multiple criteria. Same argument shape as SUMIFS.",
+      he: "מחשב ממוצע של טווח שמסונן לפי מספר קריטריונים. אותה צורת arguments כמו SUMIFS.",
+    },
+    syntax: "AVERAGEIFS(average_range, criteria_range1, criterion1, [criteria_range2, criterion2, ...])",
+    params: [
+      {
+        name: "average_range",
+        type: "range",
+        description: {
+          en: "The range to average.",
+          he: "הטווח לחישוב הממוצע.",
+        },
+      },
+      {
+        name: "criteria_range1",
+        type: "range",
+        description: {
+          en: "The first range to filter on.",
+          he: "הטווח הראשון לסינון.",
+        },
+      },
+      {
+        name: "criterion1",
+        type: "string | number | expression",
+        description: {
+          en: "The pattern to apply to criteria_range1.",
+          he: "התבנית להחיל על criteria_range1.",
+        },
+      },
+      {
+        name: "criteria_range2, criterion2, ...",
+        type: "pairs",
+        optional: true,
+        description: {
+          en: "Additional range/criterion pairs.",
+          he: "זוגות נוספים של range/criterion.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number: the average of matching cells. #DIV/0! if nothing matched.",
+      he: "מספר: הממוצע של תאים תואמים. #DIV/0! אם שום דבר לא התאים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3256534?hl=en",
+  },
+
+  MAX: {
+    name: "MAX",
+    category: "aggregation",
+    summary: {
+      en: "Returns the largest number across one or more ranges or values. Text cells inside ranges are skipped; bare text arguments error.",
+      he: "מחזיר את המספר הגדול ביותר על פני טווח אחד או יותר או ערכים. תאי טקסט בתוך טווחים מדולגים; argument של טקסט חשוף מחזיר שגיאה.",
+    },
+    syntax: "MAX(value1, [value2, ...])",
+    params: [
+      {
+        name: "value1",
+        type: "number | range",
+        description: {
+          en: "The first value or range.",
+          he: "הערך או הטווח הראשון.",
+        },
+      },
+      {
+        name: "value2, ...",
+        type: "number | range",
+        optional: true,
+        description: {
+          en: "Additional values or ranges.",
+          he: "ערכים או טווחים נוספים.",
+        },
+      },
+    ],
+    returns: {
+      en: "The maximum numeric value found.",
+      he: "הערך המספרי הגדול ביותר שנמצא.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094013?hl=en",
+  },
+
+  MIN: {
+    name: "MIN",
+    category: "aggregation",
+    summary: {
+      en: "Returns the smallest number across one or more ranges or values. The mirror of MAX.",
+      he: "מחזיר את המספר הקטן ביותר על פני טווח אחד או יותר או ערכים. המראה של MAX.",
+    },
+    syntax: "MIN(value1, [value2, ...])",
+    params: [
+      {
+        name: "value1",
+        type: "number | range",
+        description: {
+          en: "The first value or range.",
+          he: "הערך או הטווח הראשון.",
+        },
+      },
+      {
+        name: "value2, ...",
+        type: "number | range",
+        optional: true,
+        description: {
+          en: "Additional values or ranges.",
+          he: "ערכים או טווחים נוספים.",
+        },
+      },
+    ],
+    returns: {
+      en: "The minimum numeric value found.",
+      he: "הערך המספרי הקטן ביותר שנמצא.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094017?hl=en",
+  },
+
   QUERY: {
     name: "QUERY",
     category: "query",
