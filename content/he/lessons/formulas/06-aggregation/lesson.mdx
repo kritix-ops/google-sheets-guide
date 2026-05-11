@@ -24,6 +24,29 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   highlight={["E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13"]}
 />
 
+### דוגמה 1: נתוני צעצוע
+
+רשימת מחירים קטנה. AVERAGE מצמצם עמודה למספר אחד, ו-COUNT לעומת COUNTA חולקים כשיש טקסט בערבוב.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 10],
+    ["B", 20],
+    ["C", "tbd"],
+    ["D", 15],
+  ]}
+  formula="=COUNT(B2:B5)"
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={["=COUNT(B2:B5)"]}
+  caption="COUNT מדלג על הטקסט 'tbd' ומחזיר 3. COUNTA היה מחזיר 4. AVERAGE היה ממצע רק את 3 המספרים."
+/>
+
+### דוגמה 2: נתוני אדטק אמיתיים
+
+טבלת 12 הקמפיינים של הצוות. ממוצע spend על פני כל קמפיין.
+
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
@@ -32,6 +55,19 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   hint={<><code>AVERAGE</code> מחלק <code>SUM</code> ב-<code>COUNT</code> אוטומטית. הטווח הוא <code>E2:E13</code>.</>}
   answer={<><code>AVERAGE</code> מתעלם מתאים ריקים ומטקסט. אם תא בטווח החזיק את המחרוזת "test", AVERAGE היה מדלג עליו, ואילו <code>SUM/COUNTA</code> היה כולל אותו כ-0. <code>AVERAGEA</code> קיים למקרה הנדיר שבו רוצים שטקסט ייספר כ-0. הממוצע של 12 הקמפיינים כאן הוא סך ה-spend (3933.68) חלקי 12, בערך 327.81. ב-dashboards כמעט תמיד תרצו את הגרסה המותנית, ממוצע spend לכל media buyer, לכל פלטפורמה, לכל טווח תאריכים, וזה בדיוק מה ש-AVERAGEIFS עושה.</>}
 />
+
+### מלכודות נפוצות: משפחת COUNT
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=COUNT(B2:B100)</code></pre>
+    <p className="mt-2 text-sm">משמש לספור "כמה קמפיינים רצו". אבל אם עמודת ה-Buyer מחזיקה שמות (טקסט), <code>COUNT</code> מחזיר <code>0</code>: הוא סופר רק מספרים. ה-dashboard מראה אפס שורות בשקט.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=COUNTA(B2:B100)</code></pre>
+    <p className="mt-2 text-sm"><code>COUNTA</code> סופר תאים לא ריקים בלי קשר לסוג. ל"שורות עם שם media buyer" זה מה שצריך. שלפו COUNT רק כשרוצים ספציפית "תאים שמחזיקים ערכים מספריים."</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="עמודת spend מחזיקה 8 תאים: 5 מספרים, 2 מחרוזות טקסט (מישהו הקליד 'paused'), ו-1 ריק. מה =COUNT(...) מחזיר לעומת =COUNTA(...)?"
@@ -80,6 +116,28 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `SUMIF` משתמש בארגומנט השלישי האופציונלי כשהתאים שמסכמים שונים מהתאים שבודקים. המקרה הקלאסי: "סכמו את ה-revenue של כל הקמפיינים של Yoav". בודקים את עמודה B כדי למצוא את ה-media buyer, ומסכמים את עמודה F של ה-revenue.
 
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=SUMIF(B2:B13,"Yoav Cohen",F2:F13)'
+  task={<>סכמו את ה-revenue של Yoav Cohen על פני כל הקמפיינים. התוצאה אמורה להיות <code>1301.35</code>.</>}
+  hint={<>שלושה ארגומנטים: טווח הקריטריון (עמודת Buyer), הקריטריון (השם), טווח הסכימה (עמודת Revenue).</>}
+  answer={<>SUMIF עם הארגומנט השלישי האופציונלי: בודקים את עמודה B עבור "Yoav Cohen", סוכמים את התאים המקבילים מ-F. ל-Yoav יש שלוש שורות (487.30 ועוד 401.90 ועוד 412.15). כשטווח הקריטריון וטווח הסכימה זהים אפשר לוותר על הארגומנט השלישי: <code>=SUMIF(F2:F13, "{">"}400")</code> סוכם כל ערך revenue מעל 400 ישירות. המלכודת שמייצרת תשובות שגויות של SUMIF באופן קבוע: העברה של טווחים בגדלים שונים. <code>SUMIF(B2:B13, "Yoav Cohen", F2:F14)</code> חורג מתחתית B והתוצאה זזה בשקט.</>}
+/>
+
+### מלכודות נפוצות: קריטריון SUMIF
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUMIF(F2:F13, >400)`}</code></pre>
+    <p className="mt-2 text-sm">הקריטריון צריך להיות מחרוזת. <code>{`>400`}</code> חשוף בלי מרכאות הוא שגיאת parsing. Sheets מחזיר <code>#ERROR!</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIF(F2:F13, ">400")`}</code></pre>
+    <p className="mt-2 text-sm">עוטפים את ההשוואה במרכאות כפולות. האופרטור והערך חיים בתוך מחרוזת אחת. כדי לשלב עם הפניה לתא: <code>{`">" & H1`}</code>.</p>
+  </ComparePanel>
+</Compare>
+
 ## SUMIFS ו-COUNTIFS: כמה תנאים
 
 הגרסאות בלשון רבים מקבלות **כמה** זוגות תנאים. שימו לב שסדר הארגומנטים שונה מ-`SUMIF`: טווח הסכימה בא **קודם**, ואז זוגות מתחלפים של טווח-קריטריון וקריטריון. זאת פונקציית ה-Sheets שהכי הרבה משתמשים בה ב-spreadsheets עסקיים: כל pivot של buyer-מול-platform, כל דוח חסום-בתאריכים, כל מונה alert של dashboard.
@@ -103,6 +161,30 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   hint={<>טווח הסכימה ראשון (revenue), ואז זוגות מתחלפים של טווח-קריטריון וקריטריון: עמודת media buyer ← "Yoav Cohen", עמודת פלטפורמה ← "Taboola".</>}
   answer={<>סדר הארגומנטים הוא המלכודת של SUMIFS. ב-<code>SUMIF</code>, הטווח שבודקים בא קודם וטווח הסכימה אופציונלי בסוף. ב-<code>SUMIFS</code> (לשון רבים), טווח הסכימה בא <strong>ראשון</strong> והוא חובה. אחר כך מזווגים טווח-קריטריון עם קריטריון כמה פעמים שצריך. הקמפיינים של Yoav על Taboola: שורה 2 (487.30) ועוד שורה 6 (412.15) שווה 899.45. הצורה הזאת, media buyer אחד, פלטפורמה אחת, סכום מלא, היא אבן הבניין הבסיסית של כל Pivot table של media buyer מול פלטפורמה באדטק. מוסיפים קריטריון שלישי לטווח תאריכים ומקבלים תצוגה רבעונית.</>}
 />
+
+### מלכודות נפוצות: SUMIFS
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(B2:B13, "Yoav Cohen", F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">סדר ארגומנטים הועתק מ-SUMIF. כאן <code>B2:B13</code> מתפרש כטווח הסכימה (ערכי טקסט), הקריטריון בא שני, ו-SUMIFS שוגה ב-<code>#VALUE!</code> כי טווח הקריטריון וטווח הסכימה חייבים להיות באותה צורה ואי אפשר לסכם טקסט.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen")`}</code></pre>
+    <p className="mt-2 text-sm">טווח הסכימה ראשון, ואז זוגות של טווח קריטריון/קריטריון. כלל זכירה: "Sum WHAT, ואז WHERE." ב-SUMIF זה הפוך ("WHERE, ואז SUM"). מקור הבאג השקט הכי נפוץ של הצוות: היפוך הסדר הזה.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen", D2:D14, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">לטווח הסכימה (F2:F13) ולטווח הקריטריון השני (D2:D14) יש גדלים שונים. SUMIFS מחזיר <code>#VALUE!</code>, ובגרוע יותר, את המספר השגוי בלי שגיאה אם אי-ההתאמה בגודל מסתדרת "במקרה".</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen", D2:D13, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">כל טווח, סכימה וקריטריון, באותו מספר שורות (ועמודות). השתמשו בטווחים תחומים תואמים, או עברו לטבלה (שיעור 17) כך שהפניות העמודה המתרחבות אוטומטית תמיד יהיו מיושרות.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="מה ההבדל בסדר הארגומנטים בין SUMIF ל-SUMIFS?"

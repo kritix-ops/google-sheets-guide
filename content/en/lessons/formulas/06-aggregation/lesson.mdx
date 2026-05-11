@@ -24,6 +24,29 @@ The four functions every aggregation builds on. `SUM` and `AVERAGE` got their ca
   highlight={["E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13"]}
 />
 
+### Worked example 1: toy data
+
+A tiny price list. AVERAGE collapses a column to one number; COUNT and COUNTA disagree when there's text in the mix.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 10],
+    ["B", 20],
+    ["C", "tbd"],
+    ["D", 15],
+  ]}
+  formula="=COUNT(B2:B5)"
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={["=COUNT(B2:B5)"]}
+  caption="COUNT skips the text 'tbd' and returns 3. COUNTA would return 4. AVERAGE would average just the 3 numbers."
+/>
+
+### Worked example 2: real adtech data
+
+The team's 12-campaign log. Average spend across every campaign.
+
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
@@ -32,6 +55,19 @@ The four functions every aggregation builds on. `SUM` and `AVERAGE` got their ca
   hint={<><code>AVERAGE</code> divides <code>SUM</code> by <code>COUNT</code> automatically. Range is <code>E2:E13</code>.</>}
   answer={<><code>AVERAGE</code> ignores empty cells and text. If a cell in the range held the string "test", AVERAGE would skip it; <code>SUM/COUNTA</code> would include it as 0. <code>AVERAGEA</code> exists for the rare case where you want text counted as 0. The 12-campaign average here is total spend (3933.68) divided by 12 ≈ 327.81. In dashboards you'll almost always want this conditional (average spend per buyer, per platform, per date range), which is what AVERAGEIFS is for.</>}
 />
+
+### Easy traps: COUNT family
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=COUNT(B2:B100)</code></pre>
+    <p className="mt-2 text-sm">Used to count "how many campaigns ran." But if the Buyer column holds names (text), <code>COUNT</code> returns <code>0</code>: it only counts numbers. The dashboard silently shows zero rows.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=COUNTA(B2:B100)</code></pre>
+    <p className="mt-2 text-sm"><code>COUNTA</code> counts non-empty cells regardless of type. For "rows with a buyer name", this is what you want. Reach for COUNT only when you specifically want "cells holding numeric values."</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="A spend column has 8 cells: 5 numbers, 2 text strings (someone typed 'paused'), 1 empty. What does =COUNT(...) return vs =COUNTA(...)?"
@@ -80,6 +116,28 @@ The classic adtech use: "how many campaigns scored revenue above $400?"
 
 `SUMIF` adds the optional third argument when the cells you sum are different from the cells you check. The classic case: "sum revenue for all of Yoav's campaigns": check column B for the buyer, sum column F for the revenue.
 
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=SUMIF(B2:B13,"Yoav Cohen",F2:F13)'
+  task={<>Total Yoav Cohen's revenue across every campaign. The result should be <code>1301.35</code>.</>}
+  hint={<>Three arguments: criteria range (Buyer column), criterion (the name), sum range (Revenue column).</>}
+  answer={<>SUMIF with the optional third argument: check column B for "Yoav Cohen", sum the parallel cells from F. Yoav has three rows (487.30 + 401.90 + 412.15). When the criteria range and the sum range are the same, you can drop the third argument: <code>=SUMIF(F2:F13, "{">"}400")</code> sums every revenue value above 400 directly. The trap that ships SUMIF answers wrong on a regular basis: passing different-sized ranges. <code>SUMIF(B2:B13, "Yoav Cohen", F2:F14)</code> walks off the bottom of B and the result drifts silently.</>}
+/>
+
+### Easy traps: SUMIF criterion
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUMIF(F2:F13, >400)`}</code></pre>
+    <p className="mt-2 text-sm">The criterion needs to be a string. Bare <code>{`>400`}</code> with no quotes is a parse error. Sheets returns <code>#ERROR!</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIF(F2:F13, ">400")`}</code></pre>
+    <p className="mt-2 text-sm">Wrap the comparison in double quotes. The operator and the value live inside one string. To combine with a cell reference: <code>{`">" & H1`}</code>.</p>
+  </ComparePanel>
+</Compare>
+
 ## SUMIFS and COUNTIFS: multiple conditions
 
 The plural versions take **multiple** condition pairs. Notice the argument order is different from `SUMIF`: the sum range comes **first**, then alternating criterion-range and criterion pairs. This is the most-used Sheets function in business spreadsheets: every buyer-vs-platform pivot, every date-bounded report, every dashboard alert counter.
@@ -103,6 +161,30 @@ A typical adtech use: total revenue from Yoav's campaigns on Taboola only. Two c
   hint={<>Sum range first (revenue), then alternating criterion-range / criterion pairs: buyer column → "Yoav Cohen", platform column → "Taboola".</>}
   answer={<>The argument order is the SUMIFS gotcha. With <code>SUMIF</code>, the range to check comes first and the sum range is optional at the end. With <code>SUMIFS</code> (plural), the sum range comes <strong>first</strong> and is required. After that, you pair criterion-range with criterion as many times as you need. Yoav's Taboola campaigns: row 2 (487.30) + row 6 (412.15) = 899.45. This shape (one buyer, one platform, full sum) is the basic building block of every adtech buyer-vs-platform pivot table. Add a third criterion for date range and you've got a quarterly view.</>}
 />
+
+### Easy traps: SUMIFS
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(B2:B13, "Yoav Cohen", F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">Argument order copy-pasted from SUMIF. Here, <code>B2:B13</code> is treated as the sum range (text values), the criterion comes second, and SUMIFS errors with <code>#VALUE!</code> because the criteria range and the sum range have to be the same shape and you can't sum text.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen")`}</code></pre>
+    <p className="mt-2 text-sm">Sum range first, then criteria-range/criterion pairs. The mnemonic: "Sum WHAT, then WHERE." For SUMIF it's the opposite ("WHERE, then SUM"). The team's most-common silent-bug source: this order flip.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen", D2:D14, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">The sum range (F2:F13) and the second criteria range (D2:D14) have different sizes. SUMIFS returns <code>#VALUE!</code> or, worse, the wrong number with no error if the size mismatch lines up "accidentally."</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen", D2:D13, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">Every range, sum and criteria alike, the same number of rows (and columns). Use bounded matched ranges, or switch to a table (lesson 17) so the auto-expanding column references always line up.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="What's the difference in argument order between SUMIF and SUMIFS?"
