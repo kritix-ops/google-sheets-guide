@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 A regular filter rearranges what *everyone* sees. The moment you toggle "Buyer = Yoav Cohen" on a shared Campaigns tab, Dina loses her rows too, Maya loses hers, the dashboard pulling from this tab quietly returns three rows instead of sixty, and somebody Slacks "did you break the sheet?" Filter views fix this. Each user gets their own active filter view; switching views never affects anyone else; the views themselves are saved with names, so the next time you need "just Yoav's losing campaigns this week" you click a name instead of rebuilding the filter.
 
+This is one of the few features where the right default is the opposite of the obvious one. The Data menu surfaces `Create a filter` and `Create a filter view` as sibling options; new users almost always pick the first because it's first. By the time they realize the cost, the team is paged about a "broken" dashboard. Once a workbook is shared, filter views are the only filter you should use.
+
 ## What a filter view actually is
 
 `Data → Create a filter view` opens a striped black header above the data and a panel where you name the view. From the user's seat, it looks like a regular filter. Mechanically, two things are different:
@@ -16,6 +18,58 @@ A regular filter rearranges what *everyone* sees. The moment you toggle "Buyer =
 
 The team default is **always use a filter view, never a regular filter** in any shared workbook. Regular filters are for solo workbooks where nobody else is looking. The moment a sheet is shared with one other editor, the regular-filter button is a footgun.
 
+<Compare>
+  <ComparePanel label="Regular filter: collateral damage" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Shared Campaigns tab.
+Yoav clicks Data → Create a filter,
+filters Buyer = "Yoav Cohen".
+
+Same moment, on Dina's screen:
+  rows for Maya, Ben, Roni, etc.
+  all disappear.
+
+Dashboard reading from A:G
+returns only Yoav's rows.`}</code></pre>
+    <p className="mt-2 text-sm">One person's filter is everyone's filter. The dashboard depending on this tab silently changes shape. Slack catches fire.</p>
+  </ComparePanel>
+  <ComparePanel label="Filter view: scoped to one user" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Same shared tab.
+Yoav clicks Data → Create a filter view,
+names it "Yoav only",
+filters Buyer = "Yoav Cohen".
+
+Dina's screen: unchanged.
+Dashboard reading from A:G: unchanged.
+
+Only Yoav sees the filtered view.`}</code></pre>
+    <p className="mt-2 text-sm">Filter views are local. Each user picks their own active view. Switching, exiting, applying: all are personal actions. Other users see no change.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You inherit a workbook and notice every shared tab has 5-10 regular filters configured. The team complains the dashboards 'sometimes return weird numbers'. What's the first fix?"
+  options={[
+    {
+      id: "a",
+      label: "Remove every regular filter and recreate the useful ones as named filter views",
+      correct: true,
+      explanation: "The dashboards 'sometimes' return weird numbers because regular filters affect every user. The fix is the rule: never regular filters on shared tabs. Audit, remove, recreate as filter views.",
+    },
+    {
+      id: "b",
+      label: "Add a comment to each filter explaining who set it and why",
+      correct: false,
+      explanation: "Comments don't change the behavior. The dashboards still break when somebody applies a filter. The behavior is what needs to change.",
+    },
+    {
+      id: "c",
+      label: "Convert all the dashboards to read from a snapshot tab instead of the live one",
+      correct: false,
+      explanation: "Possible, but heavyweight. The simple fix solves it: change which filter primitive is in use.",
+    },
+  ]}
+/>
+
 ## Naming conventions: pick names other people will recognize
 
 A filter view named `YC test 3` is invisible to everyone but the person who made it. Three months later, even that person can't remember what it does. The names other people on the team can use are the ones that pay rent. Patterns the team relies on:
@@ -26,11 +80,57 @@ A filter view named `YC test 3` is invisible to everyone but the person who made
 
 The rule of thumb: if a teammate looking at the panel for the first time can't tell what the view does from the name, the name is wrong. Rename it.
 
+<Compare>
+  <ComparePanel label="Bad names: invisible to others" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Filter views panel:
+  YC v3 test final FINAL2
+  draft
+  asdf
+  testing 5/11
+  Maya's thing`}</code></pre>
+    <p className="mt-2 text-sm">Cryptic, dated, private. Nobody else can use these. They accumulate forever because no one knows which ones to delete.</p>
+  </ComparePanel>
+  <ComparePanel label="Good names: self-explanatory" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Filter views panel:
+  Yoav only
+  Dina only
+  Maya only
+  This week
+  Spend > $500 with no revenue
+  Losses to investigate`}</code></pre>
+    <p className="mt-2 text-sm">A new teammate reads the list and knows what every view does. Reusable across the team without explanation.</p>
+  </ComparePanel>
+</Compare>
+
 ## Sorting inside a filter view: the trap
 
 Filtering inside a filter view is local to your view. **Sorting inside a filter view sorts the underlying data for everyone.** This bites people who think the filter view is a sandbox. It isn't, not for sort. If you click `Sort A→Z` on the Buyer column inside `Yoav only`, Sheets reorders the Campaigns tab for the entire team.
 
 The workaround: sort with `SORT(...)` in a separate analysis tab, not inside a filter view. Or duplicate the data into a `Working copy` tab where reordering is fine. Treat the filter view itself as read-only for sort.
+
+<QuickCheck
+  question="You're inside the 'Yoav only' filter view. You click 'Sort Z→A' on the Spend column to find Yoav's biggest spend day. What happens to the underlying Campaigns tab?"
+  options={[
+    {
+      id: "a",
+      label: "Only your view shows sorted rows; the underlying tab keeps its original order for everyone else",
+      correct: false,
+      explanation: "Common misconception. Filter views isolate filters, not sorts. The sort is global.",
+    },
+    {
+      id: "b",
+      label: "The Campaigns tab is reordered Z→A by Spend for every user, not just inside your filter view",
+      correct: true,
+      explanation: "Sort inside a filter view reorders the underlying data. The team sees rows in the new order. Avoid sort inside filter views; do sorting in analysis tabs.",
+    },
+    {
+      id: "c",
+      label: "Sheets blocks the sort because filter views are read-only for sort",
+      correct: false,
+      explanation: "Sheets doesn't block it. The button is there, the action goes through, and the global reorder happens silently.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
