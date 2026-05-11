@@ -12,11 +12,12 @@ TimesFM (Time Series Foundation Model) הוא foundation model של Google לנ�
 
 ב-Connected Sheets, Google עטף את זה ל-UI:
 
-1. בוחרים טבלת Connected Sheets שמחוברת ל-BigQuery (או extract).
-2. פותחים את הפעולה "Forecast".
-3. בוחרים את עמודת ה-timestamp, את עמודת הערך, את ה-horizon (1 עד 90 ימים), ואת רמת ה-confidence.
-4. לוחצים Forecast.
-5. גיליון חדש מופיע עם הערכים החזויים, חסם תחתון של ה-confidence וחסם עליון.
+1. פותחים את טבלת ה-Connected Sheets שמחוברת ל-BigQuery (או extract).
+2. לוחצים על **Preview** בחלק העליון של הטבלה כדי להיכנס ל-preview view.
+3. לוחצים על **Advanced Analytics → Create a Forecast**.
+4. בוחרים את עמודת ה-timestamp, את עמודת הערך, את ה-horizon (1 עד 90 ימים), ואת רמת ה-confidence.
+5. לוחצים **Create**.
+6. גיליון חדש מופיע עם הערכים החזויים, חסם תחתון של ה-confidence וחסם עליון.
 
 בצד של BigQuery רץ `AI.FORECAST` שמופעל מול נקודת הקצה המאוחסנת של TimesFM. החיוב הוא לפי שורות שנסרקו ועוד עלות inference של BigQuery ML, על סדרת spend יומי כמו זו של הצוות (פחות מ-1000 שורות) תחזית אחת עולה סנטים. עמוד התיעוד של Google על ההשקה הוא המקור האמין למחירים ולמגבלות.
 

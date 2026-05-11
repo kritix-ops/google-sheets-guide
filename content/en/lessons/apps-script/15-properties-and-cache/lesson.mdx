@@ -127,7 +127,7 @@ Test it by opening the script editor and running the function once with the stor
 
 ## Used in the wild
 
-- **API tokens in script properties.** The team's Taboola pull trigger reads its API key with `PropertiesService.getScriptProperties().getProperty("TABOOLA_TOKEN")` and uses it in the `Authorization` header. Rotating the key is a one-line update via the editor's Project settings → Script properties; no code change.
+- **API tokens in script properties.** The team's Taboola pull trigger reads its API key with `PropertiesService.getScriptProperties().getProperty("TABOOLA_TOKEN")` and uses it in the `Authorization` header. Rotating the key is a one-line update via the editor's **Project Settings** (gear icon in the left rail) **→ Script Properties → Add script property**; no code change. Note that only Script Properties have a UI; Document Properties and User Properties are set from code only.
 - **Daily FX rate cached for the day.** The morning trigger fetches the rate from the National Bank API, writes it to Properties (durable, survives cache eviction), and warms the cache for an hour. Every `=usdToILS(F2, getOrFetchRate())` call across the workbook during the day is then a cache hit.
 - **Per-user dashboard preferences.** When the sidebar lets a user toggle between "by buyer" and "by vertical" views, the choice goes into `UserProperties` so reopening the sidebar tomorrow picks up where they left off.
 - **The bound workbook's last-refresh timestamp.** `DocumentProperties.setProperty("lastRefresh", new Date().toISOString())` at the end of every successful pull. The sidebar reads it and shows "Refreshed 4 minutes ago" so the team trusts the dashboard isn't stale.

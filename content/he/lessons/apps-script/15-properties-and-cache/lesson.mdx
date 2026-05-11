@@ -127,7 +127,7 @@ try {
 
 ## נפוץ בשטח
 
-- **API tokens ב-script properties.** ה-trigger של Taboola pull בצוות קורא את ה-API key שלו עם `PropertiesService.getScriptProperties().getProperty("TABOOLA_TOKEN")` ומשתמש בו בכותרת `Authorization`. רוטציה של ה-key היא עדכון של שורה אחת דרך Project settings → Script properties בעורך; בלי שינוי קוד.
+- **API tokens ב-script properties.** ה-trigger של Taboola pull בצוות קורא את ה-API key שלו עם `PropertiesService.getScriptProperties().getProperty("TABOOLA_TOKEN")` ומשתמש בו בכותרת `Authorization`. רוטציה של ה-key היא עדכון של שורה אחת דרך **Project Settings** (אייקון גלגל השיניים בסרגל השמאלי) **→ Script Properties → Add script property** בעורך, בלי שינוי קוד. שימו לב שרק ל-Script Properties יש UI; Document Properties ו-User Properties נקבעים רק מהקוד.
 - **שער FX יומי שמור ב-cache לאורך היום.** ה-trigger של הבוקר משיג את השער מ-API של בנק לאומי, כותב אותו ל-Properties (קבוע, שורד eviction של cache), ומחמם את ה-cache לשעה. כל קריאת `=usdToILS(F2, getOrFetchRate())` ב-spreadsheet במהלך היום היא אז cache hit.
 - **העדפות dashboard לכל משתמש.** כשה-sidebar נותן למשתמש לעבור בין views של "by buyer" ל-"by vertical", הבחירה נכנסת ל-`UserProperties` כך שפתיחה מחדש של ה-sidebar מחר תרים מאיפה שהפסיק.
 - **חותמת ה-refresh האחרון של ה-workbook המקושר.** `DocumentProperties.setProperty("lastRefresh", new Date().toISOString())` בסוף כל pull מוצלח. ה-sidebar קורא אותה ומציג "Refreshed 4 minutes ago" כך שהצוות סומך על זה ש-ה-dashboard לא ישן.

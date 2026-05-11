@@ -12,11 +12,12 @@ TimesFM (Time Series Foundation Model) is a Google-trained foundation model for 
 
 In Connected Sheets, Google wrapped this into a UI:
 
-1. Click a Connected Sheets table tied to a BigQuery table (or extract).
-2. Open the "Forecast" action.
-3. Pick the timestamp column, the value column, the horizon (1 to 90 days), and the confidence level.
-4. Click Forecast.
-5. A new tab appears with the predicted values, a lower confidence bound, and an upper confidence bound.
+1. Open the Connected Sheets table tied to your BigQuery table (or extract).
+2. Click **Preview** at the top of the table to enter the preview view.
+3. Click **Advanced Analytics → Create a Forecast**.
+4. Pick the timestamp column, the value column, the horizon (1 to 90 days), and the confidence level.
+5. Click **Create**.
+6. A new tab appears with the predicted values, a lower confidence bound, and an upper confidence bound.
 
 The BigQuery side runs an `AI.FORECAST` call against the hosted TimesFM endpoint. Billing is per row scanned plus the BigQuery ML inference cost; on the kind of daily-spend series this team runs (under 1000 rows) a single forecast costs cents. The Google docs page covering the launch is the source of truth on pricing and limits.
 
