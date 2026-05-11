@@ -2,17 +2,40 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # Math, text, date, and logical functions
 
-Sheets is built from a small set of function families. Four of them cover most of what you'll write: math, text, date, and logical. This lesson tours the most-used members of each. Lookups (lesson 4), conditional logic in depth (lesson 5), and aggregation (lesson 6) build on top.
+Sheets is built from a small set of function families. Four of them cover most of what you'll write at work: math, text, date, and logical. This lesson tours the most-used members of each, gives every one its canonical reference card, and connects each to the adtech workflows it actually shows up in. Lookups (lesson 4), conditional logic in depth (lesson 5), and aggregation (lesson 6) build on top of what's here.
 
-## Math: operators and rounding
+The grid model from lesson 1 (`$` locking, named ranges) and the array awareness from lesson 2 (when does a formula spill?) are both assumed. If a sentence references "the spill behavior of `FILTER`" or "the locked `$J$1`", flip back if needed.
 
-The four operators (`+`, `-`, `*`, `/`) work the way you'd expect. `^` is exponent. The everyday math functions are `SUM`, `AVERAGE`, `ROUND`, `ABS`, and `MOD`.
+## Math: SUM, AVERAGE, ROUND
 
-<MiniGrid
-  data={CAMPAIGNS}
-  caption="The campaign log. We'll do math on the spend and revenue columns."
-  highlight={["E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13"]}
+The four operators (`+`, `-`, `*`, `/`) work the way you'd expect. `^` is exponent. Wrapping operators with functions is what makes a spreadsheet a spreadsheet: `SUM` replaces twelve plus signs, `AVERAGE` replaces SUM divided by COUNT, `ROUND` replaces a manual truncation you'd otherwise re-do every quarter.
+
+The everyday math functions are `SUM`, `AVERAGE`, `ROUND`, `ABS`, and `MOD`. The first three are in every workbook the team owns. `ABS` and `MOD` show up in narrower contexts (variance reports, banded row coloring), so we'll mention them in passing and leave the deep dive for lesson 23 (statistical) and lesson 11 (banding with `SEQUENCE` + `MOD`).
+
+<FunctionRef name="SUM" />
+
+### Worked example 1: toy data
+
+A four-row price list. `SUM` totals the price column.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 10],
+    ["B", 20],
+    ["C", 15],
+    ["D", 30],
+  ]}
+  formula="=SUM(B2:B5)"
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={["=SUM(B2:B5)"]}
+  caption="One cell, one range, one total. SUM ignores the text header at B1 if you include it, but it's cleaner to start at B2."
 />
+
+### Worked example 2: real adtech data
+
+Total spend across the May campaign log. This is the "burn rate" header at the top of every campaign sheet the team owns.
 
 <TryIt
   data={CAMPAIGNS}
@@ -20,10 +43,49 @@ The four operators (`+`, `-`, `*`, `/`) work the way you'd expect. `^` is expone
   expectedFormula="=SUM(E2:E13)"
   task={<>Total the spend across every campaign in the log. The result should be approximately <code>3933.68</code>.</>}
   hint={<>Add every spend from <code>E2</code> through <code>E13</code>. Use <code>SUM</code>.</>}
-  answer={<>SUM adds every numeric value in the range. Skip the header row (<code>E1</code>): it holds the text "Spend" which SUM would interpret as <code>0</code> in some contexts and break in others depending on column formatting. In real adtech work, the spend SUM at the top of every campaign sheet is your "burn rate" header: feeding into ROI dashboards and budget pacing alerts downstream.</>}
+  answer={<>SUM adds every numeric value in the range. Skip the header row (<code>E1</code>): it holds the text "Spend", which SUM ignores inside a range but breaks when passed as a bare argument. In real adtech work, the spend SUM at the top of every campaign sheet is your burn-rate header, feeding into ROI dashboards and budget pacing alerts downstream. The deeper conditional version (<code>SUMIFS</code>: total spend for a specific buyer, vertical, or date range) lives in lesson 6.</>}
 />
 
-`ROUND(value, places)` rounds to a given number of decimal places. `ROUND(91.234, 1)` is `91.2`. `ROUND(91.234, 0)` is `91`. Negative `places` rounds to tens, hundreds, etc. Used everywhere in adtech: revenue numbers presented to two decimals, ROI shown as a percentage, CPC bucketed to whole cents.
+### Combined example: SUM with a `$`-locked divisor
+
+Layer the named-range / `$`-locking pattern from lesson 1 with `SUM` to produce a percentage of total: each campaign's share of total spend.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=E2/SUM($E$2:$E$13)"
+  task={<>Compute the first campaign's share of total spend. The denominator must stay locked to <code>$E$2:$E$13</code> so the formula can be filled down without the range walking.</>}
+  hint={<>Numerator: <code>E2</code>. Denominator: <code>SUM</code> of the spend column, with the range locked using <code>$</code>.</>}
+  answer={<>Without the <code>$</code>, copying the formula down to row 3 would shift the denominator to <code>E3:E14</code>: a different total every row, all wrong. Locking with <code>$E$2:$E$13</code> keeps the denominator stable. Result for row 2: <code>0.087</code> (~8.7%). Same pattern works for "share of revenue", "share of clicks", "share of profit". In the team's actual workbooks this column lives on every per-buyer view.</>}
+/>
+
+<FunctionRef name="ROUND" />
+
+`ROUND` rounds to a given number of decimal places. `ROUND(91.234, 1)` is `91.2`. `ROUND(91.234, 0)` is `91`. Negative `places` rounds to tens, hundreds, etc. Used everywhere in adtech: revenue numbers presented to two decimals, ROI shown as a percentage, CPC bucketed to whole cents.
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUM(E1:E13)`}</code></pre>
+    <p className="mt-2 text-sm">Includes the header row <code>E1</code> which holds the text "Spend". Works only because text inside a range is ignored. The day someone renames the column to a number ("Spend USD" to just "3933"), the total silently doubles.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUM(E2:E13)`}</code></pre>
+    <p className="mt-2 text-sm">Start at the first data row. The total reflects only campaign rows. If you want resilience to header naming, name the range (<code>spend</code>) and write <code>=SUM(spend)</code> instead.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=ROUND(E2/F2, 2%)`}</code></pre>
+    <p className="mt-2 text-sm">The <code>2%</code> is parsed as <code>0.02</code>, so ROUND rounds to zero decimal places. The "%" suffix is a number-format trick, not a ROUND argument.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=ROUND(E2/F2, 2)`}</code></pre>
+    <p className="mt-2 text-sm">Pass the number of decimal places as a plain integer. For percent display, format the cell as percent (<strong>Format &gt; Number &gt; Percent</strong>) instead of folding "%" into the formula.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="What does =ROUND(8.5/3, 2) return?"
@@ -49,13 +111,31 @@ The four operators (`+`, `-`, `*`, `/`) work the way you'd expect. `^` is expone
   ]}
 />
 
-## Text: combining and shaping
+## Text: UPPER, LOWER, TRIM, SUBSTITUTE
 
-Joining text uses the `&` operator. `="Buyer: " & B2` returns `Buyer: Yoav Cohen`. `CONCATENATE` exists, but `&` is shorter and more common.
+Joining text uses the `&` operator: `="Buyer: " & B2` returns `Buyer: Yoav Cohen`. `CONCATENATE` exists, but `&` is shorter and more common.
 
-The shaping functions: `UPPER`, `LOWER`, `PROPER` change case. `LEN` returns the number of characters. `TRIM` removes leading, trailing, and double-internal spaces. `SUBSTITUTE(text, find, replace)` swaps one substring for another.
+The shaping functions are `UPPER`, `LOWER`, `PROPER` (case), `LEN` (length), `TRIM` (whitespace), and `SUBSTITUTE` (find-and-replace). The constant adtech use is normalizing values before they cross sheets via `IMPORTRANGE`: one upstream sheet has " yoav cohen ", another has "Yoav Cohen", and lookups silently fail until both sides are normalized. The deeper text manipulation lesson (lesson 7) covers `LEFT`, `RIGHT`, `MID`, `FIND`, `SEARCH`, and `TEXT`; for now we focus on the three reflexes you use every day.
 
-A constant adtech use: normalizing buyer names or vertical names for matching. If one IMPORTRANGE source has "yoav cohen" and another has "Yoav Cohen", lookups silently miss. Wrap both sides in `LOWER()` (or `PROPER()`) inside the join condition and the matches succeed.
+<FunctionRef name="UPPER" />
+
+### Worked example 1: toy data
+
+<RefDemo
+  data={[
+    ["Name"],
+    ["yoav"],
+    ["dina"],
+    ["maya"],
+  ]}
+  formula="=UPPER(A2)"
+  formulaCell="B2"
+  fillTo="B4"
+  expectedFills={["=UPPER(A3)", "=UPPER(A4)"]}
+  caption="UPPER applied to the first name; fill down to uppercase the rest. Useful when the upstream feed delivers names in inconsistent case."
+/>
+
+### Worked example 2: real adtech data
 
 <TryIt
   data={CAMPAIGNS}
@@ -63,8 +143,65 @@ A constant adtech use: normalizing buyer names or vertical names for matching. I
   expectedFormula="=UPPER(B2)"
   task={<>Uppercase the first buyer name (Yoav Cohen). The result should be <code>YOAV COHEN</code>.</>}
   hint={<>Wrap <code>B2</code> in <code>UPPER(...)</code>.</>}
-  answer={<>UPPER returns its argument with every letter forced uppercase. LOWER does the opposite. PROPER capitalizes the first letter of each word ("yoav cohen" becomes "Yoav Cohen"). All three leave non-letter characters alone, so they're safe to run on names with apostrophes, hyphens, or numbers. In production data work, normalizing case before joining is one of the cheapest ways to prevent silent #N/A from XLOOKUP.</>}
+  answer={<>UPPER returns its argument with every letter forced uppercase. LOWER does the opposite. PROPER capitalizes the first letter of each word ("yoav cohen" becomes "Yoav Cohen"). All three leave non-letter characters alone, so they're safe to run on names with apostrophes, hyphens, or numbers. In production data work, normalizing case before joining is one of the cheapest ways to prevent silent #N/A from <code>XLOOKUP</code> (lesson 4) and <code>QUERY</code>'s <code>WHERE</code> matches (lesson 12).</>}
 />
+
+<FunctionRef name="TRIM" />
+
+`TRIM` is the single most useful normalizer in IMPORTRANGE-heavy work. Source sheets often carry stray spaces (leading from a CSV export, trailing from manual paste, doubled internal from CRM exports). The fix is one wrapper.
+
+### Worked example: TRIM on imported data
+
+<RefDemo
+  data={[
+    ["Buyer (raw)"],
+    ["  Yoav Cohen"],
+    ["Dina Dayan "],
+    ["  Maya  Bar  "],
+  ]}
+  formula="=TRIM(A2)"
+  formulaCell="B2"
+  fillTo="B4"
+  expectedFills={["=TRIM(A3)", "=TRIM(A4)"]}
+  caption="TRIM strips leading and trailing spaces and collapses doubled internal spaces to single. Note: it does NOT remove non-breaking spaces (U+00A0) that some Windows exports include."
+/>
+
+### Combined example: layered normalization
+
+Pair `TRIM` with `LOWER` so a join column is robust to both whitespace and case differences. This is the canonical pre-lookup wrapper.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=TRIM(LOWER(B2))"
+  task={<>Produce a normalized join key for the first buyer name: trimmed and lowercased. The expected result is <code>yoav cohen</code>.</>}
+  hint={<>Apply <code>LOWER</code> first, then wrap the whole thing in <code>TRIM</code> (order doesn't matter for this case, but TRIM-outside is the team's convention).</>}
+  answer={<>Two functions composed: <code>LOWER(B2)</code> evaluates to <code>"yoav cohen"</code>, then <code>TRIM(...)</code> handles any stray whitespace (none here, but the formula is identical whether the source is clean or not). Use this exact pattern any time you build a join column from raw upstream text. Lesson 4 shows it inside an <code>XLOOKUP</code>; lesson 7 generalizes it with <code>REGEXREPLACE</code> for harder normalization.</>}
+/>
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP(B2, J2:J100, K2:K100)`}</code></pre>
+    <p className="mt-2 text-sm">Lookup against unnormalized source text. If <code>B2</code> arrived from one IMPORTRANGE and <code>J2:J100</code> from another, even one stray space silently breaks the match. Reads as <code>#N/A</code> with no other diagnostic.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP(TRIM(LOWER(B2)), ARRAYFORMULA(TRIM(LOWER(J2:J100))), K2:K100)`}</code></pre>
+    <p className="mt-2 text-sm">Normalize both sides before comparing. <code>ARRAYFORMULA</code> (lesson 2; deeper in lesson 10) lets <code>TRIM</code> and <code>LOWER</code> apply to a whole column.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=TRIM("Yoav&nbsp;Cohen")`}</code></pre>
+    <p className="mt-2 text-sm">The space between "Yoav" and "Cohen" is a non-breaking space (U+00A0), which TRIM does not remove. Result still reads as "Yoav Cohen" but compares unequal to a regular-space "Yoav Cohen".</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=TRIM(SUBSTITUTE(A2, CHAR(160), " "))`}</code></pre>
+    <p className="mt-2 text-sm"><code>SUBSTITUTE</code> with <code>CHAR(160)</code> swaps non-breaking spaces for regular ones; then <code>TRIM</code> handles the rest. Standard recipe for messy Windows-exported data.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="A column has buyer names with extra spaces ('  Yoav Cohen ', 'Dina Dayan '). XLOOKUP returns #N/A even though the names match. What's most likely the cause?"
@@ -73,11 +210,11 @@ A constant adtech use: normalizing buyer names or vertical names for matching. I
       id: "a",
       label: "XLOOKUP needs a different match mode for fuzzy matching.",
       correct: false,
-      explanation: "Match modes don't help here: XLOOKUP compares strings exactly by default, but ' Yoav Cohen ' and 'Yoav Cohen' are not the same string.",
+      explanation: "Match modes don't help here. XLOOKUP compares strings exactly by default, and ' Yoav Cohen ' and 'Yoav Cohen' are not the same string.",
     },
     {
       id: "b",
-      label: "The leading/trailing whitespace in the source breaks exact-string matching. Wrap both sides in TRIM.",
+      label: "The leading and trailing whitespace in the source breaks exact-string matching. Wrap both sides in TRIM.",
       correct: true,
       explanation: "Whitespace in IMPORTRANGE'd data is a top-three cause of 'why is my lookup broken'. TRIM strips it cheaply.",
     },
@@ -85,16 +222,35 @@ A constant adtech use: normalizing buyer names or vertical names for matching. I
       id: "c",
       label: "XLOOKUP can't handle names with spaces.",
       correct: false,
-      explanation: "It handles spaces fine: what it can't handle is invisible whitespace differing between source and target.",
+      explanation: "It handles spaces fine. What it can't handle is invisible whitespace differing between source and target.",
     },
   ]}
 />
 
-## Dates: numbers under the hood
+## Dates: DATE and the days-since-1899 model
 
-In Sheets, every date is secretly a number: the count of days since `1899-12-30`. That's why date math just works: subtract one date from another and you get the difference in days.
+In Sheets, every date is secretly a number: the count of days since `1899-12-30`. That's why date math just works. Subtract one date from another and you get the difference in days. Add 7 to a date and you get the same weekday a week later. The model has gotchas with imported text (CSV files give you dates as strings, not numbers), but for native cell entries the arithmetic is reliable.
 
-`TODAY()` returns today's number. `NOW()` adds the time. `DATE(year, month, day)` builds a date from parts. `EOMONTH(date, n)` jumps to the last day of the month n months away. Lesson 8 covers all of them in depth; for now, the date arithmetic is what matters.
+`DATE(year, month, day)` builds a date from its parts. `TODAY()` and `NOW()` return the current date and the current date-plus-time. `EOMONTH`, `NETWORKDAYS`, and `DATEDIF` cover end-of-month, business days, and arbitrary date deltas; they get their full treatment in lesson 8. For now, knowing how to build a date and subtract two dates is enough to power the most common adtech use cases: campaign age, days remaining in a period, billing cycle boundaries.
+
+<FunctionRef name="DATE" />
+
+### Worked example 1: toy data
+
+<RefDemo
+  data={[
+    ["Year", "Month", "Day"],
+    [2026, 5, 1],
+    [2026, 5, 31],
+  ]}
+  formula="=DATE(A2,B2,C2)"
+  formulaCell="D2"
+  fillTo="D3"
+  expectedFills={["=DATE(A3,B3,C3)"]}
+  caption="DATE assembles a date from three numeric components. Note how Sheets renders the result with the cell's date format."
+/>
+
+### Worked example 2: real adtech data
 
 <TryIt
   data={CAMPAIGNS}
@@ -102,25 +258,133 @@ In Sheets, every date is secretly a number: the count of days since `1899-12-30`
   expectedFormula="=DATE(2026,12,31)-DATE(2026,1,1)"
   task={<>Compute the number of days from January 1, 2026 to December 31, 2026 (one fiscal year). The result should be <code>364</code>.</>}
   hint={<>Build each date with <code>DATE(year, month, day)</code>, then subtract end minus start.</>}
-  answer={<>Sheets stores dates as the count of days since 1899-12-30. <code>DATE(2026,1,1)</code> evaluates to <code>46023</code> and <code>DATE(2026,12,31)</code> to <code>46387</code>. Subtracting gives <code>364</code>: the number of days between them. In adtech, this is how you compute "days since campaign launched", "days remaining in the quarter", or "days between today and a renewal date". Lesson 8 covers EOMONTH, NETWORKDAYS, and DATEDIF for the more sophisticated date functions.</>}
+  answer={<>Sheets stores dates as the count of days since 1899-12-30. <code>DATE(2026,1,1)</code> evaluates to <code>46023</code> and <code>DATE(2026,12,31)</code> to <code>46387</code>. Subtracting gives <code>364</code>, the number of days between them. In adtech, this is how you compute "days since campaign launched", "days remaining in the quarter", or "days between today and a renewal date". Lesson 8 covers EOMONTH, NETWORKDAYS, and DATEDIF for the more sophisticated date functions.</>}
 />
 
-## Logical: comparisons and IF
+### Easy traps
 
-The comparison operators (`=`, `<>`, `<`, `>`, `<=`, `>=`) compare two values and return `TRUE` or `FALSE`.
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=A2-A3`}</code></pre>
+    <p className="mt-2 text-sm">When <code>A2</code> and <code>A3</code> are dates pasted in as text ("2026-05-01" with single quote, or a CSV import that left them as strings), subtraction returns <code>#VALUE!</code>. The cells <em>look</em> like dates but Sheets treats them as text.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=DATEVALUE(A2)-DATEVALUE(A3)`}</code></pre>
+    <p className="mt-2 text-sm">Force the strings to dates first with <code>DATEVALUE</code>, then subtract. Or fix the source: select the column, <strong>Format &gt; Number &gt; Date</strong>, and re-enter or paste-as-values.</p>
+  </ComparePanel>
+</Compare>
 
-`IF(condition, value_if_true, value_if_false)` is the workhorse. The condition is anything that returns a boolean: a comparison, a function like `ISBLANK`, or another `IF` (lesson 5 covers nested logic in depth).
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=DATE(2026,13,1)`}</code></pre>
+    <p className="mt-2 text-sm">Looks broken (month 13 doesn't exist) but Sheets <em>silently</em> rolls over: this returns January 1, 2027. Useful for arithmetic, dangerous when "month 13" is actually a data error you wanted to catch.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IF(AND(B2&gt;=1, B2&lt;=12), DATE(A2,B2,C2), "Invalid month")`}</code></pre>
+    <p className="mt-2 text-sm">Validate the month before building the date. The rollover behavior is convenient for "first day next month" formulas, but a guard is safer for user-entered data.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="A column in an IMPORTRANGE'd sheet shows dates like 2026-05-01, but =DATEDIF on them returns #VALUE!. What's the most likely cause?"
+  options={[
+    {
+      id: "a",
+      label: "DATEDIF doesn't accept dates from IMPORTRANGE.",
+      correct: false,
+      explanation: "DATEDIF treats IMPORTRANGE'd dates the same as native dates: the issue is upstream.",
+    },
+    {
+      id: "b",
+      label: "The dates arrived as text strings, not as date values. Wrap them in DATEVALUE first.",
+      correct: true,
+      explanation: "Imported dates from CSVs or APIs frequently arrive as text. They look right on screen but fail every date function.",
+    },
+    {
+      id: "c",
+      label: "DATEDIF requires the dates to be sorted ascending.",
+      correct: false,
+      explanation: "Sort order doesn't affect DATEDIF (and DATEDIF doesn't take a range, only two specific dates).",
+    },
+  ]}
+/>
+
+## Logical: IF, AND, OR
+
+The comparison operators (`=`, `<>`, `<`, `>`, `<=`, `>=`) compare two values and return `TRUE` or `FALSE`. They are the building blocks of every conditional column the team builds: "Is profitable?", "Above target ROI?", "Past end of period?", "Worth scaling?"
+
+`IF` is the workhorse. The condition is anything that returns a boolean: a comparison, a function like `ISBLANK`, or another `IF`. When the conditions stack three or more deep, switch to `IFS` (lesson 5). When you need "all these AND together" or "any of these OR together", reach for `AND` and `OR`.
+
+<FunctionRef name="IF" />
+
+### Worked example 1: toy data
+
+<RefDemo
+  data={[
+    ["Score"],
+    [85],
+    [62],
+    [91],
+    [40],
+  ]}
+  formula='=IF(A2>=70,"Pass","Fail")'
+  formulaCell="B2"
+  fillTo="B5"
+  expectedFills={['=IF(A3>=70,"Pass","Fail")', '=IF(A4>=70,"Pass","Fail")', '=IF(A5>=70,"Pass","Fail")']}
+  caption="A scalar IF on a single value. The condition is a comparison; the two branches are literal strings."
+/>
+
+### Worked example 2: real adtech data
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
   expectedFormula='=IF(F2>E2,"Profitable","Loss")'
-  task={<>Label the first campaign (row 2) as <code>Profitable</code> if its revenue beats its spend; otherwise <code>Loss</code>. (Spend was 342.18, revenue was 487.30, so the result should be <code>Profitable</code>.)</>}
+  task={<>Label the first campaign (row 2) as <code>Profitable</code> if its revenue beats its spend, otherwise <code>Loss</code>. (Spend was 342.18, revenue was 487.30, so the result should be <code>Profitable</code>.)</>}
   hint={<>Compare <code>F2</code> (revenue) to <code>E2</code> (spend). Wrap the comparison in <code>IF</code>.</>}
-  answer={<>The condition <code>F2{">"}E2</code> evaluates to <code>TRUE</code> for the first row (487.30 {">"} 342.18), so IF returns <code>"Profitable"</code>. This is the simplest profit flag: in real workbooks, you'd often refine it (require revenue {">"} spend by a margin, or compare ROI to a target). Lesson 5 covers nesting <code>IF</code>, the cleaner <code>IFS</code> alternative, and combining conditions with <code>AND</code>/<code>OR</code>.</>}
+  answer={<>The condition <code>F2{">"}E2</code> evaluates to <code>TRUE</code> for the first row (487.30 {">"} 342.18), so IF returns <code>"Profitable"</code>. This is the simplest profit flag. In real workbooks, you'd often refine it (require revenue {">"} spend by a margin, or compare ROI to a target). Lesson 5 covers nesting <code>IF</code>, the cleaner <code>IFS</code> alternative, and combining conditions with <code>AND</code>/<code>OR</code>.</>}
 />
 
-`AND(...)` returns TRUE if every argument is TRUE. `OR(...)` returns TRUE if any one is. `NOT(x)` flips the boolean. The classic adtech use of `AND` answers "is this campaign both profitable AND high-volume". Both conditions must hold for the row to qualify for an aggressive scaling decision.
+<FunctionRef name="AND" />
+
+`AND` returns TRUE when every argument is TRUE. The classic adtech use answers "is this campaign both profitable AND high-volume". Both conditions must hold for the row to qualify for an aggressive scaling decision. `OR` is the dual: any one argument being TRUE is enough. `NOT` flips a boolean, mostly used inside `IF` conditions to invert an `IS-` check.
+
+### Combined example: IF over an AND of two conditions
+
+Layer `IF` and `AND` to produce a real scaling flag: "profitable AND spend at least $200".
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=IF(AND(F2>E2,E2>=200),"Scale","Hold")'
+  task={<>Flag the first campaign for scaling if it is both profitable (revenue {">"} spend) AND its spend is at least $200. Result for the first row: <code>Scale</code>.</>}
+  hint={<>Two conditions inside <code>AND(...)</code>: <code>F2&gt;E2</code> and <code>E2&gt;=200</code>. Wrap the AND result in IF.</>}
+  answer={<>Both conditions are TRUE for row 2 (487.30 {">"} 342.18, and 342.18 {">="} 200), so AND returns TRUE and IF returns "Scale". Row 11 (Roofing Services PR) has revenue {"<"} spend, so AND returns FALSE and the cell would read "Hold" when filled down. Real scaling decisions add a third clamp (e.g., ROI &gt;= 1.3) and switch to <code>IFS</code> (lesson 5) once the branches multiply.</>}
+/>
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IF(F2-E2,"Profitable","Loss")`}</code></pre>
+    <p className="mt-2 text-sm">The condition is a number, not a boolean. Sheets coerces non-zero to TRUE, so this flags <em>any</em> campaign with a non-zero profit difference (including losses) as "Profitable". The bug is invisible until a loss row reads "Profitable" on a dashboard.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IF(F2&gt;E2,"Profitable","Loss")`}</code></pre>
+    <p className="mt-2 text-sm">Compare with <code>&gt;</code> to get an explicit boolean. Always make the comparison operator visible; never rely on truthy-coercion of a number.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IF(B2=" Yoav Cohen", "match", "no")`}</code></pre>
+    <p className="mt-2 text-sm">Comparing with a literal that has a stray leading space. Always returns "no" even on the real Yoav Cohen rows. Same family of bug as the TRIM trap above, hidden inside the IF.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IF(TRIM(B2)="Yoav Cohen", "match", "no")`}</code></pre>
+    <p className="mt-2 text-sm">Normalize before comparing. If both sides come from external sources, wrap both: <code>IF(TRIM(LOWER(B2))=TRIM(LOWER(C2)), ...)</code>.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="What does =AND(F2>E2, E2>=200) return when E2 is 342.18 and F2 is 487.30?"
@@ -150,18 +414,19 @@ The comparison operators (`=`, `<>`, `<`, `>`, `<=`, `>=`) compare two values an
 
 In the team's actual workbooks, these basic functions show up like this:
 
-- **SUM at the top of every column.** Total spend, total revenue, total clicks. Often wrapped in ROUND for a clean dashboard view. Often a SUMIFS (lesson 6) when you need to filter by buyer or platform first.
-- **TRIM and LOWER on every join column.** Anywhere data crosses sheets (especially via IMPORTRANGE), normalize first or accept silent #N/A in your lookups.
-- **TODAY() in date math for "days since" columns.** Combined with date columns from the source, gives you live-updating "campaign age" numbers. Watch out: TODAY recalculates daily, so values change every morning.
-- **IF as the entry point to every conditional column.** "Is profitable?", "Above target ROI?", "Past end of period?". Lesson 5 covers when IF stops being enough and IFS takes over.
+- **`SUM` at the top of every column.** Total spend, total revenue, total clicks. Often wrapped in `ROUND` for a clean dashboard view. Often a `SUMIFS` (lesson 6) when you need to filter by buyer or platform first.
+- **`TRIM` and `LOWER` on every join column.** Anywhere data crosses sheets (especially via `IMPORTRANGE`), normalize first or accept silent #N/A in your lookups. Lesson 4 shows the lookup-side version; lesson 27 covers `IMPORTRANGE` end-to-end.
+- **`TODAY()` in date math for "days since" columns.** Combined with date columns from the source, gives you live-updating "campaign age" numbers. Watch out: `TODAY` recalculates daily, so values change every morning, and on a 50,000-row sheet it can hurt performance noticeably.
+- **`IF` as the entry point to every conditional column.** "Is profitable?", "Above target ROI?", "Past end of period?". Lesson 5 covers when `IF` stops being enough and `IFS` takes over.
 
 ## Pro pitfalls
 
-- **Don't include the header row in SUM/AVERAGE.** `SUM(E1:E13)` works only if E1 isn't a number; otherwise you'll silently double-count or break.
-- **TRIM doesn't fix inconsistent casing.** If one source has "yoav cohen" and another has "Yoav Cohen", TRIM won't help; you need LOWER or PROPER on both sides.
-- **TODAY() makes a sheet recalculate every day.** Fine for dashboards; expensive for a sheet with 50,000 rows that all reference TODAY indirectly.
+- **Don't include the header row in SUM/AVERAGE if the header could ever become numeric.** `SUM(E1:E13)` works only if E1 stays text. If someone renames the header to a number, you silently double-count.
+- **`TRIM` doesn't fix inconsistent casing, and it doesn't strip non-breaking spaces.** If one source has "yoav cohen" and another has "Yoav Cohen", `TRIM` won't help; you need `LOWER` or `PROPER` on both sides. Non-breaking spaces (U+00A0) from Windows exports need a `SUBSTITUTE(text, CHAR(160), " ")` first.
+- **`TODAY()` makes a sheet recalculate every day.** Fine for dashboards; expensive for a sheet with 50,000 rows that all reference `TODAY` indirectly. Lesson 28 (performance) covers the recalc cost in detail.
 - **`=B2 + C2` errors silently if either cell is text.** Sheets returns `#VALUE!` or coerces unpredictably. Use `IFERROR` (covered in lesson 9) to catch.
+- **`IF` with a non-boolean condition is a silent footgun.** Always make the comparison operator visible (`>`, `=`, `<`). Never rely on truthy-coercion.
 
 ## Now do it for real
 
-Click **Start lesson** to provision the campaign log. You'll exercise all four families: SUM the spend, UPPER a buyer name, DATE arithmetic for a fiscal range, and IF for a profit flag.
+Click **Start lesson** to provision the campaign log. You'll exercise all four families: `SUM` the spend, `UPPER` a buyer name, `DATE` arithmetic for a fiscal range, and `IF` over an `AND` for a real scaling flag.

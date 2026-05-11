@@ -2,17 +2,40 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # פונקציות חשבון, טקסט, תאריך ולוגיקה
 
-Sheets בנוי מקבוצה קטנה של משפחות פונקציות. ארבע מהן מכסות את רוב מה שתכתבו: חשבון, טקסט, תאריך ולוגיקה. השיעור הזה עובר על החברים הכי שימושיים בכל אחת. Lookups (שיעור 4), לוגיקה מותנית לעומק (שיעור 5), ואגרגציה (שיעור 6) ייבנו על המשפחות האלו.
+Sheets בנוי מקבוצה קטנה של משפחות פונקציות. ארבע מהן מכסות את רוב מה שתכתבו בעבודה: חשבון, טקסט, תאריך ולוגיקה. השיעור הזה עובר על החברים הכי שימושיים בכל אחת, נותן לכל פונקציה את כרטיס ה-reference הקנוני שלה, ומחבר כל אחת לזרימות עבודה אמיתיות של אדטק. Lookups (שיעור 4), לוגיקה מותנית לעומק (שיעור 5), ואגרגציה (שיעור 6) ייבנו על המשפחות האלו.
 
-## חשבון: אופרטורים ועיגול
+מודל הרשת משיעור 1 (נעילה עם `$`, named ranges) וההבנה של arrays משיעור 2 (מתי נוסחה זורמת?) שתיהן מנחות. אם משפט מפנה ל-spill של `FILTER` או ל-`$J$1` נעול, אפשר לחזור לשם בלחיצה.
 
-ארבעת האופרטורים (`+`, `-`, `*`, `/`) עובדים כמצופה. `^` הוא חזקה. הפונקציות החשבוניות היומיומיות הן `SUM`, `AVERAGE`, `ROUND`, `ABS`, ו-`MOD`.
+## חשבון: SUM, AVERAGE, ROUND
 
-<MiniGrid
-  data={CAMPAIGNS}
-  caption="טבלת הקמפיינים. נעשה חשבון על עמודות ה-spend וה-revenue."
-  highlight={["E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13"]}
+ארבעת האופרטורים (`+`, `-`, `*`, `/`) עובדים כמצופה. `^` הוא חזקה. עטיפת אופרטורים בפונקציות היא מה שהופך spreadsheet ל-spreadsheet: `SUM` מחליף שנים-עשר סימני +, `AVERAGE` מחליף SUM מחולק ב-COUNT, `ROUND` מחליף קיצוץ ידני שהייתם עושים מחדש בכל רבעון.
+
+הפונקציות החשבוניות היומיומיות הן `SUM`, `AVERAGE`, `ROUND`, `ABS`, ו-`MOD`. השלוש הראשונות נמצאות בכל workbook של הצוות. `ABS` ו-`MOD` מופיעות בהקשרים יותר צרים (דוחות variance, banding של שורות בצבע), אז נזכיר אותן בקצרה ונשאיר את הצלילה העמוקה לשיעור 23 (סטטיסטיקה) ושיעור 11 (banding עם `SEQUENCE` + `MOD`).
+
+<FunctionRef name="SUM" />
+
+### דוגמה ראשונה: מידע צעצוע
+
+טבלה של ארבע שורות מחירים. `SUM` מסכם את עמודת המחיר.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 10],
+    ["B", 20],
+    ["C", 15],
+    ["D", 30],
+  ]}
+  formula="=SUM(B2:B5)"
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={["=SUM(B2:B5)"]}
+  caption="תא אחד, טווח אחד, סכום אחד. SUM מתעלם מכותרת הטקסט ב-B1 אם תכלילו אותה, אבל יותר נקי להתחיל מ-B2."
 />
+
+### דוגמה שנייה: מידע אמיתי של אדטק
+
+סך ה-spend על פני טבלת הקמפיינים של מאי. זאת כותרת ה-"burn rate" שיושבת בראש כל גיליון קמפיינים של הצוות.
 
 <TryIt
   data={CAMPAIGNS}
@@ -20,10 +43,49 @@ Sheets בנוי מקבוצה קטנה של משפחות פונקציות. ארב
   expectedFormula="=SUM(E2:E13)"
   task={<>סכמו את ה-spend על פני כל הקמפיינים בטבלה. התוצאה אמורה להיות בערך <code>3933.68</code>.</>}
   hint={<>חברו כל spend מ-<code>E2</code> עד <code>E13</code>. השתמשו ב-<code>SUM</code>.</>}
-  answer={<>SUM מחבר כל ערך מספרי בטווח. דלגו על שורת הכותרת (<code>E1</code>). היא מחזיקה את הטקסט "Spend", ש-SUM היה מפרש כ-<code>0</code> בהקשרים מסוימים ושובר בהקשרים אחרים, תלוי בפורמט של העמודה. בעבודת אדטק אמיתית, ה-SUM של ה-spend בראש כל גיליון קמפיינים הוא ה-"burn rate" של הראש. הוא מזין dashboards של ROI ופייסים של תקציב במורד הזרם.</>}
+  answer={<>SUM מחבר כל ערך מספרי בטווח. דלגו על שורת הכותרת (<code>E1</code>): היא מחזיקה את הטקסט "Spend", ש-SUM מתעלם ממנו בתוך טווח אבל נשבר אם הוא מועבר כ-argument חשוף. בעבודת אדטק אמיתית, ה-SUM של ה-spend בראש כל גיליון קמפיינים הוא כותרת burn-rate שלכם, מזין dashboards של ROI ו-pacing alerts במורד הזרם. הגרסה המותנית העמוקה (<code>SUMIFS</code>: סכום spend ל-buyer מסוים, vertical או טווח תאריכים) חיה בשיעור 6.</>}
 />
 
-`ROUND(value, places)` מעגל למספר נתון של מקומות אחרי הנקודה. `ROUND(91.234, 1)` יוצא `91.2`. `ROUND(91.234, 0)` יוצא `91`. `places` שלילי מעגל לעשרות, מאות וכו'. שימוש בכל מקום באדטק: מספרי revenue מוצגים בשני עשרוניים, ROI מוצג כאחוז, CPC מקובץ לסנטים שלמים.
+### דוגמה משולבת: SUM עם מכנה נעול ב-$
+
+שלבו את דפוס named-range / נעילת `$` משיעור 1 עם `SUM` כדי לייצר אחוז מהסך: החלק של כל קמפיין מסך ה-spend.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=E2/SUM($E$2:$E$13)"
+  task={<>חשבו את חלק הקמפיין הראשון מסך ה-spend. המכנה חייב להישאר נעול ל-<code>$E$2:$E$13</code> כדי שניתן יהיה להעתיק את הנוסחה מטה בלי שהטווח יזוז.</>}
+  hint={<>מונה: <code>E2</code>. מכנה: <code>SUM</code> של עמודת ה-spend, עם הטווח נעול באמצעות <code>$</code>.</>}
+  answer={<>בלי ה-<code>$</code>, העתקה של הנוסחה לשורה 3 תזיז את המכנה ל-<code>E3:E14</code>: סכום שונה בכל שורה, כולם שגויים. נעילה עם <code>$E$2:$E$13</code> שומרת על מכנה יציב. תוצאה לשורה 2: <code>0.087</code> (~8.7%). אותו דפוס עובד ל-"חלק מ-revenue", "חלק מ-clicks", "חלק מ-profit". ב-workbooks האמיתיים של הצוות העמודה הזו חיה בכל view של buyer.</>}
+/>
+
+<FunctionRef name="ROUND" />
+
+`ROUND` מעגל למספר נתון של מקומות אחרי הנקודה. `ROUND(91.234, 1)` יוצא `91.2`. `ROUND(91.234, 0)` יוצא `91`. `places` שלילי מעגל לעשרות, מאות וכו'. שימוש בכל מקום באדטק: מספרי revenue מוצגים בשני עשרוניים, ROI מוצג כאחוז, CPC מקובץ לסנטים שלמים.
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUM(E1:E13)`}</code></pre>
+    <p className="mt-2 text-sm">כולל את שורת הכותרת <code>E1</code> שמחזיקה את הטקסט "Spend". עובד רק כי טקסט בתוך טווח מתעלמים ממנו. ביום שמישהו ישנה את שם הכותרת למספר ("Spend USD" ל-"3933"), הסכום מכפיל את עצמו בשקט.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUM(E2:E13)`}</code></pre>
+    <p className="mt-2 text-sm">תתחילו משורת המידע הראשונה. הסכום משקף רק שורות קמפיין. לעמידות בפני שינויי שם כותרת, תנו לטווח שם (<code>spend</code>) וכתבו <code>=SUM(spend)</code> במקום.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=ROUND(E2/F2, 2%)`}</code></pre>
+    <p className="mt-2 text-sm">ה-<code>2%</code> מפוענח כ-<code>0.02</code>, אז ROUND מעגל לאפס מקומות עשרוניים. סימן ה-"%" הוא טריק עיצוב מספרי, לא argument של ROUND.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=ROUND(E2/F2, 2)`}</code></pre>
+    <p className="mt-2 text-sm">העבירו את מספר המקומות העשרוניים כמספר שלם רגיל. לתצוגת אחוזים, עצבו את התא כאחוז (<strong>Format &gt; Number &gt; Percent</strong>) במקום להכניס "%" לנוסחה.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="מה =ROUND(8.5/3, 2) מחזיר?"
@@ -49,13 +111,31 @@ Sheets בנוי מקבוצה קטנה של משפחות פונקציות. ארב
   ]}
 />
 
-## טקסט: שילוב ועיצוב
+## טקסט: UPPER, LOWER, TRIM, SUBSTITUTE
 
-לחיבור טקסט משתמשים באופרטור `&`. `="Buyer: " & B2` מחזיר `Buyer: Yoav Cohen`. `CONCATENATE` קיים, אבל `&` קצר יותר ונפוץ יותר.
+לחיבור טקסט משתמשים באופרטור `&`: `="Buyer: " & B2` מחזיר `Buyer: Yoav Cohen`. `CONCATENATE` קיים, אבל `&` קצר יותר ונפוץ יותר.
 
-פונקציות העיצוב: `UPPER`, `LOWER`, `PROPER` משנות את ה-case. `LEN` מחזיר את מספר התווים. `TRIM` מסיר רווחים בהתחלה, בסוף, ורווחים כפולים באמצע. `SUBSTITUTE(text, find, replace)` מחליף תת-מחרוזת אחת באחרת.
+פונקציות העיצוב הן `UPPER`, `LOWER`, `PROPER` (case), `LEN` (אורך), `TRIM` (whitespace), ו-`SUBSTITUTE` (חפש-והחלף). השימוש הקבוע באדטק הוא נירמול של ערכים לפני שהם חוצים גיליונות דרך `IMPORTRANGE`: גיליון מקור אחד מחזיק " yoav cohen ", שני מחזיק "Yoav Cohen", ו-lookups נכשלים בשקט עד ששני הצדדים מנורמלים. שיעור manipulation של טקסט (שיעור 7) מכסה את `LEFT`, `RIGHT`, `MID`, `FIND`, `SEARCH`, ו-`TEXT`. בינתיים אנחנו מתמקדים בשלושת הרפלקסים שמשתמשים בהם כל יום.
 
-שימוש קבוע באדטק: נרמול של שמות media buyers או שמות verticals לצורך התאמה. אם מקור IMPORTRANGE אחד מחזיק "yoav cohen" ואחר מחזיק "Yoav Cohen", lookups מפספסים בשקט. עוטפים את שני הצדדים ב-`LOWER()` (או `PROPER()`) בתוך תנאי ה-join וההתאמות מצליחות.
+<FunctionRef name="UPPER" />
+
+### דוגמה ראשונה: מידע צעצוע
+
+<RefDemo
+  data={[
+    ["Name"],
+    ["yoav"],
+    ["dina"],
+    ["maya"],
+  ]}
+  formula="=UPPER(A2)"
+  formulaCell="B2"
+  fillTo="B4"
+  expectedFills={["=UPPER(A3)", "=UPPER(A4)"]}
+  caption="UPPER מוחל על השם הראשון; אפשר להעתיק מטה כדי להפוך לאותיות גדולות את השאר. שימושי כשה-feed שמייבא נותן שמות ב-case לא עקבי."
+/>
+
+### דוגמה שנייה: מידע אמיתי של אדטק
 
 <TryIt
   data={CAMPAIGNS}
@@ -63,8 +143,65 @@ Sheets בנוי מקבוצה קטנה של משפחות פונקציות. ארב
   expectedFormula="=UPPER(B2)"
   task={<>הפכו לאותיות גדולות את שם ה-media buyer הראשון (Yoav Cohen). התוצאה אמורה להיות <code>YOAV COHEN</code>.</>}
   hint={<>עטפו את <code>B2</code> ב-<code>UPPER(...)</code>.</>}
-  answer={<>UPPER מחזיר את הארגומנט שלו עם כל אות מאולצת לאות גדולה. LOWER עושה את ההפך. PROPER עושה אות גדולה לאות הראשונה של כל מילה ("yoav cohen" הופך ל-"Yoav Cohen"). שלושתן משאירות תווים שאינם אותיות במנוחה, אז בטוח להריץ אותן על שמות עם גרשיים, מקפים או מספרים. בעבודת מידע פרודקשן, נרמול case לפני join הוא אחת הדרכים הזולות ביותר למנוע #N/A שקט מ-XLOOKUP.</>}
+  answer={<>UPPER מחזיר את הארגומנט שלו עם כל אות מאולצת לאות גדולה. LOWER עושה את ההפך. PROPER הופך לאות גדולה את האות הראשונה של כל מילה ("yoav cohen" הופך ל-"Yoav Cohen"). שלושתן משאירות תווים שאינם אותיות במנוחה, אז בטוח להריץ אותן על שמות עם גרשיים, מקפים או מספרים. בעבודת מידע פרודקשן, נרמול case לפני join הוא אחת הדרכים הזולות ביותר למנוע #N/A שקט מ-<code>XLOOKUP</code> (שיעור 4) וגם מהתאמות <code>WHERE</code> של <code>QUERY</code> (שיעור 12).</>}
 />
+
+<FunctionRef name="TRIM" />
+
+`TRIM` היא הפונקציה הכי שימושית לנירמול בעבודה כבדת IMPORTRANGE. גיליונות מקור לעיתים קרובות סוחבים רווחים תועים (בהתחלה מייצוא CSV, בסוף מהדבקה ידנית, כפולים פנימיים מייצואי CRM). הפתרון הוא wrapper אחד.
+
+### דוגמה: TRIM על מידע מיובא
+
+<RefDemo
+  data={[
+    ["Buyer (raw)"],
+    ["  Yoav Cohen"],
+    ["Dina Dayan "],
+    ["  Maya  Bar  "],
+  ]}
+  formula="=TRIM(A2)"
+  formulaCell="B2"
+  fillTo="B4"
+  expectedFills={["=TRIM(A3)", "=TRIM(A4)"]}
+  caption="TRIM מסיר רווחים בהתחלה ובסוף ומכווץ רווחים פנימיים כפולים ליחיד. שימו לב: הוא לא מסיר non-breaking spaces (U+00A0) שייצואי Windows מסוימים כוללים."
+/>
+
+### דוגמה משולבת: נרמול שכבתי
+
+שלבו את `TRIM` עם `LOWER` כדי שעמודת join תהיה עמידה גם ל-whitespace וגם להבדלי case. זה ה-wrapper הקנוני לפני lookup.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=TRIM(LOWER(B2))"
+  task={<>הפיקו מפתח join מנורמל עבור שם ה-buyer הראשון: trimmed ו-lowercased. התוצאה הצפויה היא <code>yoav cohen</code>.</>}
+  hint={<>החילו <code>LOWER</code> קודם, ואז עטפו את הכל ב-<code>TRIM</code> (הסדר לא משנה במקרה הזה, אבל TRIM-בחוץ זאת הקונבנציה של הצוות).</>}
+  answer={<>שתי פונקציות מורכבות: <code>LOWER(B2)</code> מתפענח ל-<code>"yoav cohen"</code>, ואז <code>TRIM(...)</code> מטפל בכל whitespace תועה (אין פה אבל הנוסחה זהה בין אם המקור נקי או לא). השתמשו בדפוס הזה בדיוק בכל פעם שבונים עמודת join מטקסט מקור גולמי. שיעור 4 מראה את זה בתוך <code>XLOOKUP</code>; שיעור 7 מכליל את זה עם <code>REGEXREPLACE</code> לנירמולים קשים יותר.</>}
+/>
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP(B2, J2:J100, K2:K100)`}</code></pre>
+    <p className="mt-2 text-sm">Lookup מול טקסט מקור לא מנורמל. אם <code>B2</code> הגיע מ-IMPORTRANGE אחד ו-<code>J2:J100</code> מאחר, אפילו רווח אחד תועה שובר את ההתאמה בשקט. נקרא כ-<code>#N/A</code> בלי שום דיאגנוסטיקה אחרת.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP(TRIM(LOWER(B2)), ARRAYFORMULA(TRIM(LOWER(J2:J100))), K2:K100)`}</code></pre>
+    <p className="mt-2 text-sm">לנרמל את שני הצדדים לפני השוואה. <code>ARRAYFORMULA</code> (שיעור 2; עמוק יותר בשיעור 10) מאפשר ל-<code>TRIM</code> ו-<code>LOWER</code> לחול על עמודה שלמה.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=TRIM("Yoav&nbsp;Cohen")`}</code></pre>
+    <p className="mt-2 text-sm">הרווח בין "Yoav" ל-"Cohen" הוא non-breaking space (U+00A0), ש-TRIM לא מסיר. התוצאה עדיין נקראת כ-"Yoav Cohen" אבל משווה כשונה ל-"Yoav Cohen" עם רווח רגיל.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=TRIM(SUBSTITUTE(A2, CHAR(160), " "))`}</code></pre>
+    <p className="mt-2 text-sm"><code>SUBSTITUTE</code> עם <code>CHAR(160)</code> מחליף non-breaking spaces ברגילים; ואז <code>TRIM</code> מטפל בשאר. מתכון סטנדרטי למידע מיוצא מ-Windows מבולגן.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="עמודה מחזיקה שמות של media buyers עם רווחים מיותרים ('  Yoav Cohen ', 'Dina Dayan '). XLOOKUP מחזיר #N/A למרות שהשמות תואמים. מה הסיבה הסבירה ביותר?"
@@ -90,11 +227,30 @@ Sheets בנוי מקבוצה קטנה של משפחות פונקציות. ארב
   ]}
 />
 
-## תאריכים: מספרים מתחת לפני השטח
+## תאריכים: DATE ומודל הימים-מאז-1899
 
-ב-Sheets, כל תאריך הוא בסתר מספר: ספירה של הימים מאז `1899-12-30`. בגלל זה חשבון של תאריכים פשוט עובד. מחסירים תאריך אחד מהשני ומקבלים את ההפרש בימים.
+ב-Sheets, כל תאריך הוא בסתר מספר: ספירה של הימים מאז `1899-12-30`. בגלל זה חשבון של תאריכים פשוט עובד. מחסירים תאריך אחד מהשני ומקבלים את ההפרש בימים. מוסיפים 7 לתאריך ומקבלים את אותו יום בשבוע אחרי שבוע. למודל יש מלכודות עם טקסט מיובא (קבצי CSV נותנים תאריכים כמחרוזות, לא כמספרים), אבל בהקלדה ישירה בתאים החשבון אמין.
 
-`TODAY()` מחזיר את המספר של היום. `NOW()` מוסיף את השעה. `DATE(year, month, day)` בונה תאריך מחלקים. `EOMONTH(date, n)` קופץ ליום האחרון של החודש שב-n חודשים מעכשיו. שיעור 8 מכסה את כולן לעומק. בינתיים, הדבר החשוב הוא חשבון התאריכים.
+`DATE(year, month, day)` בונה תאריך מהחלקים. `TODAY()` ו-`NOW()` מחזירים את התאריך הנוכחי ואת התאריך-עם-שעה. `EOMONTH`, `NETWORKDAYS`, ו-`DATEDIF` מכסים סוף-חודש, ימי עסקים, ו-deltas שרירותיים של תאריכים. הם מקבלים את הטיפול המלא שלהם בשיעור 8. בינתיים, הידיעה איך לבנות תאריך ולחסר שני תאריכים מספיקה כדי להפעיל את השימושים הכי נפוצים באדטק: גיל קמפיין, ימים שנשארו בתקופה, גבולות מחזור חיוב.
+
+<FunctionRef name="DATE" />
+
+### דוגמה ראשונה: מידע צעצוע
+
+<RefDemo
+  data={[
+    ["Year", "Month", "Day"],
+    [2026, 5, 1],
+    [2026, 5, 31],
+  ]}
+  formula="=DATE(A2,B2,C2)"
+  formulaCell="D2"
+  fillTo="D3"
+  expectedFills={["=DATE(A3,B3,C3)"]}
+  caption="DATE מרכיב תאריך משלושה רכיבים מספריים. שימו לב איך Sheets מציג את התוצאה עם פורמט התאריך של התא."
+/>
+
+### דוגמה שנייה: מידע אמיתי של אדטק
 
 <TryIt
   data={CAMPAIGNS}
@@ -105,22 +261,130 @@ Sheets בנוי מקבוצה קטנה של משפחות פונקציות. ארב
   answer={<>Sheets שומר תאריכים כספירה של ימים מאז 1899-12-30. <code>DATE(2026,1,1)</code> מתורגם ל-<code>46023</code> ו-<code>DATE(2026,12,31)</code> ל-<code>46387</code>. החיסור נותן <code>364</code>, מספר הימים ביניהם. באדטק, ככה מחשבים "ימים מאז שהקמפיין רץ", "ימים שנשארו ברבעון", או "ימים בין היום לתאריך חידוש". שיעור 8 מכסה את EOMONTH, NETWORKDAYS, ו-DATEDIF לפונקציות תאריך מתוחכמות יותר.</>}
 />
 
-## לוגיקה: השוואות ו-IF
+### מלכודות נפוצות
 
-האופרטורים של השוואה (`=`, `<>`, `<`, `>`, `<=`, `>=`) משווים שני ערכים ומחזירים `TRUE` או `FALSE`.
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=A2-A3`}</code></pre>
+    <p className="mt-2 text-sm">כש-<code>A2</code> ו-<code>A3</code> הם תאריכים שהודבקו כטקסט ("2026-05-01" עם גרש בודד, או יבוא CSV שהשאיר אותם כמחרוזות), חיסור מחזיר <code>#VALUE!</code>. התאים <em>נראים</em> כמו תאריכים אבל Sheets מתייחס אליהם כטקסט.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=DATEVALUE(A2)-DATEVALUE(A3)`}</code></pre>
+    <p className="mt-2 text-sm">לאלץ את המחרוזות להפוך לתאריכים קודם עם <code>DATEVALUE</code>, ואז לחסר. או לתקן את המקור: בוחרים את העמודה, <strong>Format &gt; Number &gt; Date</strong>, ומקלידים מחדש או paste-as-values.</p>
+  </ComparePanel>
+</Compare>
 
-`IF(condition, value_if_true, value_if_false)` הוא סוס העבודה. התנאי הוא כל דבר שמחזיר boolean: השוואה, פונקציה כמו `ISBLANK`, או `IF` אחר (שיעור 5 מכסה לוגיקה מקוננת לעומק).
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=DATE(2026,13,1)`}</code></pre>
+    <p className="mt-2 text-sm">נראה שבור (חודש 13 לא קיים) אבל Sheets <em>בשקט</em> מתגלגל: זה מחזיר 1 בינואר 2027. שימושי לחשבון, מסוכן כש-"חודש 13" זאת שגיאת מידע שרציתם לתפוס.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IF(AND(B2&gt;=1, B2&lt;=12), DATE(A2,B2,C2), "Invalid month")`}</code></pre>
+    <p className="mt-2 text-sm">לאמת את החודש לפני בניית התאריך. התנהגות ה-rollover נוחה לנוסחאות "יום ראשון של חודש הבא", אבל guard בטוח יותר למידע שמשתמש הקליד.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="עמודה בגיליון מיובא דרך IMPORTRANGE מציגה תאריכים כמו 2026-05-01, אבל =DATEDIF עליהם מחזיר #VALUE!. מה הסיבה הסבירה ביותר?"
+  options={[
+    {
+      id: "a",
+      label: "DATEDIF לא מקבל תאריכים מ-IMPORTRANGE.",
+      correct: false,
+      explanation: "DATEDIF מתייחס לתאריכים מ-IMPORTRANGE בדיוק כמו לתאריכים native: הבעיה במעלה הזרם.",
+    },
+    {
+      id: "b",
+      label: "התאריכים הגיעו כמחרוזות טקסט, לא כערכי תאריך. עוטפים אותם ב-DATEVALUE קודם.",
+      correct: true,
+      explanation: "תאריכים מיובאים מ-CSV או API לעיתים קרובות מגיעים כטקסט. הם נראים נכון על המסך אבל נכשלים בכל פונקציית תאריך.",
+    },
+    {
+      id: "c",
+      label: "DATEDIF דורש שהתאריכים יהיו ממוינים בסדר עולה.",
+      correct: false,
+      explanation: "סדר מיון לא משפיע על DATEDIF (וגם DATEDIF לא לוקח טווח, רק שני תאריכים ספציפיים).",
+    },
+  ]}
+/>
+
+## לוגיקה: IF, AND, OR
+
+האופרטורים של השוואה (`=`, `<>`, `<`, `>`, `<=`, `>=`) משווים שני ערכים ומחזירים `TRUE` או `FALSE`. הם אבני הבניין של כל עמודה מותנית שהצוות בונה: "האם רווחי?", "מעל יעד ROI?", "אחרי סוף תקופה?", "שווה לסקייל?".
+
+`IF` הוא סוס העבודה. התנאי הוא כל דבר שמחזיר boolean: השוואה, פונקציה כמו `ISBLANK`, או `IF` אחר. כשהתנאים מצטברים שלוש רמות עומק או יותר, עוברים ל-`IFS` (שיעור 5). כשצריך "כל אלה AND ביחד" או "אחד מאלה OR ביחד", מושכים ל-`AND` ול-`OR`.
+
+<FunctionRef name="IF" />
+
+### דוגמה ראשונה: מידע צעצוע
+
+<RefDemo
+  data={[
+    ["Score"],
+    [85],
+    [62],
+    [91],
+    [40],
+  ]}
+  formula='=IF(A2>=70,"Pass","Fail")'
+  formulaCell="B2"
+  fillTo="B5"
+  expectedFills={['=IF(A3>=70,"Pass","Fail")', '=IF(A4>=70,"Pass","Fail")', '=IF(A5>=70,"Pass","Fail")']}
+  caption="IF סקלרי על ערך יחיד. התנאי הוא השוואה; שני הסעיפים הם מחרוזות מילוליות."
+/>
+
+### דוגמה שנייה: מידע אמיתי של אדטק
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
   expectedFormula='=IF(F2>E2,"Profitable","Loss")'
-  task={<>תייגו את הקמפיין הראשון (שורה 2) כ-<code>Profitable</code> אם ה-revenue שלו גובר על ה-spend. אחרת <code>Loss</code>. (Spend היה 342.18, revenue היה 487.30, אז התוצאה אמורה להיות <code>Profitable</code>.)</>}
+  task={<>תייגו את הקמפיין הראשון (שורה 2) כ-<code>Profitable</code> אם ה-revenue שלו גובר על ה-spend, אחרת <code>Loss</code>. (Spend היה 342.18, revenue היה 487.30, אז התוצאה אמורה להיות <code>Profitable</code>.)</>}
   hint={<>השוו את <code>F2</code> (revenue) ל-<code>E2</code> (spend). עטפו את ההשוואה ב-<code>IF</code>.</>}
   answer={<>התנאי <code>F2{">"}E2</code> מתורגם ל-<code>TRUE</code> בשורה הראשונה (487.30 {">"} 342.18), אז IF מחזיר <code>"Profitable"</code>. זה הדגל הכי פשוט של רווח. ב-spreadsheets אמיתיים, היו מחדדים אותו (לדרוש revenue {">"} spend ביחס מסוים, או להשוות ROI ליעד). שיעור 5 מכסה קינון של <code>IF</code>, את החלופה הנקייה <code>IFS</code>, ושילוב תנאים עם <code>AND</code> ו-<code>OR</code>.</>}
 />
 
-`AND(...)` מחזיר TRUE אם כל ארגומנט הוא TRUE. `OR(...)` מחזיר TRUE אם לפחות אחד הוא. `NOT(x)` הופך את ה-boolean. השימוש הקלאסי של `AND` באדטק: "האם הקמפיין הזה גם רווחי וגם בנפח גבוה". שני התנאים חייבים להתקיים כדי שהשורה תזכה להחלטת scaling אגרסיבית.
+<FunctionRef name="AND" />
+
+`AND` מחזיר TRUE כשכל argument הוא TRUE. השימוש הקלאסי באדטק עונה על "האם הקמפיין הזה גם רווחי וגם בנפח גבוה". שני התנאים חייבים להתקיים כדי שהשורה תזכה להחלטת scaling אגרסיבית. `OR` הוא הדואל: מספיק ש-argument אחד TRUE. `NOT` הופך boolean, בעיקר בשימוש בתוך תנאי `IF` כדי להפוך בדיקת `IS-`.
+
+### דוגמה משולבת: IF מעל AND של שני תנאים
+
+שלבו את `IF` ו-`AND` כדי לייצר דגל scaling אמיתי: "רווחי AND spend לפחות $200".
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=IF(AND(F2>E2,E2>=200),"Scale","Hold")'
+  task={<>סמנו את הקמפיין הראשון ל-scaling אם הוא גם רווחי (revenue {">"} spend) וגם ה-spend שלו לפחות $200. התוצאה לשורה הראשונה: <code>Scale</code>.</>}
+  hint={<>שני תנאים בתוך <code>AND(...)</code>: <code>F2&gt;E2</code> ו-<code>E2&gt;=200</code>. עטפו את תוצאת ה-AND ב-IF.</>}
+  answer={<>שני התנאים TRUE בשורה 2 (487.30 {">"} 342.18, וגם 342.18 {">="} 200), אז AND מחזיר TRUE ו-IF מחזיר "Scale". שורה 11 (Roofing Services PR) revenue {"<"} spend, אז AND מחזיר FALSE והתא היה קורא "Hold" אם היו ממלאים מטה. החלטות scaling אמיתיות מוסיפות clamp שלישי (למשל ROI &gt;= 1.3) ועוברות ל-<code>IFS</code> (שיעור 5) ברגע שהסעיפים מתרבים.</>}
+/>
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IF(F2-E2,"Profitable","Loss")`}</code></pre>
+    <p className="mt-2 text-sm">התנאי הוא מספר, לא boolean. Sheets ממיר כל non-zero ל-TRUE, אז זה מסמן <em>כל</em> קמפיין עם הפרש profit שאינו אפס (כולל הפסדים) כ-"Profitable". הבאג בלתי נראה עד שורת הפסד שקוראת "Profitable" ב-dashboard.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IF(F2&gt;E2,"Profitable","Loss")`}</code></pre>
+    <p className="mt-2 text-sm">לעשות השוואה עם <code>&gt;</code> כדי לקבל boolean מפורש. תמיד להפוך את אופרטור ההשוואה לגלוי; אף פעם לא להסתמך על coercion של מספר ל-truthy.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IF(B2=" Yoav Cohen", "match", "no")`}</code></pre>
+    <p className="mt-2 text-sm">השוואה עם ערך מילולי שיש לו רווח תועה בהתחלה. תמיד מחזיר "no" אפילו על שורות Yoav Cohen אמיתיות. אותה משפחת בעיות כמו מלכודת ה-TRIM למעלה, חבויה בתוך ה-IF.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IF(TRIM(B2)="Yoav Cohen", "match", "no")`}</code></pre>
+    <p className="mt-2 text-sm">לנרמל לפני השוואה. אם שני הצדדים באים ממקורות חיצוניים, עוטפים את שניהם: <code>IF(TRIM(LOWER(B2))=TRIM(LOWER(C2)), ...)</code>.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="מה =AND(F2>E2, E2>=200) מחזיר כש-E2 הוא 342.18 ו-F2 הוא 487.30?"
@@ -150,18 +414,19 @@ Sheets בנוי מקבוצה קטנה של משפחות פונקציות. ארב
 
 ב-spreadsheets האמיתיים של הצוות, הפונקציות הבסיסיות האלו מופיעות ככה:
 
-- **SUM בראש כל עמודה.** סך spend, סך revenue, סך clicks. לעיתים קרובות עטוף ב-ROUND לתצוגה נקייה ב-dashboard. לעיתים קרובות SUMIFS (שיעור 6) כשצריך לסנן קודם לפי media buyer או פלטפורמה.
-- **TRIM ו-LOWER על כל עמודת join.** בכל מקום שמידע חוצה גיליונות (במיוחד דרך IMPORTRANGE), נרמלו קודם או קבלו #N/A שקט ב-lookups שלכם.
-- **TODAY() בחשבון תאריכים לעמודות של "ימים מאז".** משולב עם עמודות תאריך מהמקור, נותן מספרים של "גיל הקמפיין" שמתעדכנים חי. שימו לב: TODAY מחושב מחדש מדי יום, אז ערכים משתנים כל בוקר.
-- **IF כנקודת כניסה לכל עמודה מותנית.** "האם רווחי?", "מעל יעד ROI?", "אחרי סוף תקופה?". שיעור 5 מכסה מתי IF מפסיק להספיק ו-IFS משתלט.
+- **`SUM` בראש כל עמודה.** סך spend, סך revenue, סך clicks. לעיתים קרובות עטוף ב-`ROUND` לתצוגה נקייה ב-dashboard. לעיתים קרובות `SUMIFS` (שיעור 6) כשצריך לסנן קודם לפי media buyer או פלטפורמה.
+- **`TRIM` ו-`LOWER` על כל עמודת join.** בכל מקום שמידע חוצה גיליונות (במיוחד דרך `IMPORTRANGE`), נרמלו קודם או קבלו #N/A שקט ב-lookups שלכם. שיעור 4 מראה את גרסת ה-lookup; שיעור 27 מכסה את `IMPORTRANGE` מקצה לקצה.
+- **`TODAY()` בחשבון תאריכים לעמודות של "ימים מאז".** משולב עם עמודות תאריך מהמקור, נותן מספרים של "גיל הקמפיין" שמתעדכנים חי. שימו לב: `TODAY` מחושב מחדש מדי יום, אז ערכים משתנים כל בוקר, ובגיליון של 50,000 שורות זה יכול לפגוע בביצועים בצורה מורגשת.
+- **`IF` כנקודת כניסה לכל עמודה מותנית.** "האם רווחי?", "מעל יעד ROI?", "אחרי סוף תקופה?". שיעור 5 מכסה מתי `IF` מפסיק להספיק ו-`IFS` משתלט.
 
 ## מלכודות מקצועיות
 
-- **לא לכלול את שורת הכותרת ב-SUM/AVERAGE.** `SUM(E1:E13)` עובד רק אם E1 לא מספר. אחרת תספרו פעמיים בשקט או תשברו, תלוי בפורמט העמודה.
-- **TRIM לא מתקן case לא עקבי.** אם מקור אחד מחזיק "yoav cohen" ואחר "Yoav Cohen", TRIM לא יעזור. צריך LOWER או PROPER על שני הצדדים.
-- **TODAY() גורם לגיליון לעשות חישוב מחדש כל יום.** בסדר ל-dashboards. יקר לגיליון עם 50,000 שורות שכולן מפנות ל-TODAY בעקיפין.
+- **לא לכלול את שורת הכותרת ב-SUM/AVERAGE אם הכותרת יכולה אי-פעם להפוך למספר.** `SUM(E1:E13)` עובד רק אם E1 נשאר טקסט. אם מישהו ישנה את שם הכותרת למספר, תספרו פעמיים בשקט.
+- **`TRIM` לא מתקן case לא עקבי, וגם לא מסיר non-breaking spaces.** אם מקור אחד מחזיק "yoav cohen" ואחר "Yoav Cohen", `TRIM` לא יעזור; צריך `LOWER` או `PROPER` על שני הצדדים. Non-breaking spaces (U+00A0) מייצואי Windows דורשים `SUBSTITUTE(text, CHAR(160), " ")` קודם.
+- **`TODAY()` גורם לגיליון לעשות חישוב מחדש כל יום.** בסדר ל-dashboards; יקר לגיליון עם 50,000 שורות שכולן מפנות ל-`TODAY` בעקיפין. שיעור 28 (ביצועים) מכסה את עלות ה-recalc לעומק.
 - **`=B2 + C2` נכשל בשקט אם אחד מהתאים הוא טקסט.** Sheets מחזיר `#VALUE!` או ממיר באופן בלתי צפוי. השתמשו ב-`IFERROR` (מכוסה בשיעור 9) כדי לתפוס.
+- **`IF` עם תנאי שאינו boolean הוא footgun שקט.** תמיד להפוך את אופרטור ההשוואה לגלוי (`>`, `=`, `<`). אף פעם לא להסתמך על coercion ל-truthy.
 
 ## עכשיו לעבודה אמיתית
 
-לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים. תתרגלו את כל ארבע המשפחות: SUM של ה-spend, UPPER על שם של media buyer, חשבון תאריכים על טווח fiscal, ו-IF לדגל רווח.
+לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים. תתרגלו את כל ארבע המשפחות: `SUM` של ה-spend, `UPPER` על שם של media buyer, חשבון תאריכים על טווח fiscal, ו-`IF` מעל `AND` לדגל scaling אמיתי.
