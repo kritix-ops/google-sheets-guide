@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 Custom functions only fire when a cell asks for them. The next step up is code that fires on a sheet *event*: a user opening the workbook, editing a cell, selecting a different range. Apps Script handles this through a small set of **reserved function names**. If you declare a top-level function with one of those names, the runtime invokes it automatically every time the matching event happens: no registration, no setup. These are the **simple triggers**.
 
+This lesson covers four trigger names, the event object each one receives, the narrow auth context they run under, and the cases where you reach for one versus another. The simple-trigger surface is small but it carries about 70% of what a real workbook does outside of manual menu clicks: auto-stamping the editor, normalizing data as it lands, building the menu on open. Lesson 8 covers installable triggers, which are how you get past the auth-context limits.
+
 The four reserved names that matter:
 
 | Name | Fires when |
@@ -13,11 +15,11 @@ The four reserved names that matter:
 | `onSelectionChange(e)` | The active selection moves to a different cell or range. |
 | `onChange(e)` | Structural change: row insert, sheet rename, format edit, etc. |
 
-Two things to notice up front. **Names are case-sensitive.** `onedit` doesn't fire. `OnEdit` doesn't fire. Only `onEdit` does. And **the function has to be top-level**: same rule as custom functions. A nested declaration or an arrow assigned to a const is invisible to the trigger system.
+Two things to notice up front. **Names are case-sensitive.** `onedit` does not fire. `OnEdit` does not fire. Only `onEdit` does. And **the function has to be top-level**: same rule as custom functions. A nested declaration or an arrow assigned to a const is invisible to the trigger system.
 
 ## A note on `onOpen` in this course
 
-This course's bound Apps Script project already declares `function onOpen()`: that's what installs the **Lesson → Show sidebar** menu when you open the workbook. You can't declare a second `onOpen` in the same project; Apps Script will refuse to save. Your assignment in this lesson centers on `onEdit` instead. In a workbook you own, `onOpen` is your own to write. The pattern is identical to `onEdit`: declare it top-level, do something with `e`, return.
+This course's bound Apps Script project already declares `function onOpen()`: that is what installs the **Lesson menu** when you open the workbook. You cannot declare a second `onOpen` in the same project; Apps Script will refuse to save. Your assignment in this lesson centers on `onEdit` instead. In a workbook you own, `onOpen` is your own to write. The pattern is identical to `onEdit`: declare it top-level, do something with `e`, return.
 
 ## The event object
 
@@ -44,7 +46,29 @@ function onEdit(e) {
 }
 ```
 
-`onChange` has a different event shape: no `range`, no `value`, instead a `changeType` field with values like `"INSERT_ROW"`, `"REMOVE_COLUMN"`, `"FORMAT"`. Don't copy an `onEdit` body into `onChange` and expect it to compile.
+`onChange` has a different event shape: no `range`, no `value`, instead a `changeType` field with values like `"INSERT_ROW"`, `"REMOVE_COLUMN"`, `"FORMAT"`. Do not copy an `onEdit` body into `onChange` and expect it to compile.
+
+<Compare>
+  <ComparePanel label="Wrong: assumes single cell" tone="negative">
+    <pre className="font-mono text-xs"><code>{`function onEdit(e) {
+  if (e.value === "DEAD") {
+    e.range.setBackground("red");
+  }
+}`}</code></pre>
+    <p className="mt-2 text-sm">A paste of 10 rows fires onEdit once with <code>e.range</code> spanning 10 rows and <code>e.value === undefined</code>. The handler silently does nothing on the paste.</p>
+  </ComparePanel>
+  <ComparePanel label="Right: handle both shapes" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function onEdit(e) {
+  const range = e.range;
+  const isSingleCell = range.getNumRows() * range.getNumColumns() === 1;
+  if (isSingleCell && e.value === "DEAD") {
+    range.setBackground("red");
+  }
+  // Multi-cell paste: read values and process row by row if needed.
+}`}</code></pre>
+    <p className="mt-2 text-sm">Always check the range size before reading <code>e.value</code>. For multi-cell edits, read <code>range.getValues()</code> and iterate.</p>
+  </ComparePanel>
+</Compare>
 
 ## The auth context limit
 
@@ -59,7 +83,7 @@ They **cannot**:
 - Send email (`MailApp.sendEmail`, `GmailApp.sendEmail`)
 - Hit the network (`UrlFetchApp.fetch`)
 - Touch other documents (`SpreadsheetApp.openById`, `DriveApp.*`)
-- Show a sidebar or dialog (the active UI context isn't theirs to claim)
+- Show a sidebar or dialog (the active UI context is not theirs to claim)
 - Modify Drive permissions
 - Read external scripts
 
@@ -72,9 +96,55 @@ Simple triggers also have a **30-second budget**. Loop through a 60,000-row shee
 A short tour:
 
 - **`onOpen`**: the only reliable place to install a custom menu. Workbook opens, menu appears. Anything more intricate (autosizing rows, recolouring a status column) belongs in a function the menu *calls*, not in `onOpen` itself, because the open path is on the workbook-load critical path.
-- **`onEdit`**: the workhorse. Use it for in-row data hygiene: auto-fill the buyer from the editor's email when a new campaign row appears, normalize a vertical name as it's typed, stamp the last-modified time. Be careful about what counts as "an edit": typing in a cell, fill-down, paste, delete, and *checkbox toggles* all fire it. Mass-pastes fire it once with the whole paste range as `e.range`.
+- **`onEdit`**: the workhorse. Use it for in-row data hygiene: auto-fill the buyer from the editor's email when a new campaign row appears, normalize a vertical name as it is typed, stamp the last-modified time. Be careful about what counts as "an edit": typing in a cell, fill-down, paste, delete, and *checkbox toggles* all fire it. Mass-pastes fire it once with the whole paste range as `e.range`.
 - **`onSelectionChange`**: fires on every arrow-key tap. Cheap things only: update a status bar cell, highlight the active row. A 100ms handler here is fine; a 500ms one feels janky.
 - **`onChange`**: fires on structural changes the others miss. Auto-protect a header row when someone inserts a column. Watch for unintended sheet renames in a workbook where downstream `IMPORTRANGE` formulas depend on tab names.
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: user edits F2 from 412.5 to 500",
+      body: (
+        <>
+          Apps Script fires <code>onEdit(e)</code> on the workbook's
+          bound script. The event object{" "}
+          <code>{`{ range: F2, value: 500, oldValue: 412.5, user: ... }`}</code>{" "}
+          is passed to your handler.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: handler runs the guards",
+      body: (
+        <>
+          <code>e.range.getSheet().getName() === "Campaigns"</code>: yes.{" "}
+          <code>e.range.getColumn() === 6</code>: yes. Both guards pass, so
+          the body executes.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: write the marker",
+      body: (
+        <>
+          <code>range.getSheet().getRange(e.range.getRow(), 10).setValue("updated")</code>{" "}
+          writes <code>"updated"</code> into J2. The write is in the same
+          auth context (active workbook), so it is allowed.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: handler returns; UI updates",
+      body: (
+        <>
+          The user sees their typed value in F2 and the marker appear in
+          J2. Total handler runtime: under 100 ms. The 30-second budget is
+          not a concern for a handler this size.
+        </>
+      ),
+    },
+  ]}
+/>
 
 ## Used in the wild
 
@@ -82,6 +152,30 @@ Two patterns from the team's actual workbooks:
 
 - **Auto-fill the buyer from the editor's email.** When a new campaign row is typed in the daily log, `onEdit` reads `e.user.getEmail()`, looks up the buyer name from the canonical buyer roster sheet, and writes it into the Buyer column. The whole thing is ten lines and saves the team from typo'd buyer attributions in the dashboards.
 - **Auto-mark the Spend column when re-touched.** When a buyer adjusts a spend number mid-week, `onEdit` stamps a small "updated" marker one column over. The weekly review pivots on that column to flag rows that drifted from the upload.
+
+<QuickCheck
+  question="Your onEdit handler reads e.value to detect when a cell becomes 'DEAD' and turns the row red. A buyer pastes 20 rows where one of them contains 'DEAD'. The handler does nothing. Why?"
+  options={[
+    {
+      id: "a",
+      label: "Paste operations don't fire onEdit; only typed edits do.",
+      correct: false,
+      explanation: "Paste operations do fire onEdit, but with a multi-cell range. e.value is undefined for multi-cell edits.",
+    },
+    {
+      id: "b",
+      label: "A multi-cell paste fires onEdit once with e.range spanning 20 rows and e.value === undefined. The handler needs to read range.getValues() and iterate.",
+      correct: true,
+      explanation: "Right. e.value and e.oldValue are populated only for single-cell edits. For multi-cell edits (paste, fill-down), read range.getValues() and walk the cells yourself.",
+    },
+    {
+      id: "c",
+      label: "The 30-second timeout killed the handler mid-loop.",
+      correct: false,
+      explanation: "A 20-row handler should finish in milliseconds. The timeout is not the issue; the handler is silently bypassing the multi-cell case.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -92,19 +186,21 @@ Two patterns from the team's actual workbooks:
 
 The starter file `Lesson.gs` already declares `function onEdit(e)` with an empty body. Three checks the body needs to make, in order:
 
-1. **Sheet check.** If `e.range.getSheet().getName()` isn't `"Campaigns"`, return immediately. Without this, the trigger fires on every tab: including the Sidebar's helper tabs and anything else in the workbook.
-2. **Column check.** If `e.range.getColumn()` isn't `6` (F is the 6th column), return. We only want the marker to fire on Spend edits, not on every cell edit anywhere in the row.
+1. **Sheet check.** If `e.range.getSheet().getName()` is not `"Campaigns"`, return immediately. Without this, the trigger fires on every tab: including the Sidebar's helper tabs and anything else in the workbook.
+2. **Column check.** If `e.range.getColumn()` is not `6` (F is the 6th column), return. We only want the marker to fire on Spend edits, not on every cell edit anywhere in the row.
 3. **Write the marker.** Use `range.getSheet().getRange(range.getRow(), 10).setValue("updated")` to write `"updated"` into column J of the edited row.
 
 Save the project. Open the Campaigns tab. Edit F2. J2 should fill with `"updated"`. Edit F3. J3 fills. Edit some other cell: J stays put.
 
-If nothing happens, open the Apps Script left-rail **Executions** view (the clock icon). Every simple-trigger firing logs there. A failed firing logs there too. If the row is missing entirely, the trigger function didn't get registered: usually a typo in the function name (capital-O `OnEdit` is the most common one).
+If nothing happens, open the Apps Script left-rail **Executions** view (the clock icon). Every simple-trigger firing logs there. A failed firing logs there too. If the row is missing entirely, the trigger function did not get registered: usually a typo in the function name (capital-O `OnEdit` is the most common one).
 
 ## Pro pitfalls
 
-- **`onEdit` fires on every keystroke during in-cell editing.** It doesn't: but the related `onSelectionChange` fires on every arrow-key tap as the user moves around the sheet. If you wire heavy work into selection-change, every cursor movement runs it.
+- **`onEdit` fires on every keystroke during in-cell editing.** It does not: but the related `onSelectionChange` fires on every arrow-key tap as the user moves around the sheet. If you wire heavy work into selection-change, every cursor movement runs it.
 - **Mass-pastes fire `onEdit` once with the entire paste range.** A formula that assumes `e.range` is a single cell crashes on `e.value` being `undefined`. Always check `range.getNumRows() * range.getNumColumns() === 1` before reading `e.value` / `e.oldValue`.
 - **`onChange` has a different `e` shape.** No `e.range`, no `e.value`. Copying a handler body from `onEdit` to `onChange` and expecting it to work is a 20-minute debugging session.
-- **Reserved names are case-sensitive.** `function onedit` doesn't fire. `function OnEdit` doesn't fire. The Apps Script editor doesn't warn you.
-- **The 30-second timeout is unforgiving.** If your handler needs to iterate over the whole sheet, it's the wrong tool: schedule a time-driven installable trigger that runs nightly with full auth and a longer budget.
-- **Simple triggers can't email, fetch, or touch other docs.** The call silently fails. If your handler "doesn't seem to work" and there's an `e.user.getEmail()` or `UrlFetchApp.fetch` inside, that's why. Upgrade to an installable trigger in the next lesson.
+- **Reserved names are case-sensitive.** `function onedit` does not fire. `function OnEdit` does not fire. The Apps Script editor does not warn you.
+- **The 30-second timeout is unforgiving.** If your handler needs to iterate over the whole sheet, it is the wrong tool: schedule a time-driven installable trigger that runs nightly with full auth and a longer budget.
+- **Simple triggers cannot email, fetch, or touch other docs.** The call silently fails. If your handler "does not seem to work" and there is an `e.user.getEmail()` or `UrlFetchApp.fetch` inside, that is why. Upgrade to an installable trigger in the next lesson.
+- **`e.user.getEmail()` returning an empty string on Workspace.** On consumer accounts, the field works; on Workspace accounts with strict admin policies, it can return empty for users outside the script owner's domain. If the handler relies on the editor's email, fall back to `Session.getActiveUser().getEmail()` or wire an installable trigger that runs with the script owner's permissions.
+- **An onEdit handler that recursively edits the same range.** If the handler does `range.setValue(x)` inside, that write does NOT fire `onEdit` again (Google's runtime protects against the loop), but a write to a *different* cell that has a formula referencing the edited cell can cascade. Watch the Executions panel for runaway fires.
