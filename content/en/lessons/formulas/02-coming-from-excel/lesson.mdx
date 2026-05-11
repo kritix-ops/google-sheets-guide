@@ -4,11 +4,86 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 Sheets and Excel are 90% the same. The 10% gotchas catch working pros in week one. The big four: arrays don't auto-spill, `XLOOKUP` works the same, Power Query has no equivalent, and the sharing model is link-based instead of file-based.
 
+This lesson is also where you meet three of the functions you'll lean on every day in this curriculum: `ARRAYFORMULA`, `XLOOKUP`, and `QUERY`. We introduce each one with its full signature and a couple of worked examples so the syntax sticks before the dedicated deep-dive lessons (10 for arrays, 4 for lookups, 12-13 for QUERY).
+
 ## Arrays: explicit, not implicit
 
-Type `=F2:F13` in `H1` (a reference to the Revenue column). In Excel 365, the array spills downward by itself. In Sheets, you get just the first value, `487.3`. To spill, wrap in `ARRAYFORMULA`.
+In Excel 365, if you type `=F2:F13` in any cell, Excel "spills" the column for you: 12 values appear, one per row, automatically. In Sheets the same formula returns just the first value, `487.3`. You get one cell, not twelve. To make a range expression spread into the cells around it, you wrap it in `ARRAYFORMULA`.
 
-The classic adtech case: you want a profit column (revenue minus spend) for every campaign, computed by one formula. In Excel you'd type `=F2:F13-E2:E13` and get the spilled column for free. In Sheets you have to wrap it.
+The classic adtech case: you want a Profit column (revenue minus spend) for every campaign in the log, computed by **one** formula at the top of the column. In Excel you type `=F2:F13-E2:E13` and get a spilled column for free. In Sheets you wrap it in `ARRAYFORMULA` to ask for the same behavior.
+
+<FunctionRef name="ARRAYFORMULA" />
+
+### How it evaluates, step by step
+
+Take the math case `ARRAYFORMULA(F2:F13 - E2:E13)`. The engine doesn't run the subtraction once. It expands both ranges into 12-element arrays, lines them up row by row, subtracts each pair, and returns a 12-element array that spills into the cells below your formula cell.
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: read the inner expression",
+      body: (
+        <>
+          The engine sees <code>F2:F13 - E2:E13</code>. By itself, this would
+          collapse to a single value (the difference of the first cell of
+          each range). The <code>ARRAYFORMULA</code> wrapper changes that.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: expand both ranges",
+      body: (
+        <>
+          <code>F2:F13</code> becomes an array of 12 revenue values, in
+          order. <code>E2:E13</code> becomes the parallel array of 12 spend
+          values. Both arrays have the same shape.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: subtract element by element",
+      body: (
+        <>
+          Row 1 of <code>F</code> minus row 1 of <code>E</code>, row 2 of{" "}
+          <code>F</code> minus row 2 of <code>E</code>, and so on. Result: a
+          12-element array of profits.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: spill the result",
+      body: (
+        <>
+          The array is written into 12 cells starting at the formula cell.
+          If the cells below have content, you get <code>#REF!</code>{" "}
+          instead. Always make sure the spill destination is empty.
+        </>
+      ),
+    },
+  ]}
+/>
+
+### Worked example 1: toy data
+
+Two tiny columns, one formula. Watch how `ARRAYFORMULA` turns a single expression into a column of results.
+
+<RefDemo
+  data={[
+    ["Item", "Price", "Qty"],
+    ["A", 10, 3],
+    ["B", 20, 2],
+    ["C", 15, 4],
+  ]}
+  formula="=ARRAYFORMULA(B2:B4*C2:C4)"
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={["=ARRAYFORMULA(B2:B4*C2:C4)", "", ""]}
+  caption="One formula in D2 fills D2:D4 with each row's total (price × qty)."
+/>
+
+### Worked example 2: real adtech data
+
+Same idea on the campaign log. A single `ARRAYFORMULA` at the top of column G computes profit for every campaign at once.
 
 <TryIt
   data={CAMPAIGNS}
@@ -16,8 +91,32 @@ The classic adtech case: you want a profit column (revenue minus spend) for ever
   expectedFormula="=ARRAYFORMULA(F2:F13-E2:E13)"
   task={<>Compute profit (revenue minus spend) for every campaign at once. A single formula in <code>G1</code> should fill <code>G1:G12</code> with each campaign's profit.</>}
   hint={<>Wrap <code>F2:F13-E2:E13</code> in <code>ARRAYFORMULA(...)</code> so it spills.</>}
-  answer={<>Plain math expressions like <code>F2:F13-E2:E13</code> don't auto-spill in Sheets: they return only the first value. Wrapping in <code>ARRAYFORMULA</code> tells the engine to broadcast the subtraction across the whole range, so a single formula in <code>G1</code> fills 12 cells. Functions like <code>FILTER</code>, <code>SORT</code>, <code>UNIQUE</code>, <code>QUERY</code>, and <code>SEQUENCE</code> spill on their own and don't need the wrapper. In real adtech work, you'll write ARRAYFORMULA across columns of computed metrics (profit, ROI, EPC, margin) so a single formula at the top fills the whole column as new campaigns are added below.</>}
+  answer={<>Plain math like <code>F2:F13-E2:E13</code> would return only the first value in Sheets. <code>ARRAYFORMULA</code> broadcasts the subtraction across the whole range, so a single formula in <code>G1</code> fills 12 cells. Functions like <code>FILTER</code>, <code>SORT</code>, <code>UNIQUE</code>, <code>QUERY</code>, and <code>SEQUENCE</code> spill on their own and don't need the wrapper. In real adtech work, you'll write ARRAYFORMULA across columns of computed metrics (profit, ROI, EPC, margin) so one formula at the top fills the whole column as new campaigns are added below.</>}
 />
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(F2:F-E2:E)</code></pre>
+    <p className="mt-2 text-sm">Open-ended ranges. Sheets will spill rows for every empty cell down to row 1000+, filling the column with zeros. Slows the workbook and pollutes downstream sums.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(IF(F2:F=&quot;&quot;, &quot;&quot;, F2:F-E2:E))</code></pre>
+    <p className="mt-2 text-sm">Same range, but the <code>IF</code> short-circuits empty rows to an empty string. Spill stops where real data stops.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(SUMIF(B2:B13, &quot;Yoav&quot;, F2:F13))</code></pre>
+    <p className="mt-2 text-sm"><code>SUMIF</code> is single-cell by design. Wrapping in <code>ARRAYFORMULA</code> doesn't change that. You get one number, not a column.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=SUMIF(B2:B13, &quot;Yoav&quot;, F2:F13)</code></pre>
+    <p className="mt-2 text-sm">Drop the wrapper. If you actually wanted per-row group totals, the right tool is <code>QUERY</code> with <code>GROUP BY</code>, covered later.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="Which of these does NOT need ARRAYFORMULA to spill in Sheets?"
@@ -43,15 +142,82 @@ The classic adtech case: you want a profit column (revenue minus spend) for ever
   ]}
 />
 
+`ARRAYFORMULA` gets its dedicated deep-dive in lesson 10 (basics) and lesson 18 (LAMBDA together with arrays).
+
 ## XLOOKUP: same in both, finally
 
-`XLOOKUP` shipped to Sheets in 2022. Identical signature, identical behavior. If you use it in Excel today, you can use it in Sheets today.
+`XLOOKUP` shipped to Sheets in 2022. The signature is the same as Excel's, and the behavior is the same. If you use it in Excel today, you can use it in Sheets today. It's the modern replacement for the pair `VLOOKUP` + `HLOOKUP`: one function that handles both directions, with proper "not found" handling and no column-index arithmetic.
 
-```
-=XLOOKUP(search_key, lookup_range, return_range, [if_not_found], [match_mode], [search_mode])
-```
+<FunctionRef name="XLOOKUP" />
 
-A typical adtech use: look up the revenue of a specific buyer's first campaign in the log.
+### How the lookup walks the range
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: resolve search_key",
+      body: (
+        <>
+          Read the value (e.g. <code>&quot;Yoav Cohen&quot;</code>) or
+          reference (e.g. <code>B24</code>). This is the thing to look for.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: scan lookup_range",
+      body: (
+        <>
+          Walk the lookup_range row by row (or column by column, if it's a
+          row). Stop at the first cell that matches per <code>match_mode</code>.
+          With the default <code>0</code>, that means an exact match.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: read the parallel cell from result_range",
+      body: (
+        <>
+          Whatever position the match landed at, read the cell at the same
+          position in <code>result_range</code>. If the match was in row 5 of
+          lookup_range, the result is row 5 of result_range.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: handle no-match",
+      body: (
+        <>
+          If nothing matched, return <code>missing_value</code>. If you
+          didn't pass one, the result is <code>#N/A</code>. Almost always
+          worth passing a friendly fallback like <code>0</code> or{" "}
+          <code>&quot;not found&quot;</code>.
+        </>
+      ),
+    },
+  ]}
+/>
+
+### Worked example 1: toy data
+
+A tiny price book. Look up "B" and get its price.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 10],
+    ["B", 20],
+    ["C", 15],
+  ]}
+  formula='=XLOOKUP("B", A2:A4, B2:B4)'
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={['=XLOOKUP("B", A2:A4, B2:B4)']}
+  caption="search_key = 'B', lookup_range = A2:A4, result_range = B2:B4. Result: 20."
+/>
+
+### Worked example 2: real adtech data
+
+Find the revenue of a buyer's first campaign in the log.
 
 <TryIt
   data={CAMPAIGNS}
@@ -59,12 +225,139 @@ A typical adtech use: look up the revenue of a specific buyer's first campaign i
   expectedFormula='=XLOOKUP("Yoav Cohen",B2:B13,F2:F13)'
   task={<>Use <code>XLOOKUP</code> to find the revenue of Yoav Cohen's first campaign in the log. The result in <code>H1</code> should be <code>487.3</code>.</>}
   hint={<>Three arguments: search key (<code>"Yoav Cohen"</code>), lookup range (<code>B2:B13</code>: the Buyer column), return range (<code>F2:F13</code>: Revenue).</>}
-  answer={<>The lookup range and return range are passed as separate arguments. They line up row-for-row: row 1 of <code>B2:B13</code> is Yoav, row 1 of <code>F2:F13</code> is 487.3. No column-number arithmetic, no <code>FALSE</code> flag for exact match. <code>XLOOKUP</code> returns the first match by default: which here is the May 1 Car Deals PR campaign on Google. To find a specific match, add more conditions or use INDEX/MATCH (covered in lesson 4).</>}
+  answer={<>The lookup range and return range are passed as separate arguments. They line up row-for-row: row 1 of <code>B2:B13</code> is Yoav, row 1 of <code>F2:F13</code> is 487.3. No column-number arithmetic, no <code>FALSE</code> flag for exact match. <code>XLOOKUP</code> returns the first match by default, which here is the May 1 Car Deals PR campaign on Google. To find a specific match, add a fourth argument for a missing-value fallback, or use INDEX/MATCH (covered in lesson 4).</>}
 />
 
-## Power Query has no direct equivalent
+### Common patterns: optional parameters in action
 
-Excel's Power Query is a UI for shaping, joining, and transforming data, with steps recorded as M code. Sheets has nothing like that out of the box. The Sheets-native answers, mapped by what you'd reach for in Excel:
+Three small variations on the same idea show what the optional parameters buy you in real workbooks.
+
+<Compare>
+  <ComparePanel label="Friendly fallback" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("X",B2:B13,F2:F13,0)`}</code></pre>
+    <p className="mt-2 text-sm">Pass <code>missing_value = 0</code>. Now buyers not in the log return <code>0</code> instead of <code>#N/A</code>, which keeps downstream sums clean.</p>
+  </ComparePanel>
+  <ComparePanel label="Most recent match" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav Cohen",B2:B13,F2:F13,0,0,-1)`}</code></pre>
+    <p className="mt-2 text-sm"><code>search_mode = -1</code> walks the range from last row to first. So you get the buyer's most recent campaign revenue instead of their first.</p>
+  </ComparePanel>
+  <ComparePanel label="Wildcard match" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("*Car Deals*",C2:C13,F2:F13,0,2)`}</code></pre>
+    <p className="mt-2 text-sm"><code>match_mode = 2</code> turns on wildcards. The pattern <code>*Car Deals*</code> matches any vertical containing the words "Car Deals", including the " PR" suffix.</p>
+  </ComparePanel>
+</Compare>
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav", B2:B13, F2:G13)`}</code></pre>
+    <p className="mt-2 text-sm">The lookup_range is one column wide (12×1) but the result_range is two columns wide (12×2). When shapes don't match, XLOOKUP errors or returns multiple values you didn't expect.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav", B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">Both ranges are 12 rows × 1 column. Shapes match, position aligns, lookup works.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("yoav cohen", B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">XLOOKUP is case-sensitive on text. The Buyer column has <code>Yoav Cohen</code>; this returns <code>#N/A</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav Cohen", B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">Exact text, exact case. If you can't control the casing of the source data, normalize first with <code>LOWER</code> on both sides or switch to <code>match_mode = 2</code> with a wildcard pattern.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="A buyer doesn't appear in the log. You want the formula to return 0 instead of #N/A so downstream sums stay clean. Which argument do you pass?"
+  options={[
+    {
+      id: "a",
+      label: <code>match_mode = 0</code>,
+      correct: false,
+      explanation: "match_mode 0 is the default (exact match). It doesn't change the no-match behavior.",
+    },
+    {
+      id: "b",
+      label: <code>missing_value = 0</code>,
+      correct: true,
+      explanation: "missing_value is the 4th argument. It's exactly the friendly-fallback hook.",
+    },
+    {
+      id: "c",
+      label: <code>search_mode = -1</code>,
+      correct: false,
+      explanation: "search_mode = -1 reverses the scan direction. Doesn't change what happens on no-match.",
+    },
+  ]}
+/>
+
+`XLOOKUP` gets a fuller treatment alongside `VLOOKUP`, `INDEX`, and `MATCH` in lesson 4.
+
+## QUERY: the SQL-like power tool
+
+Power Query in Excel is a UI for shaping, joining, and transforming data, with steps recorded as M code. Sheets has nothing like that out of the box, but it has something that covers most of the same ground: `QUERY`, a single function that runs SQL-like queries over a range.
+
+<FunctionRef name="QUERY" />
+
+### Worked example 1: filter and sort
+
+The most common shape: pick columns, filter rows, sort. One formula, one spilled result.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="I1"
+  expectedFormula='=QUERY(A1:F13, "SELECT B, C, F WHERE F >= 400 ORDER BY F DESC")'
+  task={<>Show only campaigns whose revenue (column F) is 400 or more. Return the Buyer, Vertical, and Revenue columns, sorted from highest to lowest revenue.</>}
+  hint={<>Use <code>SELECT B, C, F WHERE F &gt;= 400 ORDER BY F DESC</code> as the query string. Note the headers row: passing <code>A1:F13</code> includes it; QUERY will guess.</>}
+  answer={<>QUERY runs the SELECT against the data range and returns a spilled table. <code>SELECT B, C, F</code> picks columns. <code>WHERE F &gt;= 400</code> filters rows. <code>ORDER BY F DESC</code> sorts high-to-low. The result updates as the source changes: exactly what you want when the source is itself an IMPORTRANGE from a per-platform sheet.</>}
+/>
+
+### Worked example 2: group and aggregate
+
+QUERY isn't just filter. Group rows and aggregate them in the same formula. The result is a small summary table.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="K1"
+  expectedFormula='=QUERY(A1:F13, "SELECT C, SUM(F) GROUP BY C ORDER BY SUM(F) DESC")'
+  task={<>Total revenue per vertical, highest first. Two columns: the vertical name and the sum.</>}
+  hint={<>The shape is <code>SELECT C, SUM(F) GROUP BY C ORDER BY SUM(F) DESC</code>. Columns in <code>SELECT</code> outside of an aggregate must appear in <code>GROUP BY</code>.</>}
+  answer={<>SQL-style aggregation in one formula. The result is shaped like a pivot but it's a live formula: edit the source and the summary recomputes immediately. Slower than <code>SUMIFS</code> on very large sheets (10k+ rows) but much more expressive: you get filter + group + sort + limit in one call.</>}
+/>
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A2:F13, "SELECT B, C, F WHERE F >= 400")`}</code></pre>
+    <p className="mt-2 text-sm">No header row in the source range. QUERY guesses there's no header and labels columns by position (column1, column2). Downstream charts and references break.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE F >= 400")`}</code></pre>
+    <p className="mt-2 text-sm">Include the header row in the data range (start at <code>A1</code>, not <code>A2</code>). Or pass <code>1</code> as the third argument to force one header row regardless.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = Used Cars PR")`}</code></pre>
+    <p className="mt-2 text-sm">Bare text in the WHERE clause is read as a column name. Sheets returns an error because there's no column named <code>Used Cars PR</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = 'Used Cars PR'")`}</code></pre>
+    <p className="mt-2 text-sm">Wrap string literals in single quotes inside the query string. Numbers don't need quoting, dates use <code>date 'YYYY-MM-DD'</code>.</p>
+  </ComparePanel>
+</Compare>
+
+`QUERY` gets its full deep-dive in lessons 12 and 13. The query-language reference (clauses, operators, aggregates, date literals, label/format) lives there.
+
+## Power Query: no direct equivalent, mapped
+
+Beyond `QUERY` itself, here's the rest of the Power Query → Sheets mapping. Use this as a reach-for-this cheat sheet when you'd reach for a Power Query step in Excel.
 
 | In Excel you'd... | In Sheets reach for... |
 |---|---|
@@ -75,30 +368,6 @@ Excel's Power Query is a UI for shaping, joining, and transforming data, with st
 | Pull from a database or warehouse | Connected Sheets + BigQuery (Track 4) |
 
 `IMPORTRANGE` is how the team wires every campaign sheet to its raw-data source. It's also the most common source of broken formulas: source workbook renamed, permissions revoked, range drifted. Track 1 lesson 27 covers `IMPORTRANGE` patterns; Track 4 covers diagnosing breakage.
-
-<QuickCheck
-  question="You want to show only campaigns with revenue >= 400, sorted high-to-low. What's the most idiomatic Sheets approach?"
-  options={[
-    {
-      id: "a",
-      label: "Add a helper column with IF, then sort manually.",
-      correct: false,
-      explanation: "Works, but every change requires re-sorting. The result is static, not derived. In a multi-sheet workbook with dozens of dependents, this gets unmanageable fast.",
-    },
-    {
-      id: "b",
-      label: <><code>QUERY(A2:F13, "SELECT B, C, F WHERE F {">"}= 400 ORDER BY F DESC")</code></>,
-      correct: true,
-      explanation: "QUERY combines filter and sort in one formula. The result updates as the source changes: exactly what you want when the source is itself an IMPORTRANGE.",
-    },
-    {
-      id: "c",
-      label: "Open Power Query.",
-      correct: false,
-      explanation: "Power Query is Excel-only. Sheets has no equivalent UI; QUERY is the inline answer.",
-    },
-  ]}
-/>
 
 ## The sharing model is link-based, not file-based
 
@@ -118,12 +387,12 @@ This shows up in adtech work in two ways:
 
 ## Used in the wild
 
-In the team's actual workbooks, the patterns this lesson covers show up like this:
+In the team's actual workbooks, the three functions you met today show up like this:
 
-- **Profit, ROI, EPC, margin columns are all single ARRAYFORMULAs at the top.** When new campaigns are pasted into rows 14, 15, 16, the ARRAYFORMULA extends automatically (assuming the range was set wide enough at the start).
-- **XLOOKUP for "give me X for buyer Y" is a daily reflex.** First campaign date, total spend this month, last vertical they ran. Often joined with cross-sheet IMPORTRANGE on a buyers tab.
-- **QUERY is how the dashboards get built.** "SELECT A, B, SUM(F) GROUP BY A, B" with filters by date range. It's slower than SUMIFS for huge sheets but much more expressive.
+- **Profit, ROI, EPC, margin columns are all single `ARRAYFORMULA`s at the top.** When new campaigns are pasted into rows 14, 15, 16, the `ARRAYFORMULA` extends automatically (assuming the range was set wide enough at the start).
+- **`XLOOKUP` for "give me X for buyer Y" is a daily reflex.** First campaign date, total spend this month, last vertical they ran. Often joined with cross-sheet `IMPORTRANGE` on a buyers tab. Pair it with `missing_value = 0` so dashboards don't fill with `#N/A`.
+- **`QUERY` is how the dashboards get built.** `SELECT A, B, SUM(F) GROUP BY A, B` with a date filter. Slower than `SUMIFS` for huge sheets but much more expressive: filter + group + sort + limit in one formula.
 
 ## Now do it for real
 
-Click **Start lesson** to provision the campaign log. You'll exercise the three biggest Excel-to-Sheets differences: an `ARRAYFORMULA` profit column, a `QUERY` for high-revenue campaigns, and an `XLOOKUP` for a buyer's first campaign revenue.
+Click **Start lesson** to provision the campaign log. You'll exercise the three biggest Excel-to-Sheets differences end to end: an `ARRAYFORMULA` Profit column, a `QUERY` for high-revenue campaigns, and an `XLOOKUP` for a buyer's first campaign revenue.

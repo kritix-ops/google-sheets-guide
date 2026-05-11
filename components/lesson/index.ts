@@ -1,4 +1,5 @@
 export { Compare, ComparePanel } from "./compare";
+export { FunctionRef } from "./function-ref";
 export { MiniGrid } from "./mini-grid";
 export { Prose } from "./prose";
 export { QuickCheck } from "./quick-check";

@@ -2,9 +2,9 @@
 
 # Pedagogy bar: novice to pro
 
-This is a novice-to-pro course for working professionals. The learner will eventually handle complex spreadsheets at work — many sheets, hundreds of formulas, large datasets, intricate cross-references, real consequences when something breaks. Every lesson must meet that bar.
+This is a novice-to-pro course for working professionals. The learner will eventually handle complex spreadsheets at work: many sheets, hundreds of formulas, large datasets, intricate cross-references, real consequences when something breaks. Every lesson must meet that bar.
 
-**Rules for every lesson, body and assignment:**
+**Foundational rules for every lesson, body and assignment:**
 
 1. **Examples must resemble real workbooks.** A 5×2 toy is fine for the first interactive demo of a concept. The second use of that concept should look like something a pro actually opens at work: a roster, a sales record, an order log, a customer table, an error report. Vary the data shape across lessons so the learner sees range.
 2. **Show the gotchas pros hit.** Lookup tables that walk off the bottom when filled. Volatile functions (`TODAY`, `NOW`, `OFFSET`, `INDIRECT`, `RAND`) slowing recalc on big sheets. `INDIRECT` breaking when rows are inserted. `ARRAYFORMULA` exploding when new rows arrive. Cross-sheet references silently breaking on rename. Name them in the lesson body, not as a footnote.
@@ -13,6 +13,36 @@ This is a novice-to-pro course for working professionals. The learner will event
 5. **End each lesson with a "Pro pitfalls" or "Used in the wild" beat** that ties what was taught back to complex-spreadsheet reality. One short paragraph or a small table of "looks innocent, costs you a day."
 
 If a lesson reads like it would teach a 12-year-old to use a calculator, it's not at the bar. Rewrite it.
+
+## Elevated bar (locked 2026-05-11)
+
+The five rules above are the floor. The bar that follows is the actual ceiling we're holding the curriculum to: extremely thorough, extremely interactive, extremely easy to grok, while still going extremely deep. The tension is the point. Layer it. A first-timer should feel onboarded by the first scroll, a working pro should still learn something new by the last paragraph.
+
+6. **Every Sheets function gets a canonical introduction before its first use, full stop.** Use the `<FunctionRef name="X" />` MDX component. The component reads `content/functions/registry.ts` and renders: a one-sentence plain-language summary, the exact official syntax, a full parameter table with name + type + required-or-default + meaning + accepted enumerated values, the return value, and a link to Google's docs. If the function is missing from the registry, add it there (verified against the official Google docs page). Lessons never re-type a function spec inline; they reference the registry. Prose around the `<FunctionRef>` block adds the lesson's specific angle (when to reach for it, why this dataset, how it plugs into the team's workflow).
+7. **Layered teaching: zero-to-hero in every lesson.** Open with one paragraph that frames the concept for someone who has never seen it. Build to a working-pro angle by the end. The early paragraphs assume nothing; the later ones reference earlier lessons by number and tie into adtech workflow patterns.
+8. **At least three worked examples per function, in escalating complexity.** Example 1: a tiny self-contained illustration on toy data, so the syntax sinks in. Example 2: the same function on the real adtech dataset (`CAMPAIGNS`, `CAMPAIGNS_LARGE`, `VERTICALS_LOOKUP`, etc.). Example 3: the function combined with at least one concept from a prior lesson, so the learner sees how it composes in real workbooks. Each example is interactive when the engine supports it; otherwise it's a worked trace in prose.
+9. **Step-by-step formula traces.** When a formula has more than one step (nested calls, multi-clause `QUERY`, `ARRAYFORMULA` over computed columns), walk through how Sheets evaluates it. Use the `<StepThrough>` component when the trace has 4+ steps, plain prose for shorter ones. Show what each intermediate value is, where the engine substitutes ranges with values, and which step the gotcha lives at.
+10. **Interactive density: at least one interactive component per major heading.** Major heading = an `##` section that introduces a concept. The component is one of: `<TryIt>` (graded, the most powerful), `<RefDemo>` (live formula recalculation as the learner edits), `<MiniGrid>` (highlight cells while reading), `<StepThrough>` (scrub through formula evaluation), `<QuickCheck>` (multiple choice, validates understanding), `<Compare>` (side-by-side wrong-vs-right). Static prose without any interactive component below an `##` heading is a smell: either there's no concept being taught, or the lesson is being lazy.
+11. **Common-mistakes callout per function.** A short "Easy traps" subsection or a `<Compare>` block showing the broken version next to the working version, with one-sentence explanations of why each broken version is wrong. At least two traps per function the lesson introduces. These are the moments where pros lose half a day; surface them.
+12. **Visual reinforcement.** When teaching cell-reference behavior, show the actual cells via `<MiniGrid>` with the relevant cells highlighted. When teaching array spilling, show the source range AND the spilled output side by side. When teaching lookups, color-code the search column and the result column. Words alone do not suffice for spatial concepts; spreadsheets are spatial.
+13. **Cross-references are explicit.** When a lesson uses a concept introduced earlier, say "covered in lesson 1.4" or "see Track 3 lesson 2." When a lesson teases a concept covered later, link forward the same way. The learner should never feel lost about whether they're missing something.
+14. **UI/UX rules.** Sections short enough to read in one breath (4-6 sentences max per paragraph). Tables for any list of >3 parallel items (params, modes, errors). Code in monospace inline (`` ` `` around inline code) and as fenced blocks for multi-line. The Hebrew version preserves the same MDX structure as the English version (same component count, same heading hierarchy, same example order) so the bilingual side-by-side editor stays parallel.
+15. **A learner who finishes a lesson can answer four questions without checking the docs:** What does this function do in plain language? What are its parameters and what do they accept? What are its two most common real-world uses? What are its two most common ways to break? If the lesson doesn't equip them to answer all four, the lesson isn't done.
+
+### Standard lesson section structure
+
+Every `##` section that teaches a new function should follow this template. The order isn't dogmatic but the *presence* of each element is.
+
+1. **Two-paragraph framing.** What is this function for? When would I reach for it? Plain language; no syntax yet.
+2. **`<FunctionRef name="X" />`** for the canonical card.
+3. **Worked example 1 (toy data).** A `<RefDemo>` or `<TryIt>` on a 4-8 row toy table. Smallest possible illustration of the syntax.
+4. **Worked example 2 (real adtech data).** Same function on `CAMPAIGNS` (or the relevant dataset). Lesson connects the syntax to the team's actual workflow.
+5. **Optional `<StepThrough>` trace** when the evaluation has 4+ steps.
+6. **Combined example.** Function composed with at least one prior-lesson concept. `<TryIt>` with a multi-step task.
+7. **Easy traps.** `<Compare>` or a short bulleted list. At least two traps with their fixes.
+8. **`<QuickCheck>` validation.** One multiple-choice question that tests the trickiest concept from the section.
+
+The "Used in the wild" beat at the end of the lesson then ties all the section's functions together into a real adtech workflow pattern.
 
 # Domain context: who the learner is
 

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import {
   Compare,
   ComparePanel,
+  FunctionRef,
   MiniGrid,
   Prose,
   QuickCheck,
@@ -44,6 +45,7 @@ function headingId(children: ReactNode): string {
 const lessonComponents: MDXComponents = {
   Compare,
   ComparePanel,
+  FunctionRef,
   MiniGrid,
   Prose,
   QuickCheck,

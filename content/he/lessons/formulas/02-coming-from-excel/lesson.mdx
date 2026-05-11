@@ -4,11 +4,85 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מה שתופס אנשי מקצוע בשבוע הראשון. הארבעה הגדולים: arrays לא עושים auto-spill, `XLOOKUP` עובד אותו דבר, ל-Power Query אין מקבילה, ומודל השיתוף מבוסס לינק במקום קובץ.
 
+השיעור הזה הוא גם המפגש הראשון שלכם עם שלוש הפונקציות שתישענו עליהן יומיומית בקורס: `ARRAYFORMULA`, `XLOOKUP`, ו-`QUERY`. אנחנו מציגים כל אחת עם החתימה המלאה ושתי דוגמאות מעובדות כדי שה-syntax יתפוס לפני שיעורי ה-deep-dive הייעודיים (10 ל-arrays, 4 ל-lookups, 12-13 ל-QUERY).
+
 ## Arrays: מפורש, לא משתמע
 
-הקלידו `=F2:F13` ב-`H1` (reference לעמודת Revenue). ב-Excel 365, ה-array spill כלפי מטה לבד. ב-Sheets, תקבלו רק את הערך הראשון, `487.3`. כדי לקבל spill, עוטפים ב-`ARRAYFORMULA`.
+ב-Excel 365, אם תקלידו `=F2:F13` בתא כלשהו, Excel עושה "spill" של העמודה בעצמו: 12 ערכים מופיעים, אחד לכל שורה, אוטומטית. ב-Sheets אותה נוסחה מחזירה רק את הערך הראשון, `487.3`. מקבלים תא אחד, לא שניים-עשר. כדי לגרום לביטוי טווח להתפרש לתאים שמסביב, עוטפים אותו ב-`ARRAYFORMULA`.
 
-המקרה הקלאסי באדטק: רוצים עמודת רווח (revenue פחות spend) לכל קמפיין, מחושבת בנוסחה אחת. ב-Excel היינו מקלידים `=F2:F13-E2:E13` ומקבלים את העמודה כ-spill בחינם. ב-Sheets צריך לעטוף את זה.
+המקרה הקלאסי באדטק: רוצים עמודת רווח (revenue פחות spend) לכל קמפיין בטבלה, מחושבת ב**נוסחה אחת** בראש העמודה. ב-Excel היינו מקלידים `=F2:F13-E2:E13` ומקבלים את העמודה כ-spill בחינם. ב-Sheets עוטפים ב-`ARRAYFORMULA` כדי לבקש את אותה התנהגות.
+
+<FunctionRef name="ARRAYFORMULA" />
+
+### איך זה מחושב, שלב-שלב
+
+ניקח את המקרה החשבוני `ARRAYFORMULA(F2:F13 - E2:E13)`. המנוע לא מריץ את החיסור פעם אחת. הוא מרחיב את שני הטווחים למערכים של 12 איברים, מיישר אותם שורה מול שורה, מחסר זוג מול זוג, ומחזיר מערך של 12 איברים שזורם לתאים מתחת לתא הנוסחה.
+
+<StepThrough
+  frames={[
+    {
+      caption: "שלב 1: קריאת הביטוי הפנימי",
+      body: (
+        <>
+          המנוע רואה <code>F2:F13 - E2:E13</code>. בפני עצמו, זה היה מתכווץ
+          לערך יחיד (ההפרש של התא הראשון של כל טווח). העטיפה של{" "}
+          <code>ARRAYFORMULA</code> משנה את זה.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 2: הרחבת שני הטווחים",
+      body: (
+        <>
+          <code>F2:F13</code> הופך למערך של 12 ערכי revenue, לפי הסדר.{" "}
+          <code>E2:E13</code> הופך למערך מקביל של 12 ערכי spend. שני המערכים
+          באותה צורה.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 3: חיסור איבר-איבר",
+      body: (
+        <>
+          שורה 1 של <code>F</code> פחות שורה 1 של <code>E</code>, שורה 2 של{" "}
+          <code>F</code> פחות שורה 2 של <code>E</code>, וכן הלאה. תוצאה: מערך
+          של 12 רווחים.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 4: זרימת התוצאה",
+      body: (
+        <>
+          המערך נכתב ל-12 תאים החל מתא הנוסחה. אם בתאים מתחת יש תוכן, מקבלים{" "}
+          <code>#REF!</code> במקום. תמיד לוודא שיעד ה-spill ריק.
+        </>
+      ),
+    },
+  ]}
+/>
+
+### דוגמה מעובדת 1: נתוני צעצוע
+
+שתי עמודות קטנטנות, נוסחה אחת. תראו איך `ARRAYFORMULA` הופכת ביטוי יחיד לעמודת תוצאות.
+
+<RefDemo
+  data={[
+    ["Item", "Price", "Qty"],
+    ["A", 10, 3],
+    ["B", 20, 2],
+    ["C", 15, 4],
+  ]}
+  formula="=ARRAYFORMULA(B2:B4*C2:C4)"
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={["=ARRAYFORMULA(B2:B4*C2:C4)", "", ""]}
+  caption="נוסחה אחת ב-D2 ממלאת את D2:D4 בסכום הכולל של כל שורה (price × qty)."
+/>
+
+### דוגמה מעובדת 2: נתוני אדטק אמיתיים
+
+אותו רעיון על טבלת הקמפיינים. `ARRAYFORMULA` יחיד בראש עמודה G מחשב רווח לכל הקמפיינים בבת אחת.
 
 <TryIt
   data={CAMPAIGNS}
@@ -16,8 +90,32 @@ Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מ
   expectedFormula="=ARRAYFORMULA(F2:F13-E2:E13)"
   task={<>חשבו רווח (revenue פחות spend) לכל הקמפיינים בבת אחת. נוסחה אחת ב-<code>G1</code> אמורה למלא את <code>G1:G12</code> ברווח של כל קמפיין.</>}
   hint={<>עטפו את <code>F2:F13-E2:E13</code> ב-<code>ARRAYFORMULA(...)</code> כדי שיעשה spill.</>}
-  answer={<>ביטויי חשבון פשוטים כמו <code>F2:F13-E2:E13</code> לא עושים auto-spill ב-Sheets. הם מחזירים רק את הערך הראשון. עטיפה ב-<code>ARRAYFORMULA</code> אומרת למנוע לשדר את החיסור על פני כל הטווח, ככה שנוסחה אחת ב-<code>G1</code> ממלאת 12 תאים. פונקציות כמו <code>FILTER</code>, <code>SORT</code>, <code>UNIQUE</code>, <code>QUERY</code>, ו-<code>SEQUENCE</code> עושות spill בעצמן ולא צריכות עטיפה. בעבודת אדטק אמיתית, תכתבו ARRAYFORMULA על עמודות של מטריקות מחושבות (רווח, ROI, EPC, מרג'ין) ככה שנוסחה אחת בראש ממלאת את כל העמודה כשנכנסים קמפיינים חדשים למטה.</>}
+  answer={<>חשבון פשוט כמו <code>F2:F13-E2:E13</code> היה מחזיר ב-Sheets רק את הערך הראשון. <code>ARRAYFORMULA</code> משדר את החיסור על פני כל הטווח, ככה שנוסחה אחת ב-<code>G1</code> ממלאת 12 תאים. פונקציות כמו <code>FILTER</code>, <code>SORT</code>, <code>UNIQUE</code>, <code>QUERY</code>, ו-<code>SEQUENCE</code> עושות spill בעצמן ולא צריכות עטיפה. בעבודת אדטק אמיתית, תכתבו ARRAYFORMULA על עמודות של מטריקות מחושבות (רווח, ROI, EPC, מרג'ין) ככה שנוסחה אחת בראש ממלאת את כל העמודה כשנכנסים קמפיינים חדשים למטה.</>}
 />
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(F2:F-E2:E)</code></pre>
+    <p className="mt-2 text-sm">טווחים פתוחים. Sheets יעשה spill לכל תא ריק עד שורה 1000+, וימלא את העמודה באפסים. מאט את ה-spreadsheet ומזהם סכומים במורד הזרם.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(IF(F2:F=&quot;&quot;, &quot;&quot;, F2:F-E2:E))</code></pre>
+    <p className="mt-2 text-sm">אותו טווח, אבל ה-<code>IF</code> קוצר שורות ריקות למחרוזת ריקה. ה-spill עוצר היכן שהמידע האמיתי נגמר.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(SUMIF(B2:B13, &quot;Yoav&quot;, F2:F13))</code></pre>
+    <p className="mt-2 text-sm"><code>SUMIF</code> הוא חד-תאי במהותו. עטיפה ב-<code>ARRAYFORMULA</code> לא משנה את זה. מקבלים מספר אחד, לא עמודה.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=SUMIF(B2:B13, &quot;Yoav&quot;, F2:F13)</code></pre>
+    <p className="mt-2 text-sm">מורידים את העטיפה. אם באמת רציתם סכומים פר-קבוצה לכל שורה, הכלי הנכון הוא <code>QUERY</code> עם <code>GROUP BY</code>, מכוסה בהמשך.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="מי מהבאים לא זקוק ל-ARRAYFORMULA כדי לעשות spill ב-Sheets?"
@@ -43,15 +141,82 @@ Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מ
   ]}
 />
 
+ה-deep-dive הייעודי של `ARRAYFORMULA` נמצא בשיעור 10 (בסיס) ובשיעור 18 (LAMBDA יחד עם arrays).
+
 ## XLOOKUP: סוף סוף אותו דבר בשתיהן
 
-`XLOOKUP` הגיע ל-Sheets ב-2022. חתימה זהה, התנהגות זהה. אם אתם משתמשים בו ב-Excel היום, אתם יכולים להשתמש בו ב-Sheets היום.
+`XLOOKUP` הגיע ל-Sheets ב-2022. החתימה זהה לזו של Excel, וההתנהגות זהה. אם אתם משתמשים בו ב-Excel היום, אתם יכולים להשתמש בו ב-Sheets היום. זה התחליף המודרני לזוג `VLOOKUP` + `HLOOKUP`: פונקציה אחת שמטפלת בשני הכיוונים, עם טיפול ראוי ב"לא נמצא" ובלי חשבון של מספרי עמודות.
 
-```
-=XLOOKUP(search_key, lookup_range, return_range, [if_not_found], [match_mode], [search_mode])
-```
+<FunctionRef name="XLOOKUP" />
 
-שימוש טיפוסי באדטק: לאתר את ה-revenue של הקמפיין הראשון של media buyer ספציפי בטבלה.
+### איך החיפוש מטייל על הטווח
+
+<StepThrough
+  frames={[
+    {
+      caption: "שלב 1: רזולוציה של search_key",
+      body: (
+        <>
+          קוראים את הערך (למשל <code>&quot;Yoav Cohen&quot;</code>) או את
+          ה-reference (למשל <code>B24</code>). זה מה שמחפשים.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 2: סריקת lookup_range",
+      body: (
+        <>
+          הולכים על lookup_range שורה-שורה (או עמודה-עמודה, אם זה שורה).
+          עוצרים בתא הראשון שמתאים לפי <code>match_mode</code>. עם ברירת
+          המחדל <code>0</code>, זה אומר התאמה מדויקת.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 3: קריאת התא המקביל מ-result_range",
+      body: (
+        <>
+          בכל מיקום שההתאמה נחתה בו, קוראים את התא במיקום המקביל ב-
+          <code>result_range</code>. אם ההתאמה הייתה בשורה 5 של lookup_range,
+          התוצאה היא שורה 5 של result_range.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 4: טיפול בלא-נמצא",
+      body: (
+        <>
+          אם כלום לא התאים, מחזירים <code>missing_value</code>. אם לא העברתם
+          ערך כזה, התוצאה היא <code>#N/A</code>. כמעט תמיד שווה להעביר
+          ברירת מחדל ידידותית כמו <code>0</code> או{" "}
+          <code>&quot;לא נמצא&quot;</code>.
+        </>
+      ),
+    },
+  ]}
+/>
+
+### דוגמה מעובדת 1: נתוני צעצוע
+
+ספר מחירים פצפון. מחפשים "B" ומקבלים את המחיר שלו.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 10],
+    ["B", 20],
+    ["C", 15],
+  ]}
+  formula='=XLOOKUP("B", A2:A4, B2:B4)'
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={['=XLOOKUP("B", A2:A4, B2:B4)']}
+  caption="search_key = 'B', lookup_range = A2:A4, result_range = B2:B4. תוצאה: 20."
+/>
+
+### דוגמה מעובדת 2: נתוני אדטק אמיתיים
+
+מוצאים את ה-revenue של הקמפיין הראשון של buyer מסוים בטבלה.
 
 <TryIt
   data={CAMPAIGNS}
@@ -59,12 +224,139 @@ Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מ
   expectedFormula='=XLOOKUP("Yoav Cohen",B2:B13,F2:F13)'
   task={<>השתמשו ב-<code>XLOOKUP</code> כדי למצוא את ה-revenue של הקמפיין הראשון של Yoav Cohen בטבלה. התוצאה ב-<code>H1</code> צריכה להיות <code>487.3</code>.</>}
   hint={<>שלושה ארגומנטים: search key (<code>"Yoav Cohen"</code>), lookup range (<code>B2:B13</code>, עמודת ה-Buyer), return range (<code>F2:F13</code>, Revenue).</>}
-  answer={<>ה-lookup range וה-return range מועברים כארגומנטים נפרדים. הם מיושרים שורה-מול-שורה: שורה 1 של <code>B2:B13</code> היא Yoav, שורה 1 של <code>F2:F13</code> היא 487.3. בלי חשבון של מספר עמודה, בלי דגל <code>FALSE</code> ל-exact match. <code>XLOOKUP</code> מחזיר את ההתאמה הראשונה כברירת מחדל. כאן זה הקמפיין מ-1 במאי על ה-vertical Car Deals PR ב-Google. כדי למצוא התאמה ספציפית, הוסיפו תנאים נוספים או השתמשו ב-INDEX/MATCH (מכוסה בשיעור 4).</>}
+  answer={<>ה-lookup range וה-return range מועברים כארגומנטים נפרדים. הם מיושרים שורה-מול-שורה: שורה 1 של <code>B2:B13</code> היא Yoav, שורה 1 של <code>F2:F13</code> היא 487.3. בלי חשבון של מספר עמודה, בלי דגל <code>FALSE</code> ל-exact match. <code>XLOOKUP</code> מחזיר את ההתאמה הראשונה כברירת מחדל, כאן הקמפיין מ-1 במאי על ה-vertical Car Deals PR ב-Google. כדי לטפל ב"לא נמצא", הוסיפו ארגומנט רביעי של missing_value, או השתמשו ב-INDEX/MATCH (מכוסה בשיעור 4).</>}
 />
 
-## ל-Power Query אין מקבילה ישירה
+### דפוסים נפוצים: פרמטרים אופציונליים בפעולה
 
-Power Query של Excel הוא UI לעיצוב, חיבור והמרה של מידע, עם שלבים מתועדים בתור קוד M. ל-Sheets אין משהו דומה מהקופסה. התשובות הילידיות של Sheets, ממופות לפי מה שהייתם שולפים ב-Excel:
+שלוש וריאציות קטנות על אותו רעיון מראות מה הפרמטרים האופציונליים נותנים בעבודה אמיתית.
+
+<Compare>
+  <ComparePanel label="Fallback ידידותי" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("X",B2:B13,F2:F13,0)`}</code></pre>
+    <p className="mt-2 text-sm">מעבירים <code>missing_value = 0</code>. עכשיו buyers שלא בטבלה מחזירים <code>0</code> במקום <code>#N/A</code>, וזה שומר על סכומים נקיים במורד הזרם.</p>
+  </ComparePanel>
+  <ComparePanel label="ההתאמה האחרונה" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav Cohen",B2:B13,F2:F13,0,0,-1)`}</code></pre>
+    <p className="mt-2 text-sm"><code>search_mode = -1</code> מטייל מהשורה האחרונה לראשונה. מקבלים את ה-revenue של הקמפיין האחרון של ה-buyer במקום הראשון.</p>
+  </ComparePanel>
+  <ComparePanel label="התאמה עם wildcards" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("*Car Deals*",C2:C13,F2:F13,0,2)`}</code></pre>
+    <p className="mt-2 text-sm"><code>match_mode = 2</code> מפעיל wildcards. הדפוס <code>*Car Deals*</code> מתאים לכל vertical שמכיל את המילים "Car Deals", כולל הסיומת " PR".</p>
+  </ComparePanel>
+</Compare>
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav", B2:B13, F2:G13)`}</code></pre>
+    <p className="mt-2 text-sm">ה-lookup_range הוא עמודה אחת (12×1) אבל ה-result_range הוא שתי עמודות (12×2). כשהצורות לא תואמות, XLOOKUP נכשל או מחזיר ערכים שלא ציפיתם להם.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav", B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">שני הטווחים הם 12 שורות × עמודה אחת. הצורות תואמות, המיקום מיושר, החיפוש עובד.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("yoav cohen", B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">XLOOKUP רגיש לרישיות (case) על טקסט. בעמודת ה-Buyer יש <code>Yoav Cohen</code>, וזה מחזיר <code>#N/A</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav Cohen", B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">טקסט מדויק, רישיות מדויקת. אם אין שליטה על הרישיות של מקור הנתונים, נרמלו עם <code>LOWER</code> משני הצדדים או עברו ל-<code>match_mode = 2</code> עם דפוס wildcard.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="Buyer לא מופיע בטבלה. רוצים שהנוסחה תחזיר 0 במקום #N/A כדי שסכומים במורד הזרם יישארו נקיים. איזה ארגומנט מעבירים?"
+  options={[
+    {
+      id: "a",
+      label: <code>match_mode = 0</code>,
+      correct: false,
+      explanation: "match_mode 0 הוא ברירת המחדל (התאמה מדויקת). לא משנה את ההתנהגות במקרה של לא-נמצא.",
+    },
+    {
+      id: "b",
+      label: <code>missing_value = 0</code>,
+      correct: true,
+      explanation: "missing_value הוא הארגומנט הרביעי. בדיוק ה-hook ל-fallback ידידותי.",
+    },
+    {
+      id: "c",
+      label: <code>search_mode = -1</code>,
+      correct: false,
+      explanation: "search_mode = -1 הופך את כיוון הסריקה. לא משנה מה קורה ב-לא-נמצא.",
+    },
+  ]}
+/>
+
+`XLOOKUP` מקבל טיפול עמוק יותר לצד `VLOOKUP`, `INDEX` ו-`MATCH` בשיעור 4.
+
+## QUERY: הכלי הכבד בסגנון SQL
+
+Power Query של Excel הוא UI לעיצוב, חיבור והמרה של מידע, עם שלבים מתועדים כקוד M. ל-Sheets אין משהו דומה מהקופסה, אבל יש משהו שמכסה את רוב אותו שטח: `QUERY`, פונקציה אחת שמריצה queries בסגנון SQL על טווח.
+
+<FunctionRef name="QUERY" />
+
+### דוגמה מעובדת 1: סינון ומיון
+
+הצורה הנפוצה ביותר: לבחור עמודות, לסנן שורות, למיין. נוסחה אחת, תוצאה שזורמת.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="I1"
+  expectedFormula='=QUERY(A1:F13, "SELECT B, C, F WHERE F >= 400 ORDER BY F DESC")'
+  task={<>הציגו רק קמפיינים עם revenue (עמודה F) של 400 ומעלה. החזירו את העמודות Buyer, Vertical, ו-Revenue, ממוין מהגבוה לנמוך.</>}
+  hint={<>השתמשו ב-<code>SELECT B, C, F WHERE F &gt;= 400 ORDER BY F DESC</code> כמחרוזת ה-query. שימו לב לשורת ה-headers: העברת <code>A1:F13</code> כוללת אותה ו-QUERY ינחש.</>}
+  answer={<>QUERY מריץ את ה-SELECT על טווח המידע ומחזיר טבלה שזורמת. <code>SELECT B, C, F</code> בוחר עמודות. <code>WHERE F &gt;= 400</code> מסנן שורות. <code>ORDER BY F DESC</code> ממיין מגבוה לנמוך. התוצאה מתעדכנת כשהמקור משתנה, בדיוק מה שרוצים כשהמקור עצמו הוא IMPORTRANGE מ-spreadsheet per-platform.</>}
+/>
+
+### דוגמה מעובדת 2: קיבוץ וצבירה
+
+QUERY הוא לא רק סינון. אפשר לקבץ שורות ולצבור אותן באותה נוסחה. התוצאה היא טבלת סיכום קטנה.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="K1"
+  expectedFormula='=QUERY(A1:F13, "SELECT C, SUM(F) GROUP BY C ORDER BY SUM(F) DESC")'
+  task={<>סך ה-revenue פר vertical, הגבוה ראשון. שתי עמודות: שם ה-vertical והסכום.</>}
+  hint={<>הצורה היא <code>SELECT C, SUM(F) GROUP BY C ORDER BY SUM(F) DESC</code>. עמודות ב-<code>SELECT</code> שאינן בתוך אגרגציה חייבות להופיע ב-<code>GROUP BY</code>.</>}
+  answer={<>אגרגציה בסגנון SQL בנוסחה אחת. התוצאה מעוצבת כמו pivot אבל זו נוסחה חיה: ערכו את המקור והסיכום מחושב מחדש מיידית. איטי יותר מ-<code>SUMIFS</code> על spreadsheets ענקיים (10k+ שורות) אבל הרבה יותר אקספרסיבי. אתם מקבלים filter + group + sort + limit בקריאה אחת.</>}
+/>
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A2:F13, "SELECT B, C, F WHERE F >= 400")`}</code></pre>
+    <p className="mt-2 text-sm">אין שורת headers בטווח המקור. QUERY מנחש שאין header ומסמן עמודות לפי מיקום (column1, column2). גרפים ו-references במורד הזרם נשברים.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE F >= 400")`}</code></pre>
+    <p className="mt-2 text-sm">כוללים את שורת ה-headers בטווח המידע (מתחילים מ-<code>A1</code>, לא <code>A2</code>). או מעבירים <code>1</code> כארגומנט שלישי כדי לכפות שורת header אחת.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = Used Cars PR")`}</code></pre>
+    <p className="mt-2 text-sm">טקסט חשוף בתוך WHERE נקרא כשם עמודה. Sheets מחזיר שגיאה כי אין עמודה בשם <code>Used Cars PR</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = 'Used Cars PR'")`}</code></pre>
+    <p className="mt-2 text-sm">עוטפים מחרוזות טקסט במירכאות יחידות בתוך מחרוזת ה-query. מספרים לא צריכים מירכאות, תאריכים משתמשים ב-<code>date 'YYYY-MM-DD'</code>.</p>
+  </ComparePanel>
+</Compare>
+
+`QUERY` מקבל deep-dive מלא בשיעורים 12 ו-13. ה-reference של שפת ה-query (clauses, אופרטורים, אגרגציות, ליטרלי תאריך, label/format) נמצא שם.
+
+## Power Query: אין מקבילה ישירה, ממופה
+
+מעבר ל-`QUERY` עצמו, הנה שאר המיפוי של Power Query → Sheets. השתמשו בזה כ-cheat sheet ל"מה לשלוף" כשהייתם שולפים שלב של Power Query ב-Excel.
 
 | ב-Excel הייתם... | ב-Sheets שולפים... |
 |---|---|
@@ -75,30 +367,6 @@ Power Query של Excel הוא UI לעיצוב, חיבור והמרה של מיד
 | מושכים ממסד נתונים או warehouse | Connected Sheets + BigQuery (Track 4) |
 
 `IMPORTRANGE` היא הדרך שבה הצוות מחבר כל גיליון קמפיינים למקור המידע הגולמי שלו. זה גם המקור הנפוץ ביותר לנוסחאות שבורות: שינוי שם של ה-spreadsheet המקור, שלילה של הרשאות, טווח שזז. שיעור 27 של Track 1 מכסה דפוסי `IMPORTRANGE`. Track 4 מכסה איתור התקלות.
-
-<QuickCheck
-  question="אתם רוצים להציג רק קמפיינים עם revenue גבוה או שווה ל-400, ממוין מהגבוה לנמוך. מה הגישה הכי אידיומטית ב-Sheets?"
-  options={[
-    {
-      id: "a",
-      label: "להוסיף עמודת עזר עם IF, ואז למיין ידנית.",
-      correct: false,
-      explanation: "עובד, אבל כל שינוי דורש מיון מחדש. התוצאה סטטית, לא מחושבת. ב-spreadsheet רב-גיליונות עם עשרות תלויות, זה הופך מהר לבלתי ניתן לתחזוקה.",
-    },
-    {
-      id: "b",
-      label: <><code>QUERY(A2:F13, "SELECT B, C, F WHERE F {">"}= 400 ORDER BY F DESC")</code></>,
-      correct: true,
-      explanation: "QUERY משלב סינון ומיון בנוסחה אחת. התוצאה מתעדכנת כשהמקור משתנה. בדיוק מה שרוצים כשהמקור עצמו הוא IMPORTRANGE.",
-    },
-    {
-      id: "c",
-      label: "לפתוח את Power Query.",
-      correct: false,
-      explanation: "Power Query הוא רק ב-Excel. ל-Sheets אין UI מקביל. QUERY הוא התשובה הפנימית.",
-    },
-  ]}
-/>
 
 ## מודל השיתוף מבוסס לינק, לא קובץ
 
@@ -118,12 +386,12 @@ Power Query של Excel הוא UI לעיצוב, חיבור והמרה של מיד
 
 ## נפוץ בשטח
 
-ב-spreadsheets האמיתיים של הצוות, הדפוסים שהשיעור הזה מכסה מופיעים ככה:
+ב-spreadsheets האמיתיים של הצוות, שלוש הפונקציות שפגשתם היום מופיעות ככה:
 
-- **עמודות רווח, ROI, EPC, מרג'ין הן כולן ARRAYFORMULA יחיד בראש.** כשמדביקים קמפיינים חדשים לשורות 14, 15, 16, ה-ARRAYFORMULA מתרחבת אוטומטית (בהנחה שהטווח הוגדר רחב מספיק מההתחלה).
-- **XLOOKUP בסגנון "תני לי X של media buyer Y" הוא רפלקס יומיומי.** תאריך הקמפיין הראשון, סך ה-spend החודש, ה-vertical האחרון שהריץ. לעיתים קרובות מצומד ל-IMPORTRANGE בין גיליונות על טאב של buyers.
-- **QUERY הוא איך בונים את ה-dashboards.** "SELECT A, B, SUM(F) GROUP BY A, B" עם פילטרים לפי טווח תאריכים. איטי יותר מ-SUMIFS על גיליונות גדולים מאוד, אבל הרבה יותר אקספרסיבי.
+- **עמודות רווח, ROI, EPC, מרג'ין הן כולן `ARRAYFORMULA` יחיד בראש.** כשמדביקים קמפיינים חדשים לשורות 14, 15, 16, ה-`ARRAYFORMULA` מתרחבת אוטומטית (בהנחה שהטווח הוגדר רחב מספיק מההתחלה).
+- **`XLOOKUP` בסגנון "תני לי X של buyer Y" הוא רפלקס יומיומי.** תאריך הקמפיין הראשון, סך ה-spend החודש, ה-vertical האחרון שהריץ. לעיתים קרובות מצומד ל-`IMPORTRANGE` בין גיליונות על טאב של buyers. צמדו אותו ל-`missing_value = 0` כדי ש-dashboards לא יתמלאו ב-`#N/A`.
+- **`QUERY` הוא איך בונים את ה-dashboards.** `SELECT A, B, SUM(F) GROUP BY A, B` עם פילטר תאריכים. איטי יותר מ-`SUMIFS` על גיליונות גדולים אבל הרבה יותר אקספרסיבי: filter + group + sort + limit בנוסחה אחת.
 
 ## עכשיו לעבודה אמיתית
 
-לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים. תתרגלו את שלושת ההבדלים הכי גדולים בין Excel ל-Sheets: עמודת רווח עם `ARRAYFORMULA`, `QUERY` לקמפיינים עם revenue גבוה, ו-`XLOOKUP` לאיתור revenue של קמפיין ראשון של media buyer.
+לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים. תתרגלו את שלושת ההבדלים הכי גדולים בין Excel ל-Sheets מקצה לקצה: עמודת רווח עם `ARRAYFORMULA`, `QUERY` לקמפיינים עם revenue גבוה, ו-`XLOOKUP` ל-revenue של קמפיין ראשון של buyer.
