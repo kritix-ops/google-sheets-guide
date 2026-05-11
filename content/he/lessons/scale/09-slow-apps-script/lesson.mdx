@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 שיעור 16 ב-Track 3 לימד את התיקון של batch APIs: קוראים פעם אחת ב-`getValues()`, כותבים פעם אחת ב-`setValues()`, עושים את החישוב ב-JavaScript באמצע. השיעור הזה הוא שכבת האבחון שמתחת לתיקון הזה. יש לכם סקריפט שרץ לאט. אולי הוא עושה timeout. אולי ה-aggregator הלילי של הצוות התחיל לקחת שמונה עשרה דקות כשבחודש שעבר לקח שתיים. לפני שמשכתבים, צריך לדעת איזו שורה היא האיטית. ניחוש שורף יום. profiling לוקח עשר דקות.
 
+הרף לשיעור הזה: עד הסוף תוכלו לפתוח Executions, לקרוא משכים, לעשות instrument ל-function עם `console.time`, לזהות את antipattern של per-cell-loop בקוד של מישהו אחר, ולדעת מתי `flush()` הוא foot-gun מול כלי אמיתי. ה-aggregator הלילי של הצוות ירד מ-18 דקות ל-40 שניות עם בדיוק המהלכים האלה; הכתיבה מחדש הייתה עריכה של שלושים דקות ברגע ש-profiling אמר איפה לחתוך.
+
 ## ה-Executions panel: איפה הקריאה האיטית צצה
 
 כל הרצה של function ב-Apps Script נרשמת ב-Executions panel. בעורך החדש: **View > Executions**. ה-panel מציג הרצות אחרונות עם משך הזמן שלהן, הסטטוס (Completed, Failed, Timed out, Cancelled), המשתמש שהפעיל אותן, וסוג ה-trigger (Editor, Trigger, API). ממיינים לפי משך זמן בסדר יורד וההרצות האיטיות ביותר עולות לראש.
@@ -76,6 +78,38 @@ function slowAggregate() {
 
 אותו דפוס חל על כתיבות. לולאה שקוראת ל-`setValue()` לכל תא היא שישים כתיבות; `setValues()` בודד הוא אחת. כותבים את הפלט כ-array דו-ממדי ומעבירים את כל ה-array ל-`setValues()`.
 
+<Compare>
+  <ComparePanel label="לולאה לפי תא, 60 round-trips" tone="negative">
+    <pre className="font-mono text-xs"><code>{`for (let row = 2; row <= 61; row++) {
+  total += sheet.getRange(row, 6).getValue();
+}`}</code></pre>
+    <p className="mt-2 text-sm">כל איטרציה זה round-trip אחד לשרת. 60 שורות = 60 נסיעות. ב-~200ms לכל אחת, זה 12 שניות ל-aggregate שאמור לקחת פחות משנייה. על 12,000 שורות זה 18 דקות.</p>
+  </ComparePanel>
+  <ComparePanel label="קריאה ב-batch, round-trip 1" tone="positive">
+    <pre className="font-mono text-xs"><code>{`const values = sheet.getRange("F2:F61").getValues();
+for (let row = 0; row < values.length; row++) {
+  total += values[row][0];
+}`}</code></pre>
+    <p className="mt-2 text-sm"><code>getValues()</code> אחד מושך את כל הטווח על הרשת ב-trip בודד. הלולאה רצה על array דו-ממדי בזיכרון, מה ש-JavaScript עושה במיקרושניות. אותה לוגיקה, 100x יותר מהיר.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="flush() בלולאת כתיבה" tone="negative">
+    <pre className="font-mono text-xs"><code>{`for (const row of rows) {
+  sheet.getRange(row.address).setValue(row.value);
+  SpreadsheetApp.flush();  // מתחייב בכל איטרציה
+}`}</code></pre>
+    <p className="mt-2 text-sm">מבטל את ה-batch. כל <code>flush()</code> הוא round-trip על גבי הכתיבה. 12,000 איטרציות = 12,000 round-trips נוספים. הסקריפט זוחל וכנראה עושה timeout.</p>
+  </ComparePanel>
+  <ComparePanel label="כתיבה ב-batch, flush לכל היותר פעם אחת" tone="positive">
+    <pre className="font-mono text-xs"><code>{`const out = rows.map(r => [r.value]);
+sheet.getRange("J2:J" + (out.length + 1)).setValues(out);
+// אין צורך ב-flush(); ה-runtime עושה flush ביציאה`}</code></pre>
+    <p className="mt-2 text-sm">בונים את הפלט כ-array דו-ממדי, מעבירים את כולו ל-<code>setValues()</code> פעם אחת, נותנים ל-Apps Script לעשות flush בסוף. trip אחד, commit אחד.</p>
+  </ComparePanel>
+</Compare>
+
 ## ה-timeouts של 6 דקות ו-30 דקות
 
 Apps Script הורג functions שלוקחות יותר מדי זמן. הגבול תלוי בסוג החשבון:
@@ -115,6 +149,30 @@ function שעושה timeout לא עושה rollback. כל כתיבה שכבר ה�
 - כתיבה לא יציבה. אם הכתיבה נכשלה, sleep ואז retry זה בסדר, sleep לבד לא יגרום לה להצליח.
 
 מתייחסים ל-sleep ככלי החלקה של קצב, לא ככלי ביצועים. אם רואים `Utilities.sleep(2000)` בלולאה חמה, זה עיכוב של 2 שניות לאיטרציה, על התקציב.
+
+<QuickCheck
+  question="function של aggregator לילי רצה ב-90 שניות ברבעון שעבר; עכשיו רצה ב-7 דקות ועושה timeout בחשבון consumer. ה-Executions panel מציג 'Timed out' ב-4 הרצות האחרונות. מה מהלך האבחון הראשון היחיד?"
+  options={[
+    {
+      id: "a",
+      label: <>להוסיף Utilities.sleep(1000) בראש ה-function.</>,
+      correct: false,
+      explanation: "sleep אוכל את תקציב ה-runtime בלי לטפל בסיבה. ה-function נהייתה איטית יותר כי משהו בתוכה נהיה איטי יותר; sleep לא מתקן את זה.",
+    },
+    {
+      id: "b",
+      label: <>לעטוף את הבלוק החשוד ב-console.time / console.timeEnd ולקרוא את ה-log.</>,
+      correct: true,
+      explanation: "Profiling אומר איזה בלוק הוא האיטי. כמעט תמיד זו לולאת הקריאה (per-cell getValue()), עכשיו שהמקור גדל. ברגע שיודעים איזה בלוק, השכתוב מכני (batch getValues()/setValues()).",
+    },
+    {
+      id: "c",
+      label: <>להדליק חישוב איטרטיבי ב-Settings.</>,
+      correct: false,
+      explanation: "חישוב איטרטיבי הוא הגדרת workbook ב-Sheets שלא קשורה לביצועי Apps Script. שכבה שגויה לחלוטין.",
+    },
+  ]}
+/>
 
 ## Cloud Logging לשמירה מעבר ל-7 ימים
 

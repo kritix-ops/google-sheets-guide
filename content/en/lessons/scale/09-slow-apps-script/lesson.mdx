@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 Track 3 lesson 16 taught the batch-API fix: read once with `getValues()`, write once with `setValues()`, do the math in JavaScript in between. This lesson is the diagnostic layer underneath that fix. You have a script that runs slowly. Maybe it times out. Maybe the team's nightly aggregator started taking eighteen minutes when last month it took two. Before you refactor, you need to know which line is the slow one. Guessing wastes a day. Profiling takes ten minutes.
 
+The bar for this lesson: by the end you can open Executions, read durations, instrument a function with `console.time`, recognize the per-cell-loop antipattern in someone else's code, and know when `flush()` is a foot-gun versus a real tool. The team's nightly aggregator dropped from 18 minutes to 40 seconds with exactly these moves; the rewrite was a thirty-minute edit once profiling told us where to cut.
+
 ## The Executions panel: where slow shows up
 
 Every run of an Apps Script function is recorded in the Executions panel. In the new editor: **View > Executions**. The panel lists recent runs with their duration, their status (Completed, Failed, Timed out, Cancelled), the user who triggered them, and the trigger type (Editor, Trigger, API). Sort by duration descending and the slowest runs float to the top.
@@ -76,6 +78,38 @@ One `getValues()` call. One round-trip. The for-loop now iterates over an in-mem
 
 The same pattern applies to writes. A loop that calls `setValue()` per cell is sixty writes; a single `setValues()` is one. Write your output as a 2D array and hand the whole array to `setValues()`.
 
+<Compare>
+  <ComparePanel label="Per-cell loop, 60 round-trips" tone="negative">
+    <pre className="font-mono text-xs"><code>{`for (let row = 2; row <= 61; row++) {
+  total += sheet.getRange(row, 6).getValue();
+}`}</code></pre>
+    <p className="mt-2 text-sm">Each iteration is one server round-trip. 60 rows = 60 trips. At ~200ms each, that is 12 seconds for an aggregate that should take a sub-second. On 12,000 rows it is 18 minutes.</p>
+  </ComparePanel>
+  <ComparePanel label="Batch read, 1 round-trip" tone="positive">
+    <pre className="font-mono text-xs"><code>{`const values = sheet.getRange("F2:F61").getValues();
+for (let row = 0; row < values.length; row++) {
+  total += values[row][0];
+}`}</code></pre>
+    <p className="mt-2 text-sm">One <code>getValues()</code> pulls the whole range across the wire in a single trip. The loop runs over an in-memory 2D array, which JavaScript does in microseconds. Same logic, 100x faster.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="flush() in a write loop" tone="negative">
+    <pre className="font-mono text-xs"><code>{`for (const row of rows) {
+  sheet.getRange(row.address).setValue(row.value);
+  SpreadsheetApp.flush();  // commits every iteration
+}`}</code></pre>
+    <p className="mt-2 text-sm">Defeats the batch. Each <code>flush()</code> is a round-trip on top of the write. 12,000 iterations = 12,000 extra round-trips. The script crawls and probably times out.</p>
+  </ComparePanel>
+  <ComparePanel label="Batch write, flush at most once" tone="positive">
+    <pre className="font-mono text-xs"><code>{`const out = rows.map(r => [r.value]);
+sheet.getRange("J2:J" + (out.length + 1)).setValues(out);
+// no flush() needed; runtime flushes at function exit`}</code></pre>
+    <p className="mt-2 text-sm">Build the output as a 2D array, hand the whole thing to <code>setValues()</code> once, let Apps Script flush at the end. One trip, one commit.</p>
+  </ComparePanel>
+</Compare>
+
 ## The 6-minute and 30-minute timeouts
 
 Apps Script kills functions that take too long. The limit depends on the account type:
@@ -114,7 +148,31 @@ What `Utilities.sleep` does NOT fix:
 - A timeout. Sleeping eats your runtime budget for nothing.
 - A flaky write. If the write failed, sleep then retry is fine; sleep alone won't make it succeed.
 
-Treat sleep as a rate-limit smoothing tool, not a performance tool. If you see `Utilities.sleep(2000)` in a hot loop, that's a 2-second delay per iteration, on the budget.
+Treat sleep as a rate-limit smoothing tool, not a performance tool. If you see `Utilities.sleep(2000)` in a hot loop, that is a 2-second delay per iteration, on the budget.
+
+<QuickCheck
+  question="A nightly aggregator function ran in 90 seconds last quarter; now it runs in 7 minutes and times out on a consumer account. Executions panel shows 'Timed out' on the last 4 runs. What is the single first diagnostic move?"
+  options={[
+    {
+      id: "a",
+      label: <>Add Utilities.sleep(1000) at the top of the function.</>,
+      correct: false,
+      explanation: "Sleeping eats the runtime budget without addressing the cause. The function got slower because something inside it got slower; sleep does not fix that.",
+    },
+    {
+      id: "b",
+      label: <>Wrap the suspected slow block in console.time / console.timeEnd and read the log.</>,
+      correct: true,
+      explanation: "Profiling tells you which block is the slow one. Almost always it is the read loop (per-cell getValue()), now that the source grew. Once you know which block, the refactor is mechanical (batch getValues()/setValues()).",
+    },
+    {
+      id: "c",
+      label: <>Turn on iterative calculation in Settings.</>,
+      correct: false,
+      explanation: "Iterative calculation is a Sheets workbook setting unrelated to Apps Script performance. Wrong layer entirely.",
+    },
+  ]}
+/>
 
 ## Cloud Logging for retention past 7 days
 
