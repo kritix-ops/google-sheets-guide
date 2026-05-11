@@ -2,7 +2,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # The broken-sheet clinic: a capstone
 
-Ten lessons in this track covered the things that go wrong with complex spreadsheets: the cell limit, slow recalc, volatile functions, full-column references, `IMPORTRANGE` permission cascades, circular references, `#N/A` handling, the recovery flow. This lesson is the capstone. You inherit a workbook that has five real bugs in five separate cells, and you fix all five. Each bug exercises one lesson's content. A learner who skipped earlier lessons won't pass this one.
+Ten lessons in this track covered the things that go wrong with complex spreadsheets: the cell limit, slow recalc, volatile functions, full-column references, `IMPORTRANGE` permission cascades, circular references, `#N/A` handling, the recovery flow. This lesson is the capstone. You inherit a workbook that has five real bugs in five separate cells, and you fix all five. Each bug exercises one lesson's content. A learner who skipped earlier lessons will not pass this one.
 
 The point is the diagnostic flow. In the team's actual work, broken workbooks arrive with no description: the buyer says "the ROI is wrong" and you have to find the cause. The flow:
 
@@ -39,7 +39,46 @@ Workbooks in the wild rarely have one bug. They have several, each from a differ
 
 A learner who fixes one bug at a time and tests after each is doing the right thing. A learner who tries to fix all five and check at the end will spend twice as long because the failure modes interact: J4's circular reference might mask J3's volatility, J2's `#N/A` might propagate into J1 if you'd referenced J2 there.
 
-The diagnostic order matters. Start with the cells that don't depend on others (J1, J3, J4, J5). Save J2 for last if it references other dashboard cells in your spreadsheet (in this clinic it doesn't, but in real life this pattern is common).
+The diagnostic order matters. Start with the cells that do not depend on others (J1, J3, J4, J5). Save J2 for last if it references other dashboard cells in your spreadsheet (in this clinic it does not, but in real life this pattern is common).
+
+<Compare>
+  <ComparePanel label="Fix-it-all, check-at-the-end" tone="negative">
+    <pre className="font-mono text-xs"><code>{`1. Edit J1, J2, J3, J4, J5 in one pass.
+2. Hit Run grader.
+3. Two rules fail. Which?`}</code></pre>
+    <p className="mt-2 text-sm">Failure modes interact. J4's circular reference can mask J3's volatility; J2's #N/A can leak into J1 if you happen to reference J2. When the grader fails, you do not know which of your five edits introduced the regression.</p>
+  </ComparePanel>
+  <ComparePanel label="Fix-one, verify, repeat" tone="positive">
+    <pre className="font-mono text-xs"><code>{`1. Fix J1. Re-read every cell that referenced J1.
+2. Fix J3. Re-read every cell that referenced J3.
+3. ... (continue cell by cell)`}</code></pre>
+    <p className="mt-2 text-sm">Each fix gets its own verification pass. Regressions surface against one edit, not five. The fifth fix is the one that bites at 8am Monday in real life; the discipline that catches it here is the same discipline that catches it there.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You inherit a workbook where J1 shows `#REF!`, J2 shows `#N/A`, and the cell J6 = J1 + J2 shows `#REF!`. After you fix J1 (it now shows 35,000 correctly), J6 still shows... what?"
+  options={[
+    {
+      id: "a",
+      label: <>The corrected sum, 35,000 + N/A handling.</>,
+      correct: false,
+      explanation: "J6 is the sum of J1 and J2. J2 is still #N/A. Adding any number to #N/A produces #N/A, not the number. Sheets propagates errors through arithmetic.",
+    },
+    {
+      id: "b",
+      label: <>#N/A, because J2 is still broken.</>,
+      correct: true,
+      explanation: "Errors propagate through arithmetic. Fixing J1 changed J6 from #REF! (from J1) to #N/A (from J2). The cell got better but is not done. You still need to fix or wrap J2 before J6 returns a real number.",
+    },
+    {
+      id: "c",
+      label: <>Still #REF!, because once a cell shows #REF! it never recovers.</>,
+      correct: false,
+      explanation: "Sheets recomputes cells on every dependency change. J6 will recompute when J1 changes; the new error type depends on the remaining broken input.",
+    },
+  ]}
+/>
 
 ## What a clean dashboard looks like
 
