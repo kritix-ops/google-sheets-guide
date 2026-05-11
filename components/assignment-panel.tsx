@@ -71,7 +71,11 @@ export function AssignmentPanel({ assignmentId }: { assignmentId: string }) {
     // browser doesn't classify it as a popup. We redirect it once the fetch
     // resolves below. If the user blocks popups entirely, we still surface a
     // fallback link in the UI.
-    const newTab = window.open("about:blank", "_blank", "noopener,noreferrer");
+    // No `noopener` — it makes window.open return null, which would strand
+    // the user on about:blank. The new tab navigates to Google Sheets
+    // (cross-origin) immediately after, so the window reference is severed
+    // by the navigation itself.
+    const newTab = window.open("about:blank", "_blank");
     try {
       const r = await fetch(
         `/api/assignments/${assignmentId}/start?locale=${encodeURIComponent(locale)}`,

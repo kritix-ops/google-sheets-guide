@@ -20,13 +20,14 @@ const APPSSCRIPT_MANIFEST = {
   oauthScopes: [
     "https://www.googleapis.com/auth/spreadsheets.currentonly",
     "https://www.googleapis.com/auth/script.container.ui",
+    "https://www.googleapis.com/auth/script.scriptapp",
   ],
 };
 
-// onOpen() runs as a SIMPLE trigger and cannot call showSidebar() — simple
-// triggers have no auth context and silently fail on UI calls. So we only
-// add the menu here. The user clicks "Lesson > Show sidebar" once on first
-// open of each new sheet (and once approves the bound-script auth prompt).
+// Simple `onOpen` runs without auth and can't call showSidebar(). So on the
+// first menu click we install an *installable* onOpen trigger (auth'd) that
+// auto-opens the sidebar on every subsequent open. First open of each new
+// sheet still costs one menu click + one consent prompt.
 const CODE_GS = `function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Lesson')
@@ -35,9 +36,32 @@ const CODE_GS = `function onOpen() {
 }
 
 function showSidebar() {
-  const html = HtmlService.createHtmlOutputFromFile('Sidebar')
+  ensureAutoOpenTrigger_();
+  openSidebar_();
+}
+
+function autoShowSidebar() {
+  openSidebar_();
+}
+
+function openSidebar_() {
+  var html = HtmlService.createHtmlOutputFromFile('Sidebar')
     .setTitle('Sheets Guide');
   SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function ensureAutoOpenTrigger_() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'autoShowSidebar' &&
+        triggers[i].getEventType() === ScriptApp.EventType.ON_OPEN) {
+      return;
+    }
+  }
+  ScriptApp.newTrigger('autoShowSidebar')
+    .forSpreadsheet(SpreadsheetApp.getActive())
+    .onOpen()
+    .create();
 }
 `;
 
