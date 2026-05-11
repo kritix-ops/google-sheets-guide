@@ -1,18 +1,32 @@
-import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 # When NOT to use AI in Sheets
 
 The previous five lessons taught what AI in Sheets can do. This one teaches when to leave it alone. Both halves matter. A team that uses AI for everything ships dashboards with quiet, expensive errors. A team that avoids AI entirely loses an hour a day to work AI would have done well. The skill is calibrated trust: AI is appropriate for some classes of problem and inappropriate for others. Knowing the difference is what separates senior use from rookie use.
 
-This lesson is a decision framework. Four hard categories where AI does not belong, and a rule of thumb for everything else.
+This lesson is a decision framework. Four hard categories where AI does not belong, a four-step decision tree for everything else, and the team's actual policy doc that came out of a real audit-trail incident. The framework references functions and patterns covered earlier in this track and in Track 1: `SUM` (1.5), `SUMIF` / `SUMIFS` (1.11), `SUBSTITUTE` (1.7), `REGEXEXTRACT` (Track 2 lesson 8), `GOOGLEFINANCE` (Track 1 lesson 25). If you reach for AI for any of these, you reach for the wrong tool.
 
 ## The four hard "don't use" categories
 
 ### 1. Audit-trail-sensitive calculations
 
-If the calculation must be reproducible by another person at another time, AI is the wrong tool. Outputs are non-deterministic between calls. The cell looks like any other cell, so a reader can't tell whether it was AI-generated or hand-typed. There is no formula trace.
+If the calculation must be reproducible by another person at another time, AI is the wrong tool. Outputs are non-deterministic between calls (lesson 5.1 and 5.2). The cell looks like any other cell, so a reader can't tell whether it was AI-generated or hand-typed. There is no formula trace.
 
 Examples where this matters: month-end currency totals, board reports, regulatory filings, anything that has to match another report. If you'd be embarrassed to have a $14,387.22 line item turn into $14,401.50 on the next refresh, don't use AI for it. Use a `SUM`.
+
+<Compare>
+  <ComparePanel label="Broken (audit-sensitive AI)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`H1: =AI("Total revenue for the month", A2:G61)
+... cell reads $14,387.22 on Monday
+... cell reads $14,401.50 on Friday`}</code></pre>
+    <p className="mt-2 text-sm">AI returns text that looks like a number. Non-deterministic. The board deck sent Monday and the board deck sent Friday disagree by $14.28. The investigation costs a week.</p>
+  </ComparePanel>
+  <ComparePanel label="Working (deterministic)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`H1: =SUM(G2:G61)
+... cell reads $14,387.22, every refresh, forever`}</code></pre>
+    <p className="mt-2 text-sm">Deterministic, exact, free, reproducible. The right tool for any line item that has to reconcile.</p>
+  </ComparePanel>
+</Compare>
 
 ### 2. Anything that must be reproducible
 
@@ -32,6 +46,45 @@ If a formula can do it, use the formula. `SUBSTITUTE("Used Cars PR", " PR", "")`
 
 The deterministic toolbox: `SUBSTITUTE`, `REGEXEXTRACT`, `REGEXREPLACE`, `LEFT`, `RIGHT`, `MID`, `TRIM`, `PROPER`, `UPPER`, `LOWER`, `SPLIT`, `JOIN`. If your transformation can be expressed in these, AI is overkill.
 
+<Compare>
+  <ComparePanel label="Broken (AI for a deterministic transform)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=AI("Extract the country code from: " & H2)
+... where H2 = "yc-mx-a-card9999es-mts-..."
+... slow, billable, occasionally wrong`}</code></pre>
+    <p className="mt-2 text-sm">The campaign name format is deterministic. The country code is always 2 characters in a known position. AI is the wrong tool.</p>
+  </ComparePanel>
+  <ComparePanel label="Working (REGEXEXTRACT)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=UPPER(REGEXEXTRACT(H2, "^[a-z]{2}-([a-z]{2})-"))
+... → "MX"
+... instant, free, exact, every row`}</code></pre>
+    <p className="mt-2 text-sm">A two-character country code is a regex job. REGEXEXTRACT is in Track 2 lesson 8; the pattern is the campaign-name format every team member knows.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You need to convert a column of USD amounts to ILS for an exec report tomorrow. Which tool is the right choice?"
+  options={[
+    {
+      id: "a",
+      label: <><code>=AI("Convert " & F2 & " USD to ILS")</code></>,
+      correct: false,
+      explanation: "AI uses whatever exchange rate happens to be in its training-data weights on that call, which is not your bank's. Non-deterministic, can drift between calls, no audit trail.",
+    },
+    {
+      id: "b",
+      label: <><code>=GOOGLEFINANCE("CURRENCY:USDILS") * F2</code></>,
+      correct: true,
+      explanation: "Live exchange rate from Google Finance, deterministic at the moment of refresh, audit-traceable. The right tool. GOOGLEFINANCE is in Track 1 lesson 25.",
+    },
+    {
+      id: "c",
+      label: <>Hard-code the rate as a constant in a named range and multiply.</>,
+      correct: false,
+      explanation: "Also defensible (and arguably better for a fixed reporting period), but the hard-coded rate has to come from somewhere. GOOGLEFINANCE is the more general answer; a fixed rate at month-end is a special case of it.",
+    },
+  ]}
+/>
+
 ## A decision tree for the rest
 
 For everything that doesn't fall into the four hard "don't" categories, ask in order:
@@ -39,7 +92,7 @@ For everything that doesn't fall into the four hard "don't" categories, ask in o
 1. **Is the answer required to be reproducible across runs?** If yes, don't use AI.
 2. **Is the data subject to privacy constraints?** If yes, check the Workspace plan before using AI.
 3. **Can a deterministic formula do the job?** If yes, use the formula.
-4. **Is the volume high (thousands of rows)?** If yes, estimate the AI cost first. AI per row at scale gets expensive fast.
+4. **Is the volume high (thousands of rows)?** If yes, estimate the AI cost first. AI per row at scale gets expensive fast and is capped at 350 cells per generate batch (lesson 5.2).
 
 If you get past all four and the task is fuzzy classification, sentiment, summary, or exploration, AI is the right tool.
 
@@ -48,6 +101,37 @@ If you get past all four and the task is fuzzy classification, sentiment, summar
 The team's working rule: AI is for the column that gets reviewed weekly. The column that gets read every five seconds (currency totals, ROI scorecards) is for formulas. The column that gets read once a quarter at the bottom of a deck (customer-feedback themes) is for AI.
 
 The risk model: AI's 95% success rate sounds high until you do the math on a 50,000-row column. That's 2,500 wrong cells. If those cells feed a dashboard that drives spending decisions, you have a 2,500-cell silent quality problem. If those cells feed a "themes from customer feedback" exec summary, the 5% error rate is a footnote.
+
+| Read frequency | Read by | Right tool | Example |
+|---|---|---|---|
+| Every refresh | Dashboard viewers | Formula | Total spend scorecard |
+| Daily | Operators | Formula or frozen-AI | Buyer leaderboard |
+| Weekly | Reviewers | Live AI or frozen-AI | Risk classification |
+| Quarterly | Execs in a deck | AI draft, human edit | Customer feedback themes |
+
+<QuickCheck
+  question="You're staring at a 12,000-row table of customer support emails. You need a 'sentiment' label on each row that feeds a weekly trend chart. Which approach matches the framework?"
+  options={[
+    {
+      id: "a",
+      label: <>Drag =AI() down all 12,000 rows; refresh weekly.</>,
+      correct: false,
+      explanation: "12,000 paid calls per refresh, capped at 350 cells per generate batch, plus a ~5% silent-error rate = 600 quietly wrong labels per week. The trend chart inherits the drift.",
+    },
+    {
+      id: "b",
+      label: <>Run AI() once, paste-as-values to freeze, build the trend chart on the frozen column. Re-run AI() and re-freeze on a weekly cadence.</>,
+      correct: true,
+      explanation: "Weekly cadence matches the 'weekly review' tier. Frozen column gives reproducibility; the next week's run overwrites. The standard pattern for ongoing fuzzy classification.",
+    },
+    {
+      id: "c",
+      label: <>Use a formula instead, like SUMIF on a sentiment keyword.</>,
+      correct: false,
+      explanation: "A keyword-match approach misses sarcasm, mixed sentiment, and language variation. Sentiment is the textbook case for AI. The lesson here is freezing, not avoiding AI.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -74,14 +158,18 @@ The team's actual policy doc, condensed:
 - **Customer feedback sentiment: AI() column, never frozen.** Sentiment is fuzzy enough that drift is acceptable.
 - **Campaign name parsing: never AI.** The format is deterministic; `REGEXEXTRACT` does it for free.
 - **Exec summary paragraphs: AI draft, human edit.** The edit is what makes the paragraph usable.
+- **Currency conversion: `GOOGLEFINANCE`, not AI.** Lesson 5.6 quick-check covers why.
+- **Anything that touches a board deck: two-eye rule.** Even AI-drafted prose gets a second reviewer.
 
-The team learned this the hard way. There was an audit-trail incident in 2025-Q4: an AI() in a "Total this month" cell drifted between two reports filed two days apart, by $14 in opposite directions. The investigation took two weeks. The cell was rewritten as a `SUM`. The policy doc was written the week after.
+The team learned this the hard way. There was an audit-trail incident in 2025-Q4: an `AI()` in a "Total this month" cell drifted between two reports filed two days apart, by $14 in opposite directions. The investigation took two weeks. The cell was rewritten as a `SUM`. The policy doc was written the week after.
 
 ## Pro pitfalls
 
 - **The "but it usually works" trap.** AI's 95% success rate means 5% silent wrong answers in production. On any column that matters, 5% is too much. Measure the rate; don't trust the vibe.
 - **The "we'll catch it in review" trap.** 5% of 50,000 rows is 2,500 errors. Nobody catches 2,500 errors in a review. The catch-it-later plan is a plan to ship the errors.
-- **Shadow AI usage.** A teammate adds `=AI()` to a dashboard without telling anyone. Your monthly totals shift between Monday and Tuesday. By the time you find the AI cell, you've already filed the wrong report.
-- **Chained AI() calls.** One cell's AI output feeds the next cell's prompt. Each call has its own non-determinism; the chain compounds it. Two AI() cells in series can produce a 10x larger variance than one alone.
+- **Shadow AI usage.** A teammate adds `=AI()` to a dashboard without telling anyone. Your monthly totals shift between Monday and Tuesday. By the time you find the AI cell, you've already filed the wrong report. The fix: a sheet-wide `=COUNTIF(A:Z, "AI(")` audit cell (or a Find with `=AI(` across the workbook) on every monthly close.
+- **Chained AI() calls.** One cell's AI output feeds the next cell's prompt. Each call has its own non-determinism; the chain compounds it. Two `AI()` cells in series can produce a 10x larger variance than one alone. And lesson 5.2 already warned: AI cannot be nested inside other functions, so any chain is fragile by definition.
 - **AI for currency conversion.** `=AI("Convert " & F2 & " USD to ILS")` works most of the time. It also uses whatever exchange rate Gemini has in its training data on that call, which is not your bank's. Use `GOOGLEFINANCE` or a real rate table.
 - **AI for date parsing.** "What's the day of week for 2026-04-15?" `=TEXT(DATE(2026,4,15), "dddd")` is free, instant, and exactly right. AI is none of those things.
+- **AI on IMPORTRANGE-backed cells.** The team's biggest source of breakage isn't AI itself; it's an AI() prompt that read an IMPORTRANGE that silently truncated. The AI answer was a confident sentence about half the data. Always check the source range before trusting an AI summary of an imported sheet.
+- **AI on a sheet you didn't write.** Inheriting a sheet and seeing AI() formulas means inheriting their drift. First close action on any inherited sheet: identify the AI() cells, freeze them with paste-as-values, decide deliberately which (if any) stay live.

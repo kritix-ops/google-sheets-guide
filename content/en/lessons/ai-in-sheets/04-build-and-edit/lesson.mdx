@@ -1,23 +1,32 @@
-import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 # Building and editing sheets with Gemini
 
-The Gemini side panel takes natural-language prompts and produces structural changes to your sheet: new scorecards above existing data, a P&L dashboard on a fresh tab, a re-layout of a buyer-vs-platform pivot. You describe the outcome; Gemini drafts the cells, formulas, formatting, and charts; you review the proposal in a side-by-side diff and then apply or discard.
+The Gemini side panel takes natural-language prompts and produces structural changes to your sheet: new scorecards above existing data, a P&L dashboard on a fresh tab, a re-layout of a buyer-vs-platform pivot. You describe the outcome; Gemini drafts the cells, formulas, formatting, and charts; you review the proposal in a side-by-side diff and then apply or discard. The April 2026 launch (the announcement is in CLAUDE.md's references) reported 70.48% on SpreadsheetBench, which means Gemini gets it right roughly seven times out of ten on complex spreadsheet tasks. The other three times are why this lesson exists.
 
-This is the feature that, when it works, replaces an afternoon of manual dashboard-building with five minutes of prompting. When it doesn't work, it produces an afternoon of debugging a dashboard with three subtly wrong formulas. The difference is the prompt and the review.
+When it works, build-and-edit replaces an afternoon of manual dashboard construction with five minutes of prompting. When it doesn't, it produces an afternoon of debugging a dashboard with three subtly wrong formulas. The difference between those two outcomes is the prompt and the review. This lesson walks through both, with the team's actual prompt patterns and the failure modes they've shipped through.
 
 ## Opening the side panel
 
-Click the **Ask Gemini** button at the top right of the sheet (next to the Share button, marked with the Gemini sparkle icon), or use `Ctrl+Alt+G` on Windows / `Cmd+Ctrl+G` on Mac. The panel docks on the right. Type your prompt at the bottom; Gemini's proposal appears above it, with **Apply** and **Discard** buttons under the proposal pane.
+Click the **Ask Gemini** button at the top right of the sheet (the sparkle icon next to the Share button), or use `Ctrl+Alt+G` on Windows / `Cmd+Ctrl+G` on Mac. The panel docks on the right. Type your prompt at the bottom; Gemini's proposal appears above it, with **Apply** and **Discard** buttons under the proposal pane.
+
+The side panel is the same panel covered in lesson 5.1 ("what Gemini sees"), so the same scoping rules apply: active sheet first, then the cells you point at, then everything else nothing. If you want a build that uses data from a different tab, switch to that tab before sending the prompt or paste the data in explicitly.
+
+<MiniGrid
+  data={CAMPAIGNS.slice(0, 5)}
+  caption="Toy: a 4-row campaign log. A build prompt like 'Add a scorecard above the data showing total spend and total revenue' produces 4 cells of output: two labels, two SUM formulas."
+/>
 
 ## Build vs edit
 
-The side panel handles two distinct verbs:
+The side panel handles two distinct verbs, and they want different prompt shapes:
 
-- **Build** creates new structure. "Build a P&L dashboard on a new tab." "Add a scorecard for total spend above the data." "Create a buyer-by-platform pivot to the right of the log."
-- **Edit** changes existing structure. "Format the spend column as currency." "Add a year-over-year column to the pivot." "Move the scorecard to the top of the tab."
+| Verb | What it does | Prompt shape |
+|---|---|---|
+| **Build** | Creates new structure: scorecards, pivots, new tabs, charts | Describe the output: what type of artifact, what fields, what layout |
+| **Edit** | Changes existing structure: formats a column, adds a year-over-year, moves a scorecard | Describe the change: what existed, what should change, what should stay |
 
-The two require different prompts. Build prompts are weighted toward describing the output: what type of artifact, what fields, what layout. Edit prompts are weighted toward describing the change: what existed, what should change, what should stay.
+The two require different prompts. Build prompts are weighted toward describing the output: what type of artifact, what fields, what layout. Edit prompts are weighted toward describing the delta: what existed, what should change, what should stay untouched. Mixing them ("build a scorecard and also add a chart and also change the date format on column A") gives Gemini three jobs to do, and the proposal usually nails one and bungles the other two.
 
 ## What a good build prompt looks like
 
@@ -42,6 +51,30 @@ What makes them work:
 - **Named location.** "Above the data", "to the right", "on a new tab". Without this, Gemini guesses, often poorly.
 - **Implicit scope.** The active sheet's data is the source. If you want a different source, say so explicitly: "Use the rolled-up monthly summary on the `Daily Summary` tab."
 
+<QuickCheck
+  question="Which build prompt is most likely to produce the artifact you intended on the first try?"
+  options={[
+    {
+      id: "a",
+      label: <>"Make me a dashboard."</>,
+      correct: false,
+      explanation: "No output type, no fields, no location. Gemini will pick all three and probably get one of them wrong.",
+    },
+    {
+      id: "b",
+      label: <>"Add some KPIs and a pivot somewhere."</>,
+      correct: false,
+      explanation: "Slightly more specific but still leaves Gemini guessing on the field list and the layout. Expect to iterate.",
+    },
+    {
+      id: "c",
+      label: <>"Add a scorecard above the campaign log with Total Spend (sum of column F), Total Revenue (sum of column G), and Total Profit (G - F)."</>,
+      correct: true,
+      explanation: "Names the artifact, the location, the fields, and gives the formula for the derived value. This is the production pattern.",
+    },
+  ]}
+/>
+
 ## The proposal review pane
 
 After you submit a build prompt, the side panel shows a side-by-side diff: the current sheet on the left, the proposed sheet on the right. The proposal highlights what Gemini would change: new cells, modified cells, new charts, deleted ranges.
@@ -51,28 +84,109 @@ The discipline is to read the proposal before applying. Not skim. Read.
 Five things to check:
 
 1. **Are the labels correct?** "Total Spend" or "Spend Total"? Spelling and casing.
-2. **Are the formulas pointing at the right cells?** A `SUM(F2:F61)` is fine. A `SUM(F:F)` is wrong (unbounded) and a `SUM(E2:E61)` is wrong (wrong column).
+2. **Are the formulas pointing at the right cells?** A `SUM(F2:F61)` is fine. A `SUM(F:F)` is wrong (unbounded). A `SUM(E2:E61)` is wrong (wrong column).
 3. **Do the totals match a quick mental calculation?** If you can eyeball the column and know it's about $20K, a scorecard showing $200K is wrong.
 4. **Did Gemini change cells outside the new structure?** Side effects in the campaign log itself are common and bad.
 5. **Did Gemini delete anything?** Look for red-highlighted removals.
 
-Apply commits. Discard goes back to the previous state. Iterating is fine: discard, refine the prompt, try again.
+Apply commits. Discard goes back to the previous state. Iterating is fine: discard, refine the prompt, try again. Three iterations is normal for a non-trivial build. The team's rule: snapshot the workbook before a high-stakes Apply, because the undo behavior after a complex multi-step build is not reliably a single step.
 
 ## What Gemini gets right
 
 - **Standard dashboards.** Scorecard above the data, pivot to the right, a few sparkline columns. These are templates Gemini has seen a thousand times.
 - **Conditional formatting on numeric columns.** Heatmap-style color scales, threshold-based rules.
 - **Common formulas.** `SUM`, `AVERAGE`, `COUNTIFS`, ROI = `(revenue - spend) / spend`.
-- **Reformatting numbers.** Currency, percentage, date.
+- **Reformatting numbers.** Currency, percentage, date. (Currency conventions can drift; see below.)
 
 ## What Gemini gets confidently wrong
 
 - **Custom business logic.** "Calculate ROI weighted by media buyer seniority" produces a plausible-looking formula that is not the team's actual weighting. Domain-specific aggregations need human verification, every time.
 - **Column names that don't exist.** Gemini hallucinates plausible columns. If your data has `Profit` but Gemini's proposal references `Margin`, the formula breaks silently.
-- **Formatting conventions.** Currency symbols, date formats, decimal precision. Israeli team conventions ("MMM dd" date format, `$#,##0` currency) are not what Gemini defaults to.
+- **Formatting conventions.** Currency symbols, date formats, decimal precision. The team's conventions ("MMM dd" date format, `$#,##0` currency) are not what Gemini defaults to.
 - **Edge cases in pivots.** Pivots with blanks in the source. Pivots over date columns where dates are stored as text. Gemini's proposal often does not handle these.
+- **IMPORTRANGE-backed dashboards.** Gemini sees the resolved values, not the import. If the upstream IMPORTRANGE is truncated to 1000 rows by mistake, Gemini's pivot is also truncated and you'd never know. Lesson 5.1 covers this; Track 1 lesson 27 covers IMPORTRANGE itself.
 
 The mental model: Gemini is a strong junior analyst. It writes clean, conventional artifacts fast. It does not know your team's conventions or your data's quirks. Verify, every time, before applying.
+
+<Compare>
+  <ComparePanel label="Broken (hallucinated column)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Prompt: "Build a buyer scorecard with
+total profit by buyer."
+
+Proposal contains:
+=SUMIFS(Profit, Buyer, "Yoav Cohen")
+
+The team's columns are Date, Buyer,
+Vertical, Platform, Country, Spend,
+Revenue. There is no Profit column.`}</code></pre>
+    <p className="mt-2 text-sm">Gemini hallucinated a Profit column. The formula evaluates to `#REF!` or zero depending on the variant. The proposal looks plausible because "Profit" is a name a sane spreadsheet might have.</p>
+  </ComparePanel>
+  <ComparePanel label="Working (explicit derivation)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Prompt: "Build a buyer scorecard with
+total profit by buyer, where profit
+is computed as (Revenue - Spend)
+using columns F (Spend) and G (Revenue).
+Group by Buyer (column B)."
+
+Proposal contains:
+=SUMIFS(G2:G61, B2:B61, "Yoav Cohen")
+- SUMIFS(F2:F61, B2:B61, "Yoav Cohen")`}</code></pre>
+    <p className="mt-2 text-sm">Spell out the derivation and the column letters. Gemini stops hallucinating because the prompt tells it exactly what Profit means.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken (formula points at unbounded range)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Prompt: "Add a scorecard for total spend."
+
+Proposal contains:
+=SUM(F:F)`}</code></pre>
+    <p className="mt-2 text-sm">Unbounded column reference. Fine until someone pastes another total into row 200 of column F or adds a header row below the data; the SUM now reads garbage. Slow on large sheets too.</p>
+  </ComparePanel>
+  <ComparePanel label="Working (bounded range)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Prompt: "Add a scorecard for total spend.
+The data is in F2:F61 (60 campaign rows)."
+
+Proposal contains:
+=SUM(F2:F61)`}</code></pre>
+    <p className="mt-2 text-sm">Tell Gemini the exact row range. The formula stays bounded and fast.</p>
+  </ComparePanel>
+</Compare>
+
+## Iteration as the workflow
+
+Three iterations is normal for non-trivial builds. The team's pattern:
+
+1. **First prompt is the rough shape.** "Build a P&L by buyer." Gemini drafts something.
+2. **First review surfaces the gap.** Wrong column, wrong layout, missing field.
+3. **Second prompt is the correction.** "Move the pivot to start at column J, not column I. Add a Profit column."
+4. **Third prompt is the polish.** "Format the Profit column as currency with no decimals. Highlight rows with negative profit in red."
+
+Discarding after each iteration is free. The cost is the next prompt. Don't apply the rough draft and try to clean up; the cleanup costs more time than the next prompt does, and the undo after apply is unreliable.
+
+<QuickCheck
+  question="Gemini's proposal contains =SUMIFS(F2:F61, B2:B61, 'Yoav'). Your buyer column has 'Yoav Cohen'. What's the safest next step?"
+  options={[
+    {
+      id: "a",
+      label: <>Apply. Sheets will match on the prefix.</>,
+      correct: false,
+      explanation: "SUMIFS does not match on prefixes by default. 'Yoav' won't match 'Yoav Cohen'. The scorecard will show zero.",
+    },
+    {
+      id: "b",
+      label: <>Discard and re-prompt: 'The Buyer column uses full names like Yoav Cohen, not first names.'</>,
+      correct: true,
+      explanation: "Gemini doesn't know your data's naming convention. Tell it. Re-prompt rather than apply-and-fix.",
+    },
+    {
+      id: "c",
+      label: <>Apply and edit the cell manually to use 'Yoav*' with a wildcard.</>,
+      correct: false,
+      explanation: "SUMIFS supports wildcards with * but you'd be hand-editing Gemini's output, which defeats the point of the proposal review. Re-prompt instead.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -96,6 +210,7 @@ In the team's actual aggregator:
 - **The first prompt of every monthly review session is `On a new "Monthly Summary" tab, build a table grouping campaigns by buyer with total spend, total revenue, and ROI.`** Gemini builds it in 10 seconds. Eyeball, apply, move on.
 - **Iteration is the workflow.** Build → review → discard → refine → build again. Three iterations on average to land on the right artifact. The prompt history lives in a note on the tab so future builders see what worked.
 - **High-stakes dashboards never apply on first build.** The team builds, exports the proposal to a comment thread, has a teammate review, then applies. The two-eye rule for anything that touches a board-level scorecard.
+- **Every applied build gets a sibling note recording the prompt.** `Built by: Yoav, 2026-05-11, prompt: "Add a scorecard..."`. The note is the only audit trail of what was AI-generated and what was hand-written.
 
 ## Pro pitfalls
 
@@ -105,3 +220,4 @@ In the team's actual aggregator:
 - **A build prompt that produces 200 cells of which 5 are wrong.** Hard to spot. Use the diff view aggressively. Sort by "modified" first if the side panel offers it.
 - **The side panel can't see other tabs.** A prompt that says "use the data from the Aggregator tab" works only if Aggregator is the active tab when you send the prompt. Switching tabs mid-session is a quiet source of wrong builds.
 - **Apply-then-undo doesn't always work cleanly.** Build operations are usually one undo unit, but complex multi-step builds can be partial. Save a snapshot of the workbook before high-stakes builds.
+- **Recalc cost on Gemini-built pivots.** Gemini sometimes proposes a layout that uses volatile functions like `OFFSET` or `INDIRECT` (Track 1 lesson 24's slow neighbors). On a 50K-row source the dashboard becomes laggy. Read the proposed formulas, not just the layout.

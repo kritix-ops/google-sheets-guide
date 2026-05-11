@@ -1,60 +1,155 @@
-import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+import { CAMPAIGNS, CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # The `=AI()` function
 
-`=AI(prompt, [reference])` is Gemini in a cell. It takes a prompt string and an optional cell or range to ground the answer, and it returns text. That sounds simple. What makes it tricky is that AI() is the only function on your sheet whose output is non-deterministic, slow, and billable. Two calls with the same arguments can return two different answers. Each call takes seconds, not milliseconds. Each call counts against your Workspace quota.
+`=AI()` is Gemini wrapped in a cell. You give it a prompt string and an optional bounded range, you click **Generate and insert**, and a text string lands in the cell. Compared with `SUM` or `XLOOKUP` it looks tame, but it's the only function on your sheet whose output is non-deterministic, slow (seconds, not milliseconds), and billed against your Workspace plan. Two calls with the same arguments can return two different answers. Each call counts against quota. And the return type is always text, even when you wish it were a number.
 
-Use it well and it carries weight: per-row sentiment, per-row classification, per-row extraction at a scale that would otherwise need a junior analyst. Use it carelessly and you fill a column with subtle wrong answers nobody catches until the dashboard contradicts itself.
+Used carelessly, `AI()` fills a column with subtle wrong answers nobody catches until a dashboard contradicts itself. Used well, it carries weight: per-row sentiment, per-row classification, per-row extraction at a scale that would otherwise need a junior analyst on a salary. This lesson is how to use it well: the signature, the constrained-prompt habit, the defensive wraps, and the dragon's lair of non-determinism. Lesson 5.6 is the framework for when to leave it alone entirely.
 
 ## The signature
 
-```
-=AI(prompt, reference)
-```
+`AI()` has a one-or-two-argument signature: a required prompt and an optional grounding range. Output is always a text string, and the call requires a manual **Generate and insert** click in the cell before the result is committed. Eligible Workspace plans and Workspace Experiments access are prerequisites; ask your admin if the function does not appear in your environment.
 
-- **prompt** is a text string. It's the instruction.
-- **reference** is optional. A single cell, a range, or omitted. Single-cell input returns one value; range input may spill across multiple cells.
+<FunctionRef name="AI" />
 
-A few canonical patterns you'll write again and again:
+A few canonical patterns the team writes every week:
 
 ```
-=AI("Categorize this campaign's risk as low, medium, or high. Spend: " & F2 & " Revenue: " & G2)
+=AI("Categorize this campaign's risk as low, medium, or high. Spend: " & E2 & " Revenue: " & F2)
 =AI("Sentiment of this customer note: " & E2)
-=AI("Extract the country code from: " & H2)
-=AI("Summarize: ", A1:G61)
+=AI("Extract the 2-letter country code from: " & H2)
+=AI("Summarize the dataset in one sentence", A1:G61)
 ```
 
-The `&` is doing the work in the first three: it concatenates the prompt instruction with the specific cell value so each row gets a row-specific question.
+The `&` is doing the heavy lifting in the first three: it concatenates the prompt instruction with the specific cell value so each row gets a row-specific question. The fourth pattern uses the range argument instead, which is what you want when you summarize a whole table.
+
+### Worked example 1: toy data
+
+A 6-row campaign log. One AI() call, constrained output, one cell of result. Smallest possible illustration of the syntax.
+
+<MiniGrid
+  data={CAMPAIGNS.slice(0, 7)}
+  caption="Toy campaign log: A=Date, B=Buyer, C=Vertical, D=Platform, E=Spend, F=Revenue."
+/>
+
+In `G2` you would write:
+
+```
+=AI("Classify this campaign's profitability as profitable or losing. Spend: " & E2 & " Revenue: " & F2)
+```
+
+After **Generate and insert**, `G2` reads `profitable`. The output space is two labels, so the model returns one of those two labels. The output space is the whole game.
+
+### Worked example 2: real adtech data
+
+Same idea on the 60-row campaign log. `H2` is one row's classification:
+
+```
+=AI("Risk: low, medium, or high. Spend " & F2 & " Revenue " & G2 & " for vertical " & C2)
+```
+
+After **Generate and insert**, the cell reads `low`, `medium`, or `high`. Drag down 60 rows (one Generate per row, slow and billable) and you have a risk column ready to filter, pivot, or freeze with paste-as-values. Note that the range argument is omitted here on purpose: the per-row prompt has all the context it needs because we concatenated the specific cells in.
+
+<QuickCheck
+  question="You want AI() to return text from a fixed set of labels (e.g., 'low' / 'medium' / 'high'). Which prompt construction is most reliable?"
+  options={[
+    {
+      id: "a",
+      label: <><code>{`=AI("How risky is this? " & F2 & " " & G2)`}</code></>,
+      correct: false,
+      explanation: "Open-ended. Returns prose, varies per call. Unusable as a column value.",
+    },
+    {
+      id: "b",
+      label: <><code>{`=AI("Risk: low, medium, or high. Spend " & F2 & " Revenue " & G2)`}</code></>,
+      correct: true,
+      explanation: "Constrained output space, labeled inputs. The model returns one of the three labels in practice. This is the production pattern.",
+    },
+    {
+      id: "c",
+      label: <><code>{`=AI("Tell me a risk score", F2:G2)`}</code></>,
+      correct: false,
+      explanation: "Asks for a score (number-shaped) but AI() returns text. The output will be a string that looks like a number, which downstream formulas trip on.",
+    },
+  ]}
+/>
 
 ## Constrained vs open-ended prompts
 
-The single most useful trick is to constrain the output space. Compare:
+The single most useful trick is to constrain the output space. The same row, the same data, two prompt shapes, two utility levels.
 
 | Prompt | What you get |
 |---|---|
 | `=AI("How is this campaign doing? Spend: " & F2 & " Revenue: " & G2)` | A two-sentence paragraph that varies per call. Useless in a column. |
 | `=AI("Categorize this campaign's risk as low, medium, or high. Spend: " & F2 & " Revenue: " & G2)` | One word from a fixed list. Usable as a filter, a pivot dimension, a conditional format trigger. |
 
-When the output space is one of three labels, the model returns one of those labels. When the output space is "explain this", the model returns prose. Spreadsheets want labels. Write your prompts that way.
+When the output space is one of three labels, the model returns one of those labels most of the time. When the output space is "explain this", the model returns prose. Spreadsheets want labels. Write your prompts that way.
 
 Patterns that work in production:
 
-- **Classification**: "low, medium, high" / "win, loss, push" / "high-value, low-value, ignore"
-- **Sentiment**: "positive, negative, neutral"
-- **Extraction**: "Extract the country code (2 letters)" / "Return just the platform name"
-- **Yes/no**: "Does this look like a tracking pixel error? Yes or no"
+- **Classification**: `low, medium, high` / `win, loss, push` / `high-value, low-value, ignore`
+- **Sentiment**: `positive, negative, neutral`
+- **Extraction**: `Extract the country code (2 letters)` / `Return just the platform name`
+- **Yes/no**: `Does this look like a tracking pixel error? Yes or no`
+
+### Combined example: AI() with TEXT() and ARRAYFORMULA awareness
+
+You'll often format numbers before pasting them into a prompt. `TEXT()` (Track 1 lesson 7) makes the format explicit, which helps the model read it. And note what you cannot do: `ARRAYFORMULA` (lesson 1.2 and 1.10) does not work with `AI()`. The docs say AI cannot be nested inside other functions, which means no spilling array of AI calls. You drag instead.
+
+```
+=AI("Risk: low, medium, or high. Spend " & TEXT(F2,"$#,##0") & " Revenue " & TEXT(G2,"$#,##0"))
+```
+
+`F2` is `342.18`; the model sees `$342`. The formatting wins because the prompt now matches how a human would read the number, and the model is trained on human text.
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(AI("Classify: " & C2:C61))`}</code></pre>
+    <p className="mt-2 text-sm">AI cannot be nested inside other functions. ARRAYFORMULA cannot wrap AI. You get a single value at best, an error at worst. Drag the formula down instead.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`H2: =AI("Classify: " & C2)
+Then drag H2 down to H61.
+Each row gets its own Generate-and-insert.`}</code></pre>
+    <p className="mt-2 text-sm">Per-row calls, per-row clicks. Slow, but it's the supported pattern. Multi-cell selections run up to 350 cells per generate batch.</p>
+  </ComparePanel>
+</Compare>
 
 ## Combining cells into a prompt
 
-The pattern `"Classify: " & F2 & " " & G2` concatenates strings so each row sees its own row. Three rules:
+The pattern `"Classify: " & F2 & " " & G2` concatenates strings so each row sees its own row's data. Three rules:
 
-1. **Be specific about what each cell contains.** `"Spend: " & F2 & " Revenue: " & G2` beats `& F2 & " " & G2`. Labels help Gemini read.
-2. **Don't dump too many cells in.** Five values is fine; twenty is wasted context.
+1. **Label what each cell contains.** `"Spend: " & F2 & " Revenue: " & G2` beats `& F2 & " " & G2`. Labels help Gemini read.
+2. **Don't dump too many cells in.** Five values is fine; twenty is wasted context. The model loses signal as the prompt gets longer.
 3. **Format numbers if the raw value is ugly.** `& TEXT(F2, "$#,##0")` makes the dollar formatting explicit. Helpful for prompts that ask about money.
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=AI("Sentiment of this vertical: " & C50)`}</code></pre>
+    <p className="mt-2 text-sm">If row 50 has an empty Vertical, the prompt reads "Sentiment of this vertical: " with nothing after the colon. Gemini guesses. The cell gets a plausible-sounding but wrong sentiment, and no one notices until a dashboard groups on it.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IF(C50="", "missing vertical", AI("Sentiment of this vertical: " & C50))`}</code></pre>
+    <p className="mt-2 text-sm">Guard the call. Empty inputs return a literal "missing vertical" instead of triggering a billable AI call that the model fills with hallucination.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=AI("Total revenue for buyer Yoav Cohen", A1:G61)`}</code></pre>
+    <p className="mt-2 text-sm">Asks AI() to do arithmetic. The return type is text and the model is non-deterministic on numbers. The cell looks like a dollar amount; it's a stochastic dollar amount. Two calls will disagree.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIF(B2:B61, "Yoav Cohen", G2:G61)`}</code></pre>
+    <p className="mt-2 text-sm">Deterministic, exact, free, instant. Use formulas for numbers; use AI for text-shaped tasks. Track 1 lesson 11 covers SUMIF, COUNTIF, and friends.</p>
+  </ComparePanel>
+</Compare>
 
 ## Defensive wrapping with IFERROR
 
-AI() can fail. The call can time out, the workbook can hit its quota, the API can throw a transient error. Without IFERROR, the cell shows `#ERROR!` and any downstream formula that touches it propagates the error.
+AI() can fail. The call can time out, the workbook can hit its quota, the API can throw a transient error. Without `IFERROR`, the cell shows `#ERROR!` and any downstream formula that touches it propagates the error. `IFERROR` is covered in Track 1 lesson 14; here we apply it to the one function on your sheet that has a measurable per-row failure rate.
 
 The defensive pattern:
 
@@ -64,15 +159,39 @@ The defensive pattern:
 
 Use `"needs review"` (or similar) as the fallback string so a human knows the row hasn't been classified yet. Never use `""` as a fallback because it makes failures invisible. Make the failure obvious so it gets fixed.
 
+<QuickCheck
+  question="Which IFERROR fallback for an AI() classification column is the most operationally sound?"
+  options={[
+    {
+      id: "a",
+      label: <><code>{`=IFERROR(AI("Risk: low/med/high. " & F2 & " " & G2), "")`}</code></>,
+      correct: false,
+      explanation: "Empty fallback makes failures invisible. A column with blanks looks normal in a dashboard; the missing classifications never get fixed.",
+    },
+    {
+      id: "b",
+      label: <><code>{`=IFERROR(AI("Risk: low/med/high. " & F2 & " " & G2), "needs review")`}</code></>,
+      correct: true,
+      explanation: "Surfaces the failure so a human can act on it. A downstream COUNTIF on \"needs review\" becomes a dashboard health metric.",
+    },
+    {
+      id: "c",
+      label: <><code>{`=IFERROR(AI("Risk: low/med/high. " & F2 & " " & G2), 0)`}</code></>,
+      correct: false,
+      explanation: "Returns a number from a column that's otherwise text labels. Downstream COUNTIFs by label break because 0 is not in the label set.",
+    },
+  ]}
+/>
+
 ## Non-determinism in practice
 
-Two calls of `=AI("Sentiment of: " & A1)` may return "positive" and "neutral" in succession. The model is non-deterministic by design. The implications:
+Two calls of `=AI("Sentiment of: " & A1)` can return `positive` and `neutral` in succession. The model is non-deterministic by design. The implications cascade:
 
-- **A column of AI() outputs is a snapshot, not a function.** Reload the sheet a week later and some cells may have shifted.
+- **A column of AI() outputs is a snapshot, not a function.** Reload the sheet a week later and some cells will have shifted.
 - **Reconciliation between two reports fails when the column was AI-generated.** A dashboard that sums "high risk" rows will report a different number on Monday than on Friday if you re-ran the AI() formulas in between.
-- **The "right" answer is the answer Gemini gave the first time.** Once you trust a column, freeze it: copy the values and paste-as-values. That's the audit trail.
+- **The "right" answer is the answer Gemini gave the first time you trusted it.** Once you trust a column, freeze it: copy the values and paste-as-values. That's the audit trail. Lesson 5.1 covers the freeze pattern; lesson 5.6 covers why you must.
 
-If you need reproducibility, paste-as-values is the standard fix. If you need ongoing classification, accept the drift and verify weekly.
+If you need reproducibility, paste-as-values is the standard fix. If you need ongoing classification, accept the drift and verify weekly. The team's working rule: live AI columns never appear in stakeholder reports; only frozen copies do.
 
 ## Now do it for real
 
@@ -96,12 +215,14 @@ In the team's actual aggregator:
 - **The risk column is AI() with a 4-label constrained prompt.** The team reviews the column manually every Monday, freezes it with paste-as-values, and then dashboards read from the frozen copy. The next week's classification overwrites the live column.
 - **Translation of customer feedback runs through AI().** `=AI("Translate to English: " & E2)` on a column of Hebrew or Spanish feedback gives consistent enough translations to triage which threads need human follow-up.
 - **Every AI() column in production has an IFERROR wrap with a `"needs review"` fallback.** Fallbacks bubble up in a dashboard scorecard so an unclassified row never silently disappears.
+- **Numeric columns never use AI().** ROI, CPC, EPC, profit are all `SUM` and arithmetic. AI() is reserved for fuzzy text work where the return-as-text limitation isn't a tax.
 
 ## Pro pitfalls
 
 - **Non-deterministic outputs across calls.** Two runs, two answers. Plan for it. Freeze with paste-as-values when the column matters.
-- **`=AI()` in 5,000 rows hits the quota fast.** Estimate cost before dragging. A column of 60 calls is cheap. A column of 5,000 calls during peak hours can block the team's Gemini quota for hours.
+- **`=AI()` in 5,000 rows hits the quota fast.** Estimate cost before dragging. A column of 60 calls is cheap. A column of 5,000 calls during peak hours can block the team's Gemini quota for hours, and the docs cap multi-cell runs at 350 cells per generate batch anyway.
 - **Prompts that work on row 2 fail on row 50.** If row 50 has an empty Vertical, your prompt reads "Sentiment of this vertical name: " with nothing after the colon, and Gemini guesses. Guard with `IF(C2<>"", AI(...), "missing vertical")`.
-- **Asking AI() to return a number.** Don't. Use `SUMIFS` or `COUNTIF`. AI() returns text; even if the text looks like a number, it isn't reliably one.
-- **Asking AI() for "the best campaign".** Subjective prompts produce different answers every time. Define the criterion ("highest ROI", "lowest CPC") and use a formula instead.
-- **Hallucinated labels.** A prompt that says "low, medium, or high" sometimes returns "very high" or "moderate". Validate the output before trusting it: `=IF(REGEXMATCH(AI(...), "low|medium|high"), AI(...), "needs review")`. (Note: that re-invokes AI(), so cache the call in a helper cell first.)
+- **Asking AI() to return a number.** Don't. Use `SUMIFS` or `COUNTIF`. AI() returns text; even when the text looks like a number, it isn't reliably one.
+- **Asking AI() for "the best campaign".** Subjective prompts produce different answers every call. Define the criterion ("highest ROI", "lowest CPC") and use a formula instead.
+- **Hallucinated labels.** A prompt that says "low, medium, or high" sometimes returns "very high" or "moderate". Validate the output before trusting it. The team writes a separate `=IF(REGEXMATCH(H2, "^(low|medium|high)$"), H2, "needs review")` in column I to surface label drift.
+- **Trying to nest AI() inside another function.** The docs explicitly disallow it. `ARRAYFORMULA(AI(...))`, `IF(condition, AI(...), AI(...))`, `IFERROR(AI(...), AI(...))` are all unreliable. Keep AI calls at the top level of the formula.
