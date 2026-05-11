@@ -1,42 +1,109 @@
 # IMPORTRANGE patterns and pitfalls
 
-`IMPORTRANGE` is how this team's workbooks talk to each other. It's also the single biggest source of broken formulas, weird permission errors, and "the dashboard is stale and nobody noticed" mornings. Every aggregator in the company has at least one `IMPORTRANGE`, usually a dozen, sometimes fifty. The function is simple. The patterns around it are not.
+`IMPORTRANGE` is how this team's workbooks talk to each other. It is also the single biggest source of broken formulas, weird permission errors, and "the dashboard is stale and nobody noticed" mornings. Every aggregator in the company has at least one `IMPORTRANGE`, usually a dozen, sometimes fifty. The function itself is simple. The patterns around it are not.
+
+This lesson is the working pro's reference for the function: the spec, the auth model nobody documents clearly, the bounded-range rule, the fan-out shape, the defensive wrapper, and the four failure modes that account for almost every IMPORTRANGE incident the team has ever opened a ticket on.
 
 ## What IMPORTRANGE actually does
 
-```
-=IMPORTRANGE(source_url, range_spec)
-```
-
-`source_url` is the full Google Sheets URL of another workbook. `range_spec` is a string like `"Campaigns!A1:G61"`. When you commit the formula, Sheets opens a connection to the source workbook, fetches the range, and spills the result into your tab starting at the cell with the formula.
-
-Three things are happening under the hood that you need to understand:
+When you commit an `IMPORTRANGE` formula, Sheets opens a connection to the source workbook, fetches the range, and spills the result into your tab starting at the formula cell. Three things happen under the hood that you need to understand:
 
 1. **The first time you reference a source workbook, Sheets prompts you to grant access.** A blue "Allow access" button appears in the cell. Click it and a connection is established between the two files. Until you do, the cell shows `#REF!` with "You need to connect these sheets" in the tooltip.
 2. **The pull is cached.** Sheets refreshes IMPORTRANGE roughly every 30 minutes when the source is idle, and within seconds when the source changes. You cannot force a sub-minute refresh.
 3. **Multiple IMPORTRANGEs from the same source share one connection.** Fifty cells pulling from the same workbook do not make fifty separate network calls. They share the cached pull.
 
+<FunctionRef name="IMPORTRANGE" />
+
+### How the engine evaluates the call
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: resolve the URL",
+      body: (
+        <>
+          Sheets reads the first argument and extracts the file ID. The URL
+          and the bare file ID both work; the ID is the canonical key. If
+          the file does not exist or you cannot see it, the cell shows{" "}
+          <code>#REF!</code> with "Did not find sheet" in the tooltip.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: check the auth handshake",
+      body: (
+        <>
+          If this is the first time the destination has referenced this
+          source, Sheets surfaces the "Allow access" pill. Until the click
+          happens, the cell is <code>#REF!</code> with "You need to connect
+          these sheets" in the tooltip. The grant is cached per
+          destination-source pair, not per cell.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: parse the range string",
+      body: (
+        <>
+          The second argument is read as <code>"Tab!A1:G5000"</code>. The
+          tab name before the bang must exist; the range after it must be
+          syntactically valid. A typo here (e.g.{" "}
+          <code>"Campaign!A1:G61"</code> when the tab is{" "}
+          <code>"Campaigns"</code>) is <code>#REF!</code> with "Did not
+          find sheet" in the tooltip.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: fetch and spill",
+      body: (
+        <>
+          Sheets pulls the cells, caches them for roughly 30 minutes, and
+          spills them into the destination starting at the formula cell.
+          If the spill destination is not empty, the cell shows{" "}
+          <code>#REF!</code> with "Array result was not expanded because it
+          would overwrite data" in the tooltip. Clear the destination
+          cells or move the formula.
+        </>
+      ),
+    },
+  ]}
+/>
+
 ## The auth grant is per workbook, not per range
 
 You grant access once per source workbook. After that, every IMPORTRANGE in your destination can read every range from that source. If the source owner revokes access (or leaves the company and their account is deactivated), every IMPORTRANGE pointed at that source breaks at once. The fix is for somebody with edit access to re-grant. Plan for this: the workbook should not have a single point of failure on one person's account.
 
+The team rule that grew out of three painful incidents: source workbooks are owned by the team's shared account (`info@flexelent.com`), not by an individual. When media buyers turn over, the cross-workbook connections survive. Lesson 4.8 walks the diagnostic flow for when this rule wasn't followed and the original grantor has since left.
+
 ## Bounded ranges, always
 
-`IMPORTRANGE(url, "Campaigns!A:G")` pulls *every* row in column A through G of the source's Campaigns tab. If the source has a 30,000-row archive in those columns that nobody told you about, your aggregator just inherited it. Use a bounded range every time:
+`IMPORTRANGE(url, "Campaigns!A:G")` pulls *every* row in column A through G of the source's Campaigns tab. If the source has a 30,000-row archive in those columns that nobody told you about, your aggregator just inherited it (and ate into your 10M-cell budget from Lesson 4.1). Use a bounded range every time:
 
 ```
 =IMPORTRANGE("https://docs.google.com/spreadsheets/d/.../edit", "Campaigns!A1:G61")
 ```
 
-Yes, you'll have to update the range when the source grows. That's a feature, not a bug. It forces a deliberate update instead of a silent expansion.
+Yes, you will have to update the range when the source grows. That is a feature, not a bug. It forces a deliberate update instead of a silent expansion.
+
+<Compare>
+  <ComparePanel label="Unbounded: silent expansion" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IMPORTRANGE(url, "Campaigns!A:G")`}</code></pre>
+    <p className="mt-2 text-sm">Pulls every row in A:G from the source. If the source grows to 30k rows over a quarter, your destination silently inherits all of them. The cell budget for your tab gets eaten without anyone noticing.</p>
+  </ComparePanel>
+  <ComparePanel label="Bounded: deliberate ceiling" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IMPORTRANGE(url, "Campaigns!A1:G5000")`}</code></pre>
+    <p className="mt-2 text-sm">Explicit row ceiling at 5,000. When the source crosses that line, your formula returns truncated data (and you can see it), forcing the deliberate bump that an unbounded range would have hidden.</p>
+  </ComparePanel>
+</Compare>
 
 ## The fan-out pattern
 
-A dashboard often pulls from five raw tabs (one per platform). Five `IMPORTRANGE` formulas pointing at five source workbooks. That's fine. The trap is when you scale this further:
+A dashboard often pulls from five raw tabs (one per platform). Five `IMPORTRANGE` formulas pointing at five source workbooks. That is fine. The trap is when you scale this further:
 
 - **Same source, many destinations.** A `Raw - Taboola` sheet whose IMPORTRANGE is referenced by twelve dashboards is a connection with twelve readers. Refreshes propagate to all twelve when the source changes. Fine.
 - **Many sources, one destination.** A single dashboard with fifty IMPORTRANGEs spread across twenty different source workbooks is fragile. Each source workbook is an independent dependency. Any one of them being moved, renamed, or revoked breaks the dashboard.
-- **Dynamic source URL via INDIRECT.** `IMPORTRANGE(INDIRECT(A1), ...)` is a real pattern people try when they want to switch sources dynamically. It breaks IMPORTRANGE's caching (because the cache key changes), it re-evaluates on every edit (`INDIRECT` is volatile), and it usually doesn't work the way the author expected. Avoid it.
+- **Dynamic source URL via INDIRECT.** `IMPORTRANGE(INDIRECT(A1), ...)` is a real pattern people try when they want to switch sources dynamically. It breaks IMPORTRANGE's caching (because the cache key changes), it re-evaluates on every edit (`INDIRECT` is volatile, see Lesson 4.2), and it usually does not work the way the author expected. Avoid it.
 
 ## The defensive fallback
 
@@ -51,15 +118,65 @@ A dashboard reading from an `IMPORTRANGE` should not show `#REF!` to whoever ope
 
 When the source breaks (revoked permissions, deleted file, renamed range), the cell shows "data unavailable" instead of an error and the dashboard's downstream formulas (a `SUMIFS`, a chart) keep working with a sensible empty input.
 
+<Compare>
+  <ComparePanel label="Bare IMPORTRANGE in a dashboard" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IMPORTRANGE(url, "Campaigns!A1:G5000")`}</code></pre>
+    <p className="mt-2 text-sm">When the source owner revokes access at 9pm, the morning person opening the dashboard at 7am sees <code>#REF!</code> in every downstream chart. No fallback, no signal, just a broken dashboard.</p>
+  </ComparePanel>
+  <ComparePanel label="IFERROR wrapper" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IFERROR(
+  IMPORTRANGE(url, "Campaigns!A1:G5000"),
+  "data unavailable"
+)`}</code></pre>
+    <p className="mt-2 text-sm">Same call, fallback message. Downstream <code>SUMIFS</code> and charts see a sentinel string instead of an error and keep rendering. The cell text itself tells the next person to fix the source.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="INDIRECT inside IMPORTRANGE" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IMPORTRANGE(INDIRECT(A1), "Campaigns!A1:G61")`}</code></pre>
+    <p className="mt-2 text-sm">The URL is computed dynamically from cell A1. Every edit anywhere recomputes the URL string, which breaks the IMPORTRANGE cache key and forces a fresh fetch on every recalc. Looks clever; ruins performance.</p>
+  </ComparePanel>
+  <ComparePanel label="Static URL, dynamic value lookup" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IMPORTRANGE("https://docs.google.com/.../edit", "Campaigns!A1:G61")
+=VLOOKUP(A1, A2:G61, 2, FALSE)`}</code></pre>
+    <p className="mt-2 text-sm">Pull once with a static URL. Do the dynamic part with a regular lookup against the pulled range. One IMPORTRANGE cell, one cache hit, one fast recalc.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="A dashboard opens with #REF! in 47 cells, all of which are IMPORTRANGE calls against the same source workbook. Yesterday they worked. What is the first thing to check?"
+  options={[
+    {
+      id: "a",
+      label: <>Whether each formula's range string has a typo.</>,
+      correct: false,
+      explanation: "47 cells with the same source and same shape going red simultaneously points to one common cause, not 47 independent typos.",
+    },
+    {
+      id: "b",
+      label: <>Whether the source workbook still exists and the access grant is still in place.</>,
+      correct: true,
+      explanation: "When every IMPORTRANGE against one source breaks at once, the cause is almost always the source: deleted, trashed, renamed, or had its sharing revoked. One fix at the source clears all 47 cells. Lesson 4.8 walks the full diagnostic flow.",
+    },
+    {
+      id: "c",
+      label: <>Whether the destination workbook is over the 10M cell limit.</>,
+      correct: false,
+      explanation: "Cell-limit errors show a different message and do not affect already-computed IMPORTRANGE cells. The signature here points at the source connection.",
+    },
+  ]}
+/>
+
 ## Now do it for real
 
-Click **Start lesson** to provision a Dashboard tab. You'll write three things:
+Click **Start lesson** to provision a Dashboard tab. You will write three things:
 
 - **A1**: a primary IMPORTRANGE call against the example source URL the lesson supplies, with the range bound to `Campaigns!A1:G61`.
 - **B1**: the same call wrapped in `IFERROR(..., "data unavailable")` as the defensive pattern.
 - **C1**: a short label that captures the team rule, e.g. `Always bound IMPORTRANGE to known row counts`.
 
-A note about how this test works: in a real workbook, `IMPORTRANGE` actually reaches into a different file. In this single-tab test fixture there's no source file, so the cell won't render real data. The grader checks the formula *shape*: function name, recognizable Sheets URL, bounded range, and the IFERROR wrapper. That's the part that travels.
+A note about how this test works: in a real workbook, `IMPORTRANGE` actually reaches into a different file. In this single-tab test fixture there is no source file, so the cell will not render real data. The grader checks the formula *shape*: function name, recognizable Sheets URL, bounded range, and the IFERROR wrapper. That is the part that travels.
 
 ## Used in the wild
 
@@ -73,8 +190,10 @@ The team's main aggregator pulls from five "Raw - Platform" workbooks via IMPORT
 ## Pro pitfalls
 
 - **Forgetting to grant access.** A fresh IMPORTRANGE shows `#REF!` until somebody with edit access clicks "Allow access". If you build a dashboard at 8pm and the morning person opens it at 7am, they see `#REF!` and panic. Grant access yourself before you ship.
-- **The source workbook is renamed.** The URL keeps working (Google Drive uses the file ID, not the name). What breaks is human readability: the "what is this URL" question stops having an obvious answer. Document the source.
-- **The source workbook is deleted.** Every cell goes `#REF!`. There's no recovery besides recreating the source or restoring it from Drive trash within 30 days.
+- **The source workbook is renamed.** The URL keeps working (Google Drive uses the file ID, not the name). What breaks is human readability: the "what is this URL" question stops having an obvious answer. Document the source. Lesson 4.8 covers the silent-wrong-source case this creates.
+- **The source workbook is deleted.** Every cell goes `#REF!`. There is no recovery besides recreating the source or restoring it from Drive trash within 30 days. Lesson 4.10 covers the recovery flow.
 - **Circular IMPORTRANGE.** Workbook A imports from B which imports from A. Sheets detects the cycle and shows `#REF!` with "circular dependency" in both. Don't.
 - **Adding a column to the source.** If the existing IMPORTRANGE was bounded to `A:G` (seven columns), the new H column does not appear in the destination. You have to update the range. This is a *feature*, but it surprises people. Tell the team when you add a column to a source.
 - **`IMPORTRANGE` inside `ARRAYFORMULA` or `LAMBDA`.** Mostly works, occasionally hits weird edge cases, almost never necessary. Use a plain IMPORTRANGE in one cell and reference it from your formulas.
+
+Lesson 4.4 introduces the architecture that replaces IMPORTRANGE when the data outgrows what cross-workbook references can stitch together: Connected Sheets with BigQuery as the backend. Lesson 4.8 is the dedicated diagnostic playbook for when IMPORTRANGE breaks in production.
