@@ -2,13 +2,13 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Macros: record, edit, share
 
-A macro in Google Sheets is just a regular Apps Script function that's been **registered in the manifest** so it shows up under Tools → Macros with an optional keyboard shortcut. There's nothing magic in the function itself; it uses the same `SpreadsheetApp` and `Range` calls from the last two lessons. The new piece is the registration: that's what makes the function reachable from the Tools menu instead of only from the Apps Script editor's Run dropdown.
+A macro in Google Sheets is just a regular Apps Script function that has been **registered in the manifest** so it shows up under Tools then Macros with an optional keyboard shortcut. There is nothing magic in the function itself; it uses the same `SpreadsheetApp` and `Range` calls from the last two lessons. The new piece is the registration: that is what makes the function reachable from the Tools menu instead of only from the Apps Script editor's Run dropdown.
 
-Macros are how a team makes one-shot manual operations repeatable: format the new month's tab, archive last month's data, mark a batch of campaigns as dead. The buyer who needs the action doesn't have to know any Apps Script; they pick the macro from the menu and it runs.
+Macros are how a team makes one-shot manual operations repeatable: format the new month's tab, archive last month's data, mark a batch of campaigns as dead. The buyer who needs the action does not have to know any Apps Script; they pick the macro from the menu and it runs. The recorder also lets a non-programmer capture a workflow they did by hand and replay it, which is useful but not what production macros look like once a team has settled in.
 
 ## Recorded vs hand-written
 
-Sheets has a Record Macro feature (Extensions → Macros → Record macro). The flow is exactly what it sounds like: you start recording, you do a sequence of edits in the UI, you stop recording, and Sheets writes the Apps Script function that reproduces those edits. It looks attractive (no code to write) and then you read what it produced:
+Sheets has a Record Macro feature (Extensions then Macros then Record macro). The flow is exactly what it sounds like: you start recording, you do a sequence of edits in the UI, you stop recording, and Sheets writes the Apps Script function that reproduces those edits. It looks attractive (no code to write) and then you read what it produced:
 
 ```js
 function MyMacro() {
@@ -21,24 +21,37 @@ function MyMacro() {
 Two problems:
 
 1. **It uses `getCurrentCell()` and `getActiveRangeList()`.** These read whatever cell the user happens to be on when the macro runs. The macro that worked perfectly when you recorded it on F2 now formats the wrong cell when a teammate runs it from D17.
-2. **There's no error handling, no logging, no constants.** If anything breaks at runtime (the sheet was renamed, the range was deleted), the macro fails silently or with an unhelpful message.
+2. **There is no error handling, no logging, no constants.** If anything breaks at runtime (the sheet was renamed, the range was deleted), the macro fails silently or with an unhelpful message.
 
 Recorded macros are a starting point, not a destination. The team's actual macros are hand-written. They look like the lesson 4 / lesson 5 examples: explicit `getSheetByName`, explicit A1 ranges, intentional structure.
 
-```js
-function formatNewMonth() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+<Compare>
+  <ComparePanel label="Recorded (fragile)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`function formatMacro() {
+  var ss = SpreadsheetApp.getActive();
+  ss.getCurrentCell().setNumberFormat('$#,##0.00');
+  ss.getActiveRangeList().setFontWeight('bold');
+}`}</code></pre>
+    <p className="mt-2 text-sm">Targets whatever is selected. Teammate runs from D17, D17 gets formatted. The original intent (format F2:F61 on the Campaigns tab) is gone.</p>
+  </ComparePanel>
+  <ComparePanel label="Hand-written (durable)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function formatNewMonth() {
+  const sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName("Campaigns");
   sheet.getRange("F2:F61").setNumberFormat("$#,##0.00");
   sheet.getRange("G2:G61").setNumberFormat("$#,##0.00");
   sheet.setFrozenRows(1);
-}
-```
+}`}</code></pre>
+    <p className="mt-2 text-sm">Targets named cells on a named sheet. Runs the same regardless of where the user is, or who. Survives the team's "rename a column" reflex.</p>
+  </ComparePanel>
+</Compare>
 
 The function name is the macro name. The body is just regular `SpreadsheetApp` code.
 
 ## Registering the macro
 
-A function only shows up under Tools → Macros once it's listed in the project's `appsscript.json` manifest under `sheets.macros`:
+A function only shows up under Tools then Macros once it is listed in the project's `appsscript.json` manifest under `sheets.macros`:
 
 ```json
 {
@@ -59,11 +72,11 @@ The three fields:
 
 | Field | What it does |
 |---|---|
-| `menuName` | The label the user sees under Tools → Macros. Keep it specific. "Format" alone is ambiguous next to other macros. |
+| `menuName` | The label the user sees under Tools then Macros. Keep it specific. "Format" alone is ambiguous next to other macros. |
 | `functionName` | The JS function this macro runs. Must match the function declaration exactly (case-sensitive). |
 | `defaultShortcut` | Optional. The keyboard combo that fires the macro. Sheets allocates `Ctrl+Alt+Shift+1` through `Ctrl+Alt+Shift+9` for user macros. |
 
-You can hand-edit the manifest, but the friendlier path is **Extensions → Macros → Manage macros → Add new macro**. It opens a small dialog where you pick the function and label, and Sheets writes the manifest entry for you.
+You can hand-edit the manifest, but the friendlier path is **Extensions then Macros then Manage macros then Add new macro**. It opens a small dialog where you pick the function and label, and Sheets writes the manifest entry for you.
 
 ## Where macros differ from menu items
 
@@ -71,8 +84,8 @@ Lesson 5's `addReportsMenu` built a custom menu in the spreadsheet toolbar. A ma
 
 | | Menu item (lesson 5) | Macro |
 |---|---|---|
-| Where it lives | Custom toolbar menu (Reports, Buyer tools, etc.) | Tools → Macros submenu |
-| How it's registered | `createMenu().addItem(...)` called from `onOpen` | An entry in `appsscript.json`'s `sheets.macros` |
+| Where it lives | Custom toolbar menu (Reports, Buyer tools, etc.) | Tools then Macros submenu |
+| How it is registered | `createMenu().addItem(...)` called from `onOpen` | An entry in `appsscript.json`'s `sheets.macros` |
 | Keyboard shortcut | None by default | Optional `Ctrl+Alt+Shift+1..9` |
 | Visible to other users | Yes, on every open | Yes, on every open |
 | When to use | Grouped sets of actions (Reports menu with 5 items) | Single high-frequency action you want a shortcut for |
@@ -81,18 +94,89 @@ In practice the team uses both. Reports, Buyers, Cleanup get their own menus; on
 
 ## Sharing a macro
 
-The macro is a function in the bound Apps Script project. Anyone with edit access to the spreadsheet has the macro available; they don't need to install anything, and they don't need access to the Apps Script editor unless they want to modify the function. The first time someone runs it they get the OAuth consent prompt; after that it just works.
+The macro is a function in the bound Apps Script project. Anyone with edit access to the spreadsheet has the macro available; they do not need to install anything, and they do not need access to the Apps Script editor unless they want to modify the function. The first time someone runs it they get the OAuth consent prompt; after that it just works.
 
-The catch when sharing: **the keyboard shortcut is per-user, per-spreadsheet.** The buyer who opened the spreadsheet for the first time has to go to Tools → Macros → Manage macros and assign their own shortcut. The default in the manifest is what each new user starts from, but they can override it locally.
+The catch when sharing: **the keyboard shortcut is per-user, per-spreadsheet.** The buyer who opened the spreadsheet for the first time has to go to Tools then Macros then Manage macros and assign their own shortcut. The default in the manifest is what each new user starts from, but they can override it locally.
 
 ## Apps Script writes are NOT undoable
 
-This is the most painful surprise in any macro. **Ctrl+Z does not undo what a macro did.** Apps Script writes go through a different API path than user edits, and the undo stack is for user edits only. A macro that overwrites 500 rows with the wrong data leaves the buyer with no way back except restoring from version history (File → Version history → See version history).
+This is the most painful surprise in any macro. **Ctrl+Z does not undo what a macro did.** Apps Script writes go through a different API path than user edits, and the undo stack is for user edits only. A macro that overwrites 500 rows with the wrong data leaves the buyer with no way back except restoring from version history (File then Version history then See version history).
 
 Two consequences for how you write macros:
 
 1. **Confirm before any destructive change.** A `ui.alert("This will overwrite the Aggregator tab. Continue?", ui.ButtonSet.YES_NO)` gate before a `setValues` that overwrites 500 rows is mandatory, not optional.
 2. **Snapshot before mutating.** A macro that mutates rows in place can start by copying the original range to a hidden "Backup" tab. Cheap insurance.
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: write the function in Code.gs",
+      body: (
+        <>
+          Plain Apps Script:{" "}
+          <code>function formatNewMonth() {`{...}`}</code>. Save the project.
+          The function is callable from the Run dropdown right away, but it
+          is not yet a macro.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: register in the manifest",
+      body: (
+        <>
+          Either hand-edit <code>appsscript.json</code> to add the{" "}
+          <code>sheets.macros</code> array entry, or use Extensions then
+          Macros then Manage macros to do it through the dialog. Save.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: it shows up under Tools then Macros",
+      body: (
+        <>
+          The next time the workbook reloads, Tools then Macros lists the
+          new macro by its <code>menuName</code>. Clicking it runs the
+          <code>functionName</code> from the manifest entry.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: the shortcut is per-user",
+      body: (
+        <>
+          The <code>defaultShortcut</code> is what each NEW user sees. The
+          buyer can override it locally via Tools then Macros then Manage
+          macros. Two buyers can have different shortcuts for the same
+          macro.
+        </>
+      ),
+    },
+  ]}
+/>
+
+<QuickCheck
+  question="A teammate runs your 'Format new month' macro from cell D17 instead of F2. The wrong column gets formatted. You used Sheets' macro recorder to write it. What is the fix?"
+  options={[
+    {
+      id: "a",
+      label: "Add a ui.alert at the start of the macro asking the user to confirm the target cell.",
+      correct: false,
+      explanation: "A confirm helps, but the root cause is that the macro uses getCurrentCell() instead of an explicit range. The right fix is to make the target explicit in code.",
+    },
+    {
+      id: "b",
+      label: "Replace getCurrentCell() and getActiveRangeList() with explicit getSheetByName and A1-string getRange calls.",
+      correct: true,
+      explanation: "Recorded macros target the user's current selection. Hand-edit the recording to target the actual sheet and range by name. After the edit, the macro runs the same way regardless of where the user clicked.",
+    },
+    {
+      id: "c",
+      label: "Restrict the macro shortcut to one user via the manifest's allowedUsers field.",
+      correct: false,
+      explanation: "Apps Script does not support per-user macro restrictions in the manifest. The right fix is to make the macro's body self-contained.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -109,7 +193,7 @@ The starter file `Lesson.gs` declares `function formatSpendColumn()` with a TODO
 
 Run the function once from the Apps Script editor's Run dropdown. F2:F61 renders as `$412.50`, `$285.30`, etc. Row 1 stays pinned when you scroll.
 
-In a real workbook you'd then register this as a macro via Extensions → Macros → Manage macros so it shows up under Tools → Macros with a shortcut.
+In a real workbook you would then register this as a macro via Extensions then Macros then Manage macros so it shows up under Tools then Macros with a shortcut.
 
 ## Used in the wild
 
@@ -122,19 +206,22 @@ The team's "Format new month" macro is the canonical case. At the start of each 
 | ROI column (computed) | `0.00` (two-decimal number) |
 | All header cells | bold, light-gray background |
 
-One macro, one Ctrl+Alt+Shift+1, zero clicks beyond that. Without the macro the buyer would spend ten minutes formatting a new tab every month. With the macro it's two seconds.
+One macro, one Ctrl+Alt+Shift+1, zero clicks beyond that. Without the macro the buyer would spend ten minutes formatting a new tab every month. With the macro it is two seconds.
 
 Other macros in the team's workbooks:
 
 - **"Archive month"** copies the current Aggregator tab to a date-stamped backup sheet and clears the source.
 - **"Mark dead campaigns"** sets the kill switch on every row where ROI dropped below 0.5 for three consecutive days.
 - **"Recompute ROI column"** runs a deliberate recalc of column H (ROI) when the column has been edited by hand and a fresh recalc is needed.
+- **"Snap aggregator to staging"** copies the Aggregator tab into a Staging tab for the buyer to review before the production write. A two-step macro sequence (snap, review, commit) is the team's safety net for destructive batch operations.
 
 ## Pro pitfalls
 
 - **Recorded macros that use `getCurrentCell()`.** They format whichever cell the user happens to be on. Replace `spreadsheet.getCurrentCell()` with `sheet.getRange("F2:F61")` (or whatever the macro is actually meant to target) the moment after the macro is recorded.
 - **Macros that hardcode A1 references that break when columns are inserted.** A macro that targets `F2:F61` will keep targeting F2:F61 even after the team inserts a "Country" column between E and F, and now the macro formats the wrong column. Either name the column instead (look it up by header text) or use named ranges that move with insertions.
-- **Macros that don't undo cleanly.** Apps Script writes are not in the undo stack. A macro that overwrites the wrong range leaves the user with no recourse except File → Version history. Gate destructive macros with `ui.alert(..., ui.ButtonSet.YES_NO)`.
+- **Macros that do not undo cleanly.** Apps Script writes are not in the undo stack. A macro that overwrites the wrong range leaves the user with no recourse except File then Version history. Gate destructive macros with `ui.alert(..., ui.ButtonSet.YES_NO)`.
 - **Macros that take more than 30 seconds.** Simple triggers (including macros run from the Tools menu) have a 30-second soft timeout in some contexts and the 6-minute hard timeout in others. A macro that loops cell-by-cell over 50,000 rows will hit the limit. Batch reads with `getValues()` and batch writes with `setValues()` (the lesson 4 pattern) keep most macros well under a second.
-- **`menuName` and `functionName` drifting apart.** The manifest entry's `functionName` and the actual JS function name are matched by string. Renaming the JS function without updating the manifest leaves Tools → Macros showing the old name but pointing at nothing; click and nothing happens.
-- **A keyboard shortcut that collides with a browser shortcut.** `Ctrl+Alt+Shift+1` is mostly safe but Sheets occasionally introduces new internal shortcuts. If a macro shortcut stops working, check Tools → Macros → Manage macros to confirm it's still mapped, and pick a different combination if needed.
+- **`menuName` and `functionName` drifting apart.** The manifest entry's `functionName` and the actual JS function name are matched by string. Renaming the JS function without updating the manifest leaves Tools then Macros showing the old name but pointing at nothing; click and nothing happens.
+- **A keyboard shortcut that collides with a browser shortcut.** `Ctrl+Alt+Shift+1` is mostly safe but Sheets occasionally introduces new internal shortcuts. If a macro shortcut stops working, check Tools then Macros then Manage macros to confirm it is still mapped, and pick a different combination if needed.
+- **Macros that touch other workbooks.** A macro called from Tools runs with the workbook's auth scope, which by default is `spreadsheets.currentonly`. Trying to `SpreadsheetApp.openById(...)` another file from a macro will fail until you broaden the scope in the manifest. Either widen the scope deliberately or move the cross-workbook work to a time-driven trigger that has its own (broader) scope.
+- **Macros that depend on the active sheet.** A macro that calls `getActiveSheet().getRange(...)` will use whatever tab the user happens to be looking at. Always use `getSheetByName("Campaigns")` even if the user "always" runs the macro from the Campaigns tab; the day they run it from "Drafts" the macro will silently format the wrong tab.
