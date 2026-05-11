@@ -2,7 +2,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Protected ranges and sheet-level protection
 
-Lesson 1 made the case that raw stays raw. Validation in lesson 4 kept bad values out at entry. Protected ranges are the policy version of the same idea: the cells that should not be edited are wrapped in a rule, and Sheets enforces it. Without protection, anyone with edit access who clicks the wrong row at 5 PM nukes a number that feeds eight downstream formulas. With protection, the same click triggers a confirm dialog or an outright reject, and the data stays whole.
+Lesson 2.1 made the case that raw stays raw. Validation in lesson 2.4 kept bad values out at entry. Protected ranges are the policy version of the same idea: the cells that should not be edited are wrapped in a rule, and Sheets enforces it. Without protection, anyone with edit access who clicks the wrong row at 5 PM nukes a number that feeds eight downstream formulas. With protection, the same click triggers a confirm dialog or an outright reject, and the data stays whole.
+
+Protection sits one layer below validation. Validation answers "what values are allowed in this cell"; protection answers "who is allowed to write to this cell at all". A spend column with `>0` validation prevents `-300`; protection prevents anyone except the workbook owner from writing anything to that column. Use validation for value rules and protection for access rules. They compose.
 
 ## Two protection modes
 
@@ -14,6 +16,56 @@ Lesson 1 made the case that raw stays raw. Validation in lesson 4 kept bad value
 | **Warning** (`Show a warning when editing this range`) | The edit goes through after a confirm dialog. Anyone can override. | Soft conventions. "This column is a status code, please keep it short." Headers on tabs where the rest of the team should still be able to fix a typo. |
 
 The trap most people walk into: warning mode feels like the friendlier choice, so they pick it for everything. Then somebody clicks through the warning at 5 PM and the raw log has a $4.32 in the wrong row. Strict is the default. Warning is for the cases where blocking the edit would create more friction than the bad edit itself.
+
+<Compare>
+  <ComparePanel label="Wrong mode: warning on raw data" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Range: Raw - Taboola!A1:G500
+Mode: Show a warning
+
+Friday 4 PM: editor accidentally
+overwrites G250. Sheets asks
+"Are you sure?". They click OK
+to dismiss the dialog and move on.
+
+Monday: dashboards are off by $400.`}</code></pre>
+    <p className="mt-2 text-sm">A speed bump is not a wall. Warning mode on raw data is the same bug as warning-only validation: a click is one motion away from corrupting the source of truth.</p>
+  </ComparePanel>
+  <ComparePanel label="Right mode: strict on raw data" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Range: Raw - Taboola!A1:G500
+Mode: Restrict who can edit this range
+Editors: owner only
+
+Friday 4 PM: editor tries to edit G250.
+Sheets rejects: "You can't edit this range."
+The editor stops, reads the description,
+realizes they were on the wrong tab.`}</code></pre>
+    <p className="mt-2 text-sm">Strict refuses the edit outright. The owner is the only one who can change raw data; everyone else is locked out. This is the right default for any tab that feeds downstream calculations.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="The Aggregator tab's QUERY formula is in cell A1. It joins raw tabs into one normalized view. Which protection is right for cell A1?"
+  options={[
+    {
+      id: "a",
+      label: "Strict, owner-only. Anyone else editing A1 breaks the whole join.",
+      correct: true,
+      explanation: "The QUERY in A1 is the schema of every downstream dashboard. An accidental edit cascades into broken charts, broken pivots, broken SUMIFS. Strict protection is the only safe shape.",
+    },
+    {
+      id: "b",
+      label: "Warning. A confirm dialog gives editors a chance to think.",
+      correct: false,
+      explanation: "Click-through risk applies. The cost of an accidental edit is huge (every downstream report breaks); the cost of friction is small (the owner edits this maybe once a quarter).",
+    },
+    {
+      id: "c",
+      label: "No protection. Editors need flexibility to tweak the join logic.",
+      correct: false,
+      explanation: "Editors needing to 'tweak the join' is the smell. Joins are owned by the workbook owner; tweaks happen through reviewed pull-request-style edits, not impromptu changes to A1.",
+    },
+  ]}
+/>
 
 ## Range-level vs sheet-level
 
@@ -38,6 +90,44 @@ In practice the team uses three patterns:
 ## Description: the message future-you reads
 
 Every protected range carries a description string. It shows up in the side panel and in the rejection dialog. **Write the description as the explanation a teammate needs in three months.** Not `Protected`, not `Don't edit`: something like `Raw - Taboola pull, IMPORTRANGE source, do not hand-edit` or `Header row for the Aggregator, sheet schema is downstream`. The description is how the rule explains itself when the original author has moved on.
+
+<Compare>
+  <ComparePanel label="Useless description" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Description: "Protected"`}</code></pre>
+    <p className="mt-2 text-sm">Six months later: "Why can't I edit this? What does this protect? Should I unlock it?" Nobody knows. The description is empty.</p>
+  </ComparePanel>
+  <ComparePanel label="Self-documenting description" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Description:
+"Raw - Taboola, IMPORTRANGE from
+ /1aB2c.../Sheet3. Do not hand-edit.
+ Fix values upstream in the source workbook."`}</code></pre>
+    <p className="mt-2 text-sm">The description tells the future teammate: what's protected, why, and how to make the change they need without going around protection. This is institutional memory in three lines.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You inherit a workbook. A protected range on Raw - Outbrain has description 'do not edit'. The range's editor allowlist is empty (no one but the owner can write). The owner left the company three months ago and their account is deactivated. What's the safest first move?"
+  options={[
+    {
+      id: "a",
+      label: "Delete the protection and replace it with a new one owned by you",
+      correct: false,
+      explanation: "You can't delete a protection you don't own. Need to transfer ownership first.",
+    },
+    {
+      id: "b",
+      label: "Have an admin transfer file ownership to a long-lived archive account, then update the protection's editor allowlist",
+      correct: true,
+      explanation: "The right shape. Lesson 2.12 covers ownership transfer to archive accounts. Once ownership lives somewhere stable, the protection rule can be edited to add current team members. The description should get rewritten in the same edit.",
+    },
+    {
+      id: "c",
+      label: "Leave it alone. The protection still works.",
+      correct: false,
+      explanation: "True today; broken the moment anyone needs to legitimately edit the range. A protection with no living owner is a time bomb.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
