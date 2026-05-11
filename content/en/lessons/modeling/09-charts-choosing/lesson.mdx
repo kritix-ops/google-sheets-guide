@@ -4,6 +4,8 @@ import { CAMPAIGNS_TIMESERIES } from "@/content/datasets/adtech";
 
 A chart makes a sheet readable in seconds. Picking the wrong chart type makes it slower, sometimes actively misleading. A pie with 14 slices, a line chart over discrete categories, a column chart that mixes counts and dollars on one axis: every one of those ships in real dashboards and every one of those wastes the reader's time. The decision tree below covers about 90% of what an adtech dashboard needs.
 
+Before you pick the type, name the question. "What's the trend?" wants a line chart. "What's the breakdown right now?" wants a pie or stacked column. "Are these two metrics correlated?" wants a scatter. The question is the upstream input; the chart type is the downstream answer. People who pick the chart first end up rebuilding it twice.
+
 ## The six chart types you'll actually use
 
 Six families do most of the work. Knowing which one to reach for is more important than knowing how to format any of them.
@@ -29,6 +31,53 @@ Six families do most of the work. Knowing which one to reach for is more importa
 
 **Combo** lives on the same X-axis but with two different Y-axes. Daily spend (columns, left axis in dollars) plus daily ROI (line, right axis as a multiplier). Spend ranges from $1,500 to $3,300; ROI ranges from 1.2 to 1.5. Plotted on the same axis, ROI would be a flat line at the bottom. The right axis lets both series show their shape.
 
+<Compare>
+  <ComparePanel label="Wrong: line over categorical X" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Chart type: Line
+X: ["Taboola", "Outbrain", "MediaGo"]
+Y: SUM Revenue per platform
+
+Result: a line connects Taboola to Outbrain
+to MediaGo. The line suggests a trend.
+There is no trend; platforms have no order.`}</code></pre>
+    <p className="mt-2 text-sm">Line implies continuity. Platforms are discrete categories with no inherent order. The reader sees a slope that means nothing.</p>
+  </ComparePanel>
+  <ComparePanel label="Right: column over categorical X" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Chart type: Column
+X: ["Taboola", "Outbrain", "MediaGo"]
+Y: SUM Revenue per platform
+
+Result: three bars, each at its own height.
+No false trend. The eye compares bar lengths
+directly.`}</code></pre>
+    <p className="mt-2 text-sm">Columns for discrete categories. The bars are independent; no continuity is implied. This is the right shape for "compare these N things at this one point in time".</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You want to show how April spend broke down across 12 verticals. Which chart type is the right default?"
+  options={[
+    {
+      id: "a",
+      label: "Pie chart with all 12 verticals as slices",
+      correct: false,
+      explanation: "12 slices is past the readability limit. Adjacent wedges of similar size can't be compared by eye. Pies cap at 5 useful slices.",
+    },
+    {
+      id: "b",
+      label: "Horizontal bar chart (one bar per vertical, sorted high to low)",
+      correct: true,
+      explanation: "Bars are directly comparable by length. Horizontal lets the long vertical names ('Solar Systems & Panels PR') fit without rotation. Sort high-to-low and the top performer is at the top.",
+    },
+    {
+      id: "c",
+      label: "Line chart with each vertical as a series",
+      correct: false,
+      explanation: "Line implies a trend over time. Verticals are categorical, and the question doesn't have a time axis ('April spend' is one period).",
+    },
+  ]}
+/>
+
 ## Anchor, frame, and the sheet underneath
 
 A chart in Sheets is an overlay on the grid. It has an **anchor cell** (the top-left corner the chart attaches to) and a **frame** (the chart's own bounding box). Insert a chart and it lands somewhere near your selected range; drag it to where you want it. The anchor is what determines whether the chart moves with the cells underneath it or stays put. Right-click the chart, choose `Move chart to own sheet` if it needs more room and shouldn't sit on top of the data.
@@ -41,9 +90,57 @@ More than four series on a single chart and your reader gives up. Three is comfo
 
 The legend goes where it isn't fighting the data. Default is `BOTTOM_LEGEND`; `RIGHT_LEGEND` works when you have lots of horizontal room and short series names. `NO_LEGEND` is fine when there's only one series and the chart's title says what it is.
 
+<Compare>
+  <ComparePanel label="Too many series: spaghetti" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Line chart with 8 series:
+  Taboola, Outbrain, MediaGo, Poppin,
+  Facebook, TikTok, Google, Bing
+
+Result: 8 overlapping lines, legend
+crowds the plot, reader can't tell
+which line is Taboola.`}</code></pre>
+    <p className="mt-2 text-sm">More than four series and the chart stops communicating. Group into "Top 3 + Other" or split into small multiples (one chart per platform).</p>
+  </ComparePanel>
+  <ComparePanel label="Top-N + Other: focused" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Line chart with 4 series:
+  Taboola, Outbrain, MediaGo, Other
+  (Other = Poppin + Facebook + TikTok +
+   Google + Bing summed per day)
+
+Result: 4 readable lines. Eye locks onto
+the leaders. "Other" provides context
+without crowding.`}</code></pre>
+    <p className="mt-2 text-sm">Top-3 + "Other" is the canonical reduction. Keep the lead actors named, fold the rest into a single line.</p>
+  </ComparePanel>
+</Compare>
+
 ## Imported dates and IMPORTRANGE
 
 Charts read straight from cell values. If the date column was pulled in via `IMPORTRANGE` and arrived as text instead of as a real date, your line chart will treat the X-axis as discrete labels and the spacing between days won't reflect actual elapsed time. Symptom: a line chart that looks weirdly compressed where dates are missing. Fix it upstream by converting the date column to real dates (`=DATEVALUE(A2)`), not by changing chart settings.
+
+<QuickCheck
+  question="Your line chart of daily revenue looks 'compressed' between days 5 and 8, even though the source has values for every day. What's the most likely cause?"
+  options={[
+    {
+      id: "a",
+      label: "The chart's X-axis is configured for category mode, not time mode; the dates arrived as text",
+      correct: true,
+      explanation: "Imported dates frequently arrive as text strings. Sheets renders them as discrete categories, evenly spaced regardless of elapsed time. Fix: wrap the import in DATEVALUE or coerce in a helper column.",
+    },
+    {
+      id: "b",
+      label: "Sheets is rate-limiting chart rendering due to too many data points",
+      correct: false,
+      explanation: "Sheets doesn't rate-limit chart rendering for small datasets like this.",
+    },
+    {
+      id: "c",
+      label: "The chart is configured with logarithmic Y-axis, which compresses the visual",
+      correct: false,
+      explanation: "Y-axis settings don't affect X-axis spacing. The issue is the X-axis treating dates as labels.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
