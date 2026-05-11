@@ -6,7 +6,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## SPLIT: תא אחד להרבה
 
-`SPLIT(text, delimiter, [split_by_each], [remove_empty])` שובר מחרוזת למערך של תאים. ה-delimiter יכול להיות תו בודד או מחרוזת רב-תווית.
+`SPLIT` שובר מחרוזת למערך של תאים. ה-delimiter יכול להיות תו בודד או מחרוזת רב-תווית, אבל שימו לב להתנהגות ברירת המחדל של `split_by_each`: הוא מפצל לפי כל תו של ה-delimiter אלא אם מעבירים FALSE.
+
+<FunctionRef name="SPLIT" />
 
 ```
 =SPLIT("Taboola_UsedCarsPR_DesktopUS_2026-05", "_")
@@ -26,6 +28,10 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 ## JOIN ו-TEXTJOIN: הרבה תאים לאחד
 
 `JOIN(delimiter, range)` הוא ההפך של SPLIT. `TEXTJOIN(delimiter, ignore_empty, range)` הוא הגרסה המודרנית עם אפשרות לדלג על תאים ריקים.
+
+<FunctionRef name="JOIN" />
+
+<FunctionRef name="TEXTJOIN" />
 
 ```
 =JOIN(", ", A2:A4)              → "Yoav, Sarah, David"

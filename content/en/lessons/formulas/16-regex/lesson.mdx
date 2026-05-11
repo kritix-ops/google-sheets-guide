@@ -20,6 +20,8 @@ All three patterns are RE2 strings, written in double quotes. Inside the pattern
 
 Validate that a campaign code follows the team's standard `Platform_VerticalPR_Audience_YYYY-MM` format:
 
+<FunctionRef name="REGEXMATCH" />
+
 ```
 =REGEXMATCH(A2, "^[A-Za-z]+_[A-Za-z]+PR_[A-Za-z]+_\\d{4}-\\d{2}$")
 ```
@@ -42,6 +44,8 @@ Returns TRUE if the cell matches the pattern, FALSE otherwise. Combine with cond
 
 Extract the platform name from a campaign code, regardless of what comes after.
 
+<FunctionRef name="REGEXEXTRACT" />
+
 ```
 =REGEXEXTRACT(A2, "^([A-Za-z]+)_")
 ```
@@ -63,6 +67,8 @@ Parentheses create a capture group; REGEXEXTRACT returns the first capture group
 ## REGEXREPLACE: substitute with a pattern
 
 Replace all matches with a new string. Useful for stripping unwanted characters, normalizing separators, or restructuring strings.
+
+<FunctionRef name="REGEXREPLACE" />
 
 ```
 =REGEXREPLACE(A2, "_\\d{4}-\\d{2}$", "")

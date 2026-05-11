@@ -20,6 +20,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ולידציה שקוד קמפיין עוקב אחר הפורמט הסטנדרטי של הצוות `Platform_VerticalPR_Audience_YYYY-MM`:
 
+<FunctionRef name="REGEXMATCH" />
+
 ```
 =REGEXMATCH(A2, "^[A-Za-z]+_[A-Za-z]+PR_[A-Za-z]+_\\d{4}-\\d{2}$")
 ```
@@ -42,6 +44,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 שולפים את שם הפלטפורמה מקוד קמפיין, ללא קשר למה שבא אחריו.
 
+<FunctionRef name="REGEXEXTRACT" />
+
 ```
 =REGEXEXTRACT(A2, "^([A-Za-z]+)_")
 ```
@@ -63,6 +67,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 ## REGEXREPLACE: החלפה עם תבנית
 
 מחליפים את כל ההתאמות במחרוזת חדשה. שימושי להפשטה של תווים לא רצויים, לנרמול מפרידים, או לבנייה מחדש של מחרוזות.
+
+<FunctionRef name="REGEXREPLACE" />
 
 ```
 =REGEXREPLACE(A2, "_\\d{4}-\\d{2}$", "")

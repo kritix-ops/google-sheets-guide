@@ -2117,6 +2117,258 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/10522653?hl=en",
   },
 
+  SPLIT: {
+    name: "SPLIT",
+    category: "text",
+    summary: {
+      en: "Breaks a string into separate cells by a delimiter. Spills horizontally by default. The standard tool for unpacking the team's campaign codes (Platform_Vertical_Audience_Period) into parsed columns.",
+      he: "מפצל מחרוזת לתאים נפרדים לפי מפריד. זורם אופקית כברירת מחדל. הכלי הסטנדרטי לפירוק קודי הקמפיין של הצוות (Platform_Vertical_Audience_Period) לעמודות מפורסרות.",
+    },
+    syntax: "SPLIT(text, delimiter, [split_by_each], [remove_empty_text])",
+    params: [
+      {
+        name: "text",
+        type: "string",
+        description: {
+          en: "The string to split.",
+          he: "המחרוזת לפיצול.",
+        },
+      },
+      {
+        name: "delimiter",
+        type: "string",
+        description: {
+          en: "The character(s) to split on. With split_by_each = TRUE (the default), each character of the delimiter is its own splitter.",
+          he: "התווים לפיצול עליהם. עם split_by_each = TRUE (ברירת המחדל), כל תו של המפריד הוא מפצל בפני עצמו.",
+        },
+      },
+      {
+        name: "split_by_each",
+        type: "boolean",
+        optional: true,
+        default: "TRUE",
+        description: {
+          en: "TRUE = split by each character. FALSE = treat the delimiter as a single multi-character separator. Pass FALSE for multi-char separators like ', '.",
+          he: "TRUE = פצל לפי כל תו. FALSE = להתייחס למפריד כאל מפריד יחיד רב-תווי. העבירו FALSE למפרידים רב-תווים כמו ', '.",
+        },
+      },
+      {
+        name: "remove_empty_text",
+        type: "boolean",
+        optional: true,
+        default: "TRUE",
+        description: {
+          en: "TRUE = skip empty values from consecutive delimiters. FALSE = keep empty cells in the output.",
+          he: "TRUE = דלג על ערכים ריקים ממפרידים רצופים. FALSE = השאר תאים ריקים בפלט.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled row of the split pieces. Array-aware: no ARRAYFORMULA needed.",
+      he: "שורה זורמת של החתיכות. מודע למערכים: לא צריך ARRAYFORMULA.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094136?hl=en",
+  },
+
+  JOIN: {
+    name: "JOIN",
+    category: "text",
+    summary: {
+      en: "Concatenates the values of one or more one-dimensional arrays into a single string with a delimiter between each. The legacy version; TEXTJOIN is the modern replacement.",
+      he: "משרשר את הערכים של מערך חד-ממדי אחד או יותר למחרוזת אחת עם מפריד בין כל אחד. הגרסה הישנה; TEXTJOIN הוא ההחלפה המודרנית.",
+    },
+    syntax: "JOIN(delimiter, value_or_array1, [value_or_array2, ...])",
+    params: [
+      {
+        name: "delimiter",
+        type: "string",
+        description: {
+          en: "The string to put between each value. Pass \"\" for no separator (same as CONCATENATE).",
+          he: "המחרוזת לשים בין כל ערך. העבירו \"\" לאיפה ללא מפריד (כמו CONCATENATE).",
+        },
+      },
+      {
+        name: "value_or_array1",
+        type: "value | range",
+        description: {
+          en: "The first value or 1D range to include.",
+          he: "הערך או הטווח החד-ממדי הראשון לכלול.",
+        },
+      },
+      {
+        name: "value_or_array2, ...",
+        type: "value | range",
+        optional: true,
+        description: {
+          en: "Additional values or arrays to append. JOIN errors on 2D ranges.",
+          he: "ערכים או מערכים נוספים להוסיף. JOIN שוגה על טווחים דו-ממדיים.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single string with the values concatenated.",
+      he: "מחרוזת יחידה עם הערכים משורשרים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094077?hl=en",
+  },
+
+  TEXTJOIN: {
+    name: "TEXTJOIN",
+    category: "text",
+    summary: {
+      en: "Modern replacement for JOIN: concatenates strings with a delimiter and can skip empty cells. The go-to for building comma lists from a column, like 'buyers on this platform: Yoav, Sarah, David'.",
+      he: "החלפה מודרנית ל-JOIN: משרשר מחרוזות עם מפריד ויכול לדלג על תאים ריקים. הבחירה הטבעית לבנייה של רשימות מופרדות-בפסיק מעמודה, כמו 'buyers on this platform: Yoav, Sarah, David'.",
+    },
+    syntax: "TEXTJOIN(delimiter, ignore_empty, text1, [text2, ...])",
+    params: [
+      {
+        name: "delimiter",
+        type: "string",
+        description: {
+          en: "The string between each joined piece.",
+          he: "המחרוזת בין כל חתיכה משורשרת.",
+        },
+      },
+      {
+        name: "ignore_empty",
+        type: "boolean",
+        description: {
+          en: "TRUE = skip empty cells. FALSE = keep them, producing gaps in the output.",
+          he: "TRUE = דלג על תאים ריקים. FALSE = שמור עליהם, יוצר פערים בפלט.",
+        },
+      },
+      {
+        name: "text1",
+        type: "string | range",
+        description: {
+          en: "The first value or range to include. Unlike JOIN, can be 2D.",
+          he: "הערך או הטווח הראשון לכלול. בניגוד ל-JOIN, יכול להיות דו-ממדי.",
+        },
+      },
+      {
+        name: "text2, ...",
+        type: "string | range",
+        optional: true,
+        description: {
+          en: "Additional values or ranges to include.",
+          he: "ערכים או טווחים נוספים לכלול.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single string. Cell size limit (50,000 characters) applies; TEXTJOIN over very large ranges can hit it.",
+      he: "מחרוזת יחידה. מגבלת גודל תא (50,000 תווים) חלה; TEXTJOIN על טווחים גדולים יכול להגיע אליה.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/7013992?hl=en",
+  },
+
+  REGEXMATCH: {
+    name: "REGEXMATCH",
+    category: "regex",
+    summary: {
+      en: "Returns TRUE/FALSE for whether a string matches an RE2 regex pattern. The fastest way to validate that a campaign code follows the team's naming convention.",
+      he: "מחזיר TRUE/FALSE על האם מחרוזת מתאימה לתבנית regex של RE2. הדרך המהירה ביותר לאמת ש-campaign code עוקב אחרי קונבנציית השמות של הצוות.",
+    },
+    syntax: "REGEXMATCH(text, regular_expression)",
+    params: [
+      {
+        name: "text",
+        type: "string",
+        description: {
+          en: "The text to test. Numeric cells need TEXT(...) wrapping first.",
+          he: "הטקסט לבדיקה. תאים מספריים צריכים עטיפת TEXT(...) קודם.",
+        },
+      },
+      {
+        name: "regular_expression",
+        type: "string (RE2)",
+        description: {
+          en: "An RE2 regex. Backslashes must be doubled in the formula: \\\\d for digit, \\\\w for word character. No lookarounds, no backreferences. Anchor with ^ and $ for full-string matches.",
+          he: "ביטוי רגולרי של RE2. backslashes חייבים להיות כפולים בנוסחה: \\\\d לספרה, \\\\w לתו מילה. אין lookarounds, אין backreferences. עוגנים עם ^ ו-$ להתאמות של כל המחרוזת.",
+        },
+      },
+    ],
+    returns: {
+      en: "TRUE if the pattern matches anywhere in text (anchor with ^/$ for full match); FALSE otherwise.",
+      he: "TRUE אם התבנית מתאימה איפשהו ב-text (עוגנים עם ^/$ להתאמה מלאה); FALSE אחרת.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3098292?hl=en",
+  },
+
+  REGEXEXTRACT: {
+    name: "REGEXEXTRACT",
+    category: "regex",
+    summary: {
+      en: "Extracts the first substring of text that matches an RE2 regex. With capture groups (parentheses), returns just the captured portion. The right tool when LEFT/MID/FIND aren't expressive enough.",
+      he: "מחלץ את תת-המחרוזת הראשונה של text שמתאימה ל-RE2 regex. עם capture groups (סוגריים), מחזיר רק את החלק שנתפס. הכלי הנכון כש-LEFT/MID/FIND לא מספיק חזקים.",
+    },
+    syntax: "REGEXEXTRACT(text, regular_expression)",
+    params: [
+      {
+        name: "text",
+        type: "string",
+        description: {
+          en: "The text to scan.",
+          he: "הטקסט לסריקה.",
+        },
+      },
+      {
+        name: "regular_expression",
+        type: "string (RE2)",
+        description: {
+          en: "The pattern. Without parentheses, returns the whole match. With one or more capture groups, returns the captured groups (spilled across columns if multiple).",
+          he: "התבנית. בלי סוגריים, מחזיר את ההתאמה השלמה. עם capture group אחד או יותר, מחזיר את הקבוצות שנתפסו (זורמות לאורך עמודות אם יש כמה).",
+        },
+      },
+    ],
+    returns: {
+      en: "The first match or its capture group(s). #N/A if no match: wrap in IFERROR for safety.",
+      he: "ההתאמה הראשונה או ה-capture groups שלה. #N/A אם אין התאמה: עוטפים ב-IFERROR לבטיחות.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3098244?hl=en",
+  },
+
+  REGEXREPLACE: {
+    name: "REGEXREPLACE",
+    category: "regex",
+    summary: {
+      en: "Replaces every match of an RE2 regex with a replacement string. Use $1, $2, etc. in the replacement to reference capture groups. The most powerful normalization tool for messy text.",
+      he: "מחליף כל התאמה של RE2 regex במחרוזת החלפה. השתמשו ב-$1, $2 וכו' בהחלפה כדי להפנות ל-capture groups. כלי הנירמול הכי חזק לטקסט מבולגן.",
+    },
+    syntax: "REGEXREPLACE(text, regular_expression, replacement)",
+    params: [
+      {
+        name: "text",
+        type: "string",
+        description: {
+          en: "The source text.",
+          he: "טקסט המקור.",
+        },
+      },
+      {
+        name: "regular_expression",
+        type: "string (RE2)",
+        description: {
+          en: "The pattern to replace. Every non-overlapping match is replaced.",
+          he: "התבנית להחלפה. כל התאמה שאינה חופפת מוחלפת.",
+        },
+      },
+      {
+        name: "replacement",
+        type: "string",
+        description: {
+          en: "What to put in place of each match. Use $1, $2, $3 to reference capture groups from the pattern. To insert a literal $, write $$.",
+          he: "מה לשים במקום כל התאמה. השתמשו ב-$1, $2, $3 כדי להפנות ל-capture groups מהתבנית. כדי לשים $ מילולי, כתבו $$.",
+        },
+      },
+    ],
+    returns: {
+      en: "A new string with every match replaced. The original cell is not modified.",
+      he: "מחרוזת חדשה עם כל התאמה מוחלפת. התא המקורי לא משתנה.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3098245?hl=en",
+  },
+
   QUERY: {
     name: "QUERY",
     category: "query",

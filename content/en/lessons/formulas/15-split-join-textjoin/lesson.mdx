@@ -6,7 +6,9 @@ These four turn arrays into strings and strings into arrays. They're the bridge 
 
 ## SPLIT: one cell to many
 
-`SPLIT(text, delimiter, [split_by_each], [remove_empty])` breaks a string into an array of cells. The delimiter can be a single character or a multi-character string.
+`SPLIT` breaks a string into an array of cells. The delimiter can be a single character or a multi-character string, but watch the default `split_by_each` behavior: it splits on every character of the delimiter unless you pass FALSE.
+
+<FunctionRef name="SPLIT" />
 
 ```
 =SPLIT("Taboola_UsedCarsPR_DesktopUS_2026-05", "_")
@@ -26,6 +28,10 @@ Returns 4 cells: "Taboola", "UsedCarsPR", "DesktopUS", "2026-05". The team's cam
 ## JOIN and TEXTJOIN: many cells to one
 
 `JOIN(delimiter, range)` is the reverse of SPLIT. `TEXTJOIN(delimiter, ignore_empty, range)` is the modern version with the option to skip empty cells.
+
+<FunctionRef name="JOIN" />
+
+<FunctionRef name="TEXTJOIN" />
 
 ```
 =JOIN(", ", A2:A4)              → "Yoav, Sarah, David"
