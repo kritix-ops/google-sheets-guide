@@ -10,6 +10,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `MEDIAN(range)` הוא הערך האמצעי כשממיינים. בניגוד ל-AVERAGE, הוא מתעלם מחריגים.
 
+<FunctionRef name="MEDIAN" />
+
 ```
 =MEDIAN(E2:E13)        → spend טיפוסי של קמפיין
 =AVERAGE(E2:E13)       → ממוצע spend של קמפיין (מוטה על ידי spends גדולים)
@@ -32,6 +34,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `STDEV(range)` היא סטיית התקן של המדגם. `VAR(range)` היא השונות (STDEV בריבוע). STDEV גבוה אומר שהערכים מפוזרים, נמוך אומר שהם מתקבצים סביב הממוצע.
 
+<FunctionRef name="STDEV" />
+
 ```
 =STDEV(E2:E13) / AVERAGE(E2:E13)    → מקדם השונות
 ```
@@ -43,6 +47,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 ## צורת ההתפלגות: PERCENTILE, QUARTILE
 
 `PERCENTILE(range, p)` מחזיר את הערך באחוזון `p` (בין 0 ל-1). `PERCENTILE(E2:E13, 0.9)` הוא ה-spend באחוזון ה-90, ל-90% מהקמפיינים יש spend פחות מזה.
+
+<FunctionRef name="PERCENTILE" />
 
 ```
 =PERCENTILE(E2:E13, 0.9)    → spend באחוזון ה-90
@@ -77,6 +83,10 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `RANK(value, range)` מחזיר את המיקום של `value` ב-`range` (1 = הגבוה ביותר). שימושי ל-"איפה הקמפיין הזה מדורג?".
 
+<FunctionRef name="RANK" />
+
+<FunctionRef name="LARGE" />
+
 ```
 =RANK(F2, F$2:F$13)     → דירוג ה-revenue של שורה 2, יורד
 =RANK(F2, F$2:F$13, 1)  → עולה במקום (הארגומנט השלישי הוא הסדר)
@@ -93,6 +103,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 ```
 
 ## קשרים: CORREL, TREND, SLOPE
+
+<FunctionRef name="CORREL" />
 
 `CORREL(range1, range2)` הוא קורלציית פירסון בין שני טווחים מקבילים. מחזיר ערך בין -1 ל-1.
 

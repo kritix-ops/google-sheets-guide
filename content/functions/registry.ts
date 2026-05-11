@@ -2633,6 +2633,454 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/13190740?hl=en",
   },
 
+  MEDIAN: {
+    name: "MEDIAN",
+    category: "aggregation",
+    summary: {
+      en: "Returns the middle value of a numeric dataset (interpolates for even counts). The outlier-resistant cousin of AVERAGE. If MEDIAN is much smaller than AVERAGE, you have a long-tail distribution.",
+      he: "מחזיר את הערך האמצעי של דאטה-סט מספרי (מבצע אינטרפולציה לספירות זוגיות). בן-הדוד עמיד-במגזרים-קיצוניים של AVERAGE. אם MEDIAN קטן בהרבה מ-AVERAGE, יש לכם התפלגות בעלת זנב ארוך.",
+    },
+    syntax: "MEDIAN(value1, [value2, ...])",
+    params: [
+      {
+        name: "value1",
+        type: "number | range",
+        description: {
+          en: "The first value or range. Text inside ranges is ignored.",
+          he: "הערך או הטווח הראשון. טקסט בתוך טווחים מתעלמים ממנו.",
+        },
+      },
+      {
+        name: "value2, ...",
+        type: "number | range",
+        optional: true,
+        description: {
+          en: "Additional values or ranges.",
+          he: "ערכים או טווחים נוספים.",
+        },
+      },
+    ],
+    returns: {
+      en: "The median value. For an even-sized dataset, the average of the two middle values: so the result may not be an actual data point.",
+      he: "ערך החציון. לדאטה-סט בגודל זוגי, הממוצע של שני ערכי האמצע: התוצאה יכולה להיות לא נקודת מידע אמיתית.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094025?hl=en",
+  },
+
+  PERCENTILE: {
+    name: "PERCENTILE",
+    category: "aggregation",
+    summary: {
+      en: "Returns the value at a given percentile of a dataset (interpolating between data points). PERCENTILE(range, 0.9) is the threshold above which the top 10% sit; standard tool for automatic winners/losers thresholds.",
+      he: "מחזיר את הערך באחוזון נתון של דאטה-סט (מבצע אינטרפולציה בין נקודות מידע). PERCENTILE(range, 0.9) הוא הסף שמעליו יושבים ה-10% העליונים; הכלי הסטנדרטי לספים אוטומטיים של מנצחים/מפסידים.",
+    },
+    syntax: "PERCENTILE(data, percentile)",
+    params: [
+      {
+        name: "data",
+        type: "range",
+        description: {
+          en: "The dataset to analyze.",
+          he: "הדאטה-סט לניתוח.",
+        },
+      },
+      {
+        name: "percentile",
+        type: "number",
+        description: {
+          en: "A value between 0 and 1. 0.5 = median; 0.9 = 90th percentile; 0 = min; 1 = max.",
+          he: "ערך בין 0 ל-1. 0.5 = חציון; 0.9 = אחוזון 90; 0 = מינימום; 1 = מקסימום.",
+        },
+      },
+    ],
+    returns: {
+      en: "The interpolated value at the requested percentile. PERCENTILE(data, 0.5) equals MEDIAN(data).",
+      he: "הערך עם אינטרפולציה באחוזון המבוקש. PERCENTILE(data, 0.5) שווה ל-MEDIAN(data).",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094093?hl=en",
+  },
+
+  RANK: {
+    name: "RANK",
+    category: "aggregation",
+    summary: {
+      en: "Returns the position of a value within a dataset (1 = highest by default). Ties get the same rank, then the next value skips: two campaigns tied for #1 both rank 1, the next is #3.",
+      he: "מחזיר את המיקום של ערך בתוך דאטה-סט (1 = הגבוה ביותר כברירת מחדל). שווי-ערכים מקבלים את אותו דירוג, אז הערך הבא מדלג: שני קמפיינים שווים במקום #1 שניהם מקבלים 1, הבא הוא #3.",
+    },
+    syntax: "RANK(value, data, [is_ascending])",
+    params: [
+      {
+        name: "value",
+        type: "number",
+        description: {
+          en: "The value to rank. Must exist in `data`; otherwise returns #N/A.",
+          he: "הערך לדירוג. חייב להופיע ב-data; אחרת מחזיר #N/A.",
+        },
+      },
+      {
+        name: "data",
+        type: "range",
+        description: {
+          en: "The dataset to rank within.",
+          he: "הדאטה-סט לדרג בתוכו.",
+        },
+      },
+      {
+        name: "is_ascending",
+        type: "boolean | number",
+        optional: true,
+        default: "0",
+        description: {
+          en: "0 / FALSE = highest gets rank 1 (default). 1 / TRUE = lowest gets rank 1.",
+          he: "0 / FALSE = הגבוה ביותר מקבל דירוג 1 (ברירת מחדל). 1 / TRUE = הנמוך ביותר מקבל דירוג 1.",
+        },
+      },
+    ],
+    returns: {
+      en: "The integer rank. Use RANK.AVG to average ties instead of skipping.",
+      he: "הדירוג השלם. השתמשו ב-RANK.AVG כדי לחשב ממוצע על שווי-ערכים במקום לדלג.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094098?hl=en",
+  },
+
+  LARGE: {
+    name: "LARGE",
+    category: "aggregation",
+    summary: {
+      en: "Returns the Nth-largest value in a dataset. LARGE(range, 1) is the max; LARGE(range, 3) is the third-highest. The right tool for top-N reports without sorting the data.",
+      he: "מחזיר את הערך ה-N הגדול ביותר בדאטה-סט. LARGE(range, 1) הוא המקסימום; LARGE(range, 3) הוא השלישי בגובהו. הכלי הנכון לדוחות top-N בלי למיין את המידע.",
+    },
+    syntax: "LARGE(data, n)",
+    params: [
+      {
+        name: "data",
+        type: "range",
+        description: {
+          en: "The dataset.",
+          he: "הדאטה-סט.",
+        },
+      },
+      {
+        name: "n",
+        type: "number",
+        description: {
+          en: "Which rank to return (1 = largest, 2 = second-largest, etc.).",
+          he: "איזה דירוג להחזיר (1 = הגדול ביותר, 2 = השני בגודלו וכו').",
+        },
+      },
+    ],
+    returns: {
+      en: "The Nth-largest value. SMALL is the mirror for the Nth-smallest.",
+      he: "הערך ה-N הגדול ביותר. SMALL הוא המראה ל-N הקטן ביותר.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094008?hl=en",
+  },
+
+  CORREL: {
+    name: "CORREL",
+    category: "aggregation",
+    summary: {
+      en: "Returns the Pearson correlation coefficient between two parallel ranges. Values range from -1 (perfect inverse) to +1 (perfect positive); 0 means no linear relationship. Use for spend-vs-revenue, ROI-vs-time, and other hypothesis checks.",
+      he: "מחזיר את מקדם המתאם של Pearson בין שני טווחים מקבילים. ערכים נעים בין -1 (הפוך מושלם) ל-+1 (חיובי מושלם); 0 משמעו אין קשר ליניארי. שימוש לבדיקות hypothesis של spend-מול-revenue, ROI-מול-זמן ועוד.",
+    },
+    syntax: "CORREL(data_y, data_x)",
+    params: [
+      {
+        name: "data_y",
+        type: "range",
+        description: {
+          en: "The dependent variable's values (the 'effect').",
+          he: "הערכים של המשתנה התלוי ('האפקט').",
+        },
+      },
+      {
+        name: "data_x",
+        type: "range",
+        description: {
+          en: "The independent variable's values (the 'cause'), same length as data_y.",
+          he: "הערכים של המשתנה הבלתי-תלוי ('הסיבה'), באותו אורך כמו data_y.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number in [-1, 1]. Synonym for the PEARSON function. Correlation does not imply causation.",
+      he: "מספר ב-[-1, 1]. מילה נרדפת לפונקציית PEARSON. מתאם לא משמעו סיבתיות.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093990?hl=en",
+  },
+
+  STDEV: {
+    name: "STDEV",
+    category: "aggregation",
+    summary: {
+      en: "Returns the sample standard deviation of a numeric dataset (divides by n-1). The everyday spread metric. Use STDEVP for the full-population version (rare in adtech, where you almost always have a sample).",
+      he: "מחזיר את הסטיית התקן של מדגם של דאטה-סט מספרי (מחלק ב-n-1). מדד הפיזור היומיומי. השתמשו ב-STDEVP לגרסה של אוכלוסיה מלאה (נדיר באדטק, שם כמעט תמיד יש מדגם).",
+    },
+    syntax: "STDEV(value1, [value2, ...])",
+    params: [
+      {
+        name: "value1",
+        type: "number | range",
+        description: {
+          en: "The first value or range of the sample.",
+          he: "הערך או הטווח הראשון של המדגם.",
+        },
+      },
+      {
+        name: "value2, ...",
+        type: "number | range",
+        optional: true,
+        description: {
+          en: "Additional values or ranges.",
+          he: "ערכים או טווחים נוספים.",
+        },
+      },
+    ],
+    returns: {
+      en: "The sample standard deviation. Returns #DIV/0! if fewer than 2 numeric values are provided.",
+      he: "סטיית התקן של המדגם. מחזיר #DIV/0! אם יש פחות מ-2 ערכים מספריים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094054?hl=en",
+  },
+
+  NPV: {
+    name: "NPV",
+    category: "math",
+    summary: {
+      en: "Discounts a series of future cash flows back to today's value at a given rate. The standard 'is this investment worth it' calculator. Watch the gotcha: Sheets discounts every cash flow, so the period-0 outflow must be added separately.",
+      he: "מפחית סדרה של תזרימי מזומנים עתידיים לערכם של היום בקצב נתון. המחשבון הסטנדרטי של 'האם ההשקעה הזאת שווה'. שימו לב למלכודת: Sheets מפחית כל תזרים, אז ה-outflow של תקופה-0 חייב להתווסף בנפרד.",
+    },
+    syntax: "NPV(discount, cashflow1, [cashflow2, ...])",
+    params: [
+      {
+        name: "discount",
+        type: "number",
+        description: {
+          en: "The per-period discount rate (annual rate / periods per year). 0.10 = 10% per period.",
+          he: "קצב ההיוון לתקופה (קצב שנתי / תקופות בשנה). 0.10 = 10% לתקופה.",
+        },
+      },
+      {
+        name: "cashflow1",
+        type: "number | range",
+        description: {
+          en: "The first cash flow (period 1, NOT period 0). Positive for income, negative for payments. Sheets discounts this by one period right away.",
+          he: "התזרים הראשון (תקופה 1, לא תקופה 0). חיובי להכנסה, שלילי לתשלום. Sheets מפחית את זה בתקופה אחת מיד.",
+        },
+      },
+      {
+        name: "cashflow2, ...",
+        type: "number | range",
+        optional: true,
+        description: {
+          en: "Additional cash flows for subsequent periods. For irregular dates, use XNPV.",
+          he: "תזרימים נוספים לתקופות מאוחרות. לתאריכים לא סדירים, השתמשו ב-XNPV.",
+        },
+      },
+    ],
+    returns: {
+      en: "The discounted value of the future cash flows. Add the un-discounted period-0 outflow separately: =NPV(rate, future_flows) + period_0_outlay.",
+      he: "הערך המהוון של התזרימים העתידיים. הוסיפו את ה-outflow של תקופה-0 בלי היוון בנפרד: =NPV(rate, future_flows) + period_0_outlay.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093184?hl=en",
+  },
+
+  IRR: {
+    name: "IRR",
+    category: "math",
+    summary: {
+      en: "Returns the discount rate at which NPV equals zero: the implicit annual return of a cash-flow stream. Use to compare campaigns' or acquisition strategies' implicit ROI on equal terms.",
+      he: "מחזיר את קצב ההיוון שבו NPV שווה לאפס: התשואה השנתית המשתמעת של זרם תזרימים. שימוש להשוואת ROI מובלע של קמפיינים או אסטרטגיות רכישה בתנאים שווים.",
+    },
+    syntax: "IRR(cashflow_amounts, [rate_guess])",
+    params: [
+      {
+        name: "cashflow_amounts",
+        type: "range",
+        description: {
+          en: "The cash flows. Must include at least one negative (outflow) and one positive (inflow); otherwise IRR returns #NUM!.",
+          he: "התזרימים. חייב לכלול לפחות אחד שלילי (outflow) ואחד חיובי (inflow); אחרת IRR מחזיר #NUM!.",
+        },
+      },
+      {
+        name: "rate_guess",
+        type: "number",
+        optional: true,
+        default: "0.1",
+        description: {
+          en: "Initial guess for the rate. Tweak if IRR fails to converge on multi-sign-change cash flows.",
+          he: "ניחוש התחלתי לקצב. כווננו אם IRR לא מתכנס על תזרימים עם שינויי סימן מרובים.",
+        },
+      },
+    ],
+    returns: {
+      en: "The internal rate of return as a decimal. Compare to your hurdle rate; above is acceptable, below is not.",
+      he: "ה-IRR כעשרוני. השוו לקצב הסף שלכם; מעל מקובל, מתחת לא.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093231?hl=en",
+  },
+
+  INDIRECT: {
+    name: "INDIRECT",
+    category: "lookup",
+    summary: {
+      en: "Builds a cell reference from a text string. The standard way to do dynamic sheet selection driven by a dropdown. Volatile: recalculates on every change, so use sparingly: one INDIRECT per dashboard, not per cell.",
+      he: "בונה reference לתא ממחרוזת טקסט. הדרך הסטנדרטית לבחירה דינמית של גיליון על ידי dropdown. תנודתית: מחושבת מחדש בכל שינוי, אז להשתמש בחיסכון: INDIRECT אחד ל-dashboard, לא לתא.",
+    },
+    syntax: "INDIRECT(cell_reference_as_string, [is_A1_notation])",
+    params: [
+      {
+        name: "cell_reference_as_string",
+        type: "string",
+        description: {
+          en: "A string that evaluates to a valid reference. Common pattern: \"'\" & B1 & \"'!E2:E100\" to build a cross-tab reference from a dropdown in B1.",
+          he: "מחרוזת שמתפענחת ל-reference תקין. תבנית נפוצה: \"'\" & B1 & \"'!E2:E100\" כדי לבנות reference בין-טאב מ-dropdown ב-B1.",
+        },
+      },
+      {
+        name: "is_A1_notation",
+        type: "boolean",
+        optional: true,
+        default: "TRUE",
+        description: {
+          en: "TRUE = A1 notation (default). FALSE = R1C1 notation. Almost always leave as TRUE.",
+          he: "TRUE = סימון A1 (ברירת מחדל). FALSE = סימון R1C1. כמעט תמיד משאירים TRUE.",
+        },
+      },
+    ],
+    returns: {
+      en: "The value(s) at the resolved reference. #REF! if the string doesn't resolve. Wrap in IFERROR for production safety.",
+      he: "הערכים ב-reference שנבנה. #REF! אם המחרוזת לא מתפענחת. עוטפים ב-IFERROR לבטיחות ב-production.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093377?hl=en",
+  },
+
+  OFFSET: {
+    name: "OFFSET",
+    category: "lookup",
+    summary: {
+      en: "Returns a range reference offset from a starting cell by a number of rows and columns, with optional height and width. Volatile: prefer INDEX when you can, since INDEX is non-volatile and almost always equivalent.",
+      he: "מחזיר reference לטווח עם offset מתא התחלה במספר שורות ועמודות, עם height ו-width אופציונליים. תנודתית: עדיפים INDEX כשאפשר, כי INDEX לא תנודתי וכמעט תמיד שקול.",
+    },
+    syntax: "OFFSET(cell_reference, offset_rows, offset_columns, [height], [width])",
+    params: [
+      {
+        name: "cell_reference",
+        type: "range",
+        description: {
+          en: "The anchor cell or range.",
+          he: "התא או הטווח של העוגן.",
+        },
+      },
+      {
+        name: "offset_rows",
+        type: "number",
+        description: {
+          en: "How many rows to shift. Negative shifts up. Decimals truncate.",
+          he: "כמה שורות להזיז. שלילי מזיז למעלה. עשרוניים נחתכים.",
+        },
+      },
+      {
+        name: "offset_columns",
+        type: "number",
+        description: {
+          en: "How many columns to shift. Negative shifts left.",
+          he: "כמה עמודות להזיז. שלילי מזיז שמאלה.",
+        },
+      },
+      {
+        name: "height",
+        type: "number",
+        optional: true,
+        description: {
+          en: "The number of rows in the returned range. Default matches cell_reference's height.",
+          he: "מספר השורות בטווח המוחזר. ברירת המחדל מתאימה לגובה של cell_reference.",
+        },
+      },
+      {
+        name: "width",
+        type: "number",
+        optional: true,
+        description: {
+          en: "The number of columns in the returned range.",
+          he: "מספר העמודות בטווח המוחזר.",
+        },
+      },
+    ],
+    returns: {
+      en: "A shifted (and possibly resized) range reference. #REF! if the shift goes off-sheet.",
+      he: "reference לטווח שהוזז (ואולי שונה בגודלו). #REF! אם ההזזה יוצאת מהגיליון.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093379?hl=en",
+  },
+
+  IMPORTRANGE: {
+    name: "IMPORTRANGE",
+    category: "info",
+    summary: {
+      en: "Imports a range of cells from another Google Sheet. The single most-used and most-broken formula in cross-team adtech workbooks. Requires explicit auth between source and destination on first use.",
+      he: "מייבא טווח תאים מ-Google Sheet אחר. הנוסחה הכי בשימוש ושבירה ב-workbooks חוצי-צוות באדטק. דורש auth מפורש בין מקור ליעד בשימוש ראשון.",
+    },
+    syntax: "IMPORTRANGE(spreadsheet_url, range_string)",
+    params: [
+      {
+        name: "spreadsheet_url",
+        type: "string",
+        description: {
+          en: "The full URL or just the file ID (between /d/ and /edit) of the source sheet, in quotes.",
+          he: "ה-URL המלא או רק ה-file ID (בין /d/ ל-/edit) של גיליון המקור, במרכאות.",
+        },
+      },
+      {
+        name: "range_string",
+        type: "string",
+        description: {
+          en: "The range to import, prefixed by the tab name and !. Example: \"Campaigns!A1:F100\" or \"Campaigns!A:F\". Named ranges and table references work too.",
+          he: "הטווח לייבוא, עם prefix של שם הטאב ו-!. דוגמה: \"Campaigns!A1:F100\" או \"Campaigns!A:F\". Named ranges ו-references לטבלאות עובדים גם כן.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled 2D array of the imported cells. #REF! on first use until the connection is authorized; after that, caches results with TTL roughly one hour. Cap of ~10MB per import.",
+      he: "מערך 2D זורם של התאים המיובאים. #REF! בשימוש ראשון עד ש-החיבור אושר; אחר כך, מאחסן תוצאות עם TTL של בערך שעה. תקרה של ~10MB לייבוא.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093340?hl=en",
+  },
+
+  SPARKLINE: {
+    name: "SPARKLINE",
+    category: "info",
+    summary: {
+      en: "Draws a tiny chart inside a single cell. Used for per-row trend columns in dashboards: 50 rows × 1 mini-chart = an at-a-glance dashboard without separate chart objects.",
+      he: "מצייר גרף זעיר בתוך תא יחיד. בשימוש לעמודות מגמה פר-שורה ב-dashboards: 50 שורות × 1 mini-chart = dashboard למבט מהיר בלי אובייקטי גרף נפרדים.",
+    },
+    syntax: "SPARKLINE(data, [options])",
+    params: [
+      {
+        name: "data",
+        type: "range",
+        description: {
+          en: "The range of numeric values to chart. Must be a 1D row or column, not a 2D grid.",
+          he: "טווח הערכים המספריים לגרף. חייב להיות שורה או עמודה חד-ממדית, לא רשת דו-ממדית.",
+        },
+      },
+      {
+        name: "options",
+        type: "array",
+        optional: true,
+        description: {
+          en: "A 2-column array of option/value pairs. Common options: charttype (line/column/bar/winloss), color, color1/color2, linewidth, ymin/ymax, axis. Separate pairs with ; and option from value with ,.",
+          he: "מערך של 2 עמודות עם זוגות option/value. אפשרויות נפוצות: charttype (line/column/bar/winloss), color, color1/color2, linewidth, ymin/ymax, axis. הפרידו זוגות ב-; ו-option מ-value ב-,.",
+        },
+      },
+    ],
+    returns: {
+      en: "A miniature chart rendered inside the formula cell. Renders best when the cell has appropriate row height and column width.",
+      he: "גרף מיני שמתרנדר בתוך תא הנוסחה. רנדור הכי טוב כשלתא יש גובה שורה ורוחב עמודה מתאימים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093289?hl=en",
+  },
+
   QUERY: {
     name: "QUERY",
     category: "query",

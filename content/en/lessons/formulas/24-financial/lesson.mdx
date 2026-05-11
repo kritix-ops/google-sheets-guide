@@ -8,6 +8,8 @@ This lesson covers the small set worth knowing and the math you actually use day
 
 A dollar today is worth more than a dollar a year from now. `NPV(rate, cash_flow_1, cash_flow_2, ...)` discounts a series of future cash flows back to today's value.
 
+<FunctionRef name="NPV" />
+
 ```
 =NPV(0.10, -1000, 200, 300, 400, 500)
 ```
@@ -27,6 +29,8 @@ In adtech, NPV is how you compare two acquisition strategies that pay back over 
 ## IRR: internal rate of return
 
 `IRR(cash_flows)` returns the discount rate at which NPV equals zero: the implicit annual return of the cash-flow series.
+
+<FunctionRef name="IRR" />
 
 ```
 =IRR({-1000, 200, 300, 400, 500})
