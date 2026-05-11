@@ -2,7 +2,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Logging, error handling, and the Cloud Logging story
 
-The first thirteen lessons of Track 3 covered code that does work: custom functions, menus, macros, triggers, the `SpreadsheetApp` surface. This lesson covers the part nobody thinks about until something breaks at 2 a.m.: how you see what your code did, and how you survive when it goes wrong. The team's nightly Taboola pull, the per-buyer dashboard refresher, the IMPORTRANGE-fallback trigger: every one of them needs logs so you can answer "did it run?" and error handling so a single bad row doesn't take down the whole batch.
+The first thirteen lessons of Track 3 covered code that does work: custom functions, menus, macros, triggers, the `SpreadsheetApp` surface. This lesson covers the part nobody thinks about until something breaks at 2 a.m.: how you see what your code did, and how you survive when it goes wrong. The team's nightly Taboola pull, the per-buyer dashboard refresher, the IMPORTRANGE-fallback trigger: every one of them needs logs so you can answer "did it run?" and error handling so a single bad row does not take down the whole batch.
+
+This lesson covers four things: the two logging surfaces (`console.log` and `Logger.log`) and which one to use; severity levels and structured logging that scale to thousands of entries; the try/catch shape every production handler uses; and the retention model of Cloud Logging plus how the team works around it. Get this lesson right and the next "something broke last Friday" investigation finishes in minutes instead of hours.
 
 ## Two logging surfaces, one sane choice
 
@@ -22,13 +24,13 @@ The two differences worth knowing:
 | Severity levels | `info`, `warn`, `error`, `debug` via `console.log/warn/error/debug` | One level (info). |
 | Argument shape | Accepts multiple args and object literals, formatted as JSON. | Single string. Multi-arg gets concatenated with commas. |
 | Cloud Logging filtering | Severities filter natively (`severity=ERROR`). | All entries land at the info level. |
-| Recommendation | Prefer this for everything new. | Leave existing code alone; don't add new calls. |
+| Recommendation | Prefer this for everything new. | Leave existing code alone; do not add new calls. |
 
-Default to `console.log`. The only time `Logger.log` still wins is when you're patching legacy code and want to match the style around you.
+Default to `console.log`. The only time `Logger.log` still wins is when you are patching legacy code and want to match the style around you.
 
 ## Severity matters when you have hundreds of runs
 
-The team's nightly trigger logs about 200 lines per run. Across a month that's ~6,000 entries. The Executions panel and the Cloud Logging viewer both let you filter by severity, and that filter is the only way to find what actually went wrong:
+The team's nightly trigger logs about 200 lines per run. Across a month that is ~6,000 entries. The Executions panel and the Cloud Logging viewer both let you filter by severity, and that filter is the only way to find what actually went wrong:
 
 ```js
 console.log("Trigger fired at " + new Date());     // info, drowns in noise
@@ -36,7 +38,7 @@ console.warn("Vertical name missing PR suffix");    // warn, worth a glance
 console.error("Failed to write row " + row + ": " + e.toString()); // error, page someone
 ```
 
-In Cloud Logging, switch the severity filter to **Error and above** and you're left with the 5 entries that actually need attention. With everything at the info level (the `Logger.log` world) you scroll through 6,000 lines hunting for the bad one.
+In Cloud Logging, switch the severity filter to **Error and above** and you are left with the 5 entries that actually need attention. With everything at the info level (the `Logger.log` world) you scroll through 6,000 lines hunting for the bad one.
 
 ## Try/catch is the production handler shape
 
@@ -62,13 +64,38 @@ Three pieces, all worth doing:
 
 1. **`try`** wraps the work that can throw. The reader, the writer, any `UrlFetchApp.fetch` to a third-party endpoint.
 2. **`catch (e)`** receives the exception. `e.toString()` is the short message; `e.stack` is the stack trace.
-3. **A side effect on failure**, usually an email or a Slack webhook or a write to an error log sheet. The catch block runs in the trigger's auth context, so it can send mail. The handler that doesn't notify is the handler nobody knows is broken.
+3. **A side effect on failure**, usually an email or a Slack webhook or a write to an error log sheet. The catch block runs in the trigger's auth context, so it can send mail. The handler that does not notify is the handler nobody knows is broken.
 
-If the caller cares about the failure (a chain of triggers where the next one should not run), `throw e` at the end of the catch after the side effect. The exception propagates up. If the caller is the runtime itself (the trigger that fired this), eating the exception is correct, you've already logged it.
+If the caller cares about the failure (a chain of triggers where the next one should not run), `throw e` at the end of the catch after the side effect. The exception propagates up. If the caller is the runtime itself (the trigger that fired this), eating the exception is correct, you have already logged it.
+
+<Compare>
+  <ComparePanel label="Wrong: silent failure" tone="negative">
+    <pre className="font-mono text-xs"><code>{`function nightlyPull() {
+  const data = fetchTaboolaData();
+  writeToCampaignsSheet(data);
+  console.log("Done");
+}`}</code></pre>
+    <p className="mt-2 text-sm">No try/catch. When fetchTaboolaData throws (token expired), the trigger fails. The Executions panel logs the error, but nobody looks at it. Two weeks later the team notices the data hasn't updated.</p>
+  </ComparePanel>
+  <ComparePanel label="Right: try/catch + notify" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function nightlyPull() {
+  try {
+    const data = fetchTaboolaData();
+    writeToCampaignsSheet(data);
+    console.log("Done: " + data.length + " rows");
+  } catch (e) {
+    console.error(e.toString(), e.stack);
+    MailApp.sendEmail("team@flexelent.com",
+      "Nightly pull broke", e.toString());
+  }
+}`}</code></pre>
+    <p className="mt-2 text-sm">try/catch wraps the work. On failure, the error is logged at the error severity AND an email is sent. The team finds out the morning of the breakage, not two weeks later.</p>
+  </ComparePanel>
+</Compare>
 
 ## Structured logs beat string concatenation
 
-A log line that says `"Failed to write row 17: TypeError: cannot read property 'length' of undefined"` is fine to read. It's terrible to filter on. The team's production triggers use **structured logging**:
+A log line that says `"Failed to write row 17: TypeError: cannot read property 'length' of undefined"` is fine to read. It is terrible to filter on. The team's production triggers use **structured logging**:
 
 ```js
 console.log({
@@ -90,6 +117,52 @@ console.error({
 
 The Executions panel shows the same logs rendered nicely (it understands the JSON structure). Cloud Logging shows them as searchable fields. Either way, the structured form pays off.
 
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: trigger fires, log start event",
+      body: (
+        <>
+          <code>console.log({"{ event: 'trigger_fired', startedAt: ... }"})</code>.
+          Cloud Logging indexes the JSON payload by field. The
+          <code>event</code> field becomes searchable.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: row 17 throws",
+      body: (
+        <>
+          <code>setValues</code> on row 17 throws because the row's data is
+          malformed. The try/catch catches the exception.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: log structured error",
+      body: (
+        <>
+          <code>console.error({"{ event: 'row_write_failed', row: 17, buyer: 'Yoav Cohen', error: ... }"})</code>.
+          The error is logged at ERROR severity with all the context for
+          later filtering.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: later debugging",
+      body: (
+        <>
+          A week later, you query Cloud Logging:{" "}
+          <code>severity=ERROR AND jsonPayload.event="row_write_failed"</code>.
+          The five events from the past month surface immediately, sortable
+          by timestamp, grouped by buyer. Without structured logs you
+          would be scrolling raw text.
+        </>
+      ),
+    },
+  ]}
+/>
+
 ## Finding a specific execution
 
 Every Apps Script run gets an **execution ID**. You see it in the Executions panel and you can search Cloud Logging by it (`labels."script.googleapis.com/script_id" = "..."`). The two cases where this matters:
@@ -108,6 +181,30 @@ Cloud Logging retains entries for **30 days** by default on a paid project, **7 
 
 The meta-spreadsheet is read-only by the team and append-only by the trigger handlers. Spend a half-hour setting it up once, save many hours of "what happened last week" archaeology.
 
+<QuickCheck
+  question="Your nightly trigger fails three times in a week. The Executions panel shows the failures but the error messages are 'TypeError' with no context. What is the most useful single change to make?"
+  options={[
+    {
+      id: "a",
+      label: "Wrap the function in try/catch and log e.toString() in the catch.",
+      correct: false,
+      explanation: "That's part of the fix, but e.toString() alone gives you 'TypeError' again. You need the stack trace and the context (which row, which buyer) for the failure to be debuggable.",
+    },
+    {
+      id: "b",
+      label: "Use structured console.error({event, row, buyer, error: e.toString(), stack: e.stack}) in the catch so each failure is searchable in Cloud Logging by field.",
+      correct: true,
+      explanation: "Right. Structured logs with the context (which row, which buyer) plus the stack trace turn three failures into three actionable bug reports instead of three lines of 'TypeError'.",
+    },
+    {
+      id: "c",
+      label: "Switch from console.log to Logger.log to reduce noise.",
+      correct: false,
+      explanation: "Logger.log only writes at info severity. console.error writes at error severity and supports structured logging. Logger.log is the legacy surface; don't add new calls to it.",
+    },
+  ]}
+/>
+
 ## Now do it for real
 
 <MiniGrid
@@ -121,7 +218,7 @@ The starter file `Lesson.gs` declares `function processSpendSafely()` with an em
 2. Add a `catch (e)` block. Log the failure with `console.error("Failed to read spend: " + e.toString())` and write the string `"error"` to J1.
 3. Run the function once in the Apps Script editor. Open the Executions panel and confirm both the log line and the function status.
 
-The `spend * 1` looks pointless, and on a clean sheet it is. The reason it's there is the realistic case where F2 holds the string `"412.5"` instead of the number `412.5` (a common shape when data comes in via IMPORTRANGE from a CSV-backed sheet). `spend * 1` coerces the string to a number; an absent multiplication would write the text into J1 and the dashboard formulas downstream would break silently.
+The `spend * 1` looks pointless, and on a clean sheet it is. The reason it is there is the realistic case where F2 holds the string `"412.5"` instead of the number `412.5` (a common shape when data comes in via IMPORTRANGE from a CSV-backed sheet). `spend * 1` coerces the string to a number; an absent multiplication would write the text into J1 and the dashboard formulas downstream would break silently.
 
 ## Used in the wild
 
@@ -132,8 +229,10 @@ The `spend * 1` looks pointless, and on a clean sheet it is. The reason it's the
 ## Pro pitfalls
 
 - **`console.log(spend)` when spend is an object prints "[object Object]".** Either wrap with `JSON.stringify(spend)` or pass the object literal as the argument (`console.log({ spend })`) so Cloud Logging keeps the structure.
-- **`Logger.log("buyer=", buyer, " spend=", spend)` doesn't multi-arg.** It concatenates with commas. Result: `"buyer=,Yoav Cohen, spend=,412.5"`. Use `console.log("buyer=" + buyer + " spend=" + spend)` or just `console.log({ buyer, spend })`.
+- **`Logger.log("buyer=", buyer, " spend=", spend)` does not multi-arg.** It concatenates with commas. Result: `"buyer=,Yoav Cohen, spend=,412.5"`. Use `console.log("buyer=" + buyer + " spend=" + spend)` or just `console.log({ buyer, spend })`.
 - **Uncaught errors in installable triggers bloat the trigger error log.** Apps Script keeps an internal per-trigger error counter. One stale handler that throws every night racks up 100+ errors a month and Google eventually sends the script owner a "your trigger keeps failing" email. Wrap installable triggers in try/catch even if the work is trivial.
-- **The 7-day retention bites Friday bugs.** A failure at 5 p.m. Friday is gone by 5 p.m. the next Friday. If the team's response time on a bug is "we'll look at it Monday", you've lost three days of breathing room. Write critical errors to a permanent log sheet too.
+- **The 7-day retention bites Friday bugs.** A failure at 5 p.m. Friday is gone by 5 p.m. the next Friday. If the team's response time on a bug is "we will look at it Monday", you have lost three days of breathing room. Write critical errors to a permanent log sheet too.
 - **Stackdriver and Cloud Logging are the same product.** Google renamed it in 2019. Old StackOverflow answers, old Medium posts, and old internal docs still say "Stackdriver". Same thing.
-- **Cloud Logging is free up to 50 GiB per project per month, then $0.50/GiB ingested.** A team writing 200 structured log lines per run, on a trigger that fires every hour, is around 1.5 GiB/month. Comfortably free. A team that logs the full row payload on every row write can blow past 50 GiB; structure the logs so you log what's necessary, not everything.
+- **Cloud Logging is free up to 50 GiB per project per month, then $0.50/GiB ingested.** A team writing 200 structured log lines per run, on a trigger that fires every hour, is around 1.5 GiB/month. Comfortably free. A team that logs the full row payload on every row write can blow past 50 GiB; structure the logs so you log what is necessary, not everything.
+- **`e.stack` not always present.** Some thrown values are not Error objects (e.g., `throw "boom"`); they have no `.stack` field. Log `e.toString()` always; log `e.stack` defensively (`if (e.stack) console.error(e.stack);`).
+- **A try/catch that swallows the exception silently is worse than no try/catch.** `catch (e) { /* nothing */ }` removes the runtime error AND removes any signal that something went wrong. Always log inside catch, even if the work was non-critical.
