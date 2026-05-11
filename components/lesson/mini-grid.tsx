@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -53,9 +54,41 @@ export function MiniGrid({
   const highlightSet = new Set(highlight);
   const formulaSet = new Set(showFormulasFor);
 
+  const [selected, setSelected] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const activeA1 = hovered ?? selected;
+  const activeCell = activeA1 ? engine.getCell(activeA1) : null;
+  const activeDisplay = activeCell
+    ? activeCell.formula
+      ? activeCell.formula
+      : formatValue(activeCell.value)
+    : "";
+
   return (
     <figure className={cn("not-prose my-4 w-fit", className)}>
       <div className="overflow-hidden rounded-md border bg-card shadow-1">
+        <div className="flex items-center gap-2 border-b bg-muted/30 px-2 py-1.5 text-xs">
+          <span
+            className={cn(
+              "inline-flex h-5 min-w-10 shrink-0 items-center justify-center rounded border px-1.5 font-mono font-medium tabular-nums",
+              activeA1
+                ? "border-[var(--primary)]/40 bg-card text-foreground"
+                : "border-transparent bg-transparent text-muted-foreground/60",
+            )}
+          >
+            {activeA1 ?? "·"}
+          </span>
+          <code
+            className={cn(
+              "min-w-0 truncate font-mono",
+              activeCell?.formula
+                ? "text-[var(--primary)]"
+                : "text-foreground/90",
+            )}
+          >
+            {activeDisplay}
+          </code>
+        </div>
         <table className="border-collapse text-sm tabular-nums">
           {showColLabels && (
             <thead>
@@ -91,18 +124,30 @@ export function MiniGrid({
                   const isHeaderRow = r === 0;
                   const role: CellRole = isHeaderRow ? "header" : "data";
                   const isHighlight = highlightSet.has(a1);
+                  const isSelected = selected === a1;
+                  const isHovered = hovered === a1;
                   const showFormula = formulaSet.has(a1) && cell.formula;
                   return (
                     <td
                       key={c}
                       className={cn(
-                        "relative h-7 min-w-16 border-b border-e px-2 text-start",
+                        "relative h-7 min-w-16 cursor-pointer border-b border-e px-2 text-start transition-colors",
                         role === "header"
                           ? "bg-muted/20 font-medium text-foreground"
                           : "bg-card text-foreground",
+                        isHovered && !isSelected && "bg-muted/40",
                         isHighlight && TONE[highlightTone],
+                        isSelected &&
+                          "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] ring-2 ring-inset ring-[var(--primary)]",
                       )}
-                      title={cell.formula ? cell.formula : undefined}
+                      onClick={() =>
+                        setSelected((prev) => (prev === a1 ? null : a1))
+                      }
+                      onMouseEnter={() => setHovered(a1)}
+                      onMouseLeave={() =>
+                        setHovered((prev) => (prev === a1 ? null : prev))
+                      }
+                      aria-label={`Cell ${a1}`}
                       data-cell={a1}
                     >
                       <motion.span
