@@ -4,7 +4,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 Something breaks. A formula gets deleted, a tab gets renamed, a paste overwrites the wrong cells, an `IMPORTRANGE` gets pointed at a stale source. The workbook now shows wrong numbers. The team finds out twenty minutes later when the morning ROI report doesn't match yesterday's. The question is not "who did it" but "what was the workbook five minutes before the break, and how do I get back there without losing the work since."
 
-Google Sheets keeps an automatic version history of every workbook. Used well, it's a save-game system. Used badly, it's a giant list of "2:14 PM, 2:18 PM, 2:22 PM" timestamps you have to scroll through hoping to spot the right one.
+Google Sheets keeps an automatic version history of every workbook. Used well, it is a save-game system. Used badly, it is a giant list of "2:14 PM, 2:18 PM, 2:22 PM" timestamps you have to scroll through hoping to spot the right one.
+
+The two levers that turn the version-history panel from a graveyard into a save-game system: **named versions** (you pin labels at moments worth coming back to) and **disciplined recovery flow** (you stop editing, name what you have, restore or copy-back, name the new state). Without these the panel is just a clock that scrolled past the right moment.
 
 ## How automatic versioning works
 
@@ -36,7 +38,25 @@ The prefix is the *kind* of moment; the date is `YYYY-MM-DD`; the suffix is a sh
 Without a convention, the team gets one of two failure modes:
 
 - **No names at all.** When something breaks, recovery is twenty minutes of clicking through timestamps trying to spot the version where the broken cell still looks right.
-- **Ad-hoc names that don't sort.** Names like `before pivot`, `before pivot 2`, `actually before pivot`, `before pivot final`. The version list is now a story nobody can read.
+- **Ad-hoc names that do not sort.** Names like `before pivot`, `before pivot 2`, `actually before pivot`, `before pivot final`. The version list is now a story nobody can read.
+
+<Compare>
+  <ComparePanel label="Ad-hoc names" tone="negative">
+    <pre className="font-mono text-xs"><code>{`before pivot
+before pivot 2
+actually before pivot
+before pivot final
+final pivot final`}</code></pre>
+    <p className="mt-2 text-sm">The version list reads like an apology. No sort order, no dates, no shared mental model. When the next break happens, every team member has a different guess at which version is "the right one".</p>
+  </ComparePanel>
+  <ComparePanel label="Prefixed, dated, hinted" tone="positive">
+    <pre className="font-mono text-xs"><code>{`PreMonthEnd-2026-03
+PreMonthEnd-2026-04
+PreBigRefactor-2026-05-09-pivot-rebuild
+PostFix-2026-05-11-imported-broken`}</code></pre>
+    <p className="mt-2 text-sm">Kind-prefix lets the list sort. Date locates each version in time. Suffix tells you what happened without opening the version. Two months later you still know which "PreMonthEnd" is which.</p>
+  </ComparePanel>
+</Compare>
 
 ## The recovery flow
 
@@ -56,15 +76,53 @@ Restoring the whole workbook is destructive in a specific way: it overwrites the
 
 The cell-by-cell copy approach sidesteps all of this. It costs more clicks but only touches the cells that were actually broken.
 
+<Compare>
+  <ComparePanel label="Restore the whole workbook" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Version history → PreMonthEnd-2026-04 → Restore this version`}</code></pre>
+    <p className="mt-2 text-sm">Replaces every cell on every tab with the snapshot. Loses unrelated edits made since (other people's work, IMPORTRANGE refresh results, the dashboard tweak you just shipped). Creates a second incident if the workbook has been actively used.</p>
+  </ComparePanel>
+  <ComparePanel label="Copy specific cells back" tone="positive">
+    <pre className="font-mono text-xs"><code>{`1. Version history → PreMonthEnd-2026-04 (view, do not restore)
+2. Copy the cells you actually need
+3. Back to live version
+4. Paste into the broken cells only`}</code></pre>
+    <p className="mt-2 text-sm">Surgical. Touches only the cells that were broken. Other people's recent edits survive. IMPORTRANGE results stay fresh. Cost: a few extra clicks. Benefit: no second incident.</p>
+  </ComparePanel>
+</Compare>
+
 ## Make a copy of an old version
 
 A third option, useful when you want to compare or salvage selectively: **Make a copy** from the version-history panel creates a new workbook from the old snapshot. The live workbook is untouched. You can then open both side-by-side and copy specific ranges across. The copy lives in your Drive as a separate file (named `Copy of [original] - [timestamp]`); rename it for what it is (`Recovery-2026-05-11-from-PreMonthEnd-2026-04`) and archive it once the recovery is done.
 
 This is the right move when:
 
-- You're not sure which cells need recovering.
+- You are not sure which cells need recovering.
 - The break is spread across multiple tabs.
 - You want a second person to review the diff before changes hit the live file.
+
+<QuickCheck
+  question="Friday 4pm: a buyer deletes a hidden helper column on the master dashboard. Six tabs of ROI formulas flip to #REF!. There is a named version `PreMonthEnd-2026-04` from two weeks ago, and three days of unrelated dashboard edits made by other people since then. What is the right recovery move?"
+  options={[
+    {
+      id: "a",
+      label: <>Restore the whole workbook to PreMonthEnd-2026-04.</>,
+      correct: false,
+      explanation: "Wipes three days of unrelated edits and resets every IMPORTRANGE to its two-week-old cached result. Creates a second incident worse than the first. Restoring the whole workbook is the right move when the break is catastrophic and recent, not when other people have edited in between.",
+    },
+    {
+      id: "b",
+      label: <>View PreMonthEnd-2026-04, copy the helper column formulas, return to live, paste them into the broken column only.</>,
+      correct: true,
+      explanation: "Surgical. Touches only the broken column. Other people's three days of edits survive. IMPORTRANGE results stay current. After the fix, name the new state (PostFix-2026-05-11-helper-restored) so the next person can find it.",
+    },
+    {
+      id: "c",
+      label: <>Wrap every broken ROI cell in IFERROR(..., 0) so the dashboard goes green.</>,
+      correct: false,
+      explanation: "Hides the symptom. The ROI cells are now 0 (wrong) instead of #REF! (visibly broken). Lesson 4.6 is exactly about why this is the worst category of fix.",
+    },
+  ]}
+/>
 
 ## What automatic versioning doesn't cover
 

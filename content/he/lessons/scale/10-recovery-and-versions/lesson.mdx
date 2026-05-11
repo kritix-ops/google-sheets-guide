@@ -6,6 +6,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 Google Sheets שומר היסטוריית גרסאות אוטומטית של כל spreadsheet. בשימוש נכון, זו מערכת save-game. בשימוש גרוע, זו רשימה ענקית של חותמות זמן "14:14, 14:18, 14:22" שצריך לגלול בה בתקווה לזהות את הנכונה.
 
+שני המנופים שהופכים את panel היסטוריית הגרסאות מבית קברות למערכת save-game: **named versions** (מצמידים תוויות לרגעים שכדאי לחזור אליהם) ו-**זרימת שחזור ממושמעת** (מפסיקים לערוך, נותנים שם למה שיש, משחזרים או מעתיקים חזרה, נותנים שם למצב החדש). בלי אלה ה-panel הוא רק שעון שגלל מעבר לרגע הנכון.
+
 ## איך הגרסאות האוטומטיות עובדות
 
 בכל פעם שה-spreadsheet נערך, Google אורז את השינויים לתוך גרסה. האריזה היא הזדמנותית: עריכות מהירות בתוך דקה או שתיים מתאחדות לגרסה אחת, פערים ארוכים יותר יוצרים גרסאות חדשות. אין שליטה על תדירות האריזה המדויקת, אבל spreadsheet עמוס מגיע לגרסה אחת כל חמש עד חמש עשרה דקות, ו-spreadsheet שקט לאחת בכמה שעות.
@@ -38,6 +40,24 @@ named version היא כזו שמסומנת במפורש. **File > Version histor
 - **בלי שמות בכלל.** כשמשהו נשבר, ה-recovery הוא עשרים דקות של לחיצות על חותמות זמן בניסיון לזהות את הגרסה שבה התא השבור עדיין נראה תקין.
 - **שמות אד-הוק שלא ממוינים.** שמות כמו `before pivot`, `before pivot 2`, `actually before pivot`, `before pivot final`. רשימת הגרסאות היא עכשיו סיפור שאף אחד לא יכול לקרוא.
 
+<Compare>
+  <ComparePanel label="שמות אד-הוק" tone="negative">
+    <pre className="font-mono text-xs"><code>{`before pivot
+before pivot 2
+actually before pivot
+before pivot final
+final pivot final`}</code></pre>
+    <p className="mt-2 text-sm">רשימת הגרסאות נקראת כמו התנצלות. אין סדר מיון, אין תאריכים, אין מודל מנטלי משותף. כשהשבירה הבאה קורית, לכל חבר צוות יש ניחוש אחר על איזו גרסה היא "הנכונה".</p>
+  </ComparePanel>
+  <ComparePanel label="עם prefix, תאריך ורמז" tone="positive">
+    <pre className="font-mono text-xs"><code>{`PreMonthEnd-2026-03
+PreMonthEnd-2026-04
+PreBigRefactor-2026-05-09-pivot-rebuild
+PostFix-2026-05-11-imported-broken`}</code></pre>
+    <p className="mt-2 text-sm">prefix לפי סוג מאפשר לרשימה להתמיין. תאריך ממקם כל גרסה בזמן. סיומת אומרת מה קרה בלי לפתוח את הגרסה. חודשיים אחר כך אתם עדיין יודעים איזה "PreMonthEnd" זה איזה.</p>
+  </ComparePanel>
+</Compare>
+
 ## זרימת ה-recovery
 
 כשמגלים שבירה, השלבים הם:
@@ -56,6 +76,20 @@ restore של כל ה-spreadsheet הוא הרסני בצורה ספציפית: ה
 
 הגישה של copy תא-תא עוקפת את כל זה. היא עולה יותר לחיצות אבל נוגעת רק בתאים שבאמת היו שבורים.
 
+<Compare>
+  <ComparePanel label="לשחזר את כל ה-workbook" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Version history ← PreMonthEnd-2026-04 ← Restore this version`}</code></pre>
+    <p className="mt-2 text-sm">מחליף כל תא בכל טאב ב-snapshot. מאבד עריכות לא קשורות שנעשו מאז (עבודה של אנשים אחרים, תוצאות רענון של IMPORTRANGE, ה-tweak ל-dashboard ששלחתם עכשיו). יוצר אירוע שני אם ה-workbook היה בשימוש פעיל.</p>
+  </ComparePanel>
+  <ComparePanel label="להעתיק תאים ספציפיים חזרה" tone="positive">
+    <pre className="font-mono text-xs"><code>{`1. Version history ← PreMonthEnd-2026-04 (לצפייה, לא לשחזר)
+2. מעתיקים את התאים שבאמת צריך
+3. חוזרים לגרסה החיה
+4. מדביקים רק בתאים השבורים`}</code></pre>
+    <p className="mt-2 text-sm">כירורגי. נוגע רק בתאים שהיו שבורים. עריכות אחרונות של אנשים אחרים שורדות. תוצאות IMPORTRANGE נשארות טריות. עלות: כמה לחיצות נוספות. תועלת: אין אירוע שני.</p>
+  </ComparePanel>
+</Compare>
+
 ## Make a copy של גרסה ישנה
 
 אופציה שלישית, שימושית כשרוצים להשוות או לחלץ באופן סלקטיבי: **Make a copy** מ-panel היסטוריית הגרסאות יוצר spreadsheet חדש מתוך ה-snapshot הישן. ה-spreadsheet החי לא נוגע. אפשר אז לפתוח את שניהם זה ליד זה ולהעתיק טווחים ספציפיים. ההעתק חי ב-Drive כקובץ נפרד (בשם `Copy of [original] - [timestamp]`); משנים את שמו למה שהוא (`Recovery-2026-05-11-from-PreMonthEnd-2026-04`) ומארכבים אותו ברגע שה-recovery סיים.
@@ -65,6 +99,30 @@ restore של כל ה-spreadsheet הוא הרסני בצורה ספציפית: ה
 - לא בטוחים אילו תאים צריכים שחזור.
 - השבירה מפוזרת על פני כמה גיליונות.
 - רוצים שאדם נוסף יסקור את ה-diff לפני שהשינויים פוגעים בקובץ החי.
+
+<QuickCheck
+  question="יום שישי 16:00: buyer מוחק עמודת עזר מוסתרת ב-dashboard הראשי. שישה טאבים של נוסחאות ROI הופכים ל-#REF!. יש named version `PreMonthEnd-2026-04` מלפני שבועיים, ושלושה ימים של עריכות dashboard לא קשורות שעשו אנשים אחרים מאז. מהו מהלך השחזור הנכון?"
+  options={[
+    {
+      id: "a",
+      label: <>לשחזר את כל ה-workbook ל-PreMonthEnd-2026-04.</>,
+      correct: false,
+      explanation: "מוחק שלושה ימי עריכות לא קשורות ומאפס כל IMPORTRANGE לתוצאת ה-cache שלו מלפני שבועיים. יוצר אירוע שני גרוע יותר מהראשון. שחזור של כל ה-workbook הוא המהלך הנכון כשהשבירה קטסטרופלית וטרייה, לא כשאנשים אחרים ערכו בינתיים.",
+    },
+    {
+      id: "b",
+      label: <>לצפות ב-PreMonthEnd-2026-04, להעתיק את נוסחאות עמודת העזר, לחזור לחי, להדביק אותן רק לעמודה השבורה.</>,
+      correct: true,
+      explanation: "כירורגי. נוגע רק בעמודה השבורה. שלושת ימי העריכות של אנשים אחרים שורדים. תוצאות IMPORTRANGE נשארות עדכניות. אחרי התיקון, נותנים שם למצב החדש (PostFix-2026-05-11-helper-restored) כדי שהאדם הבא ימצא.",
+    },
+    {
+      id: "c",
+      label: <>לעטוף כל תא ROI שבור ב-IFERROR(..., 0) כדי שה-dashboard יתחיל ירוק.</>,
+      correct: false,
+      explanation: "מסתיר את התסמין. תאי ה-ROI הם עכשיו 0 (שגוי) במקום #REF! (שבור נראית). שיעור 4.6 הוא בדיוק על למה זו הקטגוריה הגרועה ביותר של תיקון.",
+    },
+  ]}
+/>
 
 ## מה ש-versioning אוטומטי לא מכסה
 
