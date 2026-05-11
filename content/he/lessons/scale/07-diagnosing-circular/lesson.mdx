@@ -4,7 +4,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 reference מעגלי הוא graph של תלויות עם loop. תא A אומר "אני צריך את B", תא B אומר "אני צריך את A", ולמנוע אין מאיפה להתחיל. Sheets מסרב לחשב את הלולאה ומציג `#REF!` עם "Circular dependency detected" ב-tooltip על כל תא ב-cycle. השגיאה רועשת אבל הסיבה לפעמים חבויה עמוק, במיוחד כשהלולאה רצה דרך שלושה תאים או יותר, דרך `INDIRECT`, או דרך trigger של Apps Script שכותב לאותו תא שהפעיל אותו.
 
-הצורה להפנים: **Sheets מחשב directed acyclic graph. כל cycle עוצר את ה-graph.**
+הרעיון המרכזי: **Sheets מחשב directed acyclic graph. כל cycle עוצר את ה-graph.**
 
 ## ארבע הצורות הנפוצות של cycles
 

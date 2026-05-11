@@ -70,7 +70,7 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
   answer={<>הארגומנט השלישי הוא מספר העמודה <strong>בתוך הטווח</strong>, לא בתוך הגיליון. כיוון שהטווח מתחיל בעמודה I, "Category" הוא עמודה 2 של הטווח. הארגומנט הרביעי <code>FALSE</code> מאלץ התאמה מדויקת. השמטה שלו (או העברת <code>TRUE</code>) אומרת ל-VLOOKUP שהמידע ממוין, מה שעלול להחזיר התאמות שגויות בשקט אם הוא לא. תמיד תעבירו <code>FALSE</code> אלא אם אתם מבצעים lookup של range-bucket במכוון.</>}
 />
 
-המלכודת הכי גדולה של VLOOKUP: הוא יכול לסרוק **רק** משמאל לימין (במונחים של עמודות באנגלית: column index גדל). אם עמודת ה-lookup שלכם נמצאת מימין לעמודה שאתם רוצים להחזיר, VLOOKUP לא יעזור. מקרה אדטק אמיתי: בגיליון verticals יש עמודות Vertical, Category, Avg CPC. למצוא איזה vertical יש לו Avg CPC מסוים, VLOOKUP לא מסוגל. Avg CPC נמצא מימין ל-Vertical.
+המלכודת הכי גדולה של VLOOKUP: הוא יכול לסרוק **רק** בכיוון של column index עולה (משמאל לימין באנגלית). אם עמודת ה-lookup שלכם נמצאת מימין לעמודה שאתם רוצים להחזיר, VLOOKUP לא יעזור. מקרה אדטק אמיתי: בגיליון verticals יש עמודות Vertical, Category, Avg CPC. למצוא איזה vertical יש לו Avg CPC מסוים, VLOOKUP לא מסוגל. Avg CPC נמצא מימין ל-Vertical.
 
 ## HLOOKUP: VLOOKUP מסובב ב-90 מעלות
 
