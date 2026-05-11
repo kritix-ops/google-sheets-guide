@@ -4,6 +4,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 Lesson 12 covered QUERY's basics: SELECT, WHERE, ORDER BY, LIMIT. This lesson goes deeper with the clauses that turn QUERY from "SQL filter" into "the most powerful aggregation tool in Sheets": `GROUP BY`, `PIVOT`, `LABEL`, plus the gotchas that catch every adtech analyst eventually.
 
+<FunctionRef name="QUERY" />
+
 ## GROUP BY: aggregate by category
 
 `GROUP BY` collapses rows into groups. Combined with aggregation functions (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`), it produces summary tables.
@@ -66,6 +68,65 @@ When you pass a range *without* a header row to QUERY (or pass `0` as the header
 ```
 
 When using IMPORTRANGE inside QUERY, the same trap: IMPORTRANGE'd data doesn't carry headers in the same way, so columns become Col1...ColN.
+
+### Easy traps: GROUP BY / aggregates
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT A, B, SUM(F) GROUP BY B", 1)`}</code></pre>
+    <p className="mt-2 text-sm">SELECT references column A but GROUP BY only groups by B. QUERY errors: every non-aggregated column in SELECT must appear in GROUP BY.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B", 1)`}</code></pre>
+    <p className="mt-2 text-sm">Drop the bare A from SELECT or add it to GROUP BY (which collapses by buyer+date). The "every non-aggregated column must also be grouped" rule is the most-flagged QUERY error in production.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT *, SUM(F) GROUP BY B", 1)`}</code></pre>
+    <p className="mt-2 text-sm"><code>SELECT *</code> can't be combined with GROUP BY. QUERY needs the explicit column list to know which columns are grouped and which are aggregated.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, SUM(F), AVG(F) GROUP BY B", 1)`}</code></pre>
+    <p className="mt-2 text-sm">Enumerate the columns you want and the aggregates you need. SUM, AVG, COUNT, MIN, MAX all compose this way. Add LABEL clauses at the end to rename the auto-named result columns.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT A, SUM(F) GROUP BY A", 1)`}</code></pre>
+    <p className="mt-2 text-sm">Grouping by exact date. If A holds "2026-05-01" and "2026-05-02" each row, you get one row per day, not per month. Dashboards meant to roll up monthly silently break.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT YEAR(A), MONTH(A), SUM(F) GROUP BY YEAR(A), MONTH(A)", 1)`}</code></pre>
+    <p className="mt-2 text-sm">Group by extracted parts. <code>YEAR(A), MONTH(A)</code> bucket dates into year-month pairs. QUERY supports the date functions you'd expect (DAY, DAYOFWEEK, QUARTER, etc.).</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You write a QUERY that GROUP BYs Buyer and PIVOTs Platform. The result table has 50 columns even though the team only runs on 7 platforms. What's going on?"
+  options={[
+    {
+      id: "a",
+      label: "QUERY pivots every distinct value of the column you pass. The source data probably has typos or whitespace variants of platform names (Taboola, taboola, 'Taboola ').",
+      correct: true,
+      explanation: "PIVOT creates one column per distinct value of the pivot column. Dirty data multiplies the columns. Run UNIQUE on the source column first to spot the variants, then normalize with TRIM and SUBSTITUTE upstream.",
+    },
+    {
+      id: "b",
+      label: "PIVOT always creates 50 columns regardless of the data.",
+      correct: false,
+      explanation: "PIVOT is data-driven: one column per distinct value.",
+    },
+    {
+      id: "c",
+      label: "QUERY adds padding columns to make the result square.",
+      correct: false,
+      explanation: "QUERY doesn't pad. The columns come from the data.",
+    },
+  ]}
+/>
 
 ## Used in the wild
 
