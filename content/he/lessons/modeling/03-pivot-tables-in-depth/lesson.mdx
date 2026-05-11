@@ -2,99 +2,258 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Pivot tables לעומק: filters, multi-value, calculated fields
 
-שיעור 2 כיסה את ארבעת הסלוטים ב-Pivot editor: Rows, Columns, Values, Filters. זה מספיק ל-dashboards הפשוטים. ברגע שצריך לצמצם pivot למדינה אחת, לערום שלושה מספרים בכל תא, או לאחד תאריכים לרבעונים, יוצאים מהבסיס. השיעור הזה הוא כל מה ש-media buyer מנוסה משתמש בו ב-spreadsheet אמיתי כל יום.
+לסון 2.2 כיסה את ארבעת הסלוטים ב-Pivot editor: Rows, Columns, Values, Filters. זה מספיק ל-dashboards הפשוטים ביותר. ברגע שצריך לצמצם pivot למדינה אחת, לערום שלושה מספרים בכל תא, או לקבץ תאריכים לרבעונים, חורגים מהבסיס. השיעור הזה הוא השאר ממה ש-media buyer עובד משתמש בו ב-spreadsheet אמיתי כל יום.
 
-## Filters: by values מול by condition
+הרף שכדאי לכוון אליו: בסוף השיעור, אתם אמורים להיות מסוגלים להסתכל על כל pivot של dashboard צוותי ולעשות לו reverse-engineering. טווח מקור, Rows, Columns, Values (עם פונקציות הסיכום שלהם), Filters, וכל calculated fields. ברגע שיודעים לקרוא pivots, לבנות אותם זה בעיקר זיכרון שרירי.
 
-הסלוט Filters מצמצם את המקור **לפני** שה-pivot מבצע אגרגציה. שני סוגים:
+## Filters: לפי ערכים לעומת לפי תנאי
 
-| סוג | מה הוא עושה | מתי מושיטים יד |
+הסלוט Filters מצמצם את המקור לפני שה-pivot עושה אגרגציה. שני סוגים:
+
+| סוג | מה הוא עושה | מתי לבחור בו |
 |---|---|---|
-| **Filter by values** | רשימה מפורשת של ערכים גלויים | כשיודעים את הסט המדויק: `Country in {DE, UK}`, `Platform in {Google, Facebook}` |
-| **Filter by condition** | תנאי שהשורה במקור צריכה לקיים | `Spend > 200`, `Vertical contains "PR"`, `Date is after 2026-04-15` |
+| **Filter by values** | רשימת הרשאה מפורשת של פריטים נראים | אתם יודעים את הסט המדויק: `Country in {DE, UK}`, `Platform in {Google, Facebook}` |
+| **Filter by condition** | תנאי שכל שורת מקור חייבת לקיים | `Spend > 200`, `Vertical contains "PR"`, `Date is after 2026-04-15` |
 
-ב-Sheets API, by-values מופיע כרשימת `visibleValues`. by-condition מופיע כ-`BooleanCondition` עם type (`NUMBER_GREATER`, `TEXT_CONTAINS`, `DATE_AFTER`, `CUSTOM_FORMULA`, …) ועם `conditionValues` תואמים. שניהם נצמדים לעמודת מקור אחת בכל פעם. ה-grader של השיעור הזה קורא את הצורה של by-values.
+By-values מופיע ב-Sheets API כרשימת `visibleValues`. By-condition מופיע כ-`BooleanCondition` עם סוג (`NUMBER_GREATER`, `TEXT_CONTAINS`, `DATE_AFTER`, `CUSTOM_FORMULA`, ...) ו-`conditionValues` תואמים. שניהם מתחברים לעמודת מקור אחת בכל פעם. ה-grader של השיעור הזה קורא את צורת ה-by-values.
 
-הבחירה המקצועית ביניהם: **by-values** לרשימה יציבה (המדינות שבאמת רצים בהן, ארבעת ה-media buyers בצוות), **by-condition** לכל דבר דינמי (טווח התאריכים של החודש הנוכחי, ספי ROI, חיפושי טקסט אד-הוק). לא מבזבזים filter של by-values על רשימה שגדלה כל שבוע.
+הבחירה המקצועית ביניהם: **by-values** לרשימה יציבה (מדינות שבאמת רצים בהן, ארבעת ה-buyers של הצוות), **by-condition** לכל דבר דינמי (טווח תאריכים של החודש הזה, ספי ROI, חיפושי טקסט אד-הוק). לא לבזבז by-values filter על רשימה שגדלה כל שבוע.
 
-## Slicers: filters עם ממשק על הגיליון
+<Compare>
+  <ComparePanel label="רשימה יציבה ➜ by values" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Filter on Country
+  by values: {DE, UK, US}
 
-slicer הוא filter של pivot עטוף בפקד שיושב על הגיליון. אותה השפעה על ה-pivot, השפעה אחרת לגמרי על הצוות. עורכים עם הרשאות filter משנים את הסלוט Filters בתוך ה-Pivot editor; צופים לא יכולים. slicer מציג dropdown ישירות על הגיליון, אז צופה שיכול רק לקרוא את ה-spreadsheet עדיין יכול ללחוץ "Country: DE" ולראות את ה-pivot מחושב מחדש.
+הצוות רץ בשלוש מדינות.
+הרשימה לא משתנה מחודש לחודש.
+By-values מדויק ומתעד את עצמו.`}</code></pre>
+    <p className="mt-2 text-sm">כשהסט סגור, by-values מפרט בדיוק מה כלול. מדינה חדשה בנתוני המקור לא תופיע עד שעורכים את ה-filter.</p>
+  </ComparePanel>
+  <ComparePanel label="סף דינמי ➜ by condition" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Filter on Spend
+  by condition: NUMBER_GREATER
+  value: 200
 
-מוסיפים slicer דרך `Data → Slicer`, מצביעים על טווח המקור של ה-pivot, ובוחרים עמודה. הבחירה ב-slicer היא state עצמאי, נפרד מהסלוט Filters של ה-pivot. כששניהם מוגדרים, הם נחתכים זה עם זה.
+הסף הוא השאלה.
+כל קמפיין חדש עם spend > $200
+מתאים אוטומטית.`}</code></pre>
+    <p className="mt-2 text-sm">כשהכלל הוא "כל דבר שמתאים לתנאי הזה", by-condition זו הצורה הנכונה. שורות מקור חדשות נבדקות לפי אותו כלל.</p>
+  </ComparePanel>
+</Compare>
 
-מתי מוסיפים slicer: לכל dashboard שגורם הצופה יסתכל עליו, כשרוצים שיוכל להחליף מדינה, media buyer, או פלטפורמה בלי ללמוד את ה-editor. לא מוסיפים slicer ל-pivot שרק אתם נוגעים בו, זה רק מצפיף את הגיליון.
+<QuickCheck
+  question="הצוות שלכם מוסיף מדינה רביעית (ברזיל) ללוג הקמפיינים. ל-pivot ב-dashboard יש filter 'Country by values' שמפרט DE, UK, US. מה קורה?"
+  options={[
+    {
+      id: "a",
+      label: "שורות ברזיל החדשות מופיעות אוטומטית ב-pivot כי ה-filter מתירני כברירת מחדל",
+      correct: false,
+      explanation: "by-values filters הם רשימת הרשאה. כל דבר שלא ברשימה לא נכלל, כולל ערכים חדשים לגמרי כמו ברזיל.",
+    },
+    {
+      id: "b",
+      label: "שורות ברזיל לא נכללות בשקט עד שמישהו עורך את ה-filter כדי לכלול BR",
+      correct: true,
+      explanation: "זו המלכודת. ה-dashboard עדיין מראה שלוש מדינות, הצוות חושב שברזיל לא מייצרת revenue, וה-buyer שמריץ אותה מבזבז יומיים על debug לפני שהוא שם לב ל-filter. השתמשו ב-by-condition (או בלי filter) לרשימות מדינות דינמיות.",
+    },
+    {
+      id: "c",
+      label: "ה-filter זורק שגיאת #REF! כי רשימת הערכים לא מעודכנת",
+      correct: false,
+      explanation: "By-values filters אף פעם לא נכשלים על ערך חסר; הם פשוט מוציאים אותו. ההוצאה השקטה היא מה שעושה את הבאג הזה יקר.",
+    },
+  ]}
+/>
 
-## Multi-value pivots: ערימה של SUM, AVERAGE, COUNTA
+## Slicers: filters עם משטח UI
 
-הסלוט Values מקבל יותר מ-value אחד. ערמו `SUM Spend`, `SUM Revenue`, `COUNTA Date` (ספירת קמפיינים), `AVERAGE ROI` באותו pivot, וכל תא `Row × Column` יציג את כולם זה ליד זה, או נערמים, תלוי ב-`valueLayout`.
+slicer הוא pivot filter עטוף בקונטרול על הגיליון. אותה השפעה על ה-pivot, השפעה שונה לגמרי על הצוות. עורכים עם גישת filter משנים את הסלוט Filters של ה-pivot בתוך ה-editor; viewers לא יכולים. slicer מציג dropdown ישירות על הגיליון, אז viewer שיכול רק לקרוא את ה-workbook עדיין יכול ללחוץ "Country: DE" ולראות את ה-pivot מחושב מחדש.
 
-שתי פריסות:
+מכניסים slicer עם `Data → Slicer`, מצביעים על טווח המקור של ה-pivot, ובוחרים עמודה. הבחירה של ה-slicer היא state משלה, נפרד מהסלוט Filters של ה-pivot. כששניהם מוגדרים, הם נחתכים.
 
-- **HORIZONTAL** (ברירת מחדל). כל value מקבל עמודה משלו תחת כל קבוצת Column. עם קבוצת Column אחת "Platform" (7 פלטפורמות) ושלושה values, מקבלים 21 עמודות תוצאה. עוד נסבל. עם שתי קבוצות Columns זה מתפוצץ.
-- **VERTICAL**. ה-values נערמים כשורות תחת כל קבוצת Row. עם Buyer ב-Rows ושלושה values, כל media buyer מקבל שלוש שורות, והעמודות נשארות צרות.
+מתי להוסיף slicer: כל dashboard ש-stakeholder יסתכל עליו, שבו אתם רוצים שהוא יחליף את המדינה, ה-buyer, או הפלטפורמה בלי ללמוד את ה-editor. לא להוסיף slicer ל-pivot שרק אתם נוגעים בו. זה רק עומס על הגיליון.
 
-ברירת המחדל של הצוות ל-**3 values ומעלה היא VERTICAL**. ה-pivot נקרא מלמעלה למטה כמו דוח רגיל, וספירת העמודות מפסיקה להתפוצץ כשמוסיפים value רביעי.
+<QuickCheck
+  question="ה-CFO פותחת את ה-dashboard שלכם כ-viewer. היא רוצה לראות את ה-pivot מסונן רק ל-US, ואז רק ל-UK. איזה דפוס מאפשר לה לעשות את זה בלי לתת לה גישת עריכה?"
+  options={[
+    {
+      id: "a",
+      label: "להוסיף slicer על Country שמצביע על טווח המקור של ה-pivot",
+      correct: true,
+      explanation: "slicer הוא הקונטרול על הגיליון ש-viewers יכולים להשתמש בו. הם לוחצים DE / UK / US ב-slicer וה-pivot מחושב מחדש. לא נדרשת גישת עריכה.",
+    },
+    {
+      id: "b",
+      label: "להוסיף Country filter לסלוט Filters של ה-Pivot editor",
+      correct: false,
+      explanation: "Filters ב-editor ניתנים לעריכה רק על ידי עורכים. viewer יכול לראות אותם אבל לא יכול לשנות אותם. ה-CFO תצטרך לבקש מכם להפוך את המדינה בכל פעם.",
+    },
+    {
+      id: "c",
+      label: "להעתיק את ה-pivot למדינה כדי שהיא תבחר את ה-tab הנכון",
+      correct: false,
+      explanation: "שלושה pivots זה שלושה דברים לתחזק. Slicers קיימים בדיוק כדי שלא תצטרכו לעשות את זה.",
+    },
+  ]}
+/>
 
-## Custom date groupings: שנים, רבעונים, חודשים בלחיצה
+## Pivots מרובי-ערכים: עירום SUM, AVERAGE, COUNTA
 
-עמודת Date ב-Rows או ב-Columns מציגה כל תאריך מובחן כקבוצה משלו, וזה כמעט אף פעם לא מה שרוצים. כדי לאחד: לוחצים ימני על קבוצת השורה של התאריך בפלט ה-pivot, בוחרים `Create pivot group rule → Group by date`, ובוחרים גרנולריות. שנה, year-quarter, year-month, year-month-day, יום בשבוע, שעה. כלל הקיבוץ חי על הגדרת ה-pivot, לא על נתוני המקור, אז עמודת המקור נשארת גולמית.
+הסלוט Values מקבל יותר מערך אחד. עורמים `SUM Spend`, `SUM Revenue`, `COUNTA Date` (ספירת קמפיינים), `AVERAGE ROI` באותו pivot, וכל תא `Row × Column` מציג את כולם זה לצד זה, או מעורמים, תלוי ב-`valueLayout`.
 
-הקיבוץ הנפוץ באדטק הוא **year-quarter** לסקירות פיננסיות ו-**year-month** ל-dashboards של מגמה חודשית. נמנעים מקיבוץ לפי `Quarter` גולמי (בלי השנה): Q1 של 2025 ו-2026 קורסים לקבוצה אחת ומאבדים את הסיפור של year-over-year.
+שני layouts:
+
+- **HORIZONTAL** (ברירת מחדל). כל value מקבל עמודה משלו תחת כל קבוצת Column. עם קבוצת Column אחת "Platform" (7 פלטפורמות) ושלושה values, מקבלים 21 עמודות תוצאה. נסבל. עם שתי קבוצות Columns זה מתפוצץ.
+- **VERTICAL**. ה-values נערמים כשורות תחת כל קבוצת Row. עם Buyer ב-Rows ושלושה values, כל buyer מקבל שלוש שורות, והעמודות נשארות צרות.
+
+ברירת המחדל של הצוות ל-**3 ערכים או יותר היא VERTICAL**. ה-pivot נקרא מלמעלה למטה כמו דוח רגיל, וספירת העמודות מפסיקה להתפוצץ כשמוסיפים ערך רביעי.
+
+<Compare>
+  <ComparePanel label="HORIZONTAL עם 3 values, 7 פלטפורמות" tone="negative">
+    <pre className="font-mono text-xs"><code>{`         | Google           | Taboola          | ...
+Buyer    | Spend | Rev | ROI | Spend | Rev | ROI | ...
+
+21 עמודות. עייפות עיניים. הדפסה
+גולשת. צילום מסך של Slack חותך אותה.`}</code></pre>
+    <p className="mt-2 text-sm">כל פלטפורמה מתרחבת ל-3 תת-עמודות. ה-pivot ברוחב 21 עמודות. קשה לסקור.</p>
+  </ComparePanel>
+  <ComparePanel label="VERTICAL עם אותם 3 values" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Buyer       | Google | Taboola | Outbrain | ...
+Yoav Spend  |    342 |       0 |      318 |
+Yoav Rev    |    487 |       0 |      402 |
+Yoav ROI    |   1.42 |       - |     1.26 |
+Dina Spend  |    296 |     215 |        0 |
+...`}</code></pre>
+    <p className="mt-2 text-sm">שלוש שורות לכל buyer, 7 עמודות בסך הכל. הערימה נקראת באופן טבעי. הוספת ערך רביעי מוסיפה שורה רביעית, לא קבוצת-עמודה רביעית.</p>
+  </ComparePanel>
+</Compare>
+
+## קיבוצי תאריך מותאמים: שנים, רבעונים, חודשים בלחיצה אחת
+
+עמודת Date ב-Rows או Columns מפרטת כל תאריך נפרד כקבוצה משלו, מה שכמעט אף פעם זה לא מה שרוצים. כדי לקבץ: לוחצים ימני על קבוצת השורה של התאריך בפלט ה-pivot, בוחרים `Create pivot group rule → Group by date`, ובוחרים את הגרנולריות. שנה, שנה-רבעון, שנה-חודש, שנה-חודש-יום, יום בשבוע, שעה. כלל הקיבוץ חי בהגדרת ה-pivot, לא בנתוני המקור, אז עמודת המקור נשארת raw.
+
+הקיבוץ הנפוץ באדטק הוא **שנה-רבעון** לסקירות פיננסים ו-**שנה-חודש** ל-dashboards של טרנדים חודשיים. הימנעו מקיבוץ לפי `Quarter` בלבד (בלי השנה): Q1 על פני 2025 ו-2026 מתמזגות לקבוצה אחת ואיבדתם את סיפור ה-year-over-year.
+
+<Compare>
+  <ComparePanel label="שבור: רבעון בלי שנה" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Group by: Quarter
+
+Result:
+  Q1   ← מאחד 2025 Q1 + 2026 Q1
+  Q2   ← מאחד 2025 Q2 + 2026 Q2
+  ...`}</code></pre>
+    <p className="mt-2 text-sm">year-over-year נעלם. Q1 2026 מסתתר בתוך אותו דלי כמו Q1 2025. חסר תועלת לפיננסים.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד: Year-Quarter" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Group by: Year-Quarter
+
+Result:
+  2025-Q1
+  2025-Q2
+  2026-Q1
+  2026-Q2
+  ...`}</code></pre>
+    <p className="mt-2 text-sm">כל רבעון הוא דלי משלו. טרנדים של YoY נראים במבט אחד. זו ברירת המחדל לכל pivot שמופנה לפיננסים.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="ל-pivot שלכם יש Date ב-Rows. הצוות צריך לראות טרנדי spend חודשיים על פני כל 2025 ו-2026 לסקירת תכנון. איזה כלל קיבוץ-תאריך נכון?"
+  options={[
+    {
+      id: "a",
+      label: "Group by Month (בלי Year)",
+      correct: false,
+      explanation: "אותה מלכודת כמו 'Quarter without Year'. ינואר 2025 וינואר 2026 מתמזגים לדלי אחד. תראו רק 12 שורות בסך הכל.",
+    },
+    {
+      id: "b",
+      label: "Group by Year-Month",
+      correct: true,
+      explanation: "24 שורות (אחת לחודש מינואר 2025 עד דצמבר 2026), השוואת year-over-year נשמרת, טרנדים נראים בהתקדמות הזמן. זו הגרנולריות הנכונה לתכנון חודשי.",
+    },
+    {
+      id: "c",
+      label: "Group by Day of Week",
+      correct: false,
+      explanation: "Day-of-week מיועד לשאלות עונתיות שבועיות (האם יום שני חלש מיום שישי?), לא לסקירות טרנד חודשי.",
+    },
+  ]}
+/>
 
 ## Calculated fields, לעומק
 
-שיעור 2 הציג את calculated fields כפתח המילוט כשאף אחת מפונקציות summarize הסטנדרטיות לא מכסה את הצורך. התחביר המלא: סלוט Values שה-summarize שלו הוא `CUSTOM`, עם מחרוזת `formula` שמפנה לכותרות מקור בגרשיים יחידים:
+לסון 2.2 הציג את ה-calculated fields כפתח המילוט כשאף פונקציית הסיכום הסטנדרטית לא מכסה את מה שצריך. ה-syntax המלא: סלוט Values שה-summarize שלו הוא `CUSTOM`, עם מחרוזת `formula` שמפנה לכותרות מקור במירכאות בודדות:
 
 ```
 = ('Revenue' - 'Spend') / 'Spend'
 ```
 
-שתי צורות מייצרות אותו ROI:
+שתי צורות מייצרות את אותו ROI:
 
 ```
 = ('Revenue' - 'Spend') / 'Spend'
 = 'Revenue' / 'Spend' - 1
 ```
 
-ה-grader של השיעור הזה מקבל את שתיהן, על ידי בדיקה שהנוסחה מכילה גם `'Revenue'` וגם `'Spend'`.
+ה-grader של השיעור הזה מקבל את שתיהן, על ידי בדיקה שהנוסחה מכילה גם את `'Revenue'` וגם את `'Spend'`.
 
-המלכודת: שמות עמודות הם **case-sensitive** וחייבים להתאים בדיוק לטקסט של כותרת המקור. `'revenue'` (אותיות קטנות) ייכשל בשקט. `'Total Spend'` הוא שם שונה מ-`'Total spend'`. אם calculated field מחזיר `#REF!` או ריק, ה-reference לעמודה הוא הדבר הראשון לבדוק.
+המלכודת: שמות עמודות **רגישים לאותיות גדולות וקטנות** וחייבים להתאים בדיוק לטקסט כותרת המקור. `'revenue'` (אותיות קטנות) ייכשל בשקט. `'Total Spend'` הוא שם אחר מ-`'Total spend'`. אם calculated field מחזיר `#REF!` או ריק, הפניית העמודה היא הדבר הראשון לבדוק.
 
-המלכודת השנייה: הנוסחה מוערכת אחרי ה-SUM המשתמע כברירת מחדל, אז `'Revenue' / 'Spend'` לכל תא הוא `SUM(Revenue) / SUM(Spend)` עבור השורות באותו תא, וזה היחס של ה**פורטפוליו**. זה כמעט תמיד מה שרוצים ל-ROI, ROAS, או CPC משוקלל. אם דווקא רוצים את הממוצע של יחסי פר-שורה, מחשבים את היחס בעמודת מקור ומבצעים אגרגציה עליה.
+המלכודת השנייה: הנוסחה מחושבת אחרי ה-SUM המשתמע כברירת מחדל, אז `'Revenue' / 'Spend'` לכל תא הוא `SUM(Revenue) / SUM(Spend)` עבור השורות באותו תא, שזה היחס של ה-**portfolio**. כמעט תמיד זה מה שרוצים ל-ROI, ROAS, או CPC משוקלל. אם דווקא רוצים את הממוצע של יחסי-שורה, מחשבים את היחס בעמודת מקור ומצרפים את זה.
+
+<Compare>
+  <ComparePanel label="שבור: שינוי שם כותרת, הנוסחה לא עודכנה" tone="negative">
+    <pre className="font-mono text-xs"><code>{`שורת הכותרת במקור: Revenue ➜ Revenue (USD)
+
+Calculated field עדיין קורא:
+  = 'Revenue' / 'Spend'
+
+תאי pivot: #REF! בכל מקום.`}</code></pre>
+    <p className="mt-2 text-sm">שינוי שם של כותרת מקור שובר בשקט כל calculated field שהפנה אליה. אין rename-propagation. תמיד עוברים על ה-pivots אחרי שינוי schema.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד: שינוי השם מגיע לנוסחה" tone="positive">
+    <pre className="font-mono text-xs"><code>{`שורת הכותרת במקור: Revenue (USD)
+Spend (USD)
+
+Calculated field:
+  = 'Revenue (USD)' / 'Spend (USD)'`}</code></pre>
+    <p className="mt-2 text-sm">אחרי כל שינוי שם של כותרת, עוברים על ה-calculated fields של כל pivot ומעדכנים את ה-references. שומרים שמות כותרת יציבים כדי להימנע מהעבודה מלכתחילה.</p>
+  </ComparePanel>
+</Compare>
 
 ## עכשיו לעבודה אמיתית
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="60 שורות של נתוני קמפיינים ממלאות את A1:G61. ה-pivot ב-K1 ימשוך שלושה values לכל media buyer, עבור שתי מדינות (DE ו-UK)."
+  caption="60 שורות של נתוני קמפיינים ממלאות את A1:G61. ה-pivot ב-K1 יביא שלושה ערכים לכל buyer בשתי מדינות (DE ו-UK)."
 />
 
-לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. ואז עוגנים pivot table ב-`K1` עם:
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. ואז עגנו pivot table ב-`K1` עם:
 
 - **טווח מקור**: `Campaigns!A1:G61`.
 - **Rows**: Buyer.
-- **Values** (שלושה):
+- **Values** (שלושה מהם):
   - SUM של Spend
   - SUM של Revenue
-  - calculated field ל-ROI: `=('Revenue' - 'Spend') / 'Spend'` (או `='Revenue'/'Spend' - 1`).
-- **Filter**: Country, by values, משאירים DE ו-UK בלבד.
+  - Calculated field ל-ROI: `=('Revenue' - 'Spend') / 'Spend'` (או `='Revenue'/'Spend' - 1`).
+- **Filter**: Country, by values, להשאיר רק DE ו-UK.
 - **Value layout**: As rows (VERTICAL).
 
-התוצאה היא פירוט Spend / Revenue / ROI ברמת media buyer לשני השווקים האנגלוסקסיים הגדולים של הצוות. ה-grader קורא את הגדרת ה-pivot חזרה ומאמת כל חלק.
+התוצאה היא פירוט Spend / Revenue / ROI ברמת ה-buyer לשני השווקים דוברי האנגלית הגדולים של הצוות. ה-grader קורא את הגדרת ה-pivot חזרה ומאמת כל חלק.
 
 ## נפוץ בשטח
 
 ב-spreadsheets האמיתיים של הצוות:
 
-- **ה-pivot של dashboard לפי מדינה**: slicer על Country בראש הגיליון, pivot מתחתיו עם SUM Spend, SUM Revenue, calculated ROI על Rows = Buyer. הצופה מחליף DE → UK → US וה-pivot מחושב מחדש. ל-pivot עצמו אין סלוט Filters מוגדר; ה-slicer הוא ה-filter היחיד, כך שעורכים יכולים לשנות אותו בלי לגעת ב-config של ה-pivot.
-- **לוח התוצאות של media buyers**: Rows = Buyer, Values = SUM Spend, SUM Revenue, COUNTA Date, calculated ROI, calculated `'Revenue' - 'Spend'` לרווח פורטפוליו. חמישה values, פריסת VERTICAL, מסך אחד.
-- **התצוגה הרבעונית של geo**: Rows = Country, Columns = Date מקובץ לפי year-quarter, Values = SUM Spend. הקצאת geo רבעונית לפיננסים, ב-pivot אחד, בלי עמודות עזר.
+- **ה-pivot של ה-dashboard המצומצם לפי מדינה**: slicer על Country בראש הגיליון, pivot מתחת עם SUM Spend, SUM Revenue, calculated ROI על Rows = Buyer. ה-viewer הופך DE → UK → US וה-pivot מחושב מחדש. ל-pivot עצמו אין סלוט Filters מוגדר; ה-slicer הוא ה-filter היחיד, אז עורכים יכולים לשנות אותו בלי לגעת ב-config של ה-pivot.
+- **ה-buyer scoreboard**: Rows = Buyer, Values = SUM Spend, SUM Revenue, COUNTA Date, calculated ROI, calculated `'Revenue' - 'Spend'` לרווח portfolio. חמישה ערכים, VERTICAL layout, מסך אחד.
+- **התצוגה הגיאוגרפית הרבעונית**: Rows = Country, Columns = Date מקובץ ב-year-quarter, Values = SUM Spend. הקצאה גיאוגרפית רבעונית לפיננסים, ב-pivot אחד, בלי עמודות עזר.
 
 ## מלכודות מקצועיות
 
-- **Filters שזזות כשמכניסים או מסירים עמודות במקור**. ה-`sourceColumn` של ה-filter הוא offset לתוך טווח המקור, לא שם של כותרת. מכניסים עמודה באמצע המקור וכל filter מעבר לנקודת ההכנסה זז בשקט לעמודה הלא נכונה. אותה מלכודת ל-calculated fields שמפנים לכותרות עמודה אם גם משנים שם של כותרת.
-- **calculated field עם כותרת מקור ששמה השתנה**. משנים את השם של `Revenue` ל-`Revenue (USD)` בשורה 1, וכל calculated field שמפנה ל-`'Revenue'` מחזיר `#REF!` עד שעורכים גם את הנוסחה. אין הפצה אוטומטית של שינוי שם.
-- **פריסת VERTICAL בלי "Show totals"**. ה-pivot נקרא מלמעלה למטה אבל אם ה-totals כבויים, לעין אין שורת עוגן לכל media buyer. מפעילים Rows → Show totals ב-pivots עם קיבוץ; שורת ה-totals היא מה שעושה את הפריסה קריאה.
-- **slicers שלא נראים לצופים**. slicer הוא אובייקט צף על הגיליון. אם ה-pivot נכנס בתוך מסגרת מוטבעת קטנה, ה-slicer גולש מחוץ לתצוגה והצופים רואים pivot סטטי שאי אפשר לשנות. ממקמים את ה-slicer מעל או לצד ה-pivot, אף פעם לא מתחת.
-- **filter by-condition עם ערך מתיישן**. filter "Date is after 2026-04-15" בסדר באפריל. שישה חודשים אחר כך הוא עדיין אומר 2026-04-15 וה-pivot שותק ולא מסנן כלום. לתאריכים דינמיים, משתמשים ב-CUSTOM_FORMULA filter שמפנה ל-`TODAY()`, או מעבירים את טווח התאריכים ל-slicer שהצוות באמת מתחזק.
+- **Filters שזזים כשעמודות מקור מוכנסות או מוסרות.** ה-`sourceColumn` של ה-filter הוא offset לתוך טווח המקור, לא שם של header. הוסיפו עמודה באמצע המקור וכל filter אחרי נקודת ההכנסה זז בשקט לעמודה הלא נכונה. אותה מלכודת ל-calculated fields שמפנים לכותרות עמודה אם גם משנים את שם הכותרת.
+- **Calculated fields עם header מקור ששמו שונה.** משנים את `Revenue` ל-`Revenue (USD)` בשורה 1, וכל calculated field שמפנה ל-`'Revenue'` מחזיר `#REF!` עד שעורכים גם את הנוסחה. אין rename-propagation.
+- **VERTICAL layout בלי "Show totals".** ה-pivot נקרא מלמעלה למטה אבל אם ה-totals כבויים, לעין אין שורת עוגן לכל buyer. הופכים את Rows → Show totals למופעל ל-pivots מקובצים; שורת ה-totals היא מה שעושה את ה-layout קריא.
+- **Slicers שלא נראים ל-viewers.** slicer הוא אובייקט צף על הגיליון. אם ה-pivot נכנס ל-frame משובץ קטן, ה-slicer נגלל מחוץ למסך ו-viewers רואים pivot סטטי שהם לא יכולים לשנות. ממקמים את ה-slicer מעל או לצד ה-pivot, אף פעם לא מתחתיו.
+- **סינון by condition עם ערך שלא רלוונטי.** filter "Date is after 2026-04-15" בסדר באפריל. שישה חודשים אחר כך הוא עדיין אומר 2026-04-15 וה-pivot בשקט לא מוציא כלום. לתאריכים דינמיים, השתמשו ב-filter CUSTOM_FORMULA שמפנה ל-`TODAY()`, או העבירו את טווח התאריך ל-slicer שהצוות באמת מתחזק.
