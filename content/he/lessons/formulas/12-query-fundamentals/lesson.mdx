@@ -67,6 +67,92 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 =QUERY(A1:F13, "SELECT B, C, F ORDER BY F DESC LIMIT 5", 1)
 ```
 
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=QUERY(A1:F13,"SELECT B, C, F ORDER BY F DESC LIMIT 5",1)'
+  task={<>בנו את הווידג'ט "5 ה-revenue המובילים בתקופה" של הצוות. הציגו Buyer, Vertical, Revenue, מיון לפי Revenue יורד, השאירו רק 5 שורות.</>}
+  hint={<>הצורה היא <code>SELECT B, C, F ORDER BY F DESC LIMIT 5</code>. סעיפים בסדר SQL: SELECT, ORDER BY, LIMIT.</>}
+  answer={<>QUERY מחזיר טבלה ב-spill עם שורת הכותרת. 5 המובילים הם Cruises PR (1124.6), Reverse Mortgage PR (982.7), Dental Implants PR (588.4), Car Deals PR (487.3), ו-Pet Insurance PR (461.2). רוב ה-dashboards מושיטים יד לתבנית הזאת: סינון, מיון, top-N. הוספת WHERE שומרת על תיחום תאריך או scope של buyer.</>}
+/>
+
+### דוגמה: נתוני צעצוע בלי כותרות
+
+ארגומנט "headers" נושך את כולם בפעם הראשונה. כשהטווח לא כולל את שורת הכותרת, צריך להעביר <code>0</code> כארגומנט שלישי, והעמודות נקראות <code>Col1, Col2, ...</code> ולא <code>A, B, ...</code>.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 10],
+    ["B", 20],
+    ["C", 15],
+  ]}
+  formula='=QUERY(A2:B4, "SELECT Col1 WHERE Col2 > 12", 0)'
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={['=QUERY(A2:B4, "SELECT Col1 WHERE Col2 > 12", 0)']}
+  caption="הטווח A2:B4 לא כולל כותרות, אז מעבירים 0 ומתייחסים לעמודות כ-Col1/Col2. תוצאה: B (20) ו-C (15)."
+/>
+
+### מלכודות נפוצות: תחביר QUERY
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT b, c WHERE b = 'Yoav Cohen'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">אותיות עמודה קטנות. מזהי העמודות של QUERY רגישים ל-case וחייבים להיות באותיות גדולות. כל ה-query מחזיר שגיאת parsing.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C WHERE B = 'Yoav Cohen'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">אותיות עמודה גדולות תמיד. עשו את זה הרגל גם כשרצים מהר: אותיות קטנות גרמו ליותר תקלות dashboard ברגע האחרון מכל טעות אחרת ב-QUERY.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, F WHERE B = \"Yoav Cohen\"", 1)`}</code></pre>
+    <p className="mt-2 text-sm">גרשיים כפולים בתוך מחרוזת ה-query. הגרש הכפול הראשון מסיים את המחרוזת החיצונית, והשאר הוא שגיאת parsing. Sheets מחזיר <code>#ERROR!</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, F WHERE B = 'Yoav Cohen'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">גרשיים בודדים לליטרלים של מחרוזות בתוך מחרוזת ה-query. כל ה-query עטוף בגרשיים כפולים; כל מה שבפנים משתמש בבודדים.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B WHERE A >= '2026-05-05'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">תאריך מושווה כמחרוזת. עובד במזל על חלק מנתוני YYYY-MM-DD אבל נכשל ברגע ש-QUERY מתייחס לעמודה כסוג תאריך. באג dashboard שקט נפוץ.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B WHERE A >= date '2026-05-05'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">הליטרל <code>date 'YYYY-MM-DD'</code> אומר ל-QUERY שזאת השוואת תאריך. עובד גם כשהעמודה תאריך אמיתי וגם כשהיא מחרוזת מעוצבת ככזה. השתמשו בו בכל פעם ש-A היא עמודת תאריך.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="כותבים =QUERY(IMPORTRANGE('...','Campaigns!A2:F'), 'SELECT B, SUM(F) GROUP BY B', 1). ה-query ממשיך לשגות אף שהוא עובד מול טווח מקומי A1:F13. למה?"
+  options={[
+    {
+      id: "a",
+      label: "IMPORTRANGE לא תומך ב-GROUP BY.",
+      correct: false,
+      explanation: "QUERY כן. IMPORTRANGE פשוט מחזיר את הנתונים; QUERY פועלת עליהם.",
+    },
+    {
+      id: "b",
+      label: "הטווח מתחיל ב-A2 (בלי כותרות), אז העמודות הן Col1/Col2/... ולא A/B. ה-query מפנה ל-B שלא קיים.",
+      correct: true,
+      explanation: "IMPORTRANGE בתוך QUERY מביא תאים גולמיים; תוויות העמודות שזכרתם מגיליון המקור לא עוברות. או כללו את שורת הכותרת בטווח (A1:F) והעבירו 1, או השתמשו ב-Col1/Col2 עם 0.",
+    },
+    {
+      id: "c",
+      label: "QUERY לא יכול לפעול על פלט של IMPORTRANGE בכלל.",
+      correct: false,
+      explanation: "QUERY+IMPORTRANGE היא אחת התבניות הנפוצות ב-dashboards של הצוות.",
+    },
+  ]}
+/>
+
 ## נפוץ בשטח
 
 QUERY מופיעה בכל מקום ב-dashboards של הצוות. התבניות:

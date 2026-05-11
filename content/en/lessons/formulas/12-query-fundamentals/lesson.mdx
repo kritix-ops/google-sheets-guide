@@ -67,6 +67,92 @@ A common adtech pattern: top 5 campaigns by revenue.
 =QUERY(A1:F13, "SELECT B, C, F ORDER BY F DESC LIMIT 5", 1)
 ```
 
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=QUERY(A1:F13,"SELECT B, C, F ORDER BY F DESC LIMIT 5",1)'
+  task={<>Build the team's "top 5 revenue this period" widget. Project Buyer, Vertical, Revenue, sort by Revenue descending, keep only 5 rows.</>}
+  hint={<>The shape is <code>SELECT B, C, F ORDER BY F DESC LIMIT 5</code>. Clauses go in SQL order: SELECT, ORDER BY, LIMIT.</>}
+  answer={<>QUERY returns a spilled table with the header row preserved. The top 5 are Cruises PR (1124.6), Reverse Mortgage PR (982.7), Dental Implants PR (588.4), Car Deals PR (487.3), and Pet Insurance PR (461.2). Most dashboards reach for this pattern: filter, sort, top-N. Adding a WHERE clause keeps it date-bounded or buyer-scoped.</>}
+/>
+
+### Worked example: toy data, no headers
+
+The "headers" argument bites everyone the first time. When the range doesn't include the header row, you have to pass <code>0</code> as the third argument, and the columns are named <code>Col1, Col2, ...</code> not <code>A, B, ...</code>.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 10],
+    ["B", 20],
+    ["C", 15],
+  ]}
+  formula='=QUERY(A2:B4, "SELECT Col1 WHERE Col2 > 12", 0)'
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={['=QUERY(A2:B4, "SELECT Col1 WHERE Col2 > 12", 0)']}
+  caption="Range A2:B4 doesn't include the headers, so we pass 0 and refer to columns as Col1/Col2. Result: B (20) and C (15)."
+/>
+
+### Easy traps: QUERY syntax
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT b, c WHERE b = 'Yoav Cohen'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">Lowercase column letters. QUERY's column identifiers are case-sensitive and must be uppercase. The whole query errors with a parse error.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C WHERE B = 'Yoav Cohen'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">Uppercase column letters always. Make this a habit even when you're moving fast: lowercase has caused more last-minute dashboard failures than any other QUERY mistake.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, F WHERE B = \"Yoav Cohen\"", 1)`}</code></pre>
+    <p className="mt-2 text-sm">Double quotes inside the query string. The first double quote ends the outer string, the rest is a parse mess. Sheets returns <code>#ERROR!</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, F WHERE B = 'Yoav Cohen'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">Single quotes for string literals inside the query string. The whole query is wrapped in double quotes; everything inside uses singles.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B WHERE A >= '2026-05-05'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">Date compared as a string. Works by luck on some YYYY-MM-DD data but fails the moment QUERY treats the column as a date type. Common silent dashboard bug.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B WHERE A >= date '2026-05-05'", 1)`}</code></pre>
+    <p className="mt-2 text-sm">The <code>date 'YYYY-MM-DD'</code> literal tells QUERY this is a date comparison. Works whether the column is a real date or a string formatted that way. Use it every time A is a date column.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You write =QUERY(IMPORTRANGE('...','Campaigns!A2:F'), 'SELECT B, SUM(F) GROUP BY B', 1). The query keeps erroring even though it works against a local A1:F13 range. Why?"
+  options={[
+    {
+      id: "a",
+      label: "IMPORTRANGE doesn't support GROUP BY.",
+      correct: false,
+      explanation: "QUERY does. IMPORTRANGE just returns the data; QUERY operates on it.",
+    },
+    {
+      id: "b",
+      label: "The range starts at A2 (no headers), so columns are Col1/Col2/... not A/B. The query references B which doesn't exist.",
+      correct: true,
+      explanation: "IMPORTRANGE inside QUERY brings raw cells; the column labels you remember from the source sheet don't carry across. Either include the header row in the range (A1:F) and pass 1, or use Col1/Col2 with 0.",
+    },
+    {
+      id: "c",
+      label: "QUERY can't operate on IMPORTRANGE output at all.",
+      correct: false,
+      explanation: "QUERY+IMPORTRANGE is one of the most common patterns in the team's dashboards.",
+    },
+  ]}
+/>
+
 ## Used in the wild
 
 QUERY shows up everywhere in the team's dashboards. The patterns:
