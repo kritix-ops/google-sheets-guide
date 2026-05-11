@@ -2,7 +2,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Workspace integrations: Drive, Calendar, Gmail
 
-A bound Apps Script project doesn't only see the spreadsheet it lives in. The same script can read and write files in Drive, send mail through your Gmail account, and create events on your calendar, all from the same JavaScript code that already runs on edit-triggers and menu clicks. The catch is that each service has its own OAuth scope, and Apps Script will prompt the user once per new scope the first time the function runs. Lesson 4 covered the `SpreadsheetApp` surface; this lesson is about the three services that touch everything else in the workspace.
+A bound Apps Script project does not only see the spreadsheet it lives in. The same script can read and write files in Drive, send mail through your Gmail account, and create events on your calendar, all from the same JavaScript code that already runs on edit-triggers and menu clicks. The catch is that each service has its own OAuth scope, and Apps Script will prompt the user once per new scope the first time the function runs. Lesson 4 covered the `SpreadsheetApp` surface; this lesson is about the three services that touch everything else in the workspace.
+
+This lesson walks through DriveApp (search, read, copy files), CalendarApp (create and read events), the MailApp/GmailApp split (when to reach for which one), and a worked four-service function that does a daily ingest. The team's nightly aggregator is exactly the cross-service pattern at the end: one Drive search, one Sheets write, one Calendar event, one email confirmation. Once you have seen all four chained, the rest of Track 3 stops introducing new services.
 
 ## DriveApp: search, read, write files
 
@@ -24,9 +26,28 @@ while (iter.hasNext()) {
 const copy = file.makeCopy("Taboola export 2026-05-11", DriveApp.getFolderById("0folder..."));
 ```
 
-The iterator is the easy trap. `searchFiles` and `getFolders` both return Drive iterators, not arrays. `.map` and `.filter` don't exist on them: you must drive them with `.hasNext()` and `.next()`. A learner who writes `DriveApp.searchFiles(q).forEach(...)` gets a runtime error about "forEach is not a function", and the bug is the iterator, not the query.
+The iterator is the easy trap. `searchFiles` and `getFolders` both return Drive iterators, not arrays. `.map` and `.filter` do not exist on them: you must drive them with `.hasNext()` and `.next()`. A learner who writes `DriveApp.searchFiles(q).forEach(...)` gets a runtime error about "forEach is not a function", and the bug is the iterator, not the query.
 
-`DriveApp` needs the `https://www.googleapis.com/auth/drive` scope. There's a narrower `https://www.googleapis.com/auth/drive.file` that only sees files the user explicitly hands to your app (via picker or by being created by the script). The narrow scope is the right default for scripts that only touch their own output files; broaden only when you actually need to read existing user data.
+`DriveApp` needs the `https://www.googleapis.com/auth/drive` scope. There is a narrower `https://www.googleapis.com/auth/drive.file` that only sees files the user explicitly hands to your app (via picker or by being created by the script). The narrow scope is the right default for scripts that only touch their own output files; broaden only when you actually need to read existing user data.
+
+<Compare>
+  <ComparePanel label="Wrong: treating iterator as array" tone="negative">
+    <pre className="font-mono text-xs"><code>{`const files = DriveApp.searchFiles('title contains "raw"');
+files.forEach(function(f) {
+  Logger.log(f.getName());
+});
+// TypeError: files.forEach is not a function`}</code></pre>
+    <p className="mt-2 text-sm">Drive iterators have no array methods. <code>.forEach</code>, <code>.map</code>, <code>.filter</code> all throw.</p>
+  </ComparePanel>
+  <ComparePanel label="Right: hasNext/next loop" tone="positive">
+    <pre className="font-mono text-xs"><code>{`const iter = DriveApp.searchFiles('title contains "raw"');
+while (iter.hasNext()) {
+  const f = iter.next();
+  Logger.log(f.getName());
+}`}</code></pre>
+    <p className="mt-2 text-sm">Walk the iterator with hasNext/next. If you need an array for later processing, push into one inside the loop: <code>const all = []; while (iter.hasNext()) all.push(iter.next());</code></p>
+  </ComparePanel>
+</Compare>
 
 ## CalendarApp: read and create events
 
@@ -62,7 +83,7 @@ Two services send mail. They look similar at the call site but differ in what th
 | Daily quota (consumer accounts) | 100 emails / day | 100 emails / day |
 | Daily quota (Workspace) | 1,500 emails / day | 1,500 emails / day |
 
-If the script only needs to send one outbound message per run, use `MailApp`. The scope is narrower (you won't accidentally hand your script read access to your inbox), the API is smaller, and the quota is the same. The team's daily spend mailer uses `MailApp` for exactly that reason.
+If the script only needs to send one outbound message per run, use `MailApp`. The scope is narrower (you will not accidentally hand your script read access to your inbox), the API is smaller, and the quota is the same. The team's daily spend mailer uses `MailApp` for exactly that reason.
 
 ```js
 MailApp.sendEmail({
@@ -72,7 +93,7 @@ MailApp.sendEmail({
 });
 ```
 
-The options bag matters. The single-argument forms (`MailApp.sendEmail(to, subject, body)`) work but lock you out of features like `htmlBody`, `cc`, `bcc`, `attachments`, `replyTo`, and `name` (the From display name, not the recipient: see the pitfalls below). Default to the object form on day one and you won't have to rewrite the call when the team asks for HTML formatting.
+The options bag matters. The single-argument forms (`MailApp.sendEmail(to, subject, body)`) work but lock you out of features like `htmlBody`, `cc`, `bcc`, `attachments`, `replyTo`, and `name` (the From display name, not the recipient: see the pitfalls below). Default to the object form on day one and you will not have to rewrite the call when the team asks for HTML formatting.
 
 ## Cross-service patterns
 
@@ -118,6 +139,75 @@ function ingestDailyTaboolaCsv() {
 
 Four services, one function, one trigger. The first time the team's owner runs it, Apps Script prompts for Drive, Sheets, Calendar, and Gmail scopes all at once. From then on it runs silently.
 
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: Drive search at 02:00",
+      body: (
+        <>
+          The trigger fires. <code>DriveApp.searchFiles</code> looks for
+          today's Taboola export. <code>iter.hasNext()</code> is true: the
+          CSV is there.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: read and parse",
+      body: (
+        <>
+          <code>iter.next().getBlob().getDataAsString()</code> pulls the CSV
+          bytes as a string. <code>Utilities.parseCsv</code> turns the string
+          into a 2D array.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: write to the sheet",
+      body: (
+        <>
+          One <code>setValues</code> writes the whole 2D array into the
+          Taboola raw tab. Even with 5,000 rows this is one round-trip and
+          finishes in a second.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: schedule and notify",
+      body: (
+        <>
+          <code>createEvent</code> drops a 17:00 review event on the calendar.
+          <code>MailApp.sendEmail</code> ships a confirmation. The trigger
+          handler exits. Total runtime: ~3 seconds for a clean nightly run.
+        </>
+      ),
+    },
+  ]}
+/>
+
+<QuickCheck
+  question="You write DriveApp.searchFiles('title contains raw').forEach(processFile). You get a runtime error: forEach is not a function. What is the cause?"
+  options={[
+    {
+      id: "a",
+      label: "The search query has invalid syntax; .forEach is fine on the results.",
+      correct: false,
+      explanation: "The query is fine. The issue is that searchFiles returns an iterator, not an array, and iterators have no array methods.",
+    },
+    {
+      id: "b",
+      label: "DriveApp.searchFiles returns an iterator, which has no array methods. Walk it with hasNext/next, or collect into an array first.",
+      correct: true,
+      explanation: "Right. Drive iterators page internally and have no .forEach, .map, .filter. Use while (iter.hasNext()) { const f = iter.next(); ... }.",
+    },
+    {
+      id: "c",
+      label: "Apps Script's V8 runtime doesn't support .forEach on file collections; you must use a for loop.",
+      correct: false,
+      explanation: ".forEach works on regular arrays in V8. The issue is iterator vs array, not engine support.",
+    },
+  ]}
+/>
+
 ## Now do it for real
 
 <MiniGrid
@@ -139,13 +229,15 @@ The team has three Workspace-touching scripts that run every day:
 
 - **The morning spend digest.** A time-driven trigger calls `emailSpendReport` at 09:00 with the previous day's total, top three verticals, and bottom three. Goes to every active media buyer.
 - **The Friday Drive cleanup.** A `searchFiles` query finds every "raw export" file older than 30 days, copies them to an archive folder, and removes the originals. Saves the team's Drive quota for the current week's exports.
-- **Campaign-launch calendar drops.** When a buyer clicks "Launch" in a custom sidebar (Track 3 lesson 5 covers that), the script creates a Calendar event 24 hours out as a placeholder review check-in.
+- **Campaign-launch calendar drops.** When a buyer clicks "Launch" in a custom sidebar (lesson 9 covers the sidebar pattern), the script creates a Calendar event 24 hours out as a placeholder review check-in.
 
 ## Pro pitfalls
 
-- **`MailApp.sendEmail`'s `name` field is the FROM display name, not the recipient.** Beginner code that reads `MailApp.sendEmail({ to: "info@flexelent.com", name: "info@flexelent.com", ... })` sends a message FROM "info@flexelent.com" (display) and TO "info@flexelent.com": which works, but isn't what the writer thought they were doing. The recipient is always `to:` (or `bcc:` / `cc:`).
+- **`MailApp.sendEmail`'s `name` field is the FROM display name, not the recipient.** Beginner code that reads `MailApp.sendEmail({ to: "info@flexelent.com", name: "info@flexelent.com", ... })` sends a message FROM "info@flexelent.com" (display) and TO "info@flexelent.com": which works, but is not what the writer thought they were doing. The recipient is always `to:` (or `bcc:` / `cc:`).
 - **`DriveApp.searchFiles` returns an iterator, not an array.** No `.map`, no `.forEach`, no `.length`. Drive iterators are streams; you walk them with `.hasNext()` / `.next()` and collect into an array yourself if you need one.
 - **Gmail send quotas are stricter than they look.** 100 / day for consumer accounts, 1,500 / day for Workspace, and they reset on a rolling 24-hour window, not at midnight. A script that loops `sendEmail` 100 times in one minute will hit the per-minute send rate limit before it hits the daily one and start throwing. Batch into one message with a longer body, or rate-limit with `Utilities.sleep(1000)` between sends.
 - **`DriveApp.createFile` in a bound script puts the file in the SCRIPT OWNER's Drive, not the running user's Drive.** If your script is owned by Yoav and run by Dina, the file ends up in Yoav's Drive with Dina as an editor (if you remembered to share it). To create in the running user's Drive, use `Drive.Files.create(...)` with the advanced Drive service instead: that one runs as the user.
 - **`CalendarApp.getDefaultCalendar()` returns the calendar owned by whoever runs the script, not the script's owner.** On a script with "Execute as me" the script owner is "me", so Dina's run still creates events on Yoav's calendar. The two execution modes ("as me" vs "as the user accessing") matter here exactly as much as they do for web apps in lesson 13.
 - **Asking for `https://mail.google.com/` (full Gmail access) when you only send mail.** Apps Script's authorization prompt shows the full scope description, and "Read, compose, send, and permanently delete all your email" scares users out of running the script. Drop down to `script.send_mail` if all you do is send.
+- **`Utilities.parseCsv` not respecting custom delimiters.** By default it splits on comma. For TSV (some platforms export tab-separated), pass `Utilities.parseCsv(str, "\t")`. A common bug is parsing TSV with the default comma delimiter and getting one column with everything tab-glued together.
+- **Calendar event timezones drifting.** `new Date("2026-05-12T09:00:00")` parses as the script's timezone if there is no offset; pass an explicit `+03:00` (Israel) or `-04:00` (NYC) so the event lands at the right wall-clock time regardless of which user runs the function.
