@@ -2,7 +2,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # SpreadsheetApp: reading and writing the workbook from code
 
-Lesson 3 showed how a custom function reads its arguments from a cell. That's the cheap, fast path: the function knows nothing about the rest of the workbook and can't write back. The moment you need to update cells, copy values across tabs, or iterate over a whole sheet, you leave the custom-function sandbox and use **`SpreadsheetApp`** directly. This is the service the rest of Track 3 leans on for menus, macros, and triggers, so the shape of its API and its performance model matter.
+Lesson 3 showed how a custom function reads its arguments from a cell. That is the cheap, fast path: the function knows nothing about the rest of the workbook and cannot write back. The moment you need to update cells, copy values across tabs, or iterate over a whole sheet, you leave the custom-function sandbox and use **`SpreadsheetApp`** directly. This is the service the rest of Track 3 leans on for menus, macros, and triggers, so the shape of its API and its performance model matter.
+
+The mental model: `SpreadsheetApp` is a tree of three object types. You walk down from the spreadsheet (the file), to a sheet (one tab), to a range (a rectangle of cells). Every method you call sends a request to Google's servers, so the cost-conscious habits you build in this lesson scale all the way up to the lesson-16 batching playbook. The 50,000-row nightly trigger and the 5-cell on-edit auto-fill are written the same way: navigate to the right range, read or write once.
 
 ## The three-object hierarchy
 
@@ -21,7 +23,21 @@ const values = range.getValues();                      // 2D array of CellValue
 | `Sheet` | One tab inside the file. | Get the row count, freeze rows, set the active sheet, get a range from this tab. |
 | `Range` | A rectangle of cells on a sheet. | Read or write values, set number formats, apply conditional formatting, clear contents. |
 
-Mixing them up is the first beginner mistake. `sheet.setValue(...)` doesn't exist; only `Range` has `setValue`. `range.getSheetByName(...)` doesn't exist either; `getSheetByName` belongs on `Spreadsheet`. The error message ("TypeError: sheet.setValue is not a function") points at the wrong object, not the wrong logic.
+Mixing them up is the first beginner mistake. `sheet.setValue(...)` does not exist; only `Range` has `setValue`. `range.getSheetByName(...)` does not exist either; `getSheetByName` belongs on `Spreadsheet`. The error message ("TypeError: sheet.setValue is not a function") points at the wrong object, not the wrong logic.
+
+<Compare>
+  <ComparePanel label="Wrong object" tone="negative">
+    <pre className="font-mono text-xs"><code>{`const sheet = ss.getSheetByName("Campaigns");
+sheet.setValue(12345);
+// TypeError: sheet.setValue is not a function`}</code></pre>
+    <p className="mt-2 text-sm">Calling <code>setValue</code> on the Sheet object. <code>setValue</code> belongs on Range.</p>
+  </ComparePanel>
+  <ComparePanel label="Right object" tone="positive">
+    <pre className="font-mono text-xs"><code>{`const sheet = ss.getSheetByName("Campaigns");
+sheet.getRange("J1").setValue(12345);`}</code></pre>
+    <p className="mt-2 text-sm">Navigate to the Range first, then call <code>setValue</code>.</p>
+  </ComparePanel>
+</Compare>
 
 ## Reading and writing one cell
 
@@ -36,8 +52,8 @@ const back = cell.getValue();    // reads, returns 12345
 
 Two facts that bite later:
 
-1. **Every method call goes to Google's servers.** Apps Script is not running locally next to your spreadsheet. The script lives on Google infrastructure, the spreadsheet lives on Google infrastructure, and every `getValue` / `setValue` is a network call between them. Per-cell on a hundred cells is a hundred round-trips. On a thousand it's a noticeable freeze.
-2. **`getValue()` returns whatever's in the cell.** Numbers come back as JS numbers, strings as strings, dates as `Date` objects, booleans as booleans, blank cells as the empty string. That last one is the surprise: an empty cell is `""`, not `null` or `undefined`.
+1. **Every method call goes to Google's servers.** Apps Script is not running locally next to your spreadsheet. The script lives on Google infrastructure, the spreadsheet lives on Google infrastructure, and every `getValue` / `setValue` is a network call between them. Per-cell on a hundred cells is a hundred round-trips. On a thousand it is a noticeable freeze.
+2. **`getValue()` returns whatever is in the cell.** Numbers come back as JS numbers, strings as strings, dates as `Date` objects, booleans as booleans, blank cells as the empty string. That last one is the surprise: an empty cell is `""`, not `null` or `undefined`.
 
 ## The batch reads and writes
 
@@ -55,9 +71,69 @@ for (const row of values) total += row[0];
 sheet.getRange("J1").setValue(total);          // ONE round-trip
 ```
 
-That's it. Two round-trips to do the work of 120 (`getValue` × 60 reads + `setValue` × 60 writes if you'd written it the naive way). On a sheet with 50,000 rows the difference is the script finishing in three seconds versus timing out at six minutes.
+That is it. Two round-trips to do the work of 120 (`getValue` × 60 reads + `setValue` × 60 writes if you had written it the naive way). On a sheet with 50,000 rows the difference is the script finishing in three seconds versus timing out at six minutes.
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: get a Range over the 60 cells",
+      body: (
+        <>
+          <code>sheet.getRange("F2:F61")</code> returns a Range handle. No
+          network call yet: the handle is just an A1 reference packaged into
+          a JS object.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: getValues() sends one request",
+      body: (
+        <>
+          <code>range.getValues()</code> ships the request to Google's
+          servers, which read the 60 cells in one go and ship the 2D array{" "}
+          <code>[[412.5], [285.3], ...]</code> back. One round-trip.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: sum in JavaScript memory",
+      body: (
+        <>
+          The <code>for ... of</code> loop runs in your script's V8 process
+          on Google's infrastructure. No network here, just JS arithmetic.
+          Even on 50,000 rows this is a millisecond.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: setValue writes the total",
+      body: (
+        <>
+          One <code>setValue</code> to J1. One more round-trip. Two
+          network calls total for the whole job, regardless of input row
+          count.
+        </>
+      ),
+    },
+  ]}
+/>
 
 The shape of `getValues()` is the catch nobody warns you about: **always a 2D array, even for a single column or a single row.** A one-column read returns `[[v1], [v2], [v3], ...]`. A one-row read returns `[[v1, v2, v3, ...]]`. A single cell read via `getRange("J1").getValues()` returns `[[v]]`. The shape is consistent so the same loop works in every case, but the first time you try to sum `range.getValues()` directly with `.reduce((a, b) => a + b, 0)` you get a string-concatenated mess because each `b` is itself an array.
+
+<Compare>
+  <ComparePanel label="Wrong shape: reduce on 2D" tone="negative">
+    <pre className="font-mono text-xs"><code>{`const values = sheet.getRange("F2:F61").getValues();
+const total = values.reduce((a, b) => a + b, 0);
+// total === "0412.5285.3612..." (string concatenation)`}</code></pre>
+    <p className="mt-2 text-sm">Each <code>b</code> is a one-element array. <code>0 + [412.5]</code> coerces to <code>"0412.5"</code> and the rest concatenates.</p>
+  </ComparePanel>
+  <ComparePanel label="Right shape: pluck row[0]" tone="positive">
+    <pre className="font-mono text-xs"><code>{`const values = sheet.getRange("F2:F61").getValues();
+const total = values.reduce((a, b) => a + b[0], 0);
+// total === 30245.7 (correct sum)`}</code></pre>
+    <p className="mt-2 text-sm">Pulling <code>b[0]</code> from each inner array gives the actual number. The same fix applies to <code>.map</code>, <code>.filter</code>, and any other array method.</p>
+  </ComparePanel>
+</Compare>
 
 ## `getRange` and its overloads
 
@@ -96,9 +172,62 @@ const values = range.getValues();
 The fix is one of:
 
 1. **Read the actual data column to find its real last row** (e.g., scan column A for the last non-empty cell), or
-2. **Trim ghost rows by selecting them, right-click → Delete rows.** This actually removes them from the sheet's row count, not just clears them.
+2. **Trim ghost rows by selecting them, right-click then Delete rows.** This actually removes them from the sheet's row count, not just clears them.
 
 In a multi-sheet workbook that pulls data via `IMPORTRANGE` from a partner workbook, `getLastRow` on the importing sheet can return more than the IMPORTRANGE produced if the destination sheet was previously larger. Always verify against the data column you actually care about, not against `getLastRow()` alone.
+
+<QuickCheck
+  question="You write `const total = sheet.getRange('F2:F61').getValues().reduce((a, b) => a + b, 0);` and total comes out as a long string starting with '0412.5...'. What is going on?"
+  options={[
+    {
+      id: "a",
+      label: "The cells contain text, not numbers. Force conversion with parseFloat.",
+      correct: false,
+      explanation: "The cells contain numbers, but getValues returns a 2D array. Each b in the reduce is itself a one-element array, and 0 + [412.5] coerces to a string.",
+    },
+    {
+      id: "b",
+      label: "getValues returns a 2D array. Each b is a row array; you need b[0] to get the actual number.",
+      correct: true,
+      explanation: "Right. Even a single-column read is shaped as [[v], [v], [v], ...]. Use reduce with (a, b) => a + b[0] or flatten the array first.",
+    },
+    {
+      id: "c",
+      label: "reduce requires an explicit initial type. The empty string initial accumulator would force concatenation.",
+      correct: false,
+      explanation: "The initial value here is 0 (a number). The string-coercion is happening because each b is an array, not because the initial value is wrong.",
+    },
+  ]}
+/>
+
+## A second worked function: tag rows with the editor's email
+
+A different shape from the spend-sum example: write a column of values computed from another column, plus a runtime value (the active user's email). This is the same pattern the team's on-edit trigger uses to stamp the editor of each new campaign row, just packaged as a manual one-shot here.
+
+```js
+function tagEditorOnEachRow() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns");
+  const editor = Session.getActiveUser().getEmail();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;                                  // no data rows
+  const buyers = sheet.getRange(2, 2, lastRow - 1, 1).getValues();  // column B
+  const tags = buyers.map(function(row) {
+    return [row[0] ? row[0] : editor];                       // fall back to editor
+  });
+  sheet.getRange(2, 11, tags.length, 1).setValues(tags);    // write to column K
+}
+```
+
+Four pieces worth pulling out:
+
+| Piece | What it does |
+|---|---|
+| `Session.getActiveUser().getEmail()` | Reads the runtime user's email. In a custom function this would be empty (cell-context auth is too narrow); from a menu or trigger handler it returns the address. |
+| `lastRow < 2` guard | Avoids `getRange(2, 2, -1, 1)`, which throws. Always check before computing range dimensions from row counts. |
+| `.map(row => [row[0] ? row[0] : editor])` | Map over the 2D array and produce a same-shape 2D array. The single-cell write requires `[value]`, not `value`. |
+| `setValues(tags)` with matching shape | Range is `lastRow - 1` rows × 1 column; `tags` matches that shape. Mismatched shapes throw "The number of rows in the data does not match the number of rows in the range". |
+
+This function only works when called from a menu item or trigger, not from a cell. From a cell, `Session.getActiveUser()` returns an empty user and `setValues` is forbidden. Lesson 5 covers menus, lesson 7 covers triggers.
 
 ## Now do it for real
 
@@ -113,7 +242,7 @@ The starter file `Lesson.gs` declares `function recomputeSpend()` with an empty 
 2. Read F2:F61 in one call: `const values = sheet.getRange("F2:F61").getValues();`. Remember the 2D-array shape: each entry is itself a one-element array.
 3. Sum the numbers and write the total to J1: `sheet.getRange("J1").setValue(total);`.
 
-This is not a custom function. Custom functions can't write back to the sheet (lesson 3 covered why). `recomputeSpend` runs from the Apps Script editor's Run dropdown, or from a menu item you wire up in lesson 5, or from a time-based trigger you set up in lesson 7. For now: open Apps Script, paste your body, click Run, and J1 should display the total.
+This is not a custom function. Custom functions cannot write back to the sheet (lesson 3 covered why). `recomputeSpend` runs from the Apps Script editor's Run dropdown, or from a menu item you wire up in lesson 5, or from a time-based trigger you set up in lesson 7. For now: open Apps Script, paste your body, click Run, and J1 should display the total.
 
 ## Used in the wild
 
@@ -141,8 +270,9 @@ Four `getValues()` calls (one per source) plus one `setValues()` call total. Fiv
 The same shape shows up in:
 
 - **The "copy from staging to production" macro** that the buyer presses on Mondays after reviewing the weekend's data.
-- **The vertical-normalizer batch job** that reads every campaign name, trims whitespace, fixes casing, ensures the " PR" suffix, and writes the cleaned values back.
+- **The vertical-normalizer batch job** that reads every campaign name, trims whitespace, fixes casing, ensures the ` PR` suffix, and writes the cleaned values back.
 - **The end-of-month archiver** that copies the current month's Aggregator tab into a date-stamped backup sheet.
+- **The IMPORTRANGE-replacement migration**, where a workbook with a slow `IMPORTRANGE` from a 100k-row source switches to a daily Apps Script pull: one `getValues` from the source, one `setValues` to the local mirror, and the dashboard reads from local for the rest of the day.
 
 ## Pro pitfalls
 
@@ -150,5 +280,7 @@ The same shape shows up in:
 - **Off-by-one with `getLastRow`.** Wanting all data rows except the header is `getRange(2, 1, lastRow - 1, lastCol)`. The `- 1` is the headache. Forget it and the last row is included twice with a blank row at the bottom of your output.
 - **`setValue` with an array silently puts the array's string form in one cell.** A cell ends up reading `"412.5,285.3,612"`. The method you wanted was `setValues` (plural), and the array shape has to match the range's dimensions.
 - **`setValues` failing with "The number of rows in the data does not match".** The 2D array's shape and the range's shape disagree. Write the range's expected dimensions in a comment next to the call (`// expects 60x1`); the bug shows up faster.
-- **`SpreadsheetApp.getActive()` returning `null` inside a custom function.** Custom functions run in a stripped-down auth context that doesn't have access to the active spreadsheet for writes. The exception you see is misleading; the fix is to move the code to a regular function called from a menu or a trigger.
+- **`SpreadsheetApp.getActive()` returning `null` inside a custom function.** Custom functions run in a stripped-down auth context that does not have access to the active spreadsheet for writes. The exception you see is misleading; the fix is to move the code to a regular function called from a menu or a trigger.
 - **`IMPORTRANGE` source rows changing under your script.** If the script reads `Aggregator!A2:H` and that sheet's content comes from `IMPORTRANGE`, the row count can shift between the moment you call `getLastRow()` and the moment you call `getValues()`. For mission-critical reads, take one `getValues()` snapshot at the top of the function and work off the snapshot.
+- **Hidden ghost rows from past edits inflating `getLastRow`.** A row 5000 that once had content (since deleted) keeps `getLastRow` returning 5000. Either delete the rows for real (right-click → Delete rows) or scan a specific data column for the real boundary.
+- **Cross-tab references that break on rename.** `ss.getSheetByName("Taboola raw")` returns `null` if the tab was renamed to `"Taboola"`. Always check the return for null before calling further methods on it; otherwise the next line throws "Cannot read property 'getRange' of null".
