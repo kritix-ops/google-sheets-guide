@@ -1,107 +1,228 @@
-import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+import { CAMPAIGNS, CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # הפונקציה `=AI()`
 
-`=AI(prompt, [reference])` היא Gemini בתוך תא. היא לוקחת string של prompt ותא או טווח אופציונלי שמקרקעים את התשובה, ומחזירה טקסט. נשמע פשוט. מה שהופך את זה למורכב הוא ש-AI() היא הפונקציה היחידה בגיליון שה-output שלה אינו דטרמיניסטי, איטי, ומחויב בתשלום. שתי קריאות עם אותן ארגומנטים יכולות להחזיר שתי תשובות שונות. כל קריאה לוקחת שניות, לא אלפיות. כל קריאה נספרת מול מכסת ה-Workspace שלכם.
+`=AI()` היא Gemini עטופה בתא. נותנים לה string של prompt וטווח חסום אופציונלי, לוחצים **Generate and insert**, וטקסט נוחת בתא. בהשוואה ל-`SUM` או `XLOOKUP` היא נראית עדינה, אבל זו הפונקציה היחידה בגיליון שה-output שלה אינו דטרמיניסטי, איטי (שניות, לא אלפיות), ומחויב מול ה-Workspace plan שלכם. שתי קריאות עם אותן ארגומנטים יכולות להחזיר שתי תשובות שונות. כל קריאה נספרת מול המכסה. וה-return type תמיד טקסט, גם כשהייתם רוצים מספר.
 
-שימוש נכון נושא משקל: sentiment פר-שורה, סיווג פר-שורה, חילוץ פר-שורה בסקייל שאחרת היה דורש אנליסט ג'וניור. שימוש רשלני וממלאים עמודה בתשובות שגויות בעדינות שאף אחד לא תופס עד שה-dashboard סותר את עצמו.
+בשימוש לא זהיר, `AI()` ממלאת עמודה בתשובות שגויות בעדינות שאף אחד לא תופס עד שדשבורד סותר את עצמו. בשימוש נכון היא נושאת משקל: sentiment פר-שורה, סיווג פר-שורה, חילוץ פר-שורה בקנה מידה שאחרת היה דורש אנליסט ג'וניור על משכורת. השיעור הזה הוא איך להשתמש בה נכון: ה-signature, ההרגל של prompt מצומצם, ה-wrappers ההגנתיים, ומאורת הדרקון של אי-דטרמיניזם. שיעור 5.6 הוא ה-framework למתי לעזוב אותה לגמרי.
 
-## החתימה
+## ה-signature
 
-```
-=AI(prompt, reference)
-```
+ל-`AI()` יש signature של ארגומנט אחד או שניים: prompt חובה וטווח אופציונלי להתעגנות. ה-output תמיד מחרוזת טקסט, והקריאה דורשת לחיצה ידנית על **Generate and insert** בתא לפני שהתוצאה נכנסת. Workspace plans זכאים וגישה ל-Workspace Experiments הם תנאי מקדים; שואלים את ה-admin אם הפונקציה לא מופיעה אצלכם.
 
-- **prompt** הוא string טקסט. זו ההוראה.
-- **reference** אופציונלי. תא יחיד, טווח, או חסר. קלט של תא יחיד מחזיר ערך אחד, קלט של טווח עשוי לעשות spill על פני מספר תאים.
+<FunctionRef name="AI" />
 
-כמה תבניות קנוניות שתכתבו שוב ושוב:
+כמה דפוסים קנוניים שהצוות כותב כל שבוע:
 
 ```
-=AI("Categorize this campaign's risk as low, medium, or high. Spend: " & F2 & " Revenue: " & G2)
+=AI("Categorize this campaign's risk as low, medium, or high. Spend: " & E2 & " Revenue: " & F2)
 =AI("Sentiment of this customer note: " & E2)
-=AI("Extract the country code from: " & H2)
-=AI("Summarize: ", A1:G61)
+=AI("Extract the 2-letter country code from: " & H2)
+=AI("Summarize the dataset in one sentence", A1:G61)
 ```
 
-ה-`&` עושה את העבודה בשלושת הראשונים: הוא משלב את הוראת ה-prompt עם ערך התא הספציפי כך שכל שורה מקבלת שאלה ספציפית-לשורה.
+ה-`&` עושה את העבודה הקשה בשלוש הראשונות: הוא משרשר את הוראת ה-prompt עם הערך הספציפי של התא, כך שכל שורה מקבלת שאלה ספציפית לשורה שלה. הדפוס הרביעי משתמש בארגומנט הטווח במקום, וזה מה שרוצים כשמסכמים טבלה שלמה.
 
-## prompts מוגבלים מול פתוחים
+### דוגמה מעובדת 1: נתונים קטנים
 
-הטריק הכי שימושי הוא להגביל את מרחב ה-output. השוואה:
+לוג קמפיינים של 6 שורות. קריאת AI() אחת, output מצומצם, תא אחד של תוצאה. ההמחשה הקטנה ביותר האפשרית של ה-syntax.
+
+<MiniGrid
+  data={CAMPAIGNS.slice(0, 7)}
+  caption="לוג קמפיינים קטן: A=Date, B=Buyer, C=Vertical, D=Platform, E=Spend, F=Revenue."
+/>
+
+ב-`G2` הייתם כותבים:
+
+```
+=AI("Classify this campaign's profitability as profitable or losing. Spend: " & E2 & " Revenue: " & F2)
+```
+
+אחרי **Generate and insert**, `G2` קורא `profitable`. מרחב ה-output הוא שני labels, אז המודל מחזיר אחד משני ה-labels האלה. מרחב ה-output הוא כל המשחק.
+
+### דוגמה מעובדת 2: נתוני adtech אמיתיים
+
+אותו רעיון על לוג הקמפיינים בן 60 השורות. `H2` הוא הסיווג של שורה אחת:
+
+```
+=AI("Risk: low, medium, or high. Spend " & F2 & " Revenue " & G2 & " for vertical " & C2)
+```
+
+אחרי **Generate and insert**, התא קורא `low`, `medium`, או `high`. גוררים למטה 60 שורות (Generate אחד פר שורה, איטי ובתשלום) ויש לכם עמודת risk מוכנה לסנן, לעשות עליה pivot, או להקפיא ב-paste-as-values. שימו לב שהארגומנט של הטווח הושמט כאן בכוונה: ל-prompt פר-שורה יש את כל ה-context שצריך כי שרשרנו את התאים הספציפיים פנימה.
+
+<QuickCheck
+  question="אתם רוצים ש-AI() תחזיר טקסט מסט קבוע של labels (לדוגמה, 'low' / 'medium' / 'high'). איזו בניית prompt הכי אמינה?"
+  options={[
+    {
+      id: "a",
+      label: <><code>{`=AI("How risky is this? " & F2 & " " & G2)`}</code></>,
+      correct: false,
+      explanation: "פתוח. מחזיר פרוזה, משתנה בין קריאות. לא שמיש כערך עמודה.",
+    },
+    {
+      id: "b",
+      label: <><code>{`=AI("Risk: low, medium, or high. Spend " & F2 & " Revenue " & G2)`}</code></>,
+      correct: true,
+      explanation: "מרחב output מצומצם, קלטים מתויגים. המודל מחזיר אחד משלושת ה-labels בפועל. זה הדפוס לפרודקשן.",
+    },
+    {
+      id: "c",
+      label: <><code>{`=AI("Tell me a risk score", F2:G2)`}</code></>,
+      correct: false,
+      explanation: "מבקש score (בצורה של מספר) אבל AI() מחזירה טקסט. ה-output יהיה מחרוזת שנראית כמו מספר, ונוסחאות במורד הזרם ייכשלו.",
+    },
+  ]}
+/>
+
+## Prompts מצומצמים מול פתוחים
+
+הטריק היחיד והכי שימושי הוא לצמצם את מרחב ה-output. אותה שורה, אותם נתונים, שתי צורות prompt, שתי רמות תועלת.
 
 | Prompt | מה מקבלים |
 |---|---|
-| `=AI("How is this campaign doing? Spend: " & F2 & " Revenue: " & G2)` | פסקה של שני משפטים שמשתנה בין קריאות. חסר תועלת בעמודה. |
-| `=AI("Categorize this campaign's risk as low, medium, or high. Spend: " & F2 & " Revenue: " & G2)` | מילה אחת מרשימה קבועה. שמישה כ-filter, כממד ב-pivot, כטריגר ל-conditional format. |
+| `=AI("How is this campaign doing? Spend: " & F2 & " Revenue: " & G2)` | פסקה של שני משפטים שמשתנה בין קריאות. חסרת שימוש בעמודה. |
+| `=AI("Categorize this campaign's risk as low, medium, or high. Spend: " & F2 & " Revenue: " & G2)` | מילה אחת מרשימה קבועה. שמישה כפילטר, כדימנשן של pivot, כטריגר לפורמט מותנה. |
 
-כשמרחב ה-output הוא אחד משלושה labels, המודל מחזיר אחד מה-labels האלה. כשמרחב ה-output הוא "תסביר את זה", המודל מחזיר פרוזה. Spreadsheets רוצים labels. כותבים את ה-prompts בהתאם.
+כשמרחב ה-output הוא אחד משלושה labels, המודל ברוב המקרים מחזיר אחד מה-labels. כשמרחב ה-output הוא "תסביר את זה", המודל מחזיר פרוזה. גיליונות רוצים labels. כותבים את ה-prompts ככה.
 
-תבניות שעובדות ב-production:
+דפוסים שעובדים בפרודקשן:
 
-- **סיווג**: "low, medium, high" / "win, loss, push" / "high-value, low-value, ignore"
-- **Sentiment**: "positive, negative, neutral"
-- **חילוץ**: "Extract the country code (2 letters)" / "Return just the platform name"
-- **כן/לא**: "Does this look like a tracking pixel error? Yes or no"
+- **סיווג**: `low, medium, high` / `win, loss, push` / `high-value, low-value, ignore`
+- **Sentiment**: `positive, negative, neutral`
+- **חילוץ**: `Extract the country code (2 letters)` / `Return just the platform name`
+- **כן/לא**: `Does this look like a tracking pixel error? Yes or no`
 
-## שילוב תאים בתוך prompt
+### דוגמה משולבת: AI() עם TEXT() ומודעות ל-ARRAYFORMULA
 
-התבנית `"Classify: " & F2 & " " & G2` משלבת strings כך שכל שורה רואה את עצמה. שלושה כללים:
+לעיתים קרובות תפרמטו מספרים לפני הדבקה שלהם ב-prompt. `TEXT()` (Track 1 שיעור 7) הופך את הפורמט למפורש, מה שעוזר למודל לקרוא אותו. ושימו לב למה שלא ניתן לעשות: `ARRAYFORMULA` (שיעור 1.2 ו-1.10) לא עובדת עם `AI()`. התיעוד אומר ש-AI לא יכולה להיות בתוך פונקציות אחרות, מה שאומר שאין array זורם של קריאות AI. גוררים במקום.
 
-1. **להיות ספציפיים לגבי מה כל תא מכיל.** `"Spend: " & F2 & " Revenue: " & G2` עדיף על `& F2 & " " & G2`. labels עוזרים ל-Gemini לקרוא.
-2. **לא להזרים יותר מדי תאים פנימה.** חמישה ערכים בסדר, עשרים זה context מבוזבז.
-3. **לפרמט מספרים אם הערך הגולמי מכוער.** `& TEXT(F2, "$#,##0")` הופך את פורמט הדולר למפורש. שימושי ל-prompts שמדברים על כסף.
+```
+=AI("Risk: low, medium, or high. Spend " & TEXT(F2,"$#,##0") & " Revenue " & TEXT(G2,"$#,##0"))
+```
+
+`F2` הוא `342.18`; המודל רואה `$342`. הפורמט מנצח כי ה-prompt עכשיו תואם לאיך שאדם היה קורא את המספר, והמודל מאומן על טקסט אנושי.
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(AI("Classify: " & C2:C61))`}</code></pre>
+    <p className="mt-2 text-sm">AI לא יכולה להיות מקוננת בתוך פונקציות אחרות. ARRAYFORMULA לא יכולה לעטוף AI. במקרה הטוב מקבלים ערך יחיד, במקרה הרע שגיאה. גוררים את הנוסחה למטה במקום.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`H2: =AI("Classify: " & C2)
+ואז גוררים את H2 ל-H61.
+כל שורה מקבלת Generate-and-insert משלה.`}</code></pre>
+    <p className="mt-2 text-sm">קריאות פר-שורה, לחיצות פר-שורה. איטי, אבל זה הדפוס הנתמך. בחירות רב-תאיות רצות עד 350 תאים בכל generate batch.</p>
+  </ComparePanel>
+</Compare>
+
+## שילוב תאים לתוך prompt
+
+הדפוס `"Classify: " & F2 & " " & G2` משרשר strings כך שכל שורה רואה את הנתונים שלה. שלושה כללים:
+
+1. **תייגו מה כל תא מכיל.** `"Spend: " & F2 & " Revenue: " & G2` עדיף על `& F2 & " " & G2`. labels עוזרים ל-Gemini לקרוא.
+2. **אל תעמיסו יותר מדי תאים פנימה.** חמישה ערכים זה בסדר; עשרים זה context מבוזבז. המודל מאבד אות ככל שה-prompt מתארך.
+3. **תפרמטו מספרים אם הערך הגולמי מכוער.** `& TEXT(F2, "$#,##0")` הופך את פורמט הדולר למפורש. שימושי ל-prompts שמדברים על כסף.
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=AI("Sentiment of this vertical: " & C50)`}</code></pre>
+    <p className="mt-2 text-sm">אם בשורה 50 ה-Vertical ריק, ה-prompt קורא "Sentiment of this vertical: " בלי כלום אחרי הנקודתיים. Gemini מנחש. התא מקבל sentiment סביר-נשמע אבל שגוי, ואף אחד לא שם לב עד שדשבורד מקבץ עליו.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IF(C50="", "missing vertical", AI("Sentiment of this vertical: " & C50))`}</code></pre>
+    <p className="mt-2 text-sm">שומרים על הקריאה. קלטים ריקים מחזירים literal "missing vertical" במקום להפעיל קריאת AI בתשלום שהמודל ממלא בהזיה.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=AI("Total revenue for buyer Yoav Cohen", A1:G61)`}</code></pre>
+    <p className="mt-2 text-sm">מבקשים מ-AI() לעשות חשבון. ה-return type טקסט והמודל לא דטרמיניסטי על מספרים. התא נראה כמו סכום דולרי; הוא סכום דולרי סטוכסטי. שתי קריאות יחלקו.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIF(B2:B61, "Yoav Cohen", G2:G61)`}</code></pre>
+    <p className="mt-2 text-sm">דטרמיניסטי, מדויק, חינם, מיידי. משתמשים בנוסחאות למספרים; משתמשים ב-AI למשימות בצורה של טקסט. Track 1 שיעור 11 מכסה SUMIF, COUNTIF, וחבריהם.</p>
+  </ComparePanel>
+</Compare>
 
 ## עטיפה הגנתית עם IFERROR
 
-AI() יכול להיכשל. הקריאה יכולה להיתקע ב-timeout, ה-spreadsheet יכול להגיע למכסה, ה-API יכול לזרוק שגיאה חולפת. בלי IFERROR, התא מציג `#ERROR!` וכל נוסחה במורד שנוגעת בו מפיצה את השגיאה.
+AI() יכולה להיכשל. הקריאה יכולה לעבור timeout, ה-workbook יכול להגיע למכסה, ה-API יכול לזרוק שגיאה זמנית. בלי `IFERROR`, התא מציג `#ERROR!` וכל נוסחה במורד הזרם שנוגעת בו מפיצה את השגיאה. `IFERROR` מכוסה ב-Track 1 שיעור 14; כאן מיישמים אותה על הפונקציה היחידה בגיליון שיש לה שיעור כישלון פר-שורה מדיד.
 
-התבנית ההגנתית:
+הדפוס ההגנתי:
 
 ```
 =IFERROR(AI("Categorize: " & C2), "needs review")
 ```
 
-משתמשים ב-`"needs review"` (או דומה) כ-string החלופי כך שאדם יידע שהשורה עוד לא סווגה. לעולם לא משתמשים ב-`""` כחלופה כי זה הופך את הכשלים לבלתי-נראים. הופכים את הכשל לברור כדי שיתוקן.
+משתמשים ב-`"needs review"` (או דומה) כ-fallback string כך שאדם יודע שהשורה לא סווגה עדיין. אף פעם לא משתמשים ב-`""` כ-fallback כי זה מסתיר כשלונות. הופכים את הכשל לברור כדי שיתוקן.
 
-## אי-דטרמיניזם בשטח
+<QuickCheck
+  question="איזה fallback של IFERROR לעמודת סיווג AI() הוא הכי תפעולית?"
+  options={[
+    {
+      id: "a",
+      label: <><code>{`=IFERROR(AI("Risk: low/med/high. " & F2 & " " & G2), "")`}</code></>,
+      correct: false,
+      explanation: "Fallback ריק מסתיר כשלונות. עמודה עם ריקים נראית רגילה בדשבורד; הסיווגים החסרים אף פעם לא מתוקנים.",
+    },
+    {
+      id: "b",
+      label: <><code>{`=IFERROR(AI("Risk: low/med/high. " & F2 & " " & G2), "needs review")`}</code></>,
+      correct: true,
+      explanation: "מציף את הכישלון כך שאדם יכול לפעול עליו. COUNTIF במורד הזרם על \"needs review\" הופך למדד בריאות של דשבורד.",
+    },
+    {
+      id: "c",
+      label: <><code>{`=IFERROR(AI("Risk: low/med/high. " & F2 & " " & G2), 0)`}</code></>,
+      correct: false,
+      explanation: "מחזיר מספר מעמודה שאחרת היא labels של טקסט. COUNTIFs לפי label במורד הזרם נשברים כי 0 לא בסט ה-labels.",
+    },
+  ]}
+/>
 
-שתי קריאות של `=AI("Sentiment of: " & A1)` עשויות להחזיר "positive" ו-"neutral" אחת אחרי השנייה. המודל אינו דטרמיניסטי בעיצובו. ההשלכות:
+## אי-דטרמיניזם בפועל
 
-- **עמודה של פלטי AI() היא snapshot, לא פונקציה.** טוענים את הגיליון מחדש שבוע אחר כך וחלק מהתאים זזו.
-- **התאמה בין שני דוחות נכשלת כשהעמודה הייתה AI-generated.** dashboard שמסכם שורות "high risk" ידווח מספר שונה בשני מאשר בשישי אם הרצתם מחדש את נוסחאות ה-AI() בינתיים.
-- **התשובה ה"נכונה" היא התשובה ש-Gemini נתן בפעם הראשונה.** ברגע שסומכים על עמודה, מקפיאים אותה: מעתיקים את הערכים ומדביקים paste-as-values. זה ה-audit trail.
+שתי קריאות של `=AI("Sentiment of: " & A1)` יכולות להחזיר `positive` ו-`neutral` ברצף. המודל אינו דטרמיניסטי בעיצוב. ההשלכות מתגלגלות:
 
-אם צריך reproducibility, paste-as-values הוא התיקון הסטנדרטי. אם צריך סיווג מתמשך, מקבלים את הסחיפה ובודקים שבועית.
+- **עמודה של פלטי AI() היא snapshot, לא פונקציה.** טוענים את הגיליון מחדש שבוע אחר כך וחלק מהתאים יזוזו.
+- **התאמה (reconciliation) בין שני דוחות נכשלת כשהעמודה נוצרה על-ידי AI.** דשבורד שסוכם שורות "high risk" ידווח מספר שונה בשני מאשר בשישי אם הרצתם את נוסחאות ה-AI() בין לבין.
+- **התשובה ה"נכונה" היא התשובה ש-Gemini נתנה בפעם הראשונה שסמכתם עליה.** ברגע שסומכים על עמודה, מקפיאים אותה: מעתיקים את הערכים ועושים paste-as-values. זה ה-audit trail. שיעור 5.1 מכסה את דפוס ההקפאה; שיעור 5.6 מכסה למה חייבים.
+
+אם צריך reproducibility, paste-as-values זה התיקון הסטנדרטי. אם צריך סיווג מתמשך, מקבלים את הסחיפה ומוודאים שבועית. הכלל בפועל של הצוות: עמודות AI חיות אף פעם לא מופיעות בדוחות לבעלי עניין; רק עותקים מוקפאים.
 
 ## עכשיו לעבודה אמיתית
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="לוג הקמפיינים יושב ב-A1:G61. עמודה H היא איפה ש-prompts ה-AI() הולכים, מכוונים לשורה 2."
+  caption="לוג הקמפיינים יושב ב-A1:G61. עמודה H היא איפה ש-prompts של AI() הולכים לשורת הנתונים הראשונה."
 />
 
-לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים בן 60 השורות. תכתבו שלוש תבניות AI() בעמודה H, כל אחת מצביעה על שורה 2:
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים בן 60 השורות. תכתבו שלושה דפוסים של AI() בעמודה H, כל אחד מצביע לשורה 2:
 
-- **H2** מסווגת את הסיכון של הקמפיין כ-`low`, `medium`, או `high`, באמצעות F2 (spend) ו-G2 (revenue).
-- **H3** מבקשת sentiment על שם ה-vertical ב-C2.
-- **H4** עוטפת קריאת סיווג ב-IFERROR כדי שכשלים ינחתו כ-string חלופי במקום `#ERROR!`.
+- **H2** מסווג את סיכון הקמפיין כ-`low`, `medium`, או `high` באמצעות F2 (spend) ו-G2 (revenue).
+- **H3** מבקש sentiment על שם ה-vertical ב-C2.
+- **H4** עוטף קריאת סיווג ב-IFERROR כך שכשלונות נוחתים כמחרוזת fallback במקום `#ERROR!`.
 
-ב-spreadsheet אמיתי הייתם גוררים את אלה למטה לאורך 60 שורות. לתרגיל, שורה אחת מספיקה כדי לדרג את צורת הנוסחה.
+ב-workbook אמיתי הייתם גוררים את אלה למטה 60 שורות. למטלה, שורה אחת מספיקה לדרוג את צורת הנוסחה.
 
 ## נפוץ בשטח
 
 ב-aggregator האמיתי של הצוות:
 
-- **עמודת הסיכון היא AI() עם prompt מוגבל ל-4 labels.** הצוות סוקר את העמודה ידנית כל יום שני, מקפיא אותה עם paste-as-values, ואז dashboards קוראים מהעותק המוקפא. הסיווג של השבוע הבא דורס את העמודה החיה.
-- **תרגום משוב לקוחות רץ דרך AI().** `=AI("Translate to English: " & E2)` על עמודה של משוב בעברית או בספרדית נותן תרגומים עקביים מספיק כדי לעשות triage על אילו threads דורשים מענה אנושי.
-- **לכל עמודת AI() ב-production יש עטיפת IFERROR עם חלופת `"needs review"`.** החלופות מבעבעות ב-scorecard של dashboard כך ששורה לא-מסווגת לעולם לא נעלמת בשקט.
+- **עמודת ה-risk היא AI() עם prompt מצומצם בן 4 labels.** הצוות סוקר את העמודה ידנית כל שני, מקפיא ב-paste-as-values, ואז דשבורדים קוראים מהעותק המוקפא. הסיווג של השבוע הבא דורס את העמודה החיה.
+- **תרגום משוב לקוחות עובר דרך AI().** `=AI("Translate to English: " & E2)` על עמודה של משוב בעברית או ספרדית נותן תרגומים עקביים מספיק לסיווג איזה thread צריך מעקב אנושי.
+- **לכל עמודת AI() בפרודקשן יש עטיפת IFERROR עם fallback `"needs review"`.** ה-fallbacks מבעבעים ב-scorecard של הדשבורד כך ששורה לא מסווגת אף פעם לא נעלמת בשקט.
+- **עמודות מספריות אף פעם לא משתמשות ב-AI().** ROI, CPC, EPC, profit הם כולם `SUM` וחשבון. AI() שמורה לעבודת טקסט מטושטשת איפה שמגבלת ה-return-as-text לא מס.
 
 ## מלכודות מקצועיות
 
-- **פלטים לא-דטרמיניסטיים בין קריאות.** שתי הרצות, שתי תשובות. מתכננים לזה. מקפיאים עם paste-as-values כשהעמודה חשובה.
-- **`=AI()` ב-5,000 שורות מגיע למכסה מהר.** מעריכים עלות לפני גרירה. עמודה של 60 קריאות זולה. עמודה של 5,000 קריאות בשעות עומס יכולה לחסום את מכסת ה-Gemini של הצוות לשעות.
-- **prompts שעובדים בשורה 2 נכשלים בשורה 50.** אם בשורה 50 ה-Vertical ריק, ה-prompt קורא "Sentiment of this vertical name: " עם כלום אחרי הנקודתיים, ו-Gemini מנחש. מגנים עם `IF(C2<>"", AI(...), "missing vertical")`.
-- **לבקש מ-AI() להחזיר מספר.** לא. משתמשים ב-`SUMIFS` או ב-`COUNTIF`. AI() מחזיר טקסט, גם אם הטקסט נראה כמו מספר, הוא לא באמת מספר.
-- **לבקש מ-AI() את "הקמפיין הכי טוב".** prompts סובייקטיביים מייצרים תשובות שונות בכל פעם. מגדירים את הקריטריון ("highest ROI", "lowest CPC") ומשתמשים בנוסחה במקום.
-- **Labels שהוזיו.** prompt שאומר "low, medium, or high" לפעמים מחזיר "very high" או "moderate". מאמתים את ה-output לפני שסומכים: `=IF(REGEXMATCH(AI(...), "low|medium|high"), AI(...), "needs review")`. (לתשומת לב: זה קורא ל-AI() פעמיים, אז שומרים את הקריאה בתא עזר קודם.)
+- **פלטים לא דטרמיניסטיים בין קריאות.** שתי ריצות, שתי תשובות. מתכננים לזה. מקפיאים ב-paste-as-values כשעמודה חשובה.
+- **`=AI()` ב-5,000 שורות מגיע למכסה מהר.** מעריכים עלות לפני גרירה. עמודה של 60 קריאות זולה. עמודה של 5,000 קריאות בשעות שיא יכולה לחסום את מכסת ה-Gemini של הצוות לשעות, והתיעוד מגביל ריצות רב-תאיות ל-350 תאים ל-generate batch ממילא.
+- **Prompts שעובדים בשורה 2 נכשלים בשורה 50.** אם שורה 50 יש בה Vertical ריק, ה-prompt שלכם קורא "Sentiment of this vertical name: " בלי כלום אחרי הנקודתיים, ו-Gemini מנחש. שומרים עם `IF(C2<>"", AI(...), "missing vertical")`.
+- **לבקש מ-AI() להחזיר מספר.** אל. משתמשים ב-`SUMIFS` או `COUNTIF`. AI() מחזירה טקסט; גם כשהטקסט נראה כמו מספר, הוא לא אמין כמספר.
+- **לבקש מ-AI() את "הקמפיין הטוב ביותר".** Prompts סובייקטיביים מייצרים תשובות שונות בכל קריאה. מגדירים את הקריטריון ("highest ROI", "lowest CPC") ומשתמשים בנוסחה במקום.
+- **Labels הזויים.** Prompt שאומר "low, medium, or high" לפעמים מחזיר "very high" או "moderate". מאמתים את ה-output לפני שסומכים עליו. הצוות כותב `=IF(REGEXMATCH(H2, "^(low|medium|high)$"), H2, "needs review")` בנפרד בעמודה I כדי להציף סחיפת labels.
+- **ניסיון לקנן AI() בתוך פונקציה אחרת.** התיעוד אוסר את זה במפורש. `ARRAYFORMULA(AI(...))`, `IF(condition, AI(...), AI(...))`, `IFERROR(AI(...), AI(...))` כולם לא אמינים. שומרים את קריאות AI ברמה העליונה של הנוסחה.
