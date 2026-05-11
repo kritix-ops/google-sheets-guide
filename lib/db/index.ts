@@ -1,17 +1,19 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
 
 import * as schema from "./schema";
 
-const dbPath = process.env.DATABASE_FILE ?? "./.data/sheets-guide.db";
+// libSQL is SQLite-compatible. In production we point at Turso over HTTPS;
+// in local dev we fall back to a file URL so the existing developer flow
+// (no Turso credentials required) keeps working. The `file:` scheme is
+// handled by @libsql/client itself.
+const url = process.env.TURSO_DATABASE_URL ?? "file:./.data/sheets-guide.db";
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
-mkdirSync(dirname(dbPath), { recursive: true });
+const client = createClient({
+  url,
+  ...(authToken ? { authToken } : {}),
+});
 
-const sqlite = new Database(dbPath);
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
-
-export const db = drizzle(sqlite, { schema });
+export const db = drizzle(client, { schema });
 export { schema };
