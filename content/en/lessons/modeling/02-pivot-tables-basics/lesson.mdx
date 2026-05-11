@@ -116,19 +116,19 @@ MEDIAN ➜ 98.5`}</code></pre>
   options={[
     {
       id: "a",
-      label: "AVERAGE — it includes every data point, so it's the most complete picture",
+      label: "AVERAGE: it includes every data point, so it's the most complete picture",
       correct: false,
       explanation: "AVERAGE includes every point but weights them equally. One outlier with extreme magnitude dominates. 'Most complete' is not 'most representative'.",
     },
     {
       id: "b",
-      label: "MEDIAN — it returns the middle value, which is more representative when the distribution has outliers",
+      label: "MEDIAN: it returns the middle value, which is more representative when the distribution has outliers",
       correct: true,
       explanation: "MEDIAN is the right default for any skewed distribution. The blockbuster day is real but rare; the median 0.8× is what 'a typical day' actually looks like.",
     },
     {
       id: "c",
-      label: "MAX — it shows the best the buyer can do, which is what matters for planning",
+      label: "MAX: it shows the best the buyer can do, which is what matters for planning",
       correct: false,
       explanation: "MAX answers 'what's the best they've ever done', not 'what's typical'. Different question. Use MAX for outlier hunting, not for a 'typical day' headline.",
     },
@@ -154,7 +154,7 @@ The gotcha: calculated fields use SUM by default. If you need a different aggreg
   </ComparePanel>
   <ComparePanel label="Working: exact match" tone="positive">
     <pre className="font-mono text-xs"><code>{`= 'Revenue' / 'Spend'`}</code></pre>
-    <p className="mt-2 text-sm">Header text matches exactly. Calculated field evaluates as <code>SUM(Revenue) / SUM(Spend)</code> per pivot cell — the portfolio ROI you actually want.</p>
+    <p className="mt-2 text-sm">Header text matches exactly. Calculated field evaluates as <code>SUM(Revenue) / SUM(Spend)</code> per pivot cell, the portfolio ROI you actually want.</p>
   </ComparePanel>
 </Compare>
 
