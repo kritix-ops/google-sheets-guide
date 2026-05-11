@@ -2,7 +2,11 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Custom functions: כתיבה, שמות, ו-metadata להשלמה אוטומטית
 
-שני השיעורים הקודמים כיסו את עורך Apps Script ואת מודל ההרצה. עכשיו תכתבו קוד שמופעל מתוך ה-spreadsheet עצמו. **custom function** היא function ב-JavaScript שמוגדרת בפרויקט המקושר, ושה-spreadsheet יכול לקרוא לה מתא בדיוק כמו `=SUM` או `=VLOOKUP`. נותנים לה שם, שולחים פעם אחת, ומאותו רגע כל תא ב-spreadsheet שולח יד לאותה לוגיקה. ה-spreadsheets של הצוות בעולם האדטק נשענים על זה כל הזמן: המרת USD ל-ILS, נורמליזציה של שמות verticals, חלוקת ROI לקטגוריות, מיפוי country code לאזור. הגדרה אחת של function, שלושים נוסחאות שונות שקוראות לה.
+שני השיעורים הקודמים כיסו את עורך Apps Script ואת מודל ההרצה. עכשיו תכתבו קוד שנורה מתוך ה-spreadsheet עצמו. **custom function** היא function ב-JavaScript שמוגדרת בפרויקט המקושר, ושה-spreadsheet יכול לקרוא לה מתא בדיוק כמו `=SUM` או `=VLOOKUP`. נותנים לה שם, שולחים פעם אחת, ומאותו רגע כל תא ב-workbook שולח יד לאותה לוגיקה.
+
+ה-workbooks של הצוות בעולם האדטק נשענים על custom functions כל הזמן: המרת USD ל-ILS לפי שער היום, נורמליזציה של שמות vertical (משמעת הסיומת ` PR`), bucketing של ROI (`"loss"` / `"flat"` / `"profitable"` / `"hero"`), מיפוי country code לאזור. הגדרה אחת של function; שלושים נוסחאות שונות שקוראות לה. ברגע שכלל עסקי משתנה (אזור חדש משיק, ספי ה-bucket זזים) עורכים שורה אחת ב-`Code.gs` וכל תא תלוי קולט את ההתנהגות החדשה ב-recalc הבא.
+
+השיעור הזה מכסה ארבעה דברים: הצורה ש-Apps Script מקבל כ-custom function, ה-JSDoc שמחבר אותה ל-tooltip של autocomplete של התא, איך ארגומנטים של טווח מגיעים ל-body של ה-function, וחוזה ה-caching שמפתיע כל לומד בפעם הראשונה שהוא שולח יד ל-`new Date()`. הסעיף האחרון נותן שם לגבול: דברים ש-custom functions לא יכולות לעשות, ולמה.
 
 ## הצורה
 
@@ -20,36 +24,45 @@ function usdToILS(usd, rate) {
 =usdToILS(F2, $K$1)
 ```
 
-שם ה-function בתא תואם למזהה ב-JS. בתא לא משנה אם האותיות גדולות או קטנות, גם `=USDTOILS(...)` עובד, אבל ההכרזה ב-JS רגישה לאותיות. `function USDtoILS` ו-`function usdToILS` הן שתי functions שונות לחלוטין מבחינת העורך.
+שם ה-function בתא תואם ל-JS identifier. רישיות לא משנה בתא: `=USDTOILS(...)` עובד גם. אבל הצהרת ה-JS רגישה לרישיות. `function USDtoILS` ו-`function usdToILS` הן שתי functions שונות לעורך.
 
-Apps Script מתייחס רק ל-**function declarations ברמה העליונה** כ-custom functions. אף אחת מהאפשרויות האלה לא תיקרא מתא:
+Apps Script מתייחס רק ל-**function declarations ברמת ה-top** כ-custom functions. ה-Compare הבא מראה את הכלל בדוגמה.
 
-```js
-// arrow function, לא הכרזה ברמה העליונה.
+<Compare>
+  <ComparePanel label="קריא מתא" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function usdToILS(usd, rate) {
+  return usd * rate;
+}`}</code></pre>
+    <p className="mt-2 text-sm">הצהרת <code>function</code> ברמת ה-top. ה-autocomplete של העורך קולט את זה ותא יכול לקרוא <code>=usdToILS(F2, K1)</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="בלתי נראה לתא" tone="negative">
+    <pre className="font-mono text-xs"><code>{`// arrow function מוצמד ל-const:
 const usdToILS = (usd, rate) => usd * rate;
 
-// function expression שמושמת לקבוע, אותה בעיה.
+// function expression מוצמד ל-const:
 const usdToILS = function(usd, rate) { return usd * rate; };
 
-// מקוננת בתוך function אחרת, בלתי נראית מבחוץ.
+// מקונן בתוך function אחרת:
 function helpers() {
   function usdToILS(usd, rate) { return usd * rate; }
-}
-```
+}`}</code></pre>
+    <p className="mt-2 text-sm">אף אחד מאלה לא צף לתא. תא שמקליד <code>=usdToILS(...)</code> מחזיר <code>#NAME?</code>.</p>
+  </ComparePanel>
+</Compare>
 
-ה-function set שעורך Apps Script בונה כשאתם שומרים הוא מה שה-spreadsheet רואה. אם שם לא צץ ב-autocomplete כשמתחילים להקליד `=usd...` בתא, העורך לא ראה הכרזה ברמה העליונה. פותחים את `Code.gs`, מתקנים את צורת ההכרזה, שומרים, וה-autocomplete מתעדכן תוך שנייה.
+סט ה-functions שעורך Apps Script בונה כששומרים הוא מה שה-spreadsheet רואה. אם שם לא מופיע ב-tooltip של autocomplete כשמתחילים להקליד `=usd...` בתא, העורך לא ראה הצהרה ברמת ה-top. פותחים את `Code.gs`, מתקנים את צורת ההצהרה, שומרים, וה-autocomplete מתעדכן תוך שנייה.
 
-## ה-JSDoc שהופך לטולטיפ
+## ה-JSDoc שהופך ל-tooltip
 
-הצורה שלמעלה עובדת, אבל אם חבר צוות יעבור עם העכבר על `=usdToILS(...)` בתא, כל מה שיראה זה שם ה-function. מוסיפים JSDoc עם `@customfunction` והטולטיפ של התא מתחיל להציג את רשימת הפרמטרים ואת התיאור, אותה רמת רמזים כמו ב-`=SUM`:
+הצורה למעלה עובדת, אבל אם חבר צוות מעביר עכבר על `=usdToILS(...)` בתא, כל מה שהוא רואה זה שם ה-function. מוסיפים JSDoc עם `@customfunction` וה-tooltip של התא מתחיל להציג את רשימת הפרמטרים והתיאור: אותו משטח hint כמו `=SUM`:
 
 ```js
 /**
- * המרת סכום בדולרים אמריקאיים לשקלים לפי שער נתון.
+ * המרה של סכום בדולרים ל-ILS לפי שער נתון.
  *
- * @param {number} usd  הסכום בדולרים אמריקאיים.
- * @param {number} rate שער ההמרה USD ל-ILS.
- * @return {number} הסכום בשקלים.
+ * @param {number} usd  הסכום בדולרים.
+ * @param {number} rate שער ה-USD-to-ILS.
+ * @return {number} הסכום המומר ל-ILS.
  * @customfunction
  */
 function usdToILS(usd, rate) {
@@ -59,27 +72,27 @@ function usdToILS(usd, rate) {
 
 ארבעה tags, כולם שווים לכתוב ביום ששולחים את ה-function:
 
-| Tag | מה הוא עושה |
+| Tag | מה זה עושה |
 |---|---|
-| תיאור (הפסקה הראשונה) | גוף הטולטיפ. משפט אחד. |
-| `@param {type} name desc` | מופיע כעזרת פרמטר כשהסמן יושב על הארגומנט הזה. |
-| `@return {type} desc` | מתועד אבל לא מוצג בטולטיפ. שימושי לקורא הבא של המקור. |
-| `@customfunction` | חובה כדי שהצעת ה-autocomplete תצוץ בתאים. בלעדיו, ה-function עדיין עובדת אבל לא תצוץ כשמקלידים `=usd...`. |
+| תיאור (פסקה ראשונה) | ה-body של ה-tooltip. משפט אחד. |
+| `@param {type} name desc` | מופיע כעזרת פרמטר כשהסמן על הארגומנט הזה. |
+| `@return {type} desc` | מתועד אבל לא מוצג ב-tooltip; שימושי לקורא הבא של המקור. |
+| `@customfunction` | חובה כדי שההצעה של autocomplete תצוף בתאים. בלעדיו, ה-function עדיין עובדת אבל היא לא תופיע כשמקלידים `=usd...`. |
 
-ל-spreadsheet של אדם אחד ה-JSDoc אופציונלי. ל-spreadsheet של צוות זה תיעוד חינמי שחי ליד הקוד וצץ בתא שבו צריך אותו.
+ל-workbook של איש אחד ה-JSDoc אופציונלי. ל-workbook של צוות זה תיעוד חינמי שגר ליד הקוד ומופיע בתא שבו צריך אותו.
 
-## קריאה של ארגומנט מסוג range
+## קריאת ארגומנט של טווח
 
-הארגומנט של custom function הוא מה שהתא העביר:
+ארגומנט של custom function הוא מה שהתא מעביר:
 
-| הנוסחה בתא | מה `usd` בתוך ה-function |
+| נוסחת תא | מה <code>usd</code> בתוך ה-function |
 |---|---|
 | `=usdToILS(F2, 3.7)` | המספר ב-F2 |
-| `=usdToILS(F2:F10, 3.7)` | array דו-ממדי של תשעה מספרים |
+| `=usdToILS(F2:F10, 3.7)` | מערך דו-ממדי של תשעה מספרים |
 | `=usdToILS("80.50", 3.7)` | המחרוזת `"80.50"` (Sheets לא ממיר אוטומטית) |
 | `=usdToILS(, 3.7)` | `undefined` |
 
-למקרה הפשוט של תא בודד `usd * rate` עובד. ברגע שהקורא מעביר range, האופרטור `*` ב-JavaScript מבצע בשקט את הפעולה השגויה על ה-array הדו-ממדי (`NaN`) והתא מציג `#NUM!`. הצורה העמידה מבצעת iteration במפורש:
+למקרה הפשוט של תא יחיד `usd * rate` עובד. ברגע שה-caller מעביר טווח, האופרטור `*` של JavaScript עושה בשקט את הדבר הלא נכון על המערך הדו-ממדי (`NaN`) והתא מציג `#NUM!`. הצורה החסינה איטרטיבית במפורש:
 
 ```js
 function usdToILS(usd, rate) {
@@ -92,66 +105,186 @@ function usdToILS(usd, rate) {
 }
 ```
 
-function שכתובה ככה מטפלת ב-`=usdToILS(F2, $K$1)` בנוסחאות שורה-שורה **וגם** ב-`=usdToILS(F2:F61, $K$1)` כנוסחה אחת שגולשת ל-60 שורות. המטלה של השיעור דורשת רק את המסלול של תא בודד; אפשר לשלוח את גרסת ה-array ביום השני.
+function שכתובה ככה מטפלת ב-`=usdToILS(F2, $K$1)` בנוסחאות פר-שורה **וגם** ב-`=usdToILS(F2:F61, $K$1)` כ-spill של נוסחה אחת ל-60 שורות. הקטע המעשי של השיעור דורש רק את מסלול התא היחיד; את מסלול המערך אפשר לשלוח ביום השני.
 
-## Caching: אותם ארגומנטים, אותה תוצאה
+<StepThrough
+  frames={[
+    {
+      caption: "שלב 1: התא נותן ל-function טווח",
+      body: (
+        <>
+          אתם מקלידים <code>=usdToILS(F2:F61, $K$1)</code> ב-J2. מנוע התא ארוז
+          את הטווח של 60 השורות כמערך דו-ממדי{" "}
+          <code>[[412.5], [285.3], ...]</code> ואת השער <code>3.7</code> כמספר
+          רגיל, ואז שולח ל-function שלכם.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 2: ה-function מזהה את צורת המערך",
+      body: (
+        <>
+          <code>Array.isArray(usd)</code> מחזיר <code>true</code>. בלי השומר,
+          <code>usd * rate</code> היה עושה <code>[[412.5],...] * 3.7</code>{" "}
+          ש-JavaScript ממיר בשקט ל-<code>NaN</code> והתא מציג{" "}
+          <code>#NUM!</code>.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 3: map על שורות, map על תאים",
+      body: (
+        <>
+          ה-<code>usd.map(row =&gt; ...)</code> החיצוני עובר על כל שורה.
+          ה-<code>row.map(v =&gt; v * rate)</code> הפנימי עובר על כל תא בשורה
+          (תא אחד כאן כי הטווח עמודה אחת). צורת הפלט היא{" "}
+          <code>[[1526.25], [1055.61], ...]</code>: אותה צורה דו-ממדית כמו הקלט.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 4: spill",
+      body: (
+        <>
+          Sheets מקבל מערך של 60 שורות × עמודה 1 ועושה לו spill ל-<code>J2:J61</code>.
+          אם ב-<code>J3</code> כבר היה תוכן, ה-spill מבוטל עם <code>#REF!</code>.
+          ה-wrapper לוקח את זה ברצינות; מנקים את היעד לפני הרצה מחדש.
+        </>
+      ),
+    },
+  ]}
+/>
 
-Custom functions מקבלות **cache לפי רשימת הארגומנטים**. הקריאה הראשונה ל-`=usdToILS(F2, $K$1)` מריצה את ה-function וזוכרת את התשובה. אם F2 ו-K1 לא משתנים, פתיחת ה-spreadsheet מחר לא מריצה שוב את ה-function, הערך מה-cache מוצג. זו תכונה (ה-spreadsheet נפתח מהר גם עם מאות תאים של custom function) ומלכודת (function שקוראת את השעה הנוכחית, את המשתמש הנוכחי, או ערך אקראי, קופאת בשקט ברגע שהקלטים שלה יציבים).
+## Caching: אותם args, אותה תוצאה
 
-שלושה דפוסים שצריך להימנע מהם בתוך custom function:
+custom functions שמורות ב-cache **לפי רשימת הארגומנטים שלהן**. הקריאה הראשונה ל-`=usdToILS(F2, $K$1)` מריצה את ה-function וזוכרת את התשובה. אם F2 ו-K1 לא משתנים, פתיחת ה-workbook מחר לא תריץ מחדש את ה-function: הערך שב-cache מוצג. זו תכונה (workbooks נפתחים מהר אפילו עם מאות תאי custom function) וזו מלכודת (function שקוראת את הזמן הנוכחי, את המשתמש הנוכחי, או ערך אקראי, קופאת בשקט ברגע שה-inputs שלה יציבים).
 
-- **`new Date()` או `Date.now()`.** נשמרים ב-cache. שני תאים שקוראים לאותה function באותו רגע יכולים להחזיר חותמות זמן שונות; פתיחה מחדש של הקובץ תחזיר את אלה שנשמרו ב-cache.
-- **`Math.random()`.** אותה בעיה. משתמשים ב-`RAND()` באופן native אם צריך אקראיות בתא; הוא volatile ומתגלגל מחדש כמו שצריך.
-- **`UrlFetchApp.fetch(...)` לנתונים live.** פוגע ב-quota בכל recalc ונשמר ב-cache. אם הנתונים אמורים להיות live, משתמשים ב-trigger מבוסס-זמן שכותב לתא, לא ב-custom function שקוראת מ-URL.
+שלושה patterns להימנע מהם ב-custom function:
 
-כלל אצבע: custom function צריכה להיות **pure function של הארגומנטים שלה**. אם שתי קריאות עם אותם ארגומנטים יכולות להחזיר דברים שונים בצורה לגיטימית, היא לא שייכת ל-custom function.
+- **`new Date()` או `Date.now()`.** ב-cache. שני תאים שקוראים לאותה function באותו זמן יכולים להחזיר חותמות זמן שונות; פתיחה מחדש של הקובץ מחזירה את זו שב-cache.
+- **`Math.random()`.** אותה בעיה. השתמשו ב-`RAND()` native אם אתם צריכים אקראיות בתא; הוא volatile ומתגלגל מחדש נכון.
+- **`UrlFetchApp.fetch(...)` לנתונים חיים.** פוגע במכסה פר-recalc ונכנס ל-cache. אם הנתונים אמורים להיות חיים, השתמשו ב-trigger מבוסס-זמן (שיעור 8) שכותב לתא, לא ב-custom function שקוראת מ-URL.
 
-## מה ש-custom functions לא יכולות לעשות
+כלל אצבע: custom function צריכה להיות **function טהורה של הארגומנטים שלה**. אם שתי קריאות עם אותם ארגומנטים יכולות לגיטימית להחזיר דברים שונים, זה לא שייך כ-custom function.
 
-ה-auth context שבו custom functions רצות צר בכוונה. הן יכולות:
+<Compare>
+  <ComparePanel label="לא נכון: זמן ב-cache, לא מתעדכן" tone="negative">
+    <pre className="font-mono text-xs"><code>{`function nowStamp() {
+  return new Date().toLocaleString();
+}`}</code></pre>
+    <p className="mt-2 text-sm">כל תא שקורא <code>=nowStamp()</code> שומר ב-cache את התוצאה הראשונה. פתיחה מחדש של ה-workbook שבוע אחרי והתאים עדיין מציגים את חותמת הזמן של שבוע שעבר.</p>
+  </ComparePanel>
+  <ComparePanel label="נכון: function native volatile" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=NOW()`}</code></pre>
+    <p className="mt-2 text-sm">ה-<code>NOW()</code> של Sheets הוא volatile מעיצוב ומתגלגל מחדש בכל recalc. custom functions לא יכולות לשכפל את הביט ה-volatile, אז שולחים יד ל-native.</p>
+  </ComparePanel>
+</Compare>
 
-- לקרוא את ה-spreadsheet הפעיל דרך `SpreadsheetApp.getActiveSpreadsheet()` (קריאה בלבד, רק הגיליון הנוכחי)
-- לקרוא ל-`Utilities.*` לפרסור ולעיצוב
+## function שנייה מעובדת: מנרמל vertical
+
+הדוגמה של USD-to-ILS היא צורת המינימום ההכרחי. הנה זו שהצוות באמת נשען עליה יותר: `normalizeVertical(name)`. המוסכמה של הצוות היא שכל שם vertical מסתיים ב-` PR`, בלי רווחים מובילים או נגררים, ב-title case. נתוני המקור מ-Taboola ומ-Outbrain מפרים את שלושת הכללים כל הזמן: `"used cars pr"`, `" Reverse Mortgage PR "`, `"Lingerie"` (בלי סיומת).
+
+```js
+/**
+ * נרמול שם vertical למוסכמת הצוות: title-case, מקוצץ,
+ * עם סיומת " PR" נגררת.
+ *
+ * @param {string} name  שם ה-vertical הגולמי מ-export של פלטפורמה.
+ * @return {string} הצורה הקנונית, למשל "Used Cars PR".
+ * @customfunction
+ */
+function normalizeVertical(name) {
+  if (name === null || name === undefined || name === "") return "";
+  const trimmed = String(name).trim();
+  const titled = trimmed.replace(/\b\w/g, function(c) {
+    return c.toUpperCase();
+  }).replace(/\bPr\b/, "PR");
+  if (titled.endsWith(" PR")) return titled;
+  return titled + " PR";
+}
+```
+
+אותה צורת function (function טהורה של הארגומנטים שלה, מטפלת ב-null/empty, מחזירה מחרוזת) משמשת מחדש עבור `normalizeBuyer`, `countryToRegion`, `roiBucket`. שלושה דברים שכדאי להוציא מהדוגמה הזו:
+
+1. **שומר הגנתי בראש.** תא יכול להעביר מחרוזת ריקה (התא ריק), `null`, או `undefined` (הארגומנט הושמט). בלי השומר, `String(null).trim()` זורק והתא מציג `#ERROR!`.
+2. **`String(name)` במקום `name.toString()`.** אם `name` הוא מספר (Sheets לפעמים מטפס עמודה כמספרית כשהנתונים מעורבים), `name.toString()` עובד אבל `String(name)` בטוח יותר כי הוא לא מניח method.
+3. **regex על word boundaries.** `\b\w` תופס את התו הראשון של כל מילה; ההחלפה ממירה לאות גדולה. ה-`\bPr\b → PR` הבא מטפל במקרה הקיצון שבו המקור כבר היה עם סיומת " PR" עם רישיות נכונה ש-title-casing היה אחרת מכתב מחדש ל-" Pr".
+
+## מה custom functions לא יכולות לעשות
+
+ה-auth context ש-custom functions רצות תחתיו צר בכוונה. הן יכולות:
+
+- לקרוא את ה-spreadsheet הפעיל דרך `SpreadsheetApp.getActiveSpreadsheet()` (קריאה בלבד, sheet נוכחי בלבד)
+- לקרוא ל-`Utilities.*` ל-parsing ופורמט
 - להריץ JS טהור
 
 הן **לא יכולות**:
 
-- להציג dialog או sidebar (`showSidebar`, `alert`, אלה דורשים UI context פעיל)
+- להציג dialog או sidebar (`showSidebar`, `alert`: אלה דורשים UI context פעיל)
 - לכתוב ל-spreadsheet (`setValue`, `setFormula`)
-- לשלוח אימייל, לערוך Calendar, או כל דבר אחר שדורש OAuth scopes ש-context של תא לא נושא
-- לרוץ יותר מ-30 שניות (timeout של custom function)
+- לשלוח מייל, לערוך Calendar, או כל דבר אחר שצריך OAuth scopes שה-cell context לא נושא
+- לקחת יותר מ-30 שניות (timeout של custom function)
+- לקרוא ל-`SpreadsheetApp.openById` (רק ה-spreadsheet הפעיל, לעולם לא קובץ אחר)
 
-אם ה-function שלכם צריכה משהו מאלה, היא macro או handler ב-trigger, לא custom function. שיעורים 4–7 ב-Track 3 מכסים את הצד הזה של המשטח.
+אם ה-function שלכם צריכה משהו מאלה, זה macro או handler מופעל-trigger, לא custom function. שיעורים 4 עד 8 ב-Track 3 מכסים את הצד הזה של המשטח.
+
+<QuickCheck
+  question="אתם צריכים תא שיציג תמיד את הזמן הנוכחי, מתעדכן בכל recalc. האם לכתוב custom function בשם nowStamp() עם new Date() בפנים, או להשתמש במשהו אחר?"
+  options={[
+    {
+      id: "a",
+      label: "לכתוב nowStamp() עם new Date(). Apps Script יריץ אותו מחדש בכל recalc.",
+      correct: false,
+      explanation: "custom functions ב-cache לפי רשימת ארגומנטים. ל-nowStamp() אין ארגומנטים אז התוצאה ב-cache לא תשתנה לעולם. התא היה קופא על הערך הראשון.",
+    },
+    {
+      id: "b",
+      label: "להשתמש ב-function native =NOW(). היא volatile ומתגלגלת מחדש בכל recalc.",
+      correct: true,
+      explanation: "NOW() (וגם TODAY(), RAND()) הן volatile מעיצוב. custom functions לא יכולות לשכפל את זה; לתא של זמן חי, native הוא הכלי הנכון.",
+    },
+    {
+      id: "c",
+      label: "לכתוב nowStamp(seed) ולהעביר ארגומנט שונה בכל פעם.",
+      correct: false,
+      explanation: "טכנית מאלץ הרצה מחדש בכל ארגומנט שונה, אבל אתם צריכים להמשיך לייצר seeds חדשים, וזה בדיוק מה ש-NOW() עושה לכם native. אל תמציאו volatility מחדש.",
+    },
+  ]}
+/>
 
 ## עכשיו לעבודה אמיתית
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="לוג ה-Campaigns תופס את A1:G61. Spend נמצא ב-F, Revenue ב-G, שניהם ב-USD. המשימה: להמיר אותם ל-ILS בעמודות H ו-I בעזרת custom function."
+  caption="לוג ה-Campaigns תופס A1:G61. Spend ב-F, Revenue ב-G: שניהם ב-USD. המשימה שלכם: להמיר אותם ל-ILS בעמודות H ו-I באמצעות custom function."
 />
 
-קובץ ה-starter `Lesson.gs` כבר מצהיר על החתימה `usdToILS(usd, rate)` עם stub של `return null;`. שלוש משימות:
+הקובץ ההתחלתי `Lesson.gs` כבר מצהיר על החתימה `usdToILS(usd, rate)` עם stub של `return null;`. שלוש משימות:
 
-1. מחליפים את `return null;` בביטוי הנכון כדי שה-function תכפיל באמת את הארגומנטים שלה.
-2. בתא H2, קוראים `=usdToILS(F2, $K$1)` כדי להמיר את ה-spend ב-USD מ-F2 ל-ILS. K1 מחזיק את השער (3.7).
-3. בתא I2, קוראים `=usdToILS(G2, $K$1)` כדי להמיר את ה-revenue ב-USD מ-G2. אותה function, עמודת קלט שונה.
+1. מחליפים את `return null;` בביטוי הנכון כדי שה-function באמת תכפיל את הארגומנטים שלה.
+2. בתא H2, קוראים `=usdToILS(F2, $K$1)` כדי להמיר את ה-USD spend של F2 ל-ILS. K1 מחזיק את השער (3.7).
+3. בתא I2, קוראים `=usdToILS(G2, $K$1)` כדי להמיר את ה-USD revenue של G2. אותה function, עמודת קלט שונה.
 
-הנקודה היא שימוש חוזר. ברגע ש-`usdToILS` תקינה, שתי הנוסחאות פשוט קוראות לה. שינוי השער ב-K1 ושני התאים מתעדכנים. שינוי לוגיקת ההמרה (עיגול, עמלת בנק של 0.5%) במקום אחד ב-`Lesson.gs` וכל תא שקורא ל-function קולט את השינוי.
+הנקודה היא שימוש חוזר. ברגע ש-`usdToILS` נכון, שתי הנוסחאות פשוט קוראות לה. משנים את השער ב-K1 ושני התאים מתעדכנים. משנים את לוגיקת ההמרה (עיגול, עמלת בנק של 0.5%) במקום אחד ב-`Lesson.gs` וכל תא שקורא ל-function קולט.
 
 ## נפוץ בשטח
 
-ב-spreadsheets האמיתיים של הצוות, custom functions מופיעות בתור utilities קטנים של lookup ועיצוב:
+ב-workbooks האמיתיים של הצוות, custom functions מופיעות כעוזרי lookup-and-format קטנים:
 
-- **`normalizeVertical(name)`**: מסיר רווחים בקצה, מתקן אותיות גדולות וקטנות, מוודא את הסיומת " PR". רץ על כל שורה נכנסת מגיליונות ה-export של הפלטפורמות.
-- **`countryToRegion(iso2)`**: ממפה `"DE"` → `"EU"`, `"US"` → `"NA"`, `"BR"` → `"LATAM"`. switch statement של 200 שורות ב-Apps Script עדיף על טבלת lookup של 200 תאים שצריך לתחזק inline.
-- **`roiBucket(roi)`**: מחלק ROI ל-`"loss"`, `"flat"`, `"profitable"`, `"hero"`. בשימוש ב-dashboards ובנוסחאות מותאמות של conditional formatting.
+- **`normalizeVertical(name)`**: מסיר whitespace נגרר, מתקן casing, מבטיח את הסיומת ` PR`. רץ על כל שורה נכנסת מ-sheets של export של פלטפורמות.
+- **`countryToRegion(iso2)`**: ממפה `"DE"` ל-`"EU"`, `"US"` ל-`"NA"`, `"BR"` ל-`"LATAM"`. switch statement של 200 שורות ב-Apps Script מנצח טבלת lookup של 200 תאים שצריך לתחזק inline.
+- **`roiBucket(roi)`**: מחלק ROI ל-`"loss"`, `"flat"`, `"profitable"`, `"hero"`. בשימוש ב-dashboards וב-custom formulas של חוקי conditional-formatting.
+- **`parseAdtechCampaignName(name)`**: מפצל את שם הקמפיין המובנה של הצוות (`"YC.UsedCarsPR.US.permax.2026-05-11"`) ל-buyer, vertical, country, type, ותאריך. מחזיר שורה של 5 תאים, כך שקריאה אחת ל-`=parseAdtechCampaignName(A2)` יכולה למלא את B2:F2.
 
-כל אחת מאלה היא אותה צורה: pure function של הארגומנטים שלה, מחזירה ערך בודד, נקראת מהרבה תאים.
+כל אחת מאלה היא אותה צורה: function טהורה של הארגומנטים שלה, מחזירה ערך יחיד (או שורה קטנה), נקראת מהרבה תאים. הספרייה המשותפת שמארחת אותן היא הפוקוס של שיעור 12.
 
 ## מלכודות מקצועיות
 
-- **ה-function צצה ב-autocomplete אבל מחזירה `#NAME?` בתא.** ה-function נשמרה אבל cache ה-autocomplete של ה-spreadsheet לא טרי. מקלידים את הקריאה במלואה ולוחצים Enter; ה-index של ה-autocomplete מתעדכן תוך מספר שניות והתא יעריך.
-- **`#ERROR!` בלי שום פירוט נוסף.** או שה-function זרקה exception או שה-function החזירה `undefined`. מוסיפים קריאות `console.log(usd, rate)` בתוך הגוף ובודקים את ה-Execution log של עורך Apps Script (View → Logs בעורך הישן; אייקון הבאג בחדש) ב-recalc הבא.
-- **ה-function רצה פעם אחת ואף פעם לא מתעדכנת.** Caching. ה-function רצה עם הארגומנטים המקוריים, הם לא השתנו, ערך ה-cache הוא זה שחוזר. עורכים אחד מתאי הקלט ומבצעים recalc; ה-function נורית מחדש.
-- **`=usdToILS(F2:F61, $K$1)` מחזירה תא אחד במקום לגלוש.** ה-function לא מטפלת במקרה של array. או שכותבים את הגרסה שמודעת ל-array שלמעלה, או שקוראים שורה-שורה (`=usdToILS(F2, $K$1)` ואז גוררים למטה).
-- **`function usdToILS` מוגדרת אבל תאים מציגים `#NAME?` עבור `=usdToILS(...)`.** הסקריפט המקושר לא אושר אחרי העריכה האחרונה. פותחים את Apps Script, לוחצים Run על איזושהי function פעם אחת, מאשרים את ה-auth prompt, והתא מעריך ב-recalc הבא.
+- **ה-function מופיעה ב-autocomplete אבל מחזירה `#NAME?` בתא.** ה-function נשמרה אבל ה-cache של autocomplete של ה-spreadsheet מיושן. מקלידים את הקריאה במלואה ולוחצים Enter; אינדקס ה-autocomplete מתעדכן תוך כמה שניות והתא מתבצע.
+- **`#ERROR!` בלי פירוט נוסף.** או שה-function זרקה או שהיא החזירה `undefined`. מוסיפים קריאות `console.log(usd, rate)` בתוך ה-body ובודקים את ה-Executions panel של עורך Apps Script ב-recalculation הבא. שיעור 14 מכסה את סיפור ה-logging מקצה לקצה.
+- **ה-function רצה פעם אחת ולא מתעדכנת.** Caching. ה-function רצה עם ה-args המקוריים, ה-args לא השתנו, הערך ב-cache מוחזר. עורכים את אחד מתאי הקלט ועושים recalc; ה-function רצה שוב.
+- **`=usdToILS(F2:F61, $K$1)` מחזיר תא אחד במקום spill.** ה-function לא מטפלת במקרה של מערך. או שכותבים את הגרסה מודעת-מערך למעלה או קוראים פר-שורה (`=usdToILS(F2, $K$1)` ואז fill down).
+- **`function usdToILS` מוגדרת אבל תאים מציגים `#NAME?` ל-`=usdToILS(...)`.** ה-script המקושר לא הורשה אחרי העריכה האחרונה. פותחים Apps Script, לוחצים Run על כל function פעם אחת, מקבלים את ה-auth prompt, והתא מתבצע ב-recalc הבא.
+- **custom function שקוראת ל-`SpreadsheetApp.getActiveSpreadsheet().getRange(...)` מחזירה `#REF!`.** ה-auth של cell-context הוא read-only על ה-sheet הנוכחי. אם רציתם לחפש שורה ב-tab אחר דרך custom function, אורזים את טבלת ה-lookup בנוסחת התא (`=lookup(A2, Buyers!A:B)`) ונותנים ל-function לקבל את הטווח כארגומנט.
+- **`String.prototype.replaceAll` לא נמצא.** V8 של Apps Script תומך ב-`replaceAll`, אבל אם ייבאתם ספרייה שנכתבה על runtime legacy, ייתכן שלא. כשמסופקים, השתמשו ב-`replace(/.../g, ...)` (regex גלובלי), שעובד על שניהם.
+- **custom function עם side effects ש"נראתה לא מזיקה".** function שכותבת שורת לוג ל-sheet דרך `appendRow` תיכשל (אין scope של כתיבה מ-custom function) והתא מציג `#REF!` עם שגיאה חסרת תועלת. מעבירים את ה-logging ל-function רגילה שנקראת מ-menu או trigger.
