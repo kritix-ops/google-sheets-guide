@@ -8,6 +8,8 @@ These six functions each take a LAMBDA and apply it across an array: element by 
 
 `MAP(array, LAMBDA)` returns a new array of the same shape, where each cell is the LAMBDA applied to the corresponding input.
 
+<FunctionRef name="MAP" />
+
 ```
 =MAP(E2:E13, LAMBDA(spend, spend * 1.1))
 ```
@@ -35,6 +37,8 @@ This computes ROI for every campaign in one formula, returning a 12-cell column.
 
 `REDUCE(initial_value, array, LAMBDA(accumulator, current, body))` walks the array left-to-right, threading a running accumulator through your LAMBDA.
 
+<FunctionRef name="REDUCE" />
+
 ```
 =REDUCE(0, E2:E13, LAMBDA(acc, spend, acc + spend))
 ```
@@ -60,6 +64,8 @@ Sum only the spends greater than 300. (You could also do this with `SUMIF`, but 
 
 `SCAN` is REDUCE that returns the running accumulator at every step, not just the final value. Same signature, different output shape.
 
+<FunctionRef name="SCAN" />
+
 ```
 =SCAN(0, E2:E13, LAMBDA(acc, spend, acc + spend))
 ```
@@ -72,6 +78,10 @@ The classic adtech use: cumulative spend over a date-sorted log to find "what da
 
 `BYROW(range, LAMBDA(row, body))` applies the LAMBDA to each row and returns a single column of results.
 `BYCOL(range, LAMBDA(col, body))` does the same for columns.
+
+<FunctionRef name="BYROW" />
+
+<FunctionRef name="BYCOL" />
 
 ```
 =BYROW(E2:F13, LAMBDA(row, SUM(row)))
@@ -87,7 +97,9 @@ Returns 2 values: average of Spend, average of Revenue.
 
 ## MAKEARRAY: build an array from scratch
 
-`MAKEARRAY(rows, cols, LAMBDA(row_index, col_index, body))` creates a fresh array. The LAMBDA receives the row and column indices and returns the cell value.
+`MAKEARRAY(rows, cols, LAMBDA(row_index, col_index, body))` creates a fresh array. The LAMBDA receives the row and column indices and returns the cell value. The full reference card was introduced in lesson 11.
+
+<FunctionRef name="MAKEARRAY" />
 
 ```
 =MAKEARRAY(10, 10, LAMBDA(r, c, r * c))

@@ -2369,6 +2369,270 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/3098245?hl=en",
   },
 
+  LAMBDA: {
+    name: "LAMBDA",
+    category: "lambda",
+    summary: {
+      en: "Defines an anonymous function inline: a list of parameter names followed by a body expression. Almost never used alone; the value of LAMBDA is composing it with LET (lesson 20), MAP/REDUCE (lesson 19), or saving it as a named function (lesson 21).",
+      he: "מגדיר פונקציה אנונימית inline: רשימת שמות פרמטרים ואחריהם ביטוי גוף. כמעט אף פעם לא בשימוש לבדה; הערך של LAMBDA הוא בהרכבה עם LET (שיעור 20), MAP/REDUCE (שיעור 19), או בשמירה כפונקציה named (שיעור 21).",
+    },
+    syntax: "LAMBDA(name1, [name2, ...], formula_expression)",
+    params: [
+      {
+        name: "name1, name2, ...",
+        type: "identifier",
+        description: {
+          en: "One or more parameter names. Local to the body. Cannot be ranges (no \"A1\") or start with digits; underscores and dots allowed.",
+          he: "שם פרמטר אחד או יותר. מקומי לגוף. לא יכול להיות טווח (לא \"A1\") או להתחיל בספרה; קוים תחתונים ונקודות מותרים.",
+        },
+      },
+      {
+        name: "formula_expression",
+        type: "expression",
+        description: {
+          en: "The body. A single expression that uses the parameter names. To structure it, wrap with LET (lesson 20) for intermediate names.",
+          he: "הגוף. ביטוי יחיד שמשתמש בשמות הפרמטרים. כדי לבנות אותו, עוטפים ב-LET (שיעור 20) לשמות ביניים.",
+        },
+      },
+    ],
+    returns: {
+      en: "A callable function. A bare LAMBDA in a cell shows #CALC! because it hasn't been called; invoke it with (args) or pass it to MAP/REDUCE/SCAN/BYROW/BYCOL/MAKEARRAY.",
+      he: "פונקציה ניתנת לקריאה. LAMBDA חשופה בתא מציגה #CALC! כי לא קראו לה; קוראים לה עם (args) או מעבירים ל-MAP/REDUCE/SCAN/BYROW/BYCOL/MAKEARRAY.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/12508718?hl=en",
+  },
+
+  MAP: {
+    name: "MAP",
+    category: "lambda",
+    summary: {
+      en: "Applies a LAMBDA to every cell of one or more arrays of the same shape, returning an array of the results. The functional equivalent of ARRAYFORMULA over a custom body.",
+      he: "מחיל LAMBDA על כל תא של מערך אחד או יותר באותה צורה, מחזיר מערך של התוצאות. המקבילה הפונקציונלית ל-ARRAYFORMULA על גוף מותאם.",
+    },
+    syntax: "MAP(array1, [array2, ...], LAMBDA)",
+    params: [
+      {
+        name: "array1",
+        type: "range",
+        description: {
+          en: "The first input array.",
+          he: "מערך הקלט הראשון.",
+        },
+      },
+      {
+        name: "array2, ...",
+        type: "range",
+        optional: true,
+        description: {
+          en: "Additional arrays of the same shape. Each LAMBDA invocation gets one value from each array.",
+          he: "מערכים נוספים באותה צורה. כל קריאת LAMBDA מקבלת ערך אחד מכל מערך.",
+        },
+      },
+      {
+        name: "LAMBDA",
+        type: "lambda",
+        description: {
+          en: "A LAMBDA with one name argument per input array. Body returns the value for the current cell.",
+          he: "LAMBDA עם name argument אחד לכל מערך קלט. הגוף מחזיר את הערך לתא הנוכחי.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled array the same shape as the inputs, where each cell is the LAMBDA's result for the corresponding inputs.",
+      he: "מערך זורם באותה צורה כמו הקלטים, שבו כל תא הוא תוצאת ה-LAMBDA עבור הקלטים המתאימים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/12568985?hl=en",
+  },
+
+  REDUCE: {
+    name: "REDUCE",
+    category: "lambda",
+    summary: {
+      en: "Walks an array left-to-right, threading an accumulator through a LAMBDA, and returns the final accumulator. The most general aggregation primitive: SUM, COUNT, MAX, MIN are all special cases.",
+      he: "עובר על מערך משמאל לימין, מעביר accumulator דרך LAMBDA, ומחזיר את ה-accumulator הסופי. הפרימיטיב הכי כללי של אגרגציה: SUM, COUNT, MAX, MIN כולם מקרים פרטיים.",
+    },
+    syntax: "REDUCE(initial_value, array_or_range, LAMBDA(accumulator, current_value, formula))",
+    params: [
+      {
+        name: "initial_value",
+        type: "any",
+        description: {
+          en: "The starting accumulator. Its type determines the result type (number, string, array).",
+          he: "ה-accumulator ההתחלתי. הסוג שלו קובע את סוג התוצאה (מספר, מחרוזת, מערך).",
+        },
+      },
+      {
+        name: "array_or_range",
+        type: "range",
+        description: {
+          en: "The values to walk.",
+          he: "הערכים לעבור עליהם.",
+        },
+      },
+      {
+        name: "LAMBDA",
+        type: "lambda(accumulator, current_value)",
+        description: {
+          en: "A LAMBDA with exactly two name arguments: accumulator (the running total) and current_value (the current element).",
+          he: "LAMBDA עם בדיוק שני name arguments: accumulator (הסכום הרץ) ו-current_value (האלמנט הנוכחי).",
+        },
+      },
+    ],
+    returns: {
+      en: "The final value of the accumulator after walking every element.",
+      he: "הערך הסופי של ה-accumulator אחרי מעבר על כל האלמנטים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/12568597?hl=en",
+  },
+
+  SCAN: {
+    name: "SCAN",
+    category: "lambda",
+    summary: {
+      en: "Like REDUCE but returns every intermediate accumulator value, not just the final one. The standard tool for running totals, cumulative spend, day-by-day budget burn.",
+      he: "כמו REDUCE אבל מחזיר כל ערך ביניים של ה-accumulator, לא רק את הסופי. הכלי הסטנדרטי לסכומים רצים, spend מצטבר, שריפת תקציב יום-יום.",
+    },
+    syntax: "SCAN(initial_value, array_or_range, LAMBDA(accumulator, current_value, formula))",
+    params: [
+      {
+        name: "initial_value",
+        type: "any",
+        description: {
+          en: "The starting accumulator.",
+          he: "ה-accumulator ההתחלתי.",
+        },
+      },
+      {
+        name: "array_or_range",
+        type: "range",
+        description: {
+          en: "The values to walk.",
+          he: "הערכים לעבור עליהם.",
+        },
+      },
+      {
+        name: "LAMBDA",
+        type: "lambda(accumulator, current_value)",
+        description: {
+          en: "Same signature as REDUCE's LAMBDA.",
+          he: "אותה חתימה כמו של ה-LAMBDA של REDUCE.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled array the same length as input: the accumulator value after each step.",
+      he: "מערך זורם באותו אורך כמו הקלט: ערך ה-accumulator אחרי כל צעד.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/12569094?hl=en",
+  },
+
+  BYROW: {
+    name: "BYROW",
+    category: "lambda",
+    summary: {
+      en: "Applies a LAMBDA to each row of a range, collapsing the row to a single value. Returns a one-column result. Useful for per-row aggregates over multiple input columns.",
+      he: "מחיל LAMBDA על כל שורה של טווח, מצמצם את השורה לערך יחיד. מחזיר תוצאה של עמודה אחת. שימושי לאגרגטים פר-שורה על פני מספר עמודות קלט.",
+    },
+    syntax: "BYROW(array_or_range, LAMBDA(row, formula))",
+    params: [
+      {
+        name: "array_or_range",
+        type: "range",
+        description: {
+          en: "The data to process row by row.",
+          he: "המידע לעיבוד שורה-אחר-שורה.",
+        },
+      },
+      {
+        name: "LAMBDA",
+        type: "lambda(row)",
+        description: {
+          en: "A LAMBDA with exactly one name argument. The body must return a single value (no arrays).",
+          he: "LAMBDA עם בדיוק שם argument אחד. הגוף חייב להחזיר ערך יחיד (לא מערכים).",
+        },
+      },
+    ],
+    returns: {
+      en: "A single-column spilled array: one value per input row.",
+      he: "מערך זורם בעמודה יחידה: ערך אחד לכל שורת קלט.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/12570930?hl=en",
+  },
+
+  BYCOL: {
+    name: "BYCOL",
+    category: "lambda",
+    summary: {
+      en: "The vertical twin of BYROW: applies a LAMBDA to each column, returning a single-row result. Used for column-wise summaries like 'average of each metric'.",
+      he: "התאום האנכי של BYROW: מחיל LAMBDA על כל עמודה, מחזיר תוצאה של שורה יחידה. בשימוש לסיכומים פר-עמודה כמו 'ממוצע של כל מטריקה'.",
+    },
+    syntax: "BYCOL(array_or_range, LAMBDA(column, formula))",
+    params: [
+      {
+        name: "array_or_range",
+        type: "range",
+        description: {
+          en: "The data to process column by column.",
+          he: "המידע לעיבוד עמודה-אחר-עמודה.",
+        },
+      },
+      {
+        name: "LAMBDA",
+        type: "lambda(column)",
+        description: {
+          en: "A LAMBDA with exactly one name argument. Must return a single value per column.",
+          he: "LAMBDA עם בדיוק שם argument אחד. חייב להחזיר ערך יחיד לכל עמודה.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single-row spilled array: one value per input column.",
+      he: "מערך זורם בשורה יחידה: ערך אחד לכל עמודת קלט.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/12571032?hl=en",
+  },
+
+  LET: {
+    name: "LET",
+    category: "logical",
+    summary: {
+      en: "Names intermediate values inside a formula. Each name is computed once and reused, which turns nested formulas readable and avoids recomputing slow subexpressions like QUERY or IMPORTRANGE.",
+      he: "נותן שמות לערכי ביניים בתוך נוסחה. כל שם מחושב פעם אחת ונעשה בו שימוש חוזר, מה שהופך נוסחאות מקוננות לקריאות ומונע חישוב חוזר של תת-ביטויים איטיים כמו QUERY או IMPORTRANGE.",
+    },
+    syntax: "LET(name1, value_expression1, [name2, value_expression2, ...], formula_expression)",
+    params: [
+      {
+        name: "name1, name2, ...",
+        type: "identifier",
+        description: {
+          en: "A local name (case-insensitive). Cannot shadow built-in function names. A later binding can reference earlier ones; no forward references.",
+          he: "שם מקומי (לא רגיש לאותיות). לא יכול לחפוף לשמות פונקציה מובנים. binding מאוחר יכול להפנות למוקדם; אין forward references.",
+        },
+      },
+      {
+        name: "value_expression1, value_expression2, ...",
+        type: "expression",
+        description: {
+          en: "Each name's value. Evaluated once, even if the body uses the name many times.",
+          he: "הערך של כל שם. מחושב פעם אחת, גם אם הגוף משתמש בשם הרבה פעמים.",
+        },
+      },
+      {
+        name: "formula_expression",
+        type: "expression",
+        description: {
+          en: "The final body that uses the names. Must be exactly one expression. Wrap nested LETs inside if you need more structure.",
+          he: "הגוף הסופי שמשתמש בשמות. חייב להיות בדיוק ביטוי אחד. עוטפים LETs מקוננים בפנים אם צריך יותר מבנה.",
+        },
+      },
+    ],
+    returns: {
+      en: "Whatever the formula_expression evaluates to. The names exist only inside the LET.",
+      he: "מה שה-formula_expression מתפענח אליו. השמות קיימים רק בתוך ה-LET.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/13190740?hl=en",
+  },
+
   QUERY: {
     name: "QUERY",
     category: "query",

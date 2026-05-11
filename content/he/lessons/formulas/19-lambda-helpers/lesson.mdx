@@ -8,6 +8,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `MAP(array, LAMBDA)` מחזיר מערך חדש בעל אותה צורה, שבו כל תא הוא ה-LAMBDA המוחל על הקלט המתאים.
 
+<FunctionRef name="MAP" />
+
 ```
 =MAP(E2:E13, LAMBDA(spend, spend * 1.1))
 ```
@@ -35,6 +37,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `REDUCE(initial_value, array, LAMBDA(accumulator, current, body))` עובר על המערך משמאל לימין, ומשחיל accumulator רץ דרך ה-LAMBDA שלכם.
 
+<FunctionRef name="REDUCE" />
+
 ```
 =REDUCE(0, E2:E13, LAMBDA(acc, spend, acc + spend))
 ```
@@ -60,6 +64,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `SCAN` הוא REDUCE שמחזיר את ה-accumulator הרץ בכל צעד, לא רק את הערך הסופי. אותה חתימה, צורת פלט אחרת.
 
+<FunctionRef name="SCAN" />
+
 ```
 =SCAN(0, E2:E13, LAMBDA(acc, spend, acc + spend))
 ```
@@ -72,6 +78,10 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `BYROW(range, LAMBDA(row, body))` מחיל את ה-LAMBDA על כל שורה ומחזיר עמודה יחידה של תוצאות.
 `BYCOL(range, LAMBDA(col, body))` עושה את אותו דבר עבור עמודות.
+
+<FunctionRef name="BYROW" />
+
+<FunctionRef name="BYCOL" />
 
 ```
 =BYROW(E2:F13, LAMBDA(row, SUM(row)))
@@ -87,7 +97,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## MAKEARRAY: בניית מערך מאפס
 
-`MAKEARRAY(rows, cols, LAMBDA(row_index, col_index, body))` יוצר מערך חדש. ה-LAMBDA מקבל את אינדקסי השורה והעמודה ומחזיר את ערך התא.
+`MAKEARRAY(rows, cols, LAMBDA(row_index, col_index, body))` יוצר מערך חדש. ה-LAMBDA מקבל את אינדקסי השורה והעמודה ומחזיר את ערך התא. כרטיס ה-reference המלא הוצג בשיעור 11.
+
+<FunctionRef name="MAKEARRAY" />
 
 ```
 =MAKEARRAY(10, 10, LAMBDA(r, c, r * c))
