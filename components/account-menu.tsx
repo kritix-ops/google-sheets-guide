@@ -3,6 +3,7 @@
 import { LogOut, User } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { signOutAction } from "@/app/actions/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -38,8 +39,7 @@ export function AccountMenu({ name, email, image }: AccountMenuProps) {
       .join("") || "?";
 
   async function handleSignOut() {
-    await fetch("/api/auth/signout", { method: "POST" });
-    window.location.href = `/${currentLocale}/sign-in`;
+    await signOutAction(currentLocale);
   }
 
   function setDefaultLocale(locale: Locale) {
