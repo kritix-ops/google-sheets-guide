@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 A workbook's numbers carry meaning beyond their value. A revenue of `487.30` displayed as `$487.30` reads differently from `487.30000`, which reads differently from `487`, which reads differently from `48730%`. The underlying number is the same in every case. Only the format changed. Number formats are the cheap layer that turns raw numbers into a dashboard a human can scan in two seconds, and the layer that quietly causes a third of the "this column looks wrong" tickets when the format and the data drift apart.
 
+The trick that pros internalize: **format is presentation, value is storage**. A cell can display `$487.30` while storing `487.3`. The formula that references the cell reads `487.3`. The eye that scans the cell reads `$487.30`. When these two diverge in your head, every "the SUMIF is off by 100" debugging session starts.
+
 ## The seven built-in format types
 
 `Format → Number` gives you a menu of presets and a custom-format box. Behind the menu, every cell carries one of seven format types:
@@ -19,6 +21,30 @@ A workbook's numbers carry meaning beyond their value. A revenue of `487.30` dis
 | `SCIENTIFIC` | Exponent notation for very large or very small values | `0.00E+00` | `4.87E+02` |
 
 The grader and the API see this as a `{ type, pattern }` pair. The `type` says which family the format belongs to; the `pattern` is the exact recipe. Two cells can share the same `CURRENCY` type and have wildly different patterns: `$#,##0` for the dashboard summary, `$#,##0.0000` for the rate card.
+
+<QuickCheck
+  question="A cell holds the value 0.247 and you want it to display as '24.7%' on the dashboard. What format do you apply?"
+  options={[
+    {
+      id: "a",
+      label: "NUMBER type with pattern '#,##0.00%'",
+      correct: false,
+      explanation: "The '%' character in the pattern doesn't multiply the value. The NUMBER type would render 0.247 plus a percent symbol as '0.25%' (rounded to two decimals), not as '24.7%'.",
+    },
+    {
+      id: "b",
+      label: "PERCENT type with pattern '0.0%'",
+      correct: true,
+      explanation: "PERCENT multiplies the displayed value by 100 and glues a % on. 0.247 → '24.7%'. The cell still stores 0.247; the format renders 24.7%.",
+    },
+    {
+      id: "c",
+      label: "Multiply the cell value by 100 with a formula, then apply CURRENCY format",
+      correct: false,
+      explanation: "Changing the value to 24.7 to display as 24.7% means every formula that references the cell now reads 24.7, not 0.247. ROI calculations downstream all break. PERCENT format does this without touching the value.",
+    },
+  ]}
+/>
 
 ## Custom format strings: four sections, color modifiers, literals
 
@@ -46,11 +72,60 @@ The format you typed is *interpreted* through the spreadsheet's locale. A few pl
 
 The takeaway: format follows locale unless you anchor it with literals. For a multi-region team, anchor.
 
+<Compare>
+  <ComparePanel label="Broken: locale-shifting currency" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Pattern: $#,##0.00
+
+US-locale workbook ➜ $487.30
+EU-locale workbook ➜ €487.30
+
+Same workbook duplicated. Same value (487.3).
+Two different currencies displayed.
+Reader can't tell which is the real one.`}</code></pre>
+    <p className="mt-2 text-sm">The `$` in a CURRENCY pattern means "this workbook's currency symbol". Locale decides the symbol. Reader sees one currency, thinks "USD"; another reader sees a different symbol, thinks "EUR".</p>
+  </ComparePanel>
+  <ComparePanel label="Working: literal currency symbol" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Pattern: \$#,##0.00
+
+US-locale workbook ➜ $487.30
+EU-locale workbook ➜ $487.30
+JP-locale workbook ➜ $487.30
+
+The backslash makes \$ a literal dollar
+sign. Locale doesn't get a vote.`}</code></pre>
+    <p className="mt-2 text-sm">Locale-anchored. The dollar sign is part of the pattern, not a placeholder for the locale's currency. Use literals for any workbook that crosses regions.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="Your dashboard shows spend with the pattern '$#,##0.00'. A colleague in Berlin duplicates the file. The same spend cells now show as '€342.18'. Why?"
+  options={[
+    {
+      id: "a",
+      label: "The CURRENCY format uses the workbook's locale to pick the symbol; '$' became '€' when the locale changed",
+      correct: true,
+      explanation: "The dollar sign inside a CURRENCY pattern is a placeholder for 'this locale's currency'. In a German-locale workbook, that's €. To pin the symbol, escape it with a backslash: '\\$#,##0.00'.",
+    },
+    {
+      id: "b",
+      label: "Sheets automatically converted USD to EUR using the current exchange rate",
+      correct: false,
+      explanation: "Sheets doesn't do currency conversion through formatting. The number (342.18) is unchanged; only the symbol changed.",
+    },
+    {
+      id: "c",
+      label: "Your colleague accidentally typed € in the pattern field",
+      correct: false,
+      explanation: "The pattern didn't change. The locale did. Same pattern, different rendering.",
+    },
+  ]}
+/>
+
 ## The "format follows the data" rule
 
 A format lives on the *consuming* sheet. It does not travel through `IMPORTRANGE`. If the source workbook formats a column as currency and the destination workbook pulls it via `IMPORTRANGE`, the imported numbers arrive raw and the destination has to apply its own formatting. This sounds obvious until somebody renames a column header in the source, the destination's import shifts, and the formatting that *was* on the right column ends up on the wrong one. Apply formats to a column once, on the consuming sheet, after the import shape is stable.
 
-A second wrinkle: imported dates sometimes arrive as text strings rather than serial numbers. A text date can't be formatted as a date. The format pattern silently does nothing. Use `DATEVALUE` to coerce, then format.
+A second wrinkle: imported dates sometimes arrive as text strings rather than serial numbers. A text date can't be formatted as a date. The format pattern silently does nothing. Use `DATEVALUE` (covered in lesson 2.14) to coerce, then format.
 
 ## Now do it for real
 
