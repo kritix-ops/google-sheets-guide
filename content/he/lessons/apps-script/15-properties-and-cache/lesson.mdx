@@ -2,19 +2,21 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # PropertiesService ו-CacheService: אחסון קבוע ואחסון קצר-טווח
 
-Apps Script רץ ב-sandbox בלי disk מקומי. כל מה שהסקריפט רוצה לזכור בין ריצות חייב לחיות איפשהו ש-Google מנהלת. שני ה-surfaces לזה הם **`PropertiesService`** (אחסון key/value קבוע שנשאר לתמיד) ו-**`CacheService`** (אחסון מהיר קצר-טווח שמתפנה אחרי שש שעות לכל היותר). כל trigger בפרודקשן שהצוות כותב משתמש באחד מהם: API tokens ב-Properties כדי שה-trigger לא ישלח אותם במקור, שער החליפין היומי ב-Cache כדי ש-200 תאים לא יפנו כולם ל-FX API.
+Apps Script רץ ב-sandbox בלי disk מקומי. כל מה שה-script שלכם רוצה לזכור בין ריצות חייב לחיות איפשהו ש-Google מנהלת. שני ה-surfaces לזה הם **`PropertiesService`** (אחסון key/value עמיד שנשאר לתמיד) ו-**`CacheService`** (אחסון מהיר קצר-טווח שמתפנה אחרי שש שעות לכל היותר). כל trigger ב-production שהצוות כותב משתמש באחד או באחר: API tokens ב-Properties כך שה-trigger לא ישלח אותם במקור, שער החליפין היומי ב-Cache כך ש-200 תאים לא יפגעו כולם ב-FX API.
 
-## שלושה scopes, שני services
+השיעור הזה מכסה את שלושת ה-scopes ששני השירותים חושפים (Script, Document, User), משטח ה-API ב-60 שניות, ה-pattern של קריאה תלת-שכבתית שכל trigger של הצוות משתמש בו, מגבלות הגודל ששווה לזכור, הכלל "Properties אינו לסודות", וה-LockService ששומר על writers מקבילים מלהיכנס למרוץ. עד הסוף תוכלו בביטחון לאחסן כל דבר משער FX של 5 bytes לרשימת buyer של 200 שורות.
 
-שני ה-services חושפים את אותם שלושה scopes:
+## שלושה scopes, שני שירותים
+
+שני השירותים חושפים את אותם שלושה scopes:
 
 | Scope | מה משותף | משתמשים בשביל |
 |---|---|---|
-| **Script** | כל המשתמשים של פרויקט הסקריפט הזה. | קונפיגורציה לכל הצוות: API endpoints, טבלאות שערים ברירת מחדל, ID של תיקיית Drive שאליה הולכים ה-exports. |
-| **Document** | הסקריפט הזה מקושר ל-spreadsheet הזה. קבצים שונים מקבלים stores נפרדים. | state ספציפי ל-workbook: זמני refresh אחרון, שער FX קנוני לתקופת הדיווח של הקובץ הזה. |
-| **User** | המשתמש הנוכחי. חברי צוות שונים מקבלים stores נפרדים. | העדפות לכל משתמש: איזה view של dashboard מישהו מעדיף, ה-API token האישי שלו. |
+| **Script** | כל המשתמשים של ה-script project הזה. | config של כל הצוות: endpoints של API, טבלאות שערים ברירת מחדל, ה-ID של תיקיית Drive שאליה הולכים exports. |
+| **Document** | ה-script הזה מקושר ל-spreadsheet הזה. קבצים שונים מקבלים stores נפרדים. | state ספציפי ל-workbook: timestamps של רענון אחרון, שער ה-FX הקנוני לתקופת הדיווח של הקובץ הזה. |
+| **User** | המשתמש הנוכחי. חברי צוות שונים מקבלים stores נפרדים. | העדפות פר-משתמש: איזו תצוגת dashboard מישהו ברירת מחדל, ה-API token האישי שלו. |
 
-ה-getters משקפים את שמות ה-scopes:
+ה-getters משקפים את שמות ה-scope:
 
 ```js
 const scriptProps = PropertiesService.getScriptProperties();
@@ -26,31 +28,48 @@ const docCache    = CacheService.getDocumentCache();
 const userCache   = CacheService.getUserCache();
 ```
 
-בוחרים את ה-scope שמתאים למחזור החיים של הנתונים. הבחירה הלא נכונה היא הבאג שנושך שלושה חודשים אחר כך כש"איכשהו" Maya רואה שער אחד ו-Yoav רואה אחר.
+בוחרים את ה-scope שמתאים למחזור החיים של הנתונים. הבחירה הלא נכונה היא ה-bug שעוקץ שלושה חודשים מאוחר יותר כש"מסיבה כלשהי" מאיה רואה שער אחד ויואב רואה אחר.
 
-## שני ה-services ב-60 שניות
+## שני השירותים ב-60 שניות
 
 ```js
-// PropertiesService: קבוע, write-and-forget.
+// PropertiesService: עמיד, write-and-forget.
 const props = PropertiesService.getDocumentProperties();
 props.setProperty("usdIlsRate", "3.72");        // הערכים חייבים להיות מחרוזות
 const rate = props.getProperty("usdIlsRate");    // מחזיר "3.72" או null
 
-// CacheService: קצר-טווח, TTL בשניות.
+// CacheService: קצר-טווח, TTL ב-שניות.
 const cache = CacheService.getDocumentCache();
 cache.put("usdIlsRate", "3.72", 3600);           // פג תוקף בעוד שעה
 const cached = cache.get("usdIlsRate");           // מחזיר "3.72" או null
 ```
 
-שלושה פרטים שנושכים:
+שלושה פרטים שעוקצים:
 
-- **ערכים ב-Properties הם מחרוזות.** `setProperty` כופה המרה של מה שמעבירים למחרוזת. `getProperty` מחזיר את המחרוזת. ההמרה חזרה למספר / boolean / JSON נופלת עליכם.
-- **TTL של Cache הוא בשניות, לא במילישניות.** `cache.put(k, v, 60)` חי דקה. `cache.put(k, v, 60000)` חי לאורך מקסימום זמן ה-cache (שש שעות, מוגבל); ה-function לא זורקת והבאג צף רק כשפריטים נעלמים מוקדם מדי או מאוחר מדי.
-- **גם `get` וגם `getProperty` מחזירים `null` במקרה של miss.** תמיד בודקים על `null` לפני שקוראים ל-`.length` או עושים חשבון על הערך.
+- **ערכי Properties הם מחרוזות.** `setProperty` ממיר מה שאתם מעבירים למחרוזת. `getProperty` מחזיר את המחרוזת. אתם מנתחים אותה חזרה למספר / boolean / JSON בעצמכם.
+- **TTL של Cache הוא ב-שניות, לא במילישניות.** `cache.put(k, v, 60)` חי לדקה. `cache.put(k, v, 60000)` חי לזמן ה-cache המקסימלי (שש שעות, מוגבל); ה-function לא זורקת וה-bug צץ רק כשפריטים נעלמים מוקדם מדי או מאוחר מדי.
+- **שניהם `get` ו-`getProperty` מחזירים `null` על miss.** תמיד בודקים `null` לפני קריאה ל-`.length` או חשבון על הערך.
 
-## דפוס שלושה ה-tiers
+<Compare>
+  <ComparePanel label="לא נכון: TTL של cache ב-ms" tone="negative">
+    <pre className="font-mono text-xs"><code>{`// "Cache for 1 hour":
+cache.put("rate", "3.72", 60 * 60 * 1000);
+// Apps Script מגביל למקסימום של 6 שעות.
+// Bug: ב-cache יותר זמן מהמתוכנן.`}</code></pre>
+    <p className="mt-2 text-sm">TTL של CacheService.put הוא ב-שניות, לא ms. ה-function לא זורקת על ערכים מעבר למקסימום; היא בשקט מגבילה ל-6 שעות.</p>
+  </ComparePanel>
+  <ComparePanel label="נכון: שניות, עם בהירות מפורשת" tone="positive">
+    <pre className="font-mono text-xs"><code>{`// "Cache for 1 hour":
+cache.put("rate", "3.72", 3600);
+// או עם חשבון לשמירה על יחידות ברורות:
+cache.put("rate", "3.72", 60 * 60);`}</code></pre>
+    <p className="mt-2 text-sm">שניות. 3600 = שעה אחת. 21600 = תקרת 6 השעות. כל דבר גדול יותר מוגבל בשקט.</p>
+  </ComparePanel>
+</Compare>
 
-הדפוס שכל trigger של הצוות משתמש בו כדי "להשיג את שער ה-FX":
+## ה-pattern התלת-שכבתי
+
+ה-pattern שכל trigger של הצוות משתמש בו ל"השג את שער ה-FX":
 
 ```js
 function getOrFetchRate() {
@@ -69,30 +88,76 @@ function getOrFetchRate() {
 }
 ```
 
-קוראים מלמעלה למטה: cache קודם (lookup במיקרו-שניות), Properties שני (מספר מילישניות, קבוע), default אחרון (ה-function עדיין עובדת ביום הראשון לפני שכלום נכתב). כשיש hit ב-Properties, ה-function מחממת את ה-cache כך שהקריאה הבאה בתוך השעה היא cache hit. כל קריאה מחזירה מספר, הקורא לא צריך להתמודד עם המקרה של null.
+קוראים top to bottom: cache קודם (חיפוש ברמת מיקרו-שנייה), Properties שני (כמה אלפיות שנייה, עמיד), ברירת מחדל אחרון (ה-function עדיין עובדת ביום הראשון כשעדיין לא נכתב כלום). כש-Properties פוגע, ה-function מחממת את ה-cache כך שהקריאה הבאה תוך השעה היא cache hit. כל קריאה מחזירה מספר; הקורא לא צריך להתעסק במקרה null.
 
-הצורה הזו מתכלילת. מחליפים "rate" ב-"API token", "buyer list", "last refresh", כל ערך שמשיגים שוב ושוב. המחיר של שכחת tier אחד הוא trigger איטי. המחיר של שכחת tier שלוש הוא `TypeError: cannot convert null to number`.
+הצורה הזו מכלילה. מחליפים "rate" ב-"API token", "buyer list", "last refresh", כל ערך שאתם מאחזרים שוב ושוב. העלות של שכחת שכבה אחת היא trigger איטי. העלות של שכחת שכבה שלוש היא `TypeError: cannot convert null to number`.
 
-## מגבלות שכדאי לזכור
+<StepThrough
+  frames={[
+    {
+      caption: "שלב 1: trigger בוקר, cache ריק",
+      body: (
+        <>
+          ה-trigger של 06:00 יורה. <code>cache.get("usdIlsRate")</code>{" "}
+          מחזיר null (ה-cache היה ריק: TTL מקסימלי הוא 6 שעות, הכתיבה
+          האחרונה הייתה אתמול).
+        </>
+      ),
+    },
+    {
+      caption: "שלב 2: Properties פוגע",
+      body: (
+        <>
+          <code>props.getProperty("usdIlsRate")</code> מחזיר את המחרוזת{" "}
+          <code>"3.72"</code> שנכתבה על ידי ה-trigger של הבוקר אתמול. ה-function
+          מחממת את ה-cache לשעה ומחזירה 3.72 כ-Number.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 3: 100 המרות USD-to-ILS ברצף",
+      body: (
+        <>
+          ה-body של ה-trigger קורא ל-<code>getOrFetchRate()</code> 100 פעמים
+          (פעם אחת לשורה). קריאות 2 עד 100 כולן מחזירות מיד מה-cache,
+          שעכשיו חם. אין פגיעה ב-Properties, אין קריאת API, אין latency
+          נוסף.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 4: cache מתפנה באמצע היום",
+      body: (
+        <>
+          ב-07:01 ה-cache פוקע. הקריאה הבאה נופלת ל-Properties, שעדיין
+          עמיד, מחממת את ה-cache שוב, מחזירה את אותו 3.72. המשתמש לעולם
+          לא שם לב.
+        </>
+      ),
+    },
+  ]}
+/>
 
-| Surface | מגבלה לערך | מגבלה כוללת | TTL |
+## מגבלות ששווה לזכור
+
+| Surface | מגבלה פר-ערך | מגבלה כוללת | TTL |
 |---|---|---|---|
-| ערך Properties | 9 KB | 500 KB ל-store של Properties | לתמיד |
+| ערך Properties | 9 KB | 500 KB לכל property store | לתמיד |
 | ערך Cache | 100 KB | (לא מתועד) | מקסימום 6 שעות |
 
-מלכודת נפוצה: השלכת JSON blob גדול ל-Properties. "רשימת ה-buyers הפעילה" של הצוות גדלה מ-8 שמות ל-240 לאורך שנתיים; הקוד המקורי עשה `props.setProperty("buyers", JSON.stringify(list))` ויום אחד נחתך בשקט באמצע מחרוזת. התיקון הוא פיצול למספר keys (`buyers_chunk_0`, `buyers_chunk_1`) או מעבר לקובץ Drive שמיוצג ב-ID, Properties הוא store של קונפיגורציה, לא בסיס נתונים.
+מלכודת נפוצה: זריקת JSON blob גדול ל-Properties. ה-"רשימת buyer פעילה" של הצוות גדלה מ-8 שמות ל-240 על פני שנתיים; הקוד המקורי עשה `props.setProperty("buyers", JSON.stringify(list))` ויום אחד בשקט קיצץ באמצע מחרוזת. התיקון הוא פיצול למספר מפתחות (`buyers_chunk_0`, `buyers_chunk_1`) או מעבר לקובץ Drive המופנה לפי ID. Properties הוא config store, לא database.
 
-ערכי Cache יכולים להיות גדולים יותר (100 KB) אבל הם מתפנים על זמן ועל לחץ זיכרון. ערך cache בגודל של CSV קטן בסדר; בגודל של dataset שלם לא.
+ערכי Cache יכולים להיות גדולים יותר (100 KB) אבל הם מתפנים על זמן ועל לחץ זיכרון. ערך cache בגודל CSV קטן בסדר; בגודל של dataset שלם לא.
 
-## Properties הוא לא בשביל secrets
+## Properties אינו לסודות
 
-כל מי שיכול לערוך את הסקריפט המקושר יכול לקרוא כל key ב-`getScriptProperties` וב-`getDocumentProperties`. המחרוזת `Authorization: Bearer XYZ123` חיה ב-plain text. אם ה-secret דולף, ה-API מאחוריו חשוף.
+כל מי שיכול לערוך את ה-bound script יכול לקרוא כל מפתח ב-`getScriptProperties` וב-`getDocumentProperties`. המחרוזת `Authorization: Bearer XYZ123` חיה בטקסט פשוט. אם הסוד דולף, ה-API מאחוריו חשוף.
 
-ל-secrets אמיתיים הצוות משתמש ב-Google Cloud Secret Manager, מושג ב-runtime דרך `UrlFetchApp.fetch` עם token של service account. הסטאפ הזה overkill ל-dashboard של צוות בלי PII, אבל זו הצורה הנכונה ברגע ש-API key אמיתי מעורב. Properties הוא בשביל **קונפיגורציה שלא צריכה להיות מוסתרת**, endpoints, IDs של גיליונות, שער ה-FX.
+לסודות אמיתיים הצוות משתמש ב-Google Cloud Secret Manager, מאוחזר ב-runtime דרך `UrlFetchApp.fetch` עם service-account token. ההקמה הזו מוגזמת ל-dashboard לפי צוות בלי PII, אבל זו הצורה הנכונה ברגע ש-API key אמיתי מעורב. Properties הוא ל**config שלא צריך להיות מוסתר**: endpoints, IDs של sheets, שער ה-FX.
 
-## כותבים בו-זמנית מתחרים
+## Writers מקבילים מתחרים
 
-שני triggers שרצים באותו זמן שניהם קוראים ל-`setProperty` על אותו key. כתיבה אחת מנצחת; השנייה נדרסת בשקט. עבור נתונים מסוג "last-write-wins" (שער ה-FX האחרון) זה בסדר. עבור counters שמתעדכנים ב-1 ורשימות מסוג append זה באג של איבוד נתונים.
+שני triggers שרצים באותו זמן שניהם קוראים ל-`setProperty` על אותו מפתח. כתיבה אחת מנצחת; השנייה בשקט נדרסת. עבור נתונים "last-write-wins" (שער ה-FX האחרון) זה בסדר. עבור counters שמתקדמים-באחד ורשימות בסגנון append זה bug של אובדן נתונים.
 
 התיקון הוא `LockService.getScriptLock()`:
 
@@ -108,35 +173,61 @@ try {
 }
 ```
 
-שני triggers יכולים שניהם לנסות לתפוס את ה-lock; אחד מחכה עד חמש שניות שהשני ישחרר. ה-increment עכשיו בטוח. אותו דפוס lock עובד ל-Cache, ל-spreadsheet עצמו, או לכל store משותף אחר.
+שני triggers יכולים שניהם לנסות לתפוס את ה-lock; אחד מחכה עד חמש שניות שהשני ישחרר. הקידום עכשיו בטוח. אותו pattern של lock עובד ל-Cache, ל-spreadsheet עצמו, או לכל store משותף אחר.
+
+<QuickCheck
+  question="שני משתמשים פותחים את ה-workbook באותו זמן. כל אחד מריץ function שעושה PropertiesService.getScriptProperties().setProperty('runCount', String(Number(props.getProperty('runCount') || 0) + 1)). ה-counter מסיים ב-1 במקום 2. מה לא בסדר?"
+  options={[
+    {
+      id: "a",
+      label: "PropertiesService שומר ב-cache את ערך הקריאה בין משתמשים; שניהם ראו את ה-runCount הישן ושניהם כתבו runCount + 1 = 1.",
+      correct: true,
+      explanation: "נכון. ה-read-then-write הוא race condition קלאסי. שני המשתמשים קראו 0, שניהם כתבו 1, הכתיבה השנייה דורסת. עוטפים את ה-read-modify-write ב-LockService.getScriptLock().waitLock(5000) כדי להסר.",
+    },
+    {
+      id: "b",
+      label: "triggers של Apps Script לעולם לא יכולים לשנות את אותו מפתח Properties בו-זמנית; אחד מהם חייב היה להיכשל בשקט.",
+      correct: false,
+      explanation: "אין הגנה כזו. בלי lock, הכתיבות מתחרות ואחת מנצחת.",
+    },
+    {
+      id: "c",
+      label: "ערכי PropertiesService חייבים להיות מספרים, ואחסנתם מחרוזת. JS המיר אחד מהקידומים ל-NaN.",
+      correct: false,
+      explanation: "ערכי Properties תמיד מאוחסנים כמחרוזות; ההמרות של Number() ו-String() נכונות. ה-bug הוא ה-race, לא הסוג.",
+    },
+  ]}
+/>
 
 ## עכשיו לעבודה אמיתית
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="לוג ה-Campaigns תופס את A1:G61. הקריאה של שער החליפין בשיעור היא אותו lookup שההמרה USD ל-ILS של הצוות צריכה בכל גיליון dashboard."
+  caption="לוג ה-Campaigns תופס A1:G61. הקריאה של שער החליפין בשיעור היא אותו lookup שה-USD-to-ILS conversion של הצוות צריך על פני כל גיליון dashboard."
 />
 
-קובץ ה-starter `Lesson.gs` מצהיר על `function getOrFetchRate()` עם גוף ריק. ממשים את דפוס שלושה ה-tiers:
+הקובץ ההתחלתי `Lesson.gs` מצהיר על `function getOrFetchRate()` עם body ריק. מיישמים את ה-pattern התלת-שכבתי:
 
-1. קוראים ל-`CacheService.getDocumentCache()`. אם ה-key `"usdIlsRate"` נוכח, מחזירים אותו כמספר.
-2. קוראים ל-`PropertiesService.getDocumentProperties()`. אם `"usdIlsRate"` שם, מחממים את ה-cache (TTL של שעה) ומחזירים אותו כמספר.
-3. נופלים לליטרל `3.7` אם שני ה-stores ריקים.
+1. קוראים את `CacheService.getDocumentCache()`. אם המפתח `"usdIlsRate"` נוכח, מחזירים אותו כמספר.
+2. קוראים את `PropertiesService.getDocumentProperties()`. אם `"usdIlsRate"` שם, מחממים את ה-cache (TTL של שעה) ומחזירים אותו כמספר.
+3. נופלים ל-literal `3.7` אם שני ה-stores ריקים.
 
-בודקים על ידי פתיחת עורך הסקריפט והרצת ה-function פעם אחת כש-ה-stores ריקים (אמורים לקבל 3.7), ואז שוב אחרי הצבת `usdIlsRate` ל-`"3.85"` ב-Properties דרך ה-console של Apps Script (אמורים לקבל 3.85, וקריאה שנייה בתוך השעה אמורה להיות cache hit).
+בודקים על ידי פתיחת עורך ה-script והרצת ה-function פעם אחת עם ה-stores ריקים (אתם אמורים לקבל 3.7), ואז שוב אחרי הגדרת `usdIlsRate` ל-`"3.85"` ב-Properties דרך console של Apps Script (אתם אמורים לקבל 3.85, וקריאה שנייה תוך השעה אמורה להיות cache hit).
 
 ## נפוץ בשטח
 
-- **API tokens ב-script properties.** ה-trigger של Taboola pull בצוות קורא את ה-API key שלו עם `PropertiesService.getScriptProperties().getProperty("TABOOLA_TOKEN")` ומשתמש בו בכותרת `Authorization`. רוטציה של ה-key היא עדכון של שורה אחת דרך **Project Settings** (אייקון גלגל השיניים בסרגל השמאלי) **→ Script Properties → Add script property** בעורך, בלי שינוי קוד. שימו לב שרק ל-Script Properties יש UI; Document Properties ו-User Properties נקבעים רק מהקוד.
-- **שער FX יומי שמור ב-cache לאורך היום.** ה-trigger של הבוקר משיג את השער מ-API של בנק לאומי, כותב אותו ל-Properties (קבוע, שורד eviction של cache), ומחמם את ה-cache לשעה. כל קריאת `=usdToILS(F2, getOrFetchRate())` ב-spreadsheet במהלך היום היא אז cache hit.
-- **העדפות dashboard לכל משתמש.** כשה-sidebar נותן למשתמש לעבור בין views של "by buyer" ל-"by vertical", הבחירה נכנסת ל-`UserProperties` כך שפתיחה מחדש של ה-sidebar מחר תרים מאיפה שהפסיק.
-- **חותמת ה-refresh האחרון של ה-workbook המקושר.** `DocumentProperties.setProperty("lastRefresh", new Date().toISOString())` בסוף כל pull מוצלח. ה-sidebar קורא אותה ומציג "Refreshed 4 minutes ago" כך שהצוות סומך על זה ש-ה-dashboard לא ישן.
+- **API tokens ב-script properties.** ה-Taboola pull trigger של הצוות קורא את ה-API key שלו עם `PropertiesService.getScriptProperties().getProperty("TABOOLA_TOKEN")` ומשתמש בו ב-`Authorization` header. סיבוב המפתח הוא עדכון של שורה אחת דרך **Project Settings** של העורך (אייקון גלגל ברצועת השמאל) **then Script Properties then Add script property**; ללא שינוי קוד. שימו לב שרק Script Properties יש להן UI; Document Properties ו-User Properties מוגדרות מהקוד בלבד.
+- **שער FX יומי ב-cache ליום.** ה-trigger של הבוקר מאחזר את השער מ-API של הבנק הלאומי, כותב אותו ל-Properties (עמיד, שורד פינוי cache), ומחמם את ה-cache לשעה. כל קריאה ל-`=usdToILS(F2, getOrFetchRate())` על פני ה-workbook במהלך היום היא אז cache hit.
+- **העדפות dashboard פר-משתמש.** כשה-sidebar מאפשר למשתמש להחליף בין תצוגות "by buyer" ו-"by vertical", הבחירה הולכת ל-`UserProperties` כך שפתיחה מחדש של ה-sidebar מחר ממשיכה מאיפה שעצרו.
+- **timestamp של רענון אחרון של ה-workbook המקושר.** `DocumentProperties.setProperty("lastRefresh", new Date().toISOString())` בסוף כל pull מוצלח. ה-sidebar קורא אותו ומציג "Refreshed 4 minutes ago" כך שהצוות בוטח שה-dashboard לא מיושן.
 
 ## מלכודות מקצועיות
 
-- **התייחסות ל-Properties כאחסון של secrets.** כל מי שיש לו גישת עריכה לפרויקט הסקריפט יכול לקרוא כל key. secrets אמיתיים (API tokens שמעניקים גישה לנתונים, PII של לקוחות) שייכים ל-Google Cloud Secret Manager, לא ל-Properties. השימוש של "API token" בסדר כש-ה-API פנימי והסקריפט מאחורי workspace SSO; הוא לא בסדר ל-API key ציבורי.
-- **TTL של CacheService במילישניות.** טעות נפוצה שמועברת מעולם ה-JS. הארגומנט השלישי ל-`cache.put` הוא **שניות**. `cache.put(k, v, 60 * 60 * 1000)` לא נכשל, הוא נחתך למקסימום של 6 שעות, והבאג מציג את עצמו כ-"ה-cache שורד הרבה יותר ממה שציפיתי".
-- **בלבול בין "אין ערך" ל-"פג תוקף" ב-cache miss.** שניהם מחזירים `null`. אי אפשר לדעת מהערך המוחזר אם ה-key מעולם לא נכתב או שנכתב ואז התפנה. אם הלוגיקה צריכה להבדיל (נדיר), הבדיקה השנייה מול Properties היא מה שאומרת לכם.
-- **מגבלת 9 KB לכל property חותכת בשקט.** Properties שומר JSON-stringified blobs בלי תלונות; ארוכים נחתכים באמצע מחרוזת ופירוק ה-JSON בדרך חזרה נכשל. לכל דבר שיכול לגדול (רשימת buyers, לוג עריכות אחרון), משתמשים בקובץ Drive שמיוצג ב-ID וקוראים אותו דרך `DriveApp.getFileById(id).getBlob().getDataAsString()`.
-- **כותבים בו-זמנית מאבדים increments.** שני triggers שכותבים את אותו counter בלי `LockService` ידרסו בשקט אחת מהכתיבות. ה-reader של דפוס שלושה ה-tiers בשיעור הוא read-only ובטוח; ברגע שמתחילים לכתוב חזרה, עוטפים את הכתיבה ב-`LockService.getScriptLock()`.
-- **שכחה להמיר ערכי Properties חזרה לטיפוס.** `props.getProperty("usdIlsRate")` מחזיר את המחרוזת `"3.7"`, לא את המספר `3.7`. `+rate` או `Number(rate)` עושה את ההמרה. מדלגים על זה והכפל במורד הזרם עושה שכפול מחרוזת (`"3.7" * 412.5` → מספר, במקרה, כי JS) או גרוע מזה, בפינות מסוימות, NaN.
+- **התייחסות ל-Properties כאחסון סודות.** כל מי שיש לו גישת עריכה ל-script project יכול לקרוא כל מפתח. סודות אמיתיים (API tokens שמעניקים גישה לנתונים, PII של לקוחות) שייכים ל-Google Cloud Secret Manager, לא ל-Properties. השימוש של "API token" בסדר כשה-API פנימי וה-script מאחורי workspace SSO; זה לא בסדר ל-API key ציבורי.
+- **TTL של CacheService במילישניות.** טעות נפוצה שמועברת מעולם ה-JS. הארגומנט השלישי ל-`cache.put` הוא **שניות**. `cache.put(k, v, 60 * 60 * 1000)` לא נכשל. הוא מוגבל למקסימום של 6 שעות, וה-bug מציג כ-"ה-cache נשאר הרבה יותר זמן ממה שציפיתי."
+- **בלבול בין "אין ערך" ל-"פג תוקף" על cache misses.** שניהם מחזירים `null`. אי אפשר לדעת מערך ההחזרה אם המפתח אף פעם לא נכתב או שהוא נכתב ואז התפנה. אם הלוגיקה שלכם צריכה להבחין (נדיר), הבדיקה השנייה מול Properties היא מה שאומר לכם.
+- **המגבלה של 9 KB פר-property מקצצת בשקט.** Properties שומר blobs של JSON-stringified בלי תלונה; ארוכים נחתכים באמצע מחרוזת ופירוק ה-JSON בדרך חזרה נכשל. עבור כל דבר שיכול לגדול (רשימת buyers, log של עריכות אחרונות), משתמשים בקובץ Drive המופנה לפי ID וקוראים אותו דרך `DriveApp.getFileById(id).getBlob().getDataAsString()`.
+- **Writers מקבילים שמאבדים increments.** שני triggers שכותבים את אותו counter בלי `LockService` ישחררו בשקט אחת מהכתיבות. הקורא התלת-שכבתי של השיעור הוא read-only ובטוח; ברגע שאתם מתחילים לכתוב חזרה, עוטפים את הכתיבה ב-`LockService.getScriptLock()`.
+- **שכחה להמיר ערכי Properties חזרה לסוג.** `props.getProperty("usdIlsRate")` מחזיר את המחרוזת `"3.7"`, לא את המספר `3.7`. `+rate` או `Number(rate)` עושה את ההמרה. דילוג עליה והכפל במורד עושה חזרה של מחרוזת (`"3.7" * 412.5` למספר, במקרה, כי JS) או גרוע יותר, במקרי קצה, NaN.
+- **`deleteAllProperties()` לא מוחק את ה-property store.** הוא רק מנקה את הערכים; ה-store עדיין קיים, getProperty מחזיר null לכל דבר. אין דרך למחוק את ה-property store עצמו עבור project script נתון.
+- **Cache מחזיר ערכים מיושנים אחרי setProperty.** Cache הוא read-through, לא write-through. כתיבה ל-Properties *לא* מבטלת את ה-cache. אם אתם כותבים ערך חדש ל-Properties, אתם חייבים או `cache.remove(key)` או לחכות ל-TTL.
