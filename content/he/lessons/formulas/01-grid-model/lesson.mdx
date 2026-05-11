@@ -103,6 +103,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   caption="הטווח E2:E13, עם השם 'spend'. אחרי שיש לו שם, =SUM(spend) זאת הכתובת."
 />
 
+כדי ליצור אחד: בוחרים את הטווח (כאן `E2:E13`), פותחים **Data > Named ranges** בתפריט, מקלידים `spend` כשם, ולוחצים **Done**. השם תופס מיד, וכל נוסחה בגיליון יכולה לכתוב `=AVERAGE(spend)` במקום `=AVERAGE(E2:E13)`. קיצור דרך: כשהטווח מסומן, אפשר להקליד את השם ישירות ב-**Name box** (התיבה שמשמאל לשורת הנוסחה) וללחוץ Enter.
+
 ב-spreadsheets האמיתיים של הצוות, named ranges נמצאים בכל מקום: `media_fee_pct`, `target_roi`, `vertical_lookup`, `current_period`. הדפוס: מגדירים אותם פעם אחת בראש גיליון בשם `Config`, ומפנים אליהם מכל נוסחה אחרת. כשהעמלה משתנה מ-10% ל-12%, עורכים תא אחד, לא 200 נוסחאות.
 
 <QuickCheck

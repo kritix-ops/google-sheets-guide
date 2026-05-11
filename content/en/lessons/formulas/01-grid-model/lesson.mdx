@@ -103,6 +103,8 @@ A range expressed as `B2:B13` is fragile. It depends on nobody inserting a row a
   caption="The range E2:E13, named 'spend'. Once named, =SUM(spend) is the address."
 />
 
+To create one: select the range (here `E2:E13`), open **Data > Named ranges**, type `spend` as the name, and click **Done**. The name takes effect immediately, and any formula in the workbook can write `=AVERAGE(spend)` instead of `=AVERAGE(E2:E13)`. Shortcut: with the range selected, type the name straight into the **Name box** (the box to the left of the formula bar) and press Enter.
+
 In the team's actual workbooks, named ranges are everywhere: `media_fee_pct`, `target_roi`, `vertical_lookup`, `current_period`. The pattern is to define them once at the top of a "Config" sheet and reference them from every other formula. When the fee changes from 10% to 12%, you edit one cell, not 200 formulas.
 
 <QuickCheck
