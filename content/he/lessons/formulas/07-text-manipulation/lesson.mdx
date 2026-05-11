@@ -26,6 +26,28 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   highlight={["C2"]}
 />
 
+### דוגמה 1: נתוני צעצוע
+
+מושכים את התווים הראשונים מקוד מוצר. `LEFT`/`RIGHT`/`MID` כולם מתנהגים אותו דבר: מעבירים טקסט ומספר.
+
+<RefDemo
+  data={[
+    ["Code", "First 3", "Last 2"],
+    ["ABC-1024", "", ""],
+    ["XYZ-7714", "", ""],
+    ["DEF-3399", "", ""],
+  ]}
+  formula='=LEFT(A2,3)'
+  formulaCell="B2"
+  fillTo="B4"
+  expectedFills={['=LEFT(A2,3)', '=LEFT(A3,3)', '=LEFT(A4,3)']}
+  caption="LEFT(A2, 3) מחזיר את 3 התווים הראשונים. אותו רעיון ממלא למטה לעמודה."
+/>
+
+### דוגמה 2: נתוני אדטק אמיתיים
+
+שמות ה-verticals של הצוות כולם מסתיימים ב-` PR`. הורידו את הסיומת כדי לקבל את הנושא.
+
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
@@ -71,6 +93,30 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `SUBSTITUTE(text, old, new, [occurrence])` מחליף כל מופע של `old` ב-`new`. מעבירים מספר `occurrence` כדי להחליף רק את המופע ה-n. שימושי לקיצור שמות לגרפים, לנרמול מפרידים לא עקביים או להסרת תווים לא רצויים. כרטיס ה-reference המלא הוצג בשיעור 3 לצד `TRIM`; פה אנחנו מראים את הווריאנט שמודע-למיקום שלו דרך ה-occurrence_number האופציונלי.
 
+<QuickCheck
+  question="חבר צוות הריץ קמפיין שבו שם ה-buyer הוקלד באופן לא עקבי בין feeds: 'Yoav Cohen' ב-Taboola, 'yoav cohen' ב-Outbrain, 'YOAV COHEN' ב-Google. רוצים נוסחה שמוצאת את הרווח הראשון בשם ומחלצת את השם הפרטי. איזה עמיד לכל שלוש הצורות?"
+  options={[
+    {
+      id: "a",
+      label: <code>=LEFT(B2, FIND(" ", B2) - 1)</code>,
+      correct: false,
+      explanation: "FIND רגיש ל-case אבל מחפש כאן רווח, שאינו אות, אז ה-case לא משפיע על הרווח עצמו. הבעיה האמיתית: זה עובד על שלוש הצורות (הרווח זהה בכולן). למעשה התשובה הזאת בסדר למקרה של הרווח. הטריק הוא להבין ש-FIND בסדר כשמחפשים מפרידים שאינם אותיות.",
+    },
+    {
+      id: "b",
+      label: <code>=LEFT(B2, SEARCH(" ", B2) - 1)</code>,
+      correct: true,
+      explanation: "SEARCH עובד לכל שלוש הצורות וגם זו ברירת המחדל הבטוחה כשלא ניתן להבטיח case של מקור. שניהם עובדים למציאת רווח, אבל SEARCH הוא ההרגל שכדאי לשמור בפרודקשן שבו כל אות שמחפשים עשויה לחזור מחר באותיות גדולות או קטנות.",
+    },
+    {
+      id: "c",
+      label: <code>=LEFT(B2, 4)</code>,
+      correct: false,
+      explanation: "4 תווים מקובעים עובד רק ל-'Yoav'. נשבר ברגע שמישהו מריץ קמפיין של 'Ben' או 'Eitan'.",
+    },
+  ]}
+/>
+
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
@@ -103,6 +149,43 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
     },
   ]}
 />
+
+### מלכודות נפוצות: LEFT/RIGHT/MID
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=LEFT(C2, 9)</code></pre>
+    <p className="mt-2 text-sm">אורך מקובע. עובד ל-"Used Cars PR" (12 תווים פחות 3 שווה 9), נשבר ל-"Solar Systems &amp; Panels PR" (25 תווים). עמודת ה"נושא" במורד הזרם יוצאת חתוכה או מודבקת בהתאם לשורה.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=LEFT(C2, LEN(C2)-3)</code></pre>
+    <p className="mt-2 text-sm">אורך דינמי. מוריד בדיוק שלושה תווים אחרונים בלי קשר לאורך הנושא. עמיד לכל רשימת ה-verticals.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=LEFT(C2, FIND(" ", C2))</code></pre>
+    <p className="mt-2 text-sm">שכחו את ה-<code>-1</code>. התוצאה כוללת את הרווח שמצאו: "Used " במקום "Used". Whitespace בסוף מפתח עמודה זה הגורם השקט הכי נפוץ לכישלון join.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=LEFT(C2, FIND(" ", C2)-1)</code></pre>
+    <p className="mt-2 text-sm">מחסירים 1 כדי להוציא את הרווח. או עוטפים ב-<code>TRIM(...)</code> אם לא ניתן לסמוך על המקור: זה מהלך זול של חגורה ושלייקס שחסך אחר צהריים רבים.</p>
+  </ComparePanel>
+</Compare>
+
+### מלכודות נפוצות: FIND/SEARCH
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=FIND("PR", C2)</code></pre>
+    <p className="mt-2 text-sm">רגיש ל-case. אם גיליון במעלה הזרם שלח "Used Cars pr" (lowercase), <code>FIND</code> מחזיר <code>#VALUE!</code> ושובר כל פירסור במורד הזרם.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=SEARCH("PR", C2)</code></pre>
+    <p className="mt-2 text-sm"><code>SEARCH</code> הוא האח שאינו רגיש ל-case. אותה חתימה, מוצא "PR", "pr", "Pr" כאחד. שלפו אותו כשלא ניתן לשלוט ב-case של המקור; שלפו <code>FIND</code> כש-case באמת חשוב (פירסור של קודי קמפיין שמבדילים בין "PR" ל-"pr").</p>
+  </ComparePanel>
+</Compare>
 
 ## איך בוחרים
 

@@ -26,6 +26,28 @@ The team's vertical names all end with `" PR"` by convention. To get the topic o
   highlight={["C2"]}
 />
 
+### Worked example 1: toy data
+
+Pull the leftmost characters from a product code. `LEFT`/`RIGHT`/`MID` all behave the same way: pass the text and a count.
+
+<RefDemo
+  data={[
+    ["Code", "First 3", "Last 2"],
+    ["ABC-1024", "", ""],
+    ["XYZ-7714", "", ""],
+    ["DEF-3399", "", ""],
+  ]}
+  formula='=LEFT(A2,3)'
+  formulaCell="B2"
+  fillTo="B4"
+  expectedFills={['=LEFT(A2,3)', '=LEFT(A3,3)', '=LEFT(A4,3)']}
+  caption="LEFT(A2, 3) returns the first 3 characters. The same idea fills down for the column."
+/>
+
+### Worked example 2: real adtech data
+
+The team's vertical names all end with ` PR`. Strip the suffix to get the topic.
+
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
@@ -71,6 +93,30 @@ You compose `FIND` with `LEFT`/`RIGHT`/`MID` to slice at a known delimiter rathe
 
 `SUBSTITUTE(text, old, new, [occurrence])` replaces every occurrence of `old` with `new`. Pass an `occurrence` number to replace only the nth instance. Useful for shortening names for charts, normalizing inconsistent separators, or stripping unwanted characters. The full reference card was introduced in lesson 3 alongside `TRIM`; here we show its position-aware variant via the optional occurrence_number.
 
+<QuickCheck
+  question="A teammate ran a campaign with the buyer name typed inconsistently across feeds: 'Yoav Cohen' on Taboola, 'yoav cohen' on Outbrain, 'YOAV COHEN' on Google. You want a formula to find the first space in the buyer name and extract the first name. Which is robust to all three?"
+  options={[
+    {
+      id: "a",
+      label: <code>=LEFT(B2, FIND(" ", B2) - 1)</code>,
+      correct: false,
+      explanation: "FIND is case-sensitive but it's searching for a SPACE here, which isn't a letter, so casing doesn't matter for the space itself. The real issue: this works on all three casings (the space is the same in each). Actually this answer is fine for the SPACE case. The trick is recognizing FIND is fine when searching for non-letter delimiters.",
+    },
+    {
+      id: "b",
+      label: <code>=LEFT(B2, SEARCH(" ", B2) - 1)</code>,
+      correct: true,
+      explanation: "SEARCH works for all three casings AND it's the safer default when you can't guarantee source casing. Either works for finding a space, but SEARCH is the habit to keep in production where any letter you search for might come back uppercase or lowercase tomorrow.",
+    },
+    {
+      id: "c",
+      label: <code>=LEFT(B2, 4)</code>,
+      correct: false,
+      explanation: "Hardcoded 4 chars only works for 'Yoav'. Breaks the moment someone runs a 'Ben' or 'Eitan' campaign.",
+    },
+  ]}
+/>
+
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
@@ -103,6 +149,43 @@ You compose `FIND` with `LEFT`/`RIGHT`/`MID` to slice at a known delimiter rathe
     },
   ]}
 />
+
+### Easy traps: LEFT/RIGHT/MID
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=LEFT(C2, 9)</code></pre>
+    <p className="mt-2 text-sm">Hardcoded length. Works for "Used Cars PR" (12 chars - 3 = 9), breaks for "Solar Systems &amp; Panels PR" (25 chars). The downstream "topic" column ends up truncated or padded depending on row.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=LEFT(C2, LEN(C2)-3)</code></pre>
+    <p className="mt-2 text-sm">Dynamic length. Strips exactly three trailing characters regardless of topic length. Robust across the entire verticals list.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=LEFT(C2, FIND(" ", C2))</code></pre>
+    <p className="mt-2 text-sm">Forgot the <code>-1</code>. The result includes the matched space: "Used " instead of "Used". Whitespace at the end of a column key is the most common silent join-failure cause.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=LEFT(C2, FIND(" ", C2)-1)</code></pre>
+    <p className="mt-2 text-sm">Subtract 1 to exclude the space. Or wrap in <code>TRIM(...)</code> if you can't trust upstream data: it's a cheap belt-and-suspenders move that has saved many afternoons.</p>
+  </ComparePanel>
+</Compare>
+
+### Easy traps: FIND/SEARCH
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=FIND("PR", C2)</code></pre>
+    <p className="mt-2 text-sm">Case-sensitive. If an upstream sheet sent "Used Cars pr" (lowercase), <code>FIND</code> returns <code>#VALUE!</code> and breaks every downstream parse.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=SEARCH("PR", C2)</code></pre>
+    <p className="mt-2 text-sm"><code>SEARCH</code> is the case-insensitive sibling. Same signature, finds "PR", "pr", "Pr" alike. Reach for it when you can't control source data casing; reach for <code>FIND</code> when case actually matters (parsing campaign codes that distinguish "PR" from "pr").</p>
+  </ComparePanel>
+</Compare>
 
 ## How to choose
 
