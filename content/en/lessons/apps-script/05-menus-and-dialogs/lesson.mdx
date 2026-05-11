@@ -2,7 +2,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Custom menus and dialogs
 
-A spreadsheet that runs your code only when you open the Apps Script editor isn't very useful to the rest of the team. Custom menus are how you surface a function as a one-click action in the spreadsheet toolbar: the buyer opens the workbook, sees a "Reports" menu next to Help, clicks "Email weekly summary", and the script runs. Dialogs are how those scripts talk back: an alert when something finished, a prompt when the script needs a number, a sidebar when there's a whole panel of controls to show.
+A spreadsheet that runs your code only when you open the Apps Script editor is not very useful to the rest of the team. Custom menus are how you surface a function as a one-click action in the spreadsheet toolbar: the buyer opens the workbook, sees a "Reports" menu next to Help, clicks "Email weekly summary", and the script runs. Dialogs are how those scripts talk back: an alert when something finished, a prompt when the script needs a number, a sidebar when there is a whole panel of controls to show.
+
+This lesson covers the four surfaces. **`onOpen`** is the trigger that rebuilds the menu on every workbook load. **`createMenu` and `addItem`** are the builder chain. **`ui.alert`** is the one-shot information popup, with variants for confirms. **`ui.prompt`** is the one-shot input. Sidebars get their own lesson (lesson 9, `HtmlService`) because they are HTML, not just a single message.
 
 ## The `onOpen` trigger
 
@@ -18,9 +20,9 @@ function onOpen() {
 }
 ```
 
-`onOpen` is a **simple trigger**: Apps Script fires it automatically whenever the file is opened, with no install step and no permission prompt. The catch is that simple triggers run in a stripped-down auth context: they can read the spreadsheet and build UI, but they cannot send email, call `UrlFetchApp`, or do anything that needs full OAuth scopes. The menu item handlers (`alertSpend`, `emailWeeklySummary`) run when the user clicks them, and at that point they have the full auth context.
+`onOpen` is a **simple trigger** (lesson 7 covers the full set). Apps Script fires it automatically whenever the file is opened, with no install step and no permission prompt. The catch is that simple triggers run in a stripped-down auth context: they can read the spreadsheet and build UI, but they cannot send email, call `UrlFetchApp`, or do anything that needs full OAuth scopes. The menu item handlers (`alertSpend`, `emailWeeklySummary`) run when the user clicks them, and at that point they have the full auth context.
 
-**Course caveat.** The bound project in this course already declares `onOpen()` for its own purposes (initializing the sidebar). JavaScript only keeps one declaration per identifier, so a second `function onOpen()` in your `Lesson.gs` would silently overwrite the one we shipped or be overwritten by it. To work around this, the assignment has you write a regular function called `addReportsMenu()` and run it manually from the Apps Script editor's Run dropdown. The shape of the body is identical to what a real `onOpen` would contain. In any workbook you build outside this course, the production pattern is what's above: declare `onOpen`, build the menu inside it, and the menu shows up automatically on every load.
+**Course caveat.** The bound project in this course already declares `onOpen()` for its own purposes (initializing the sidebar). JavaScript only keeps one declaration per identifier, so a second `function onOpen()` in your `Lesson.gs` would silently overwrite the one we shipped or be overwritten by it. To work around this, the assignment has you write a regular function called `addReportsMenu()` and run it manually from the Apps Script editor's Run dropdown. The shape of the body is identical to what a real `onOpen` would contain. In any workbook you build outside this course, the production pattern is what is above: declare `onOpen`, build the menu inside it, and the menu shows up automatically on every load.
 
 ## `createMenu` and `addItem`
 
@@ -44,6 +46,29 @@ Three things worth knowing about `addItem`:
 
 `createMenu` also supports submenus via `addSubMenu(otherMenu)`, useful when the team has six "Refresh X" items that would otherwise clutter the top level.
 
+<Compare>
+  <ComparePanel label="Broken: typo in handler name" tone="negative">
+    <pre className="font-mono text-xs"><code>{`function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("Reports")
+    .addItem("Refresh", "refeshTaboola")  // typo
+    .addToUi();
+}`}</code></pre>
+    <p className="mt-2 text-sm">Save runs. Menu appears. Click "Refresh", silent no-op. The bug only surfaces at click time and there is no error in the Executions panel.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: copy the function name" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("Reports")
+    .addItem("Refresh", "refreshTaboola")
+    .addToUi();
+}
+
+function refreshTaboola() { /* ... */ }`}</code></pre>
+    <p className="mt-2 text-sm">Function names are strings; never retype them. Copy-paste from the function declaration. Misspell once and a teammate hits a dead menu item six months later.</p>
+  </ComparePanel>
+</Compare>
+
 ## `ui.alert` and its variants
 
 The simplest dialog is `alert`. It pauses the script, shows a modal box with a message and an OK button, and resumes when the user clicks OK:
@@ -59,14 +84,14 @@ Two more forms cover the rest of the alert surface:
 // With a title and a custom button set:
 ui.alert(
   "Confirm refresh",
-  "This will overwrite rows 2–500 of the Aggregator tab. Continue?",
+  "This will overwrite rows 2 to 500 of the Aggregator tab. Continue?",
   ui.ButtonSet.YES_NO,
 );
 
 // The return value tells you which button the user clicked:
 const response = ui.alert(
   "Confirm refresh",
-  "This will overwrite rows 2–500 of the Aggregator tab. Continue?",
+  "This will overwrite rows 2 to 500 of the Aggregator tab. Continue?",
   ui.ButtonSet.YES_NO,
 );
 if (response === ui.Button.YES) {
@@ -102,11 +127,83 @@ if (response.getSelectedButton() === ui.Button.OK) {
 
 The return value is a `PromptResponse` object, not a string. Two methods to remember: `getSelectedButton()` (which button the user clicked, including CLOSE if they hit the X) and `getResponseText()` (the actual typed input). Beginners hit the trap of treating the return value as the string itself and getting `[object PromptResponse]` in their downstream logic.
 
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: prompt opens, script pauses",
+      body: (
+        <>
+          <code>ui.prompt(...)</code> halts script execution and renders a
+          modal in the workbook. The 6-minute execution timer is still
+          counting; if the user goes for coffee and comes back in 7 minutes,
+          the script is dead by then.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: user types 1.25 and clicks OK",
+      body: (
+        <>
+          The modal closes. <code>ui.prompt</code> returns a{" "}
+          <code>PromptResponse</code> object: not the typed string, the
+          object that wraps it.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: getSelectedButton vs getResponseText",
+      body: (
+        <>
+          <code>response.getSelectedButton() === ui.Button.OK</code> tells
+          you the user did not cancel. <code>response.getResponseText()</code>{" "}
+          gives the typed string <code>"1.25"</code>. You parse it with{" "}
+          <code>parseFloat</code> and check for <code>Number.isFinite</code>.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: dispatch on the parsed value",
+      body: (
+        <>
+          If the parse succeeded, call <code>applyThreshold(1.25)</code>. If
+          the user typed gibberish, show another alert. If the user clicked
+          Cancel or the X, your <code>if</code> branch falls through and
+          nothing happens.
+        </>
+      ),
+    },
+  ]}
+/>
+
 ## When to reach for a sidebar instead
 
-Menus and dialogs cover one-shot actions and one-shot inputs. The moment you need a persistent panel (a form with five fields, a status display that updates as a long script runs, a date range picker that stays visible while the user works), the right tool is a **sidebar**. Sidebars are HTML panels that dock on the right of the spreadsheet. They're how the sidebar companion that grades these very lessons displays its check list.
+Menus and dialogs cover one-shot actions and one-shot inputs. The moment you need a persistent panel (a form with five fields, a status display that updates as a long script runs, a date range picker that stays visible while the user works), the right tool is a **sidebar**. Sidebars are HTML panels that dock on the right of the spreadsheet. They are how the sidebar companion that grades these very lessons displays its check list.
 
-Lesson 9 covers sidebars end-to-end. The short version: `ui.showSidebar(HtmlService.createHtmlOutputFromFile("Sidebar"))` opens a panel, the HTML inside it talks to your server functions via `google.script.run`. For now, just know that a menu item that opens a sidebar is the standard pattern when one-shot dialogs aren't enough.
+Lesson 9 covers sidebars end-to-end. The short version: `ui.showSidebar(HtmlService.createHtmlOutputFromFile("Sidebar"))` opens a panel, the HTML inside it talks to your server functions via `google.script.run`. For now, just know that a menu item that opens a sidebar is the standard pattern when one-shot dialogs are not enough.
+
+<QuickCheck
+  question="You wire a menu item: .addItem('Run', 'runCampaign'). The function in your source is named runCampaign (lowercase r). You click the menu item and nothing happens, no error, no log entry. What is wrong?"
+  options={[
+    {
+      id: "a",
+      label: "Apps Script's menu builder caches function references; the menu has to be rebuilt with addToUi for the change to take effect.",
+      correct: false,
+      explanation: "addToUi is needed once at menu construction, but a function-name mismatch is not a caching problem; it's a string-resolution problem.",
+    },
+    {
+      id: "b",
+      label: "The two strings are different ('Run' vs 'runCampaign'). Apps Script looks up the handler by exact name at click time; with no match, it silently no-ops.",
+      correct: true,
+      explanation: "Right. addItem takes the handler name as a STRING and resolves at click time, not save time. A typo or case mismatch fails silently. Always copy-paste from the function declaration.",
+    },
+    {
+      id: "c",
+      label: "Menu items only work from onOpen, not from a manually-invoked addReportsMenu function.",
+      correct: false,
+      explanation: "Menu items work the same regardless of which function built them. The cause here is the function-name string mismatch.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -120,7 +217,7 @@ The starter file `Lesson.gs` declares two function stubs. Two tasks:
 1. Fill in `addReportsMenu()` so it builds a "Reports" menu with one item labelled "Show spend total" that runs the function `alertSpend`. Use the chain `SpreadsheetApp.getUi().createMenu("Reports").addItem("Show spend total", "alertSpend").addToUi()`.
 2. Fill in `alertSpend()` so it reads J1's value and displays it via `SpreadsheetApp.getUi().alert("Total spend: " + value)`.
 
-Run `addReportsMenu` from the Apps Script editor's Run dropdown once. The Reports menu appears in the spreadsheet toolbar. Click Reports → Show spend total. An alert pops up with the total. (In a workbook you build outside this course you'd put the `createMenu` chain inside `onOpen` and skip the manual Run step; see the course caveat above.)
+Run `addReportsMenu` from the Apps Script editor's Run dropdown once. The Reports menu appears in the spreadsheet toolbar. Click Reports then Show spend total. An alert pops up with the total. (In a workbook you build outside this course you would put the `createMenu` chain inside `onOpen` and skip the manual Run step; see the course caveat above.)
 
 ## Used in the wild
 
@@ -140,13 +237,15 @@ The other heavy use of dialogs:
 
 - **`ui.alert` at the end of long-running scripts** so the buyer knows the script finished. Without the alert, a script that runs for two minutes looks like nothing happened.
 - **`ui.prompt` for the rare interactive script.** The "rename a buyer across all tabs" macro asks for the old name and the new name via two `prompt` calls in a row, then does the renames in one batch.
-- **`ui.alert(..., ButtonSet.YES_NO)` before destructive operations.** Any script that overwrites a range of cells gets a YES_NO gate so a misclick doesn't nuke a day's work.
+- **`ui.alert(..., ButtonSet.YES_NO)` before destructive operations.** Any script that overwrites a range of cells gets a YES_NO gate so a misclick does not nuke a day's work.
 
 ## Pro pitfalls
 
 - **Menu items take the function name as a STRING, and typos fail silently.** `.addItem("Run", "RunCampaign")` works at save time but does nothing at click time if the JS function is `runCampaign` (lowercase r). Always copy-paste the function name from the function declaration, never retype it.
 - **`ui.alert` blocks the script.** The script pauses until the user clicks the button. A nightly trigger that calls `ui.alert` will hang and eventually time out. `ui.alert` is for user-initiated runs only, not for scheduled triggers. Triggered scripts log to a sheet or send an email instead.
-- **`ui.prompt` returns a `PromptResponse`, not a string.** `const x = ui.prompt("name"); doSomething(x)` doesn't pass the typed text; it passes the response object. Use `x.getResponseText()` to extract the actual input, and check `x.getSelectedButton()` to see whether the user clicked OK, Cancel, or the X.
-- **A custom menu disappearing.** The user opened the spreadsheet but the menu isn't there. Three causes: the script wasn't authorized (open Apps Script, click Run on any function, accept the auth prompt); `onOpen` threw an exception (check the Execution log); the script is bound to a different copy of the file (each copy of a spreadsheet has its own bound project: duplicate the file and you've duplicated the script too, but the new copy still has to be authorized on first open).
+- **`ui.prompt` returns a `PromptResponse`, not a string.** `const x = ui.prompt("name"); doSomething(x)` does not pass the typed text; it passes the response object. Use `x.getResponseText()` to extract the actual input, and check `x.getSelectedButton()` to see whether the user clicked OK, Cancel, or the X.
+- **A custom menu disappearing.** The user opened the spreadsheet but the menu is not there. Three causes: the script was not authorized (open Apps Script, click Run on any function, accept the auth prompt); `onOpen` threw an exception (check the Execution log); the script is bound to a different copy of the file (each copy of a spreadsheet has its own bound project: duplicate the file and you have duplicated the script too, but the new copy still has to be authorized on first open).
 - **Two scripts each declaring `onOpen`.** A workbook with multiple bound libraries plus inline code can end up with two `onOpen` functions; whichever loaded second wins, the first one's menu vanishes. The fix is to consolidate all menu setup into one `onOpen` that calls helper functions per concern.
 - **A menu item that opens a sidebar from a simple-trigger context.** `ui.showSidebar` requires the `script.container.ui` scope and a full auth context. Inside the simple `onOpen` it works because `onOpen` is whitelisted for UI; from a time-driven trigger it throws. If you need to open a sidebar from a scheduled job, the right pattern is to write a status row to the spreadsheet and have the next manual open's `onOpen` notice it and open the sidebar then.
+- **Re-running `onOpen` does not refresh the menu.** Apps Script builds the menu once per session. To see changes during development, reload the workbook tab. (`Ctrl+R` or close-reopen.)
+- **Asynchronous work after `ui.alert`.** Code after `ui.alert(...)` only runs after the user dismisses the modal. If you fire-and-forget a `UrlFetchApp` between two alerts, the user is staring at the first alert while the fetch runs; design with that in mind.
