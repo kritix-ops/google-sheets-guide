@@ -2,7 +2,9 @@ import { BUYERS_DETAIL } from "@/content/datasets/adtech";
 
 # Drop-downs and smart chips: people, file, finance, date, place chips
 
-Lesson 4 covered the drop-down half of `Data → Data validation`: closed lists, ranges, custom formulas. This lesson is about the other half of the controlled-input story: **smart chips**, the rich `@`-mention inserts that pin a person, a file, a place, a finance ticker, or a calendar date into a single cell. A buyer name typed as text is just a string. The same name as a person chip is a link to that person's profile, their email, their availability: hover and you see it. The cell still looks like one cell. Underneath, it's a structured reference to something outside the spreadsheet.
+Lesson 2.4 covered the drop-down half of `Data → Data validation`: closed lists, ranges, custom formulas. This lesson is about the other half of the controlled-input story: **smart chips**, the rich `@`-mention inserts that pin a person, a file, a place, a finance ticker, or a calendar date into a single cell. A buyer name typed as text is just a string. The same name as a person chip is a link to that person's profile, their email, their availability: hover and you see it. The cell still looks like one cell. Underneath, it's a structured reference to something outside the spreadsheet.
+
+Think of a chip as the cell's superpower mode. The display is still tiny, the semantics are infinitely richer. The team uses chips wherever a piece of data points at something living elsewhere: a person on Slack, a folder in Drive, a calendar event, a vendor's stock ticker. The chip turns a 30-second context switch (open Drive, search, click) into a one-click hover.
 
 ## The five chip types you'll actually use
 
@@ -17,6 +19,30 @@ Sheets supports more chip kinds than this, but in adtech work the same five keep
 | Date / Calendar event | A date or an event from your Calendar | Launch dates, freshness markers on dashboards, media-plan milestones |
 
 The first two carry almost all the weight in real workbooks. People-attribution and file-pinning are the patterns you'll repeat hundreds of times. The other three appear, but rarely.
+
+<QuickCheck
+  question="Your dashboard has an 'Owner' column that should let any team member ping the on-call buyer from any row. What goes in the cell?"
+  options={[
+    {
+      id: "a",
+      label: "The buyer's name as plain text",
+      correct: false,
+      explanation: "Plain text doesn't ping anyone. The reader has to look up the name, open Slack or email, type the address — three steps that a person chip collapses to one.",
+    },
+    {
+      id: "b",
+      label: "A person chip linked to the buyer's Workspace identity",
+      correct: true,
+      explanation: "Person chips carry the user's email, profile, and availability. Hover shows the preview; click opens chat or mail. This is what makes an Owner column useful at 11 PM.",
+    },
+    {
+      id: "c",
+      label: "A HYPERLINK formula pointing at the buyer's email URL",
+      correct: false,
+      explanation: "A HYPERLINK to a mailto opens a draft. A person chip is richer: it shows availability, syncs with Workspace identity changes, and integrates with Calendar.",
+    },
+  ]}
+/>
 
 ## Inserting a chip: the @-mention pattern
 
@@ -55,6 +81,52 @@ chipRuns[0]:
 ```
 
 `mimeType` is what tells you the chip's subtype: `application/vnd.google-apps.spreadsheet` for a Sheet, `application/vnd.google-apps.document` for a Doc, `application/vnd.google-apps.folder` for a Drive folder, and so on. Place chips, finance chips, and calendar chips have their own bespoke `mimeType` values, but the `vnd.google-apps.*` family covers every Drive file the team links daily.
+
+<Compare>
+  <ComparePanel label="Broken: search for chip text" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Cell A2 holds a person chip for Yoav Cohen.
+The display shows "Yoav Cohen".
+The cell's actual value: "@"
+
+=FIND("Yoav", A2)      ➜ #VALUE!
+=REGEXMATCH(A2, "Yoav") ➜ FALSE`}</code></pre>
+    <p className="mt-2 text-sm">FIND and REGEXMATCH operate on cell text. Chip metadata is invisible to them. The cell looks searchable but isn't.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: keep plain-text helper column" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Column A: person chip (display "Yoav Cohen")
+Column B: plain text "Yoav Cohen" (helper)
+
+=FIND("Yoav", B2)       ➜ 1
+=COUNTIF(B:B, "Yoav*")  ➜ accurate
+
+Charts label by A, searches read B.`}</code></pre>
+    <p className="mt-2 text-sm">When you need both a clickable chip and a searchable column, keep a parallel plain-text helper. The chip is the surface, the helper is the data.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You build a QUERY that selects all rows where Buyer = 'Yoav Cohen'. The Buyer column holds person chips. Why does the query return zero rows?"
+  options={[
+    {
+      id: "a",
+      label: "QUERY can't handle text comparisons; you need GROUP BY",
+      correct: false,
+      explanation: "QUERY handles text comparisons fine. The issue is what the comparison is reading.",
+    },
+    {
+      id: "b",
+      label: "QUERY reads the cell's text value (just '@'), not the chip's display name 'Yoav Cohen'",
+      correct: true,
+      explanation: "Chip metadata is invisible to QUERY. The cell text is the bare @ placeholder. No row matches 'Yoav Cohen' because no cell text contains that string. Add a helper column with plain-text buyer names for query purposes.",
+    },
+    {
+      id: "c",
+      label: "QUERY requires the source column to have a single data type; chips break that rule",
+      correct: false,
+      explanation: "All chip cells share the same underlying text ('@'), so the column is uniformly text-typed. The issue is the value, not the type.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 

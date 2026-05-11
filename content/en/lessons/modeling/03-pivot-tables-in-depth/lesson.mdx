@@ -2,7 +2,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Pivot tables in depth: filters, multi-value, calculated fields
 
-Lesson 2 covered the four slots in the Pivot editor: Rows, Columns, Values, Filters. That's enough for the simplest dashboards. The moment you need to scope a pivot to one country, stack three numbers per cell, or roll dates into quarters, you reach past the basics. This lesson is the rest of what a working media buyer uses on a real spreadsheet every day.
+Lesson 2.2 covered the four slots in the Pivot editor: Rows, Columns, Values, Filters. That's enough for the simplest dashboards. The moment you need to scope a pivot to one country, stack three numbers per cell, or roll dates into quarters, you reach past the basics. This lesson is the rest of what a working media buyer uses on a real spreadsheet every day.
+
+The bar to aim for: by the end of this lesson, you should be able to look at any team dashboard pivot and reverse-engineer it. Source range, Rows, Columns, Values (with their summarize functions), Filters, and any calculated fields. Once you can read pivots, building them is mostly muscle memory.
 
 ## Filters: by values vs by condition
 
@@ -13,9 +15,55 @@ The Filters slot pares the source down BEFORE the pivot aggregates. Two flavors:
 | **Filter by values** | Explicit allowlist of visible items | You know the exact set: `Country in {DE, UK}`, `Platform in {Google, Facebook}` |
 | **Filter by condition** | A predicate the source row must satisfy | `Spend > 200`, `Vertical contains "PR"`, `Date is after 2026-04-15` |
 
-By-values shows up in the Sheets API as a `visibleValues` list. By-condition shows up as a `BooleanCondition` with a type (`NUMBER_GREATER`, `TEXT_CONTAINS`, `DATE_AFTER`, `CUSTOM_FORMULA`, …) and matching `conditionValues`. Both attach to one source column at a time. The grader for this lesson reads the by-values form.
+By-values shows up in the Sheets API as a `visibleValues` list. By-condition shows up as a `BooleanCondition` with a type (`NUMBER_GREATER`, `TEXT_CONTAINS`, `DATE_AFTER`, `CUSTOM_FORMULA`, ...) and matching `conditionValues`. Both attach to one source column at a time. The grader for this lesson reads the by-values form.
 
 The pro choice between them: **by-values** for a stable list (countries you actually run in, the four buyers on the team), **by-condition** for anything dynamic (this month's date range, ROI thresholds, ad-hoc text searches). Don't waste a by-values filter on a list that grows every week.
+
+<Compare>
+  <ComparePanel label="Stable list ➜ by values" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Filter on Country
+  by values: {DE, UK, US}
+
+The team runs in three countries.
+List doesn't change month-to-month.
+By-values is precise and self-documenting.`}</code></pre>
+    <p className="mt-2 text-sm">When the set is closed, by-values lists exactly what's included. A new country in the source data does NOT show up until you edit the filter.</p>
+  </ComparePanel>
+  <ComparePanel label="Dynamic threshold ➜ by condition" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Filter on Spend
+  by condition: NUMBER_GREATER
+  value: 200
+
+The threshold is the question.
+Any new campaign with spend > $200
+qualifies automatically.`}</code></pre>
+    <p className="mt-2 text-sm">When the rule is "anything matching this predicate", by-condition is the right shape. New source rows are evaluated by the same rule.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="Your team adds a fourth country (Brazil) to the campaign log. The dashboard pivot has a 'Country by values' filter listing DE, UK, US. What happens?"
+  options={[
+    {
+      id: "a",
+      label: "The new Brazil rows automatically appear in the pivot because the filter is permissive by default",
+      correct: false,
+      explanation: "By-values filters are an allowlist. Anything not on the list is excluded, including brand-new values like Brazil.",
+    },
+    {
+      id: "b",
+      label: "The Brazil rows are silently excluded until somebody edits the filter to include BR",
+      correct: true,
+      explanation: "This is the trap. The dashboard still shows three countries, the team thinks Brazil isn't generating revenue, and the buyer running it spends two days troubleshooting before noticing the filter. Use by-condition (or no filter) for dynamic country lists.",
+    },
+    {
+      id: "c",
+      label: "The filter throws a #REF! error because the value list is out of date",
+      correct: false,
+      explanation: "By-values filters never error on a missing value; they just exclude it. The silent exclusion is what makes this bug expensive.",
+    },
+  ]}
+/>
 
 ## Slicers: filters with a UI surface
 
@@ -24,6 +72,30 @@ A slicer is a pivot filter wrapped in an on-sheet control. Same effect on the pi
 Insert a slicer with `Data → Slicer`, point it at the pivot's source range, and pick a column. The slicer's selection is its own state, separate from the pivot's Filters slot. When both are set, they intersect.
 
 When to add a slicer: any dashboard a stakeholder will look at, where you want them to flip the country, the buyer, or the platform without learning the editor. Don't add a slicer to a pivot only you ever touch. It just clutters the sheet.
+
+<QuickCheck
+  question="The CFO opens your dashboard as a viewer. She wants to see the pivot filtered to just the US, then to just the UK. Which pattern lets her do this without giving her edit access?"
+  options={[
+    {
+      id: "a",
+      label: "Add a slicer on Country pointing at the pivot's source range",
+      correct: true,
+      explanation: "A slicer is the on-sheet control viewers can use. They click DE / UK / US in the slicer and the pivot recomputes. No edit access required.",
+    },
+    {
+      id: "b",
+      label: "Add a Country filter to the Pivot editor's Filters slot",
+      correct: false,
+      explanation: "Filters in the editor are editable only by editors. A viewer can see them but can't change them. The CFO would have to ask you to flip the country every time.",
+    },
+    {
+      id: "c",
+      label: "Make a copy of the pivot per country and let her pick the right tab",
+      correct: false,
+      explanation: "Three pivots is three things to maintain. Slicers exist exactly so you don't have to do this.",
+    },
+  ]}
+/>
 
 ## Multi-value pivots: stacking SUM, AVERAGE, COUNTA
 
@@ -36,15 +108,82 @@ Two layouts:
 
 The team default for **3 or more values is VERTICAL**. The pivot reads top-to-bottom like a normal report, and the column count stops blowing up when you add a fourth value.
 
+<Compare>
+  <ComparePanel label="HORIZONTAL with 3 values, 7 platforms" tone="negative">
+    <pre className="font-mono text-xs"><code>{`         | Google           | Taboola          | ...
+Buyer    | Spend | Rev | ROI | Spend | Rev | ROI | ...
+
+21 columns. Eye fatigue. Print
+overflow. Slack screenshot crops it.`}</code></pre>
+    <p className="mt-2 text-sm">Each platform expands into 3 sub-columns. The pivot is 21 columns wide. Hard to scan.</p>
+  </ComparePanel>
+  <ComparePanel label="VERTICAL with same 3 values" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Buyer       | Google | Taboola | Outbrain | ...
+Yoav Spend  |    342 |       0 |      318 |
+Yoav Rev    |    487 |       0 |      402 |
+Yoav ROI    |   1.42 |       - |     1.26 |
+Dina Spend  |    296 |     215 |        0 |
+...`}</code></pre>
+    <p className="mt-2 text-sm">Three rows per buyer, 7 columns total. Stacks read naturally. Adding a fourth value adds a fourth row, not a fourth column-group.</p>
+  </ComparePanel>
+</Compare>
+
 ## Custom date groupings: years, quarters, months in one click
 
 A Date column in Rows or Columns lists every distinct date as its own group, which is almost never what you want. To roll up: right-click the date row group in the pivot output, pick `Create pivot group rule → Group by date`, and choose the granularity. Year, year-quarter, year-month, year-month-day, day of week, hour. The grouping rule lives on the pivot definition, not on the source data, so the source column stays raw.
 
 The common adtech grouping is **year-quarter** for finance reviews and **year-month** for monthly trend dashboards. Avoid grouping by raw `Quarter` (without the year): Q1 across 2025 and 2026 collapses into one group and you lose the year-over-year story.
 
+<Compare>
+  <ComparePanel label="Broken: Quarter without Year" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Group by: Quarter
+
+Result:
+  Q1   ← rolls up 2025 Q1 + 2026 Q1
+  Q2   ← rolls up 2025 Q2 + 2026 Q2
+  ...`}</code></pre>
+    <p className="mt-2 text-sm">Year-over-year disappears. Q1 2026 hides inside the same bucket as Q1 2025. Useless for finance.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: Year-Quarter" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Group by: Year-Quarter
+
+Result:
+  2025-Q1
+  2025-Q2
+  2026-Q1
+  2026-Q2
+  ...`}</code></pre>
+    <p className="mt-2 text-sm">Each quarter is its own bucket. YoY trends are visible at a glance. This is the default for any finance-facing pivot.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="Your pivot has Date on Rows. The team needs to see monthly spend trends across all of 2025 and 2026 for a planning review. Which date-group rule is right?"
+  options={[
+    {
+      id: "a",
+      label: "Group by Month (without Year)",
+      correct: false,
+      explanation: "Same trap as 'Quarter without Year'. January 2025 and January 2026 collapse into one bucket. You'd see only 12 rows total.",
+    },
+    {
+      id: "b",
+      label: "Group by Year-Month",
+      correct: true,
+      explanation: "24 rows (one per month from Jan 2025 to Dec 2026), year-over-year comparison is preserved, trends are visible as time progresses. This is the right granularity for monthly planning.",
+    },
+    {
+      id: "c",
+      label: "Group by Day of Week",
+      correct: false,
+      explanation: "Day-of-week is for weekly seasonality questions (is Monday weaker than Friday?), not for monthly trend reviews.",
+    },
+  ]}
+/>
+
 ## Calculated fields, deeper
 
-Lesson 2 introduced calculated fields as the escape hatch when none of the standard summarize functions cover what you need. The full syntax: a Values slot whose summarize is `CUSTOM`, with a `formula` string that references source headers in single quotes:
+Lesson 2.2 introduced calculated fields as the escape hatch when none of the standard summarize functions cover what you need. The full syntax: a Values slot whose summarize is `CUSTOM`, with a `formula` string that references source headers in single quotes:
 
 ```
 = ('Revenue' - 'Spend') / 'Spend'
@@ -62,6 +201,26 @@ The grader for this lesson accepts either, by checking that the formula contains
 The trap: column names are **case-sensitive** and must match the source header text exactly. `'revenue'` (lowercase) will fail silently. `'Total Spend'` is a different name from `'Total spend'`. If the calculated field returns `#REF!` or a blank, the column reference is the first thing to check.
 
 The other trap: the formula is evaluated AFTER the implicit SUM by default, so `'Revenue' / 'Spend'` per cell is `SUM(Revenue) / SUM(Spend)` for the rows in that cell, which is the **portfolio** ratio. That's almost always what you want for ROI, ROAS, or weighted CPC. If you instead want the average of per-row ratios, compute the ratio in a source column and aggregate that.
+
+<Compare>
+  <ComparePanel label="Broken: header rename, formula not updated" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Source header row: Revenue ➜ Revenue (USD)
+
+Calculated field still reads:
+  = 'Revenue' / 'Spend'
+
+Pivot cells: #REF! everywhere.`}</code></pre>
+    <p className="mt-2 text-sm">Renaming a source header silently breaks every calculated field that referenced it. No rename-propagation. Always grep your pivots after a schema change.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: rename ripples to formula" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Source header row: Revenue (USD)
+Spend (USD)
+
+Calculated field:
+  = 'Revenue (USD)' / 'Spend (USD)'`}</code></pre>
+    <p className="mt-2 text-sm">After any header rename, walk every pivot's calculated fields and update the references. Keep header names stable to avoid the chore in the first place.</p>
+  </ComparePanel>
+</Compare>
 
 ## Now do it for real
 

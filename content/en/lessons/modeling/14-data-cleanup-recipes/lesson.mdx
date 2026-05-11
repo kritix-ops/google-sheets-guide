@@ -4,6 +4,8 @@ import { MESSY_CAMPAIGNS } from "@/content/datasets/adtech";
 
 Every `IMPORTRANGE` pull, every form submission, every CSV upload from a vendor lands in your sheet slightly dirty. Trailing whitespace from a copy-paste. A buyer name in ALL CAPS because someone shouted into a Slack message. Numbers stored as text because the export wrapped them in quotes. Mixed date formats because the platform localized to the user's machine. Duplicates because someone clicked "Submit" twice while the page was loading. The fix is rarely glamorous: a small stack of formulas you write once and reach for everywhere. This lesson covers the five you'll use the most.
 
+The functions you're about to meet (`TRIM`, `LOWER`, `VALUE`, `DATEVALUE`, `SUBSTITUTE`, `SUMPRODUCT`) are the kitchen knives of spreadsheet work. Boring on their own. Indispensable in combination. Pros write these formulas in pairs and triples, on autopilot, the moment any external data lands.
+
 ## The five fundamental dirt patterns
 
 Every cleanup task you'll ever do is some combination of these:
@@ -27,27 +29,85 @@ The single most useful pair you can wrap around any text column you intend to co
 
 `TRIM` strips leading and trailing whitespace AND collapses internal runs of spaces into one. `LOWER` (or `UPPER`, or `PROPER`) normalizes case. Wrap both around any column you'll join on, count distinct values from, or compare against a hardcoded string. The team has been bitten by `"Dina Dayan"` vs `" Dina Dayan"` (look at the leading space) enough times that we just always do it.
 
-When you only care about counting distinct values, the same pattern carries lesson 13's recipe forward:
+When you only care about counting distinct values, the same pattern carries lesson 2.13's recipe forward:
 
 ```
 =COUNTA(UNIQUE(LOWER(TRIM(B2:B14))))                  distinct buyers
 ```
 
-## VALUE and IFERROR: numbers stored as text
+## VALUE: numbers stored as text
 
-CSV imports and form free-text fields routinely produce `"187.25"` (text) instead of `187.25` (number). `SUM` silently skips text cells, so the total comes out wrong by the amount of text-typed values without a single error showing. The catch:
+CSV imports and form free-text fields routinely produce `"187.25"` (text) instead of `187.25` (number). `SUM` silently skips text cells, so the total comes out wrong by the amount of text-typed values without a single error showing.
+
+<FunctionRef name="VALUE" />
+
+The catch:
 
 ```
 =SUMPRODUCT(IFERROR(VALUE(E2:E14),0))                 force-coerce, default to 0
 ```
 
+<FunctionRef name="SUMPRODUCT" />
+
 `VALUE("187.25")` returns the number `187.25`. `VALUE("hello")` returns `#VALUE!`. The `IFERROR(...,0)` swap makes the bad cells contribute zero rather than poison the sum. `SUMPRODUCT` is what makes `VALUE` work over a range without an `ARRAYFORMULA` wrapper.
 
 For currency-prefixed strings like `"$380.20"`, `VALUE` is smart enough to strip the `$` on most locales. When it isn't, fall back to `=VALUE(SUBSTITUTE(F2,"$",""))`.
 
-## DATEVALUE and TO_DATE: mixed date formats
+<Compare>
+  <ComparePanel label="Broken: SUM skips text" tone="negative">
+    <pre className="font-mono text-xs"><code>{`E2:E5 contents:
+  342.18 (number)
+  "215.50" (text, from CSV)
+  187.25 (number)
+  "$380.20" (text, currency-prefixed)
+
+=SUM(E2:E5) ➜ 529.43
+
+Text cells contribute 0.
+Missing 215.50 + 380.20 = 595.70.`}</code></pre>
+    <p className="mt-2 text-sm">SUM silently skips text. The total looks plausible. It is wrong by $596. The kind of bug that ships to the CFO and gets caught a week later.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: SUMPRODUCT + IFERROR + VALUE" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMPRODUCT(IFERROR(VALUE(E2:E5),0))
+➜ 1125.13
+
+VALUE coerces each text cell to a number.
+IFERROR catches any cell that can't be
+coerced and contributes 0.
+SUMPRODUCT loops over the range.`}</code></pre>
+    <p className="mt-2 text-sm">Three functions stacked. The result matches the eye's arithmetic. Use this any time SUM and AVERAGE feel suspicious.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="An import lands $215.50 (currency-prefixed string) in E3 and 187.25 (real number) in E4. =SUM(E3:E4) returns 187.25 instead of 402.75. What's the fix?"
+  options={[
+    {
+      id: "a",
+      label: "Apply currency formatting to E3:E4",
+      correct: false,
+      explanation: "Formatting doesn't change the underlying type. A text cell remains text after you apply currency format.",
+    },
+    {
+      id: "b",
+      label: "=SUMPRODUCT(IFERROR(VALUE(E3:E4),0))",
+      correct: true,
+      explanation: "VALUE coerces text to number, IFERROR keeps bad rows from poisoning the result, SUMPRODUCT iterates without an ARRAYFORMULA wrapper. Returns 402.75.",
+    },
+    {
+      id: "c",
+      label: "Manually retype E3 as a number",
+      correct: false,
+      explanation: "Works for one cell. Doesn't scale. The whole point of cleanup recipes is to handle the pattern in one formula instead of editing 500 cells.",
+    },
+  ]}
+/>
+
+## DATEVALUE: mixed date formats
 
 `DATEVALUE("2026-05-03")` returns the date serial for May 3. `DATEVALUE("5/3/2026")` does too: but interprets the slashes per the spreadsheet's locale, which on a US locale means May 3, and on most of the rest of the world means March 5. This is the single most subtle bug in this whole lesson.
+
+<FunctionRef name="DATEVALUE" />
 
 ```
 =IFERROR(DATEVALUE(A2), A2)                          coerce text date, fall back to original
@@ -55,6 +115,32 @@ For currency-prefixed strings like `"$380.20"`, `VALUE` is smart enough to strip
 ```
 
 When you control the source, write `DATE(YEAR, MONTH, DAY)` from explicit components and the formula reads the same in every locale. When you don't (you're cleaning what someone else dumped into the sheet), wrap `DATEVALUE` in `IFERROR` so a row that fails to parse leaves the original value in place rather than blanking the cell.
+
+<Compare>
+  <ComparePanel label="Broken: locale-sensitive parse" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Source cell: "5/3/2026"
+
+US locale workbook:
+  DATEVALUE ➜ May 3, 2026
+DE locale workbook (duplicated by colleague):
+  DATEVALUE ➜ March 5, 2026
+
+Same formula. Different result by locale.
+Audit logs show 'May' and 'March' for the same row.`}</code></pre>
+    <p className="mt-2 text-sm">Slash-separated dates are locale-sensitive. A workbook duplicated across regions interprets the same string differently. Both workbooks look correct, neither matches reality.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: ISO from explicit components" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Source cell: "2026-05-03" (ISO)
+
+Any locale:
+  DATEVALUE ➜ May 3, 2026
+
+Or build from explicit numeric components:
+  =DATE(2026, 5, 3)
+  Always May 3, 2026, no parsing involved.`}</code></pre>
+    <p className="mt-2 text-sm">ISO format (YYYY-MM-DD) parses identically in every locale. DATE() from numeric components has zero parsing ambiguity. Either is locale-safe.</p>
+  </ComparePanel>
+</Compare>
 
 ## SUBSTITUTE: fixing the recurring typo
 
@@ -64,7 +150,7 @@ A vendor's CSV always exports `"Solar Systems and Panels PR"` instead of your te
 =SUBSTITUTE(C2, " and ", " & ")
 ```
 
-Note: `SUBSTITUTE` is **case-sensitive**. `SUBSTITUTE("Hello", "hello", "Hi")` returns `"Hello"` unchanged. When you need case-insensitive replacement, reach for `REGEXREPLACE` (covered in lesson 16) which can use a case-insensitive flag.
+Note: `SUBSTITUTE` is **case-sensitive**. `SUBSTITUTE("Hello", "hello", "Hi")` returns `"Hello"` unchanged. When you need case-insensitive replacement, reach for `REGEXREPLACE` (covered in Track 1 lesson 16) which can use a case-insensitive flag.
 
 ## The typo-catcher pattern
 
@@ -76,6 +162,30 @@ A common cleanup task: find rows where the vertical name doesn't end in `" PR"` 
 ```
 
 The first surfaces a known bad value. The second sweeps the column for any value that doesn't end in the expected suffix. Run both periodically against your aggregator tab and you'll catch the moment a buyer fat-fingers a vertical name.
+
+<QuickCheck
+  question="A campaign log has 200 rows. You want to count any vertical name that does NOT end in ' PR' so you can find typos. Which formula does the right thing?"
+  options={[
+    {
+      id: "a",
+      label: "=COUNTIF(C2:C201, \"<> PR\")",
+      correct: false,
+      explanation: "COUNTIF compares the whole cell to a pattern. '<> PR' matches cells that are exactly not the two characters ' PR', which is almost every cell. Not what you want.",
+    },
+    {
+      id: "b",
+      label: "=ARRAYFORMULA(SUM(IF(RIGHT(C2:C201, 3) <> \" PR\", 1, 0)))",
+      correct: true,
+      explanation: "Take the last 3 characters of each vertical, compare to ' PR', count cells where they don't match. ARRAYFORMULA makes RIGHT broadcast. SUM totals the 1s. Returns the count of typo'd rows.",
+    },
+    {
+      id: "c",
+      label: "=REGEXMATCH(C2:C201, \" PR$\")",
+      correct: false,
+      explanation: "REGEXMATCH returns TRUE/FALSE per cell, not a count. And the regex says 'ends with PR', which is the opposite of what we want.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 

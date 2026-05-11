@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 A campaign log without conditional formatting is a wall of numbers. Sixty rows of Spend, Revenue, ROI. The losing campaign and the breakout winner sit one above the other and look identical. Conditional formatting is the visual layer that turns that wall into something a human reads in two seconds: red on rows that lost money, green on rows that beat target, gray on paused campaigns. It costs nothing at runtime when used correctly, and it's the cheapest way to make a dashboard usable.
 
+Pair this with validation (lesson 2.4) and you have the full input-output story: validation refuses to let bad values in; conditional formatting makes the values that did land legible at a glance. Neither replaces the other.
+
 ## Rule-based vs formula-based: the two big shapes
 
 `Format → Conditional formatting` opens a panel with one toggle that matters: **Single color** or **Color scale**, and inside Single color, the dropdown that decides whether the rule is *condition-based* or *formula-based*.
@@ -18,6 +20,30 @@ A campaign log without conditional formatting is a wall of numbers. Sixty rows o
 
 The decision tree: if the rule is "this cell on its own crosses some threshold", use a condition. If the rule needs to compare the cell to *another cell on the same row* (revenue vs spend, today vs date, status vs target), reach for custom formula.
 
+<QuickCheck
+  question="You want to highlight every row where Revenue (column G) is less than Spend (column F). The rule needs to color the whole row, not just one column. Which shape?"
+  options={[
+    {
+      id: "a",
+      label: "NUMBER_LESS condition on column G",
+      correct: false,
+      explanation: "NUMBER_LESS compares a cell to a fixed number. The threshold here lives in column F, which changes row by row. A condition can't read another cell.",
+    },
+    {
+      id: "b",
+      label: "Custom formula =$G2<$F2 applied to the whole row range A2:G61",
+      correct: true,
+      explanation: "Custom formula with column-locked relative refs is the right shape. Applied to A:G, the same row's G and F are compared, and the formula returns TRUE or FALSE per row, painting the whole row when revenue undercuts spend.",
+    },
+    {
+      id: "c",
+      label: "TEXT_CONTAINS rule with the string 'loss'",
+      correct: false,
+      explanation: "There's no 'loss' marker text. The comparison is numeric and cross-column. TEXT_CONTAINS is the wrong tool entirely.",
+    },
+  ]}
+/>
+
 ## Custom formulas: per-row evaluation, with a relativity catch
 
 The custom formula option is where conditional formatting earns its keep. The formula is written as if it applies to the *first* cell in the range. When the rule is applied to `G2:G61`, you write `=G2>F2`. Sheets re-evaluates that formula at every cell in the range, treating the references *relatively*. So the rule fires on G2 when `G2>F2`, on G3 when `G3>F3`, on G4 when `G4>F4`, all the way down. You wrote one formula and you got 60 row-by-row comparisons.
@@ -26,11 +52,86 @@ The relativity is the same model as a dragged formula. Which means the same `$` 
 
 The trap: writing `=$G$2>$F$2` by accident. With both anchors locked, the rule evaluates the same comparison once and applies the result to every cell in the range. You either get the whole range green or none of it, and you'll spend ten minutes wondering what's wrong.
 
+<Compare>
+  <ComparePanel label="Broken: both anchors locked" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Rule range: G2:G61
+Formula: =$G$2>$F$2
+
+Engine evaluates G2>F2 once.
+Whatever that returns (say, TRUE)
+applies to every cell in G2:G61.
+
+Either every cell is green, or none.`}</code></pre>
+    <p className="mt-2 text-sm">Both anchors are pinned. The formula refuses to walk down the column. Easy 10-minute debugging.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: relative refs" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Rule range: G2:G61
+Formula: =G2>F2
+
+Cell G2: evaluates G2>F2.
+Cell G3: evaluates G3>F3.
+Cell G50: evaluates G50>F50.
+
+Each cell does its own comparison.`}</code></pre>
+    <p className="mt-2 text-sm">No anchors. Each cell's formula walks one row at a time, exactly like a dragged formula.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken: whole-row rule with column-only lock" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Rule range: A2:G61
+Formula: =G2>F2
+
+Cell A2 evaluates G2>F2  (column shifts left)
+Cell B2 evaluates H2>G2  (column shifts left)
+...
+
+Result: row coloring randomized.`}</code></pre>
+    <p className="mt-2 text-sm">When painting the whole row, the column refs shift as the rule walks across columns. Anchor the columns so every cell in the row reads the same G and F.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: column-locked refs for whole-row rule" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Rule range: A2:G61
+Formula: =$G2>$F2
+
+Cell A2 evaluates $G2>$F2
+Cell B2 evaluates $G2>$F2
+...
+Cell G2 evaluates $G2>$F2
+
+Whole row gets the same boolean.`}</code></pre>
+    <p className="mt-2 text-sm">Column-anchored, row-unanchored is the canonical whole-row format pattern. Use this for any "color the whole row when this condition is met" rule.</p>
+  </ComparePanel>
+</Compare>
+
 ## Performance: cheap by default, expensive when paired with volatile functions
 
 Conditional formatting is fast on its own. Sheets evaluates the rule once per cell when the cell or its dependencies change. The cost goes up when the formula references **volatile functions** like `TODAY`, `NOW`, `OFFSET`, `INDIRECT`, or `RAND`, because those re-fire on every recalculation. A rule like `=A2<TODAY()-30` running on a 60-row range is fine. The same rule running on `A:A` over a 50,000-row aggregator workbook with five other volatile rules will make the whole spreadsheet feel laggy.
 
 Two practical guards: bound the range (`A2:A1000`, not `A:A`) and prefer non-volatile alternatives where possible (a static cutoff date in `J1` is cheaper than `TODAY()`).
+
+<QuickCheck
+  question="Your aggregator has 30,000 campaign rows and you want to color any row older than 30 days. Which rule is cheaper to recalc?"
+  options={[
+    {
+      id: "a",
+      label: "Apply =$A2<TODAY()-30 to A:G",
+      correct: false,
+      explanation: "Full-column reference plus a volatile function. TODAY() re-fires on every recalc, and A:G evaluates over a million cells. Two compounding costs.",
+    },
+    {
+      id: "b",
+      label: "Compute the cutoff date in J1 once (=TODAY()-30), then apply =$A2<$J$1 to A2:G30001",
+      correct: true,
+      explanation: "Bound the range tightly. Volatile TODAY() lives in one cell. Conditional-format rule reads a static cell reference. Recalc cost stays predictable.",
+    },
+    {
+      id: "c",
+      label: "Apply =$A2<NOW() to A:G with the volatile NOW() inline",
+      correct: false,
+      explanation: "Even worse than option A: NOW() re-fires every minute, AND the range is unbounded. Compound volatility on a 30k-row sheet is the recipe for the editor to feel sluggish.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 

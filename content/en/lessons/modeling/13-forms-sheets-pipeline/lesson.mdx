@@ -4,6 +4,8 @@ import { FORM_RESPONSES } from "@/content/datasets/adtech";
 
 A Google Form linked to a Sheet is one of the cheapest, most reliable data pipelines you can stand up. The team uses them for conference RSVPs, vendor intake, monthly campaign briefs, post-mortem surveys after a botched launch, anywhere you need a few non-technical people to contribute structured data without learning a CRM. The catch: the data lands raw. Mixed-case emails, trailing whitespace, duplicate submissions when someone hits "Edit response" then "Submit" again. The pipeline is the form. The discipline is the cleanup.
 
+This lesson sits at the intersection of two patterns you've already met: lesson 2.1's raw-rectangle rule (Form Responses 1 is the canonical raw tab, never touch it) and lesson 2.14's cleanup recipes (the formulas you write on a Clean tab to normalize the raw input).
+
 ## The shape of a linked sheet
 
 When you create a Form and pick "Send to Sheets", Sheets creates a new tab named `Form Responses 1` (or `Form Responses 2` if you've already used the first one). The columns are fixed by the API:
@@ -18,13 +20,64 @@ The Form owns the first row (headers). Editing the headers in Sheets does NOT re
 
 ## The "Form Responses 1" tab is your raw rectangle
 
-Treat the Form Responses tab the same way lesson 1 treated raw data tabs: **don't aggregate inside it, don't add columns to the right that the next response could overwrite**. The pattern:
+Treat the Form Responses tab the same way lesson 2.1 treated raw data tabs: **don't aggregate inside it, don't add columns to the right that the next response could overwrite**. The pattern:
 
 1. `Form Responses 1`: append-only, owned by the form.
 2. `Clean`: derived. Contains the formulas that normalize emails, dedupe, and aggregate.
 3. `Dashboard`: consumes `Clean`, never the raw tab directly.
 
 Adding helper columns to `Form Responses 1` *seems* fine at first. It breaks when the form gets a new question and Sheets inserts the column in the middle, shifting your helpers to the wrong cell references. Keep the raw tab pristine.
+
+<Compare>
+  <ComparePanel label="Broken: helpers on Form Responses 1" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Form Responses 1:
+  A  B  C  D  E  F  G  H   I (helper: =LOWER(B2))
+
+Form owner adds a new question.
+Sheets inserts the new column at H.
+Existing H shifts to I.
+Helper formula at I now reads
+=LOWER(B2) of the wrong column.`}</code></pre>
+    <p className="mt-2 text-sm">Form schema is owned by the Form, not by Sheets. Inserted columns shift everything to their right. Helpers in the raw tab are time bombs.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: helpers on a Clean tab" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Form Responses 1: A:H (raw only)
+Clean:
+  A: =FormResponses1!A2
+  B: =LOWER(TRIM(FormResponses1!B2))
+  C: =FormResponses1!C2
+  ...
+
+Form owner adds a new question.
+Helpers on Clean keep working
+because they reference by column name.`}</code></pre>
+    <p className="mt-2 text-sm">Cleanup lives on its own tab. The raw tab stays untouched. Form schema changes touch the raw tab; helpers on Clean adapt explicitly.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="Two weeks after you launched a Form, the form owner adds a new question to the middle of the form. What happens to the Sheet?"
+  options={[
+    {
+      id: "a",
+      label: "A new column is appended to the right; existing columns are unchanged",
+      correct: false,
+      explanation: "If the new question is added to the middle, Sheets inserts the column in the middle to match the form-order, not at the right. The existing columns past the insertion shift one to the right.",
+    },
+    {
+      id: "b",
+      label: "A new column is inserted in the middle of Form Responses 1 to match the form's question order, shifting later columns right",
+      correct: true,
+      explanation: "The form owns the schema. Sheets mirrors it. Mid-form insertion means a mid-sheet column insertion. Anything that referenced columns past the insertion (helpers, charts, downstream formulas) is now pointing at the wrong column.",
+    },
+    {
+      id: "c",
+      label: "Sheets pops up a 'schema changed' dialog asking how to migrate",
+      correct: false,
+      explanation: "Sheets does not warn. The column appears silently. Audit downstream references after every form change.",
+    },
+  ]}
+/>
 
 ## The five cleanup recipes you'll use most
 
@@ -42,6 +95,27 @@ Three of these you'll write in the assignment. Two patterns to internalize:
 
 **Use `COUNTIFS` (plural) the moment you have two criteria**. The singular `COUNTIF` only takes one. Forms always have at least two breakdown axes (team and yes/no, or vertical and country), so you'll graduate to `COUNTIFS` within ten minutes of opening any real form analysis.
 
+<Compare>
+  <ComparePanel label="Broken: raw UNIQUE on emails" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Raw column B (case as submitted):
+  dina.dayan@flexelent.com
+  DINA.DAYAN@flexelent.com
+  Dina.Dayan@flexelent.com
+
+=COUNTA(UNIQUE(B2:B21))
+➜ 3 (one person counted three times)`}</code></pre>
+    <p className="mt-2 text-sm">Forms collect email address as the user submitted it. UNIQUE treats different cases as different values. Headcount estimates explode.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: LOWER+TRIM first" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=COUNTA(UNIQUE(LOWER(TRIM(B2:B21))))
+➜ 1 (normalized to dina.dayan@flexelent.com)
+
+The wrapper costs nothing and dedupes
+exactly the way you wanted.`}</code></pre>
+    <p className="mt-2 text-sm">LOWER + TRIM is the canonical pre-UNIQUE pair for any user-submitted text. Track 1 lesson 9 covers text functions in depth.</p>
+  </ComparePanel>
+</Compare>
+
 ## Handling duplicates
 
 Forms allow editors to edit responses (if you enabled it). Sheets logs the edit as a new row, leaving the original. You'll see two rows from the same person, same email, different timestamps. The cleanup pattern: keep the *latest* row per email.
@@ -57,6 +131,30 @@ Forms allow editors to edit responses (if you enabled it). Sheets logs the edit 
 The formula counts how many later rows share this email. Zero later rows → this is the latest → tag it `"latest"`. Add an extra column filter (or use `FILTER(... , latest_col="latest")`) and the duplicates fall out.
 
 For the lesson assignment we keep it simpler: cleanup as count-distinct. Real workbooks layer the dedupe pattern on top of that.
+
+<QuickCheck
+  question="A teammate submits the form twice (they realized they forgot a field). Both rows have the same email; second has a later timestamp. You want to count each person once. Which formula gives the right answer?"
+  options={[
+    {
+      id: "a",
+      label: "=COUNTA(B2:B21)",
+      correct: false,
+      explanation: "COUNTA counts both rows. Returns the raw response count, not the distinct people count.",
+    },
+    {
+      id: "b",
+      label: "=COUNTA(UNIQUE(LOWER(TRIM(B2:B21))))",
+      correct: true,
+      explanation: "LOWER+TRIM normalizes case and whitespace. UNIQUE collapses duplicate emails. COUNTA returns the distinct count. This is the canonical cleanup pattern.",
+    },
+    {
+      id: "c",
+      label: "=COUNTIF(B2:B21, \"<>\")",
+      correct: false,
+      explanation: "COUNTIF with '<>' counts non-empty cells, same as COUNTA. Doesn't dedupe.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 

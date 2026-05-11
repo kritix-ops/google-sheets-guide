@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 A workbook with no validation is a data-cleanup project waiting to happen. Someone types `Yoav Chen` instead of `Yoav Cohen`. Someone enters `Tabolla` for the platform. Someone fat-fingers a spend of `-3850`. Each of these silently corrupts every downstream pivot, lookup, and SUMIFS until somebody finds it weeks later. Data validation is the cheap fix you put in place once and it stops the whole class of bug forever.
 
+Validation is policy, not formatting. Conditional formatting in lesson 2.6 makes a bad value visible after it lands; validation refuses to let it land in the first place. The difference matters when 12 buyers across two timezones are typing into the same tab. By the time conditional formatting paints the cell red, the bad value has been there for an hour and the dashboard has already been screenshotted.
+
 ## Three patterns, one menu
 
 `Data → Data validation` is where this lives. The dialog gives you three patterns that cover almost every real case:
@@ -16,6 +18,30 @@ A workbook with no validation is a data-cleanup project waiting to happen. Someo
 
 There are more (number-between, date-after, text-contains) but in practice you reach for those three. The decision tree is: does the value come from a closed list (dropdown) or does it have to satisfy a rule (custom formula)?
 
+<QuickCheck
+  question="A teammate asks 'should the Status column (values: active, paused, archived) be a dropdown or a custom-formula validation?'. What's the right answer?"
+  options={[
+    {
+      id: "a",
+      label: "Custom formula: =OR(A2=\"active\", A2=\"paused\", A2=\"archived\")",
+      correct: false,
+      explanation: "It works, but it's the wrong tool. A custom formula is what you reach for when no dropdown shape fits. Here the values ARE a closed list. Use an inline dropdown.",
+    },
+    {
+      id: "b",
+      label: "Inline dropdown (ONE_OF_LIST) with the three values",
+      correct: true,
+      explanation: "The vocabulary is closed and small (three values). Inline dropdown is the simplest, self-documenting choice. Users see the options without having to know the rule.",
+    },
+    {
+      id: "c",
+      label: "Range-driven dropdown (ONE_OF_RANGE) pointing at a Statuses tab",
+      correct: false,
+      explanation: "Overkill. ONE_OF_RANGE shines when the list is dynamic (buyer roster that grows). A fixed three-value status list doesn't need its own tab.",
+    },
+  ]}
+/>
+
 ## Strict vs warning: pick strict
 
 The validation dialog has a switch labeled `On invalid data → Reject input` versus `Show warning`. The team default is **strict (Reject input)**, with one exception: rules that warn about something that's *unusual* but not *wrong*.
@@ -26,6 +52,29 @@ The validation dialog has a switch labeled `On invalid data → Reject input` ve
 
 The trap: **a warning that gets ignored at 5 PM is data**. If the rule actually matters, make it strict.
 
+<Compare>
+  <ComparePanel label="Warning: ignored under pressure" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Rule: Buyer must be on roster
+On invalid data: Show warning
+
+Friday 5 PM: buyer types "Yoav Chen"
+Sheets shows: "Are you sure?"
+Click "OK" ➜ value saved
+Monday: dashboard misses the row`}</code></pre>
+    <p className="mt-2 text-sm">Warning mode is a speed bump, not a wall. Anyone can click through. By the time you discover the typo, three downstream reports already reference the bad row.</p>
+  </ComparePanel>
+  <ComparePanel label="Strict: refuses bad input" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Rule: Buyer must be on roster
+On invalid data: Reject input
+
+Friday 5 PM: buyer types "Yoav Chen"
+Sheets shows: "Invalid input" + cell reverts
+The buyer notices, fixes typo to "Yoav Cohen"
+No corrupt row ever lands`}</code></pre>
+    <p className="mt-2 text-sm">Strict is the default for any rule that matters. The "I really mean it" moment is when the buyer thinks twice and fixes the typo.</p>
+  </ComparePanel>
+</Compare>
+
 ## Dropdown from a range vs inline list
 
 Both ways produce the same dropdown UI. The difference is where the list lives.
@@ -35,6 +84,56 @@ Both ways produce the same dropdown UI. The difference is where the list lives.
 **Range-driven list (`ONE_OF_RANGE`)** is the right choice when the list is dynamic: the buyer roster grows, verticals come and go, the country list expands. The list lives in a `Buyers` or `Verticals` tab and the validation reads from there. New entries appear in every dropdown automatically the moment they're added to the source range. This is the team's default for anything pulled from a config tab.
 
 The trap: if you point `ONE_OF_RANGE` at a small fixed range like `Buyers!A2:A9`, then add `Maya Goldberg` to row 10, she won't appear in the dropdown until you extend the validation range. Use a generous bound (`A2:A1000`) or, better, a named range that you can extend in one place.
+
+<Compare>
+  <ComparePanel label="Broken: range too tight" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Rule: ONE_OF_RANGE
+Range: Buyers!A2:A9
+
+Roster grows to 9 buyers.
+Add Maya Goldberg in A10.
+
+She never appears in the dropdown.
+Every cell that needs her name throws
+"Invalid input" until you re-edit the rule.`}</code></pre>
+    <p className="mt-2 text-sm">Tight ranges drift the moment the data grows. The roster is dynamic; the validation isn't.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: generous bound" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Rule: ONE_OF_RANGE
+Range: Buyers!A2:A1000
+
+Roster grows from 8 to 50 buyers.
+
+Every new row's name appears in the
+dropdown the moment it lands in column A.
+Zero validation edits needed.`}</code></pre>
+    <p className="mt-2 text-sm">Better yet: point at a named range (`BuyerRoster`) so the extension lives in one place. Track 1 lesson 19 covers named ranges.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You set ONE_OF_RANGE pointing at Buyers!A2:A9, with 8 buyers in rows 2-9. Then someone deletes a buyer (now 7 buyers, rows 2-8). What's the safest behavior?"
+  options={[
+    {
+      id: "a",
+      label: "Cells with the deleted buyer name automatically clear because the validation no longer matches",
+      correct: false,
+      explanation: "Validation rejects new input that doesn't match; it doesn't retroactively clear existing values. Bad rows stay bad until somebody finds them.",
+    },
+    {
+      id: "b",
+      label: "Existing cells with the deleted buyer name stay as text; they just won't reappear in the dropdown and re-entering them is blocked",
+      correct: true,
+      explanation: "Right. Validation gates entry, not storage. This is why audits matter: after a roster change, sweep the campaign log for orphaned references.",
+    },
+    {
+      id: "c",
+      label: "Sheets throws #REF! across every cell that references the deleted name",
+      correct: false,
+      explanation: "Validation doesn't propagate #REF!. The cell value is still legal text; it just doesn't match the dropdown anymore.",
+    },
+  ]}
+/>
 
 ## Custom formula: the escape hatch
 
@@ -51,6 +150,53 @@ Real patterns from the team's workbooks:
 | Campaign id must match the format | `=REGEXMATCH(B3,"^[a-z]{2}-[a-z]{2}-[mda]-[a-z]{4}\d{4}[a-z]{2}-[a-z]{3}-\d+-\d{6}-")` |
 
 The cell reference (`B3`) inside a custom formula refers to the *cell being validated*. When you copy the validation across `B3:B100`, the formula automatically becomes `B4>0`, `B5>0`, and so on, just like a regular relative reference.
+
+<Compare>
+  <ComparePanel label="Broken: anchored absolute reference" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Rule applied to F3:F100
+Formula: =$F$3>0
+
+Every cell evaluates F3>0.
+If F3 is positive, every cell passes,
+even if F50 is -200.`}</code></pre>
+    <p className="mt-2 text-sm">Both anchors locked. The rule evaluates once on F3 and applies the result to every cell. F50 = -200 sails through.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: relative reference" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Rule applied to F3:F100
+Formula: =F3>0
+
+Cell F3 evaluates F3>0.
+Cell F4 evaluates F4>0.
+Cell F50 evaluates F50>0.
+
+Every cell checks its own value.`}</code></pre>
+    <p className="mt-2 text-sm">The reference behaves like a dragged formula. Drop the dollar signs so each cell validates itself.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You write a custom-formula validation on F3:F100 with =F3>0, then copy the column to a new tab via Paste special → Values only. What happens to the validation on the new tab?"
+  options={[
+    {
+      id: "a",
+      label: "The validation copies over and now applies to the destination column",
+      correct: false,
+      explanation: "Paste special → Values only strips formatting and validation. Only the cell values land.",
+    },
+    {
+      id: "b",
+      label: "The destination column has no validation; you have to re-apply it manually",
+      correct: true,
+      explanation: "Paste-values-only is a feature, not a bug, but it bites here. Plain paste (Ctrl+V) preserves validation. If you build workbooks via values-paste, validation must be re-applied on the destination.",
+    },
+    {
+      id: "c",
+      label: "Sheets warns 'destination has different validation; reconcile?'",
+      correct: false,
+      explanation: "No such warning exists. The validation silently doesn't transfer. This is why team workbooks document validation rules in cell notes.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -81,3 +227,4 @@ In the team's actual workbooks:
 - **Validation that doesn't follow when you copy a formula.** Validation copies with paste, but `Paste special → Values only` strips it. If you build a workbook by pasting from somewhere else, re-apply validation on the destination range.
 - **Strict mode that doesn't actually block IMPORTRANGE.** Validation rejects manual entry but accepts whatever IMPORTRANGE writes. If imported data needs validating, do it in a `Cleaned` tab with formulas, not via validation rules.
 - **Custom formulas that reference the wrong cell.** `=$B$3>0` is locked to row 3 even when the validation is applied to `B3:B100`. Drop the dollar signs.
+- **`ONE_OF_RANGE` pointing at a remote workbook via `IMPORTRANGE`.** The validation only knows about local ranges. Even if your `Buyers` tab is itself an IMPORTRANGE, validation reads the local cells, so when the import refreshes the dropdown follows. But if you tried to point validation directly at `=IMPORTRANGE(...)`, it would fail. Always materialize the imported list in a local range first.

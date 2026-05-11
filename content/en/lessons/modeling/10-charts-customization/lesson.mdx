@@ -2,7 +2,9 @@ import { CAMPAIGNS_TIMESERIES } from "@/content/datasets/adtech";
 
 # Charts: customizing axes, labels, and secondary series
 
-Lesson 9 was about *which* chart to pick. Lesson 10 is everything that happens after you click Insert chart. The default chart Sheets gives you is rarely the chart you want to ship. Axis labels say `Column B` instead of `Spend ($)`. The legend sits on the right and squeezes the plot area when you embed the chart in a narrow report frame. Two metrics with wildly different scales share one Y-axis and one of them flatlines at the bottom. The customization layer is what turns a chart from "looks roughly right" into something a buyer can read at a glance in a Monday review.
+Lesson 2.9 was about *which* chart to pick. Lesson 2.10 is everything that happens after you click Insert chart. The default chart Sheets gives you is rarely the chart you want to ship. Axis labels say `Column B` instead of `Spend ($)`. The legend sits on the right and squeezes the plot area when you embed the chart in a narrow report frame. Two metrics with wildly different scales share one Y-axis and one of them flatlines at the bottom. The customization layer is what turns a chart from "looks roughly right" into something a buyer can read at a glance in a Monday review.
+
+Default charts are technically correct and practically useless. Every chart that ships to leadership has been customized at least four times: axis title, legend position, series color, series number format. Internalize the four edits and you'll never ship a default-looking chart again.
 
 ## Axis titles and units
 
@@ -14,6 +16,29 @@ In `Chart editor → Customize → Chart & axis titles`, set:
 - Vertical axis title: same rule. If a chart has two Y-axes, both get labels.
 - Chart title: tells the viewer what the chart shows, not where it came from. `April performance trend` is good. `Sheet1 chart 3` is what Sheets gives you by default; it is never the right answer.
 
+<Compare>
+  <ComparePanel label="Default: ambiguous units" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Chart title: "Sheet1 chart 3"
+Horizontal axis: "Date"
+Vertical axis: "Column F"
+
+Viewer sees a bar at 1.4.
+Is it dollars? Thousands? Percent?
+Multiplier?`}</code></pre>
+    <p className="mt-2 text-sm">The default labels Sheets writes for you are placeholders. They carry no semantic information. The bar at 1.4 is uninterpretable.</p>
+  </ComparePanel>
+  <ComparePanel label="Customized: clear units" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Chart title: "April performance trend"
+Horizontal axis: "Date"
+Vertical axis: "ROI (×)"
+
+Viewer sees a bar at 1.4.
+Reads: 1.4× ROI.
+Story is immediate.`}</code></pre>
+    <p className="mt-2 text-sm">Every axis with a unit gets the unit in the label. Chart titles say what the chart shows. The viewer's brain doesn't have to decode anything.</p>
+  </ComparePanel>
+</Compare>
+
 ## Secondary axis: when two scales share an X
 
 When two metrics share a date axis but live at different scales, plotting them on one Y-axis flattens the smaller one into a horizontal line at zero. A chart that shows daily Spend (range: $1,500 to $2,500) alongside daily Conversions (range: 250 to 400) needs two Y-axes, one on the left and one on the right.
@@ -22,6 +47,30 @@ This is what the **COMBO chart type** is built for. A COMBO chart lets you mix s
 
 In `Chart editor → Customize → Series`, pick a series from the dropdown, then change `Axis` to `Right axis`. Repeat for every series that belongs on the right. Then in `Chart & axis titles → Right vertical axis`, label it.
 
+<QuickCheck
+  question="You build a chart showing daily Spend (range $1,500-$3,300) and daily ROI (range 1.2-1.5) on the same Y-axis. ROI shows up as a flat line near zero. What's the right fix?"
+  options={[
+    {
+      id: "a",
+      label: "Switch to COMBO chart and assign ROI to the right axis",
+      correct: true,
+      explanation: "Different scales need different axes. COMBO lets each series have its own type (bars for spend, line for ROI) and its own Y-axis. Both shapes become readable.",
+    },
+    {
+      id: "b",
+      label: "Multiply ROI by 1000 in a helper column so it's on the same scale as spend",
+      correct: false,
+      explanation: "Mathematically possible, but the chart now shows 'ROI × 1000', which the viewer has to mentally divide back. Two axes is the right shape for two scales.",
+    },
+    {
+      id: "c",
+      label: "Use a logarithmic Y-axis to compress spend",
+      correct: false,
+      explanation: "Logarithmic axes confuse readers and don't solve the underlying mismatch. Two metrics on two scales need two axes.",
+    },
+  ]}
+/>
+
 ## Series formatting: line vs column, color, markers
 
 A COMBO chart's whole point is that not every series is the same shape. In `Customize → Series`, each series can independently be set to `Line`, `Columns`, `Area`, or `Steps`. The rule of thumb the team uses: **continuous metrics (Spend, Revenue, ROI) get lines; countable events (Conversions, Clicks) get columns**. The eye reads a line as a flowing measurement and a bar as a discrete count, and that intuition is right.
@@ -29,6 +78,29 @@ A COMBO chart's whole point is that not every series is the same shape. In `Cust
 Colors should be tied to brand or to status, never random. Spend in the team's color, revenue in green, profit in either green-or-red based on sign. If you let Sheets pick the colors, the same series shows up in a different color every time the chart gets rebuilt, and viewers stop trusting the colors as signal.
 
 Markers (the dots on a line series) help on sparse data. A weekly trend with 8 points reads better with markers than without. On a dense 90-day daily line, markers are noise.
+
+<Compare>
+  <ComparePanel label="Auto-color: trust erosion" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Monday's chart: Revenue = blue
+Tuesday's chart (rebuilt): Revenue = orange
+Wednesday's chart: Revenue = teal
+
+Three different reports. Viewers can't
+rely on color to identify the series.
+Legend becomes mandatory reading.`}</code></pre>
+    <p className="mt-2 text-sm">Auto-color is random per chart. Across a deck of 8 charts, the same series wears 8 different jerseys. The visual continuity that makes a deck readable evaporates.</p>
+  </ComparePanel>
+  <ComparePanel label="Brand palette: trust earned" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Every chart in the deck:
+  Spend  = #2563eb (brand blue)
+  Revenue = #16a34a (brand green)
+  Profit  = #2563eb when positive,
+            #dc2626 when negative
+
+Color carries meaning. Legend optional.`}</code></pre>
+    <p className="mt-2 text-sm">Pick the palette once. Apply it everywhere. Color becomes a second axis the reader's brain processes for free.</p>
+  </ComparePanel>
+</Compare>
 
 ## Legend position
 
@@ -41,6 +113,30 @@ The team's default is **`Bottom`** because most charts get embedded in report fr
 Sometimes a chart is overkill. When you have a table where each row is a buyer or a vertical, and you want a tiny trend next to each one ("how has this buyer's revenue moved over the last 7 days?"), the right tool is not 14 charts. It is the `SPARKLINE` function, which puts a one-cell chart inside a cell.
 
 `=SPARKLINE(B2:B8, {"charttype","line"; "color","#1a73e8"})` in a cell renders a tiny line chart of the 7 values to its left. Sparklines are covered end-to-end in Track 1 lesson 26; the point here is that **before you build a full chart, ask whether a sparkline would carry the same information in a tenth of the space**. For a per-row trend column, sparklines win. For a single headline trend at the top of a dashboard, a full chart wins.
+
+<QuickCheck
+  question="Your dashboard has a buyer roster with 8 rows. You want each row to show the buyer's last-7-day revenue trend. What's the right tool?"
+  options={[
+    {
+      id: "a",
+      label: "8 separate line charts, one per buyer, anchored next to each row",
+      correct: false,
+      explanation: "Eight chart objects take 800 pixels vertically. They fight for layout, take time to render, and turn a clean table into a crowded grid.",
+    },
+    {
+      id: "b",
+      label: "One SPARKLINE formula per row, rendered inside a single cell",
+      correct: true,
+      explanation: "Sparklines are exactly this pattern: tiny inline trends, one per row, computed by a formula. Track 1 lesson 26 covers SPARKLINE end to end.",
+    },
+    {
+      id: "c",
+      label: "A single combo chart with 8 series, one per buyer",
+      correct: false,
+      explanation: "8 overlapping lines is the spaghetti pattern from lesson 2.9. Per-row trends belong in per-row cells.",
+    },
+  ]}
+/>
 
 ## The "no chart for that data" check
 

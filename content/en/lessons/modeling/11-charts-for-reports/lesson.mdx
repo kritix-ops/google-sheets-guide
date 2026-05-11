@@ -2,13 +2,40 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Charts for reports: export-ready formatting
 
-The chart you build for your own screen and the chart you ship in a report are not the same product. Your dashboard chart can be busy because you read it every day and you know what every line means. A report chart lands in front of an executive who will glance at it for three seconds, on a slide, in a PDF, sometimes printed. Lesson 9 covered which chart type fits which question. This lesson is the export-readiness checklist: title, legend, color, embedding, refresh. Get these wrong and the team's QBR deck has eight charts and four different answers to "what quarter is this?".
+The chart you build for your own screen and the chart you ship in a report are not the same product. Your dashboard chart can be busy because you read it every day and you know what every line means. A report chart lands in front of an executive who will glance at it for three seconds, on a slide, in a PDF, sometimes printed. Lesson 2.9 covered which chart type fits which question. This lesson is the export-readiness checklist: title, legend, color, embedding, refresh. Get these wrong and the team's QBR deck has eight charts and four different answers to "what quarter is this?".
+
+The skill to build here is taste. Every choice you make about a report chart trades thoroughness for clarity. Less is more. A title that names the period replaces a slide caption. A bottom legend replaces a side legend. A consistent palette replaces individual color picks. By the time the chart is export-ready, half of what you started with is gone.
 
 ## Naming convention: the title is the slide caption
 
 The single highest-leverage rule for report charts is this: **the chart title contains the time period and the metric**. `Spend by Buyer, Q2 2026`. `Revenue by Vertical, April 2026`. `ROI by Platform, last 30 days`. When the chart lands in a Slides deck, the slide caption can be omitted because the chart already says what it is. When the chart is exported as a PNG and pasted into Slack, the PNG self-documents: nobody has to ask "what quarter?".
 
 The chart you make on Monday for "this week" becomes the chart someone opens in August looking for "Q2 numbers" and is confused that it shows the wrong week. Bake the period into the title. Update it when the period changes. A title that says `Spend by Buyer` and nothing else is a slow-acting bug.
+
+<Compare>
+  <ComparePanel label="Stale title: cannot age" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Title: "Spend by Buyer"
+
+In April: reader assumes "April spend".
+In August: reader assumes "August spend".
+The chart still shows April data.
+
+Anyone scrolling old Slack messages sees
+the title and is misled.`}</code></pre>
+    <p className="mt-2 text-sm">The title has no period. The chart can't carry context once it leaves its original sheet.</p>
+  </ComparePanel>
+  <ComparePanel label="Self-documenting title" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Title: "Spend by Buyer, Q2 2026"
+
+Reader, today: "Q2 2026 spend, by buyer".
+Reader, six months from now: same answer.
+Title cell driven by a formula:
+  =CONCAT("Spend by Buyer, Q",
+          ROUNDUP(MONTH(TODAY())/3,0),
+          " ", YEAR(TODAY()))`}</code></pre>
+    <p className="mt-2 text-sm">The period lives in the title. The chart self-documents wherever it lands. Bonus: drive the title from a formula and it updates automatically.</p>
+  </ComparePanel>
+</Compare>
 
 ## Legend choices for reports
 
@@ -21,6 +48,30 @@ Sheets puts `Legend → Position` under `Customize` after you double-click the c
 | 5+ | (don't use one chart) | A 12-platform color legend is unreadable. Use small multiples or a different chart. |
 
 The trap: a 5-series chart with a `Bottom` legend looks fine on your 27-inch monitor and unreadable when it's projected on a meeting room wall.
+
+<QuickCheck
+  question="You're building a single-series bar chart for the QBR deck. The bars are sorted high-to-low and the title says 'Spend by Buyer, Q2 2026'. What's the right legend position?"
+  options={[
+    {
+      id: "a",
+      label: "Bottom, with the series name shown",
+      correct: false,
+      explanation: "The series name is already 'Spend', which the title already says. A legend that repeats the title is pixel waste, especially on a slide.",
+    },
+    {
+      id: "b",
+      label: "None — the title already names the metric and there's only one series",
+      correct: true,
+      explanation: "Single series + descriptive title = no legend needed. The chart has more plot area, the slide looks cleaner, and nothing is lost.",
+    },
+    {
+      id: "c",
+      label: "Right, so the legend shows beside the bars",
+      correct: false,
+      explanation: "Right legend wastes horizontal space on a wide-but-short slide. Even when a legend is needed, Bottom is the team default.",
+    },
+  ]}
+/>
 
 ## Color discipline: pick once, use everywhere
 
@@ -37,6 +88,29 @@ Two ways to put a Sheets chart into a Doc or Slides deck:
 
 The team default is **linked for the QBR deck, unlinked for one-off emails**. The QBR is rebuilt every quarter, so a live link saves the rebuild. A one-off email screenshot of "yesterday's numbers" doesn't want to update three days later when somebody clicks `Update` by accident.
 
+<Compare>
+  <ComparePanel label="Wrong: linked for one-off snapshot" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Friday: paste chart linked into a Slack
+DM showing "yesterday's spend".
+
+Monday: source has new data. Recipient
+clicks Update by accident, sees Monday's
+spend, replies "why is it different from
+what you sent Friday?"`}</code></pre>
+    <p className="mt-2 text-sm">Live links on point-in-time snapshots create confusion. The data updated; the conversation about Friday's data did not.</p>
+  </ComparePanel>
+  <ComparePanel label="Right: image for snapshot, linked for QBR" tone="positive">
+    <pre className="font-mono text-xs"><code>{`One-off email: Download → PNG, attach.
+The PNG is frozen in time.
+
+QBR deck: linked chart. Before the meeting,
+click Update on every chart so the data is
+fresh. After the meeting, it's still linked
+to next quarter's source.`}</code></pre>
+    <p className="mt-2 text-sm">Match the embed style to the lifecycle. Snapshots stay frozen. Living dashboards stay linked, but with intentional Update events.</p>
+  </ComparePanel>
+</Compare>
+
 ## Refresh behavior of linked charts
 
 A linked chart in Slides does **not** auto-refresh while the deck is open. The refresh model is:
@@ -46,6 +120,30 @@ A linked chart in Slides does **not** auto-refresh while the deck is open. The r
 3. The chart only updates when the user clicks `Update` or reopens the deck.
 
 Plan around this when you present. If you're showing the deck Monday morning and the source pulls fresh data overnight, click `Update` on every chart before the meeting. Better, click `Update` after the data refresh window closes and before anybody else opens the file.
+
+<QuickCheck
+  question="Your QBR deck has 8 linked charts. The source spreadsheet pulls from upstream via IMPORTRANGE that refreshes at 6 AM. Your QBR is at 9 AM. What's the right pre-meeting routine?"
+  options={[
+    {
+      id: "a",
+      label: "Trust the linked charts to auto-update during the meeting",
+      correct: false,
+      explanation: "Linked charts never auto-update. They show data as of the last manual Update click or deck reopen. By 9 AM you'd be presenting cached data.",
+    },
+    {
+      id: "b",
+      label: "After 6 AM (source refresh done), reopen the source and click Update on every chart in the deck before 9 AM",
+      correct: true,
+      explanation: "The team's standard routine. Verify the source refreshed (open the workbook, check the timestamp), then click Update on each chart. Takes about 30 seconds for 8 charts.",
+    },
+    {
+      id: "c",
+      label: "Set the deck to print-mode so charts cache the latest data automatically",
+      correct: false,
+      explanation: "Print-mode doesn't exist as an auto-refresh trigger. Manual Update is the only way to refresh linked charts.",
+    },
+  ]}
+/>
 
 ## Export to PDF, PNG, SVG
 

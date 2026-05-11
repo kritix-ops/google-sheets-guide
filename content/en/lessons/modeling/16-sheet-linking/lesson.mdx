@@ -24,13 +24,33 @@ When to use each:
 
 If you find yourself manually pasting Insert → Link into row after row, stop and switch to `HYPERLINK`. That is the signal.
 
+<QuickCheck
+  question="Your campaign log has 60 rows. You want every row to link to a Drive folder whose URL is built from the row's date and campaign id. Which approach?"
+  options={[
+    {
+      id: "a",
+      label: "Insert → Link on each row, 60 paste operations",
+      correct: false,
+      explanation: "Manual Insert → Link doesn't scale and doesn't update when the row's data changes. Sixty rows is the threshold where the wrong choice costs an hour.",
+    },
+    {
+      id: "b",
+      label: "=HYPERLINK with the URL built from a CONCAT or & expression referencing the row's cells",
+      correct: true,
+      explanation: "HYPERLINK is the right primitive when the link is derived from row data. Write it once, fill down, every row's link follows its own data automatically.",
+    },
+    {
+      id: "c",
+      label: "Apps Script that loops every row and sets a link",
+      correct: false,
+      explanation: "Apps Script works but is overkill for what HYPERLINK does natively. Reach for Apps Script when the link logic is too complex for a formula.",
+    },
+  ]}
+/>
+
 ## The HYPERLINK formula
 
-The signature is short:
-
-```
-=HYPERLINK(url, [label])
-```
+<FunctionRef name="HYPERLINK" />
 
 Both arguments take cell references and computed strings, not just literals:
 
@@ -55,6 +75,25 @@ The first tab in any new spreadsheet has `gid=0`. The `range=` part can be a sin
 
 The team uses this pattern in two places. The QA tab generates a clickable list of cells to review (the formula concatenates `#gid=` plus the offending cell address). The dashboard's `Drill in` column on every summary row jumps to the matching row on the raw tab.
 
+<Compare>
+  <ComparePanel label="Broken: tab-name reference" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=HYPERLINK("#'Raw data'!A1", "Source")
+
+Tab gets renamed from 'Raw data' to 'Raw'.
+The link breaks silently.
+Clicking it goes nowhere.`}</code></pre>
+    <p className="mt-2 text-sm">Tab-name links live by name. Renaming the tab (which the team does for clean naming) breaks every link that referenced the old name. No warning.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: gid-based anchor" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=HYPERLINK("#gid=2089475112&range=A1", "Source")
+
+Tab gets renamed.
+The gid stays the same (it's an internal ID).
+The link still works.`}</code></pre>
+    <p className="mt-2 text-sm">gid is permanent for the life of the tab. Use it for any internal link you want to survive rename operations.</p>
+  </ComparePanel>
+</Compare>
+
 ## Cross-workbook links
 
 A full URL with `#gid=` works across spreadsheets. The link opens the target sheet, lands on the right tab, and selects the right cell:
@@ -77,6 +116,30 @@ The pattern that earns its keep: a link that only appears when a condition is me
 ```
 
 Losing rows show blank. Winning rows show a clickable label. This is the right shape for "show me only what I need to act on" columns. Think a "review" column that lights up for rows that need attention, an "approve" column that lights up for rows past their deadline. Without the `IF` wrapper you would link every row, including the ones that are fine, and the column becomes noise.
+
+<QuickCheck
+  question="You want a 'Review' column that shows a clickable link only on rows where revenue (G) is less than spend (F). Otherwise the cell should be blank. Which formula?"
+  options={[
+    {
+      id: "a",
+      label: "=HYPERLINK(\"https://review/\"&A2, IF(G2<F2, \"Review\", \"\"))",
+      correct: false,
+      explanation: "Label conditional, URL always present. Profitable rows show an empty-labelled clickable cell (visually blank but still a click target), which is worse than nothing.",
+    },
+    {
+      id: "b",
+      label: "=IF(G2<F2, HYPERLINK(\"https://review/\"&A2, \"Review\"), \"\")",
+      correct: true,
+      explanation: "The IF wraps the whole HYPERLINK. Losing rows compute HYPERLINK and render a clickable cell. Profitable rows compute the empty string and the cell is genuinely empty.",
+    },
+    {
+      id: "c",
+      label: "=HYPERLINK(IF(G2<F2, \"https://review/\"&A2, \"\"), \"Review\")",
+      correct: false,
+      explanation: "URL is empty string on profitable rows. HYPERLINK with an empty URL still renders a clickable label, the click does nothing useful, and the visual is identical to a real link. Confusing for the reader.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 

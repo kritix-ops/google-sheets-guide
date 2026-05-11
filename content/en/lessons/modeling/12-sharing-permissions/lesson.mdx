@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 A workbook is only as private as its weakest share. The team has been burned by this exactly once and once was enough: a "Anyone with the link can edit" share got pasted into a Slack channel, the channel got forwarded, and three weeks later a sheet of vendor payout rates was being read by people who should never have seen it. Validation keeps bad values out of the data. Protected ranges keep bad edits out of the cells. **Permissions are the access policy that survives forwarding.** They decide who can open the file at all, and they are the only line of defense once the link is in the wild.
 
+Think of permissions as a one-way gate. Adding access is reversible; revoking access doesn't reach the screenshot a contractor took yesterday. Every team that loses data to over-sharing learns this the same way: once. The cheap discipline is: name a role, name a type, set an expiration on anything external.
+
 ## The four roles
 
 `File → Share` opens the share dialog, and every entry in it sits at exactly one of four roles. The role decides what the person can do once they open the file.
@@ -23,6 +25,30 @@ A workbook is only as private as its weakest share. The team has been burned by 
 
 `owner` is everything plus the ability to transfer ownership. There is exactly one owner per file on personal Drive (shared drives are different, see below). The owner cannot be removed by any other user, which is why transferring ownership before someone leaves matters so much.
 
+<QuickCheck
+  question="An external auditor needs to verify your team's spend numbers against vendor invoices. They should be able to read the workbook and flag discrepancies, but should never change a value. What role do you give them?"
+  options={[
+    {
+      id: "a",
+      label: "Viewer (reader)",
+      correct: false,
+      explanation: "Viewer can read but can't leave comments. The auditor has no way to flag a discrepancy from inside the workbook. They'd have to email you instead.",
+    },
+    {
+      id: "b",
+      label: "Commenter, with an expiration set to 30 days out",
+      correct: true,
+      explanation: "Commenter lets them read everything and leave threaded comments tagging the specific cells. The expiration is the team default for external shares: the access ends with the engagement automatically.",
+    },
+    {
+      id: "c",
+      label: "Editor, so they can fix the numbers directly",
+      correct: false,
+      explanation: "Auditors don't fix numbers; auditors flag numbers. Editor access lets them change values you'd never have wanted them to touch. Commenter is the right boundary.",
+    },
+  ]}
+/>
+
 ## The four types
 
 Roles answer "what can they do." Types answer "who is *they*."
@@ -40,6 +66,31 @@ Internal shares (team Google Group, internal users by email, the `flexelent.com`
 
 The pattern: `auditor@external.com`, role `commenter`, `expirationTime` 30 days out. Renewed monthly if the audit is still active.
 
+<Compare>
+  <ComparePanel label="No expiration: share lives forever" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Share: auditor@external.com
+Role: commenter
+Expiration: none
+
+Audit ends in November.
+The share is still active in March.
+The auditor's email gets compromised in June.
+The attacker can read your workbook.`}</code></pre>
+    <p className="mt-2 text-sm">External shares without an expiration outlive the relationship they were created for. The blast radius depends on what's in the workbook.</p>
+  </ComparePanel>
+  <ComparePanel label="30-day expiration: auto-cleanup" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Share: auditor@external.com
+Role: commenter
+Expiration: 30 days from now
+
+Audit drags on: renew monthly.
+Audit ends: do nothing. Share lapses
+within 30 days. No cleanup task,
+no forgotten access.`}</code></pre>
+    <p className="mt-2 text-sm">Expirations make access self-cleaning. The 30-day default is renewable for as long as the relationship lasts and disappears automatically when it ends.</p>
+  </ComparePanel>
+</Compare>
+
 ## Transfer of ownership
 
 Ownership transfer is only available within the same domain. You cannot transfer ownership of a `flexelent.com` workbook to a `gmail.com` account, which is a deliberate Google safety rail.
@@ -53,6 +104,30 @@ The transfer happens from the share dialog: change the leaving person's role to 
 "Anyone with the link can view" is the single most common accidental over-share in this team's history. The flow is: someone wants to quickly send a tab to a vendor, they click "Get link," the link defaults to "Restricted" but they switch it to "Anyone with the link" because that's the path of least resistance, the vendor opens it, the vendor's CC'd colleague opens it, the colleague forwards it to their manager, and now the workbook is being read by six people the original sharer doesn't know exist. Once the link is out, you cannot put it back. The only fix is to break the link by deleting and replacing the workbook, which breaks every `IMPORTRANGE` downstream.
 
 **Team policy: never use "Anyone with the link" for campaign data, vendor pricing, PII, or anything covered by an NDA. Always specify users by email.** If the vendor wants link sharing because it's easier for them, that's their preference; the team's data security trumps their convenience.
+
+<QuickCheck
+  question="You shared a sensitive workbook as 'Anyone with the link can view' two months ago to quickly send it to a vendor. You realize today the link is in three Slack channels and probably forwarded to a dozen people. What's the only effective fix?"
+  options={[
+    {
+      id: "a",
+      label: "Change the share to 'Restricted' on the original workbook",
+      correct: false,
+      explanation: "Restricting the link revokes future access but doesn't change what people already opened, downloaded, or screenshotted. The link can still be a discovery vector to find related files.",
+    },
+    {
+      id: "b",
+      label: "Make a copy of the workbook with a new URL, transfer all dependent IMPORTRANGEs to the new URL, and delete the original",
+      correct: true,
+      explanation: "Breaking the link by replacing the workbook is the only way to ensure the old URL leads nowhere. It's expensive (every dependent IMPORTRANGE has to be re-pointed) but it's the only fix. The lesson is to never use Anyone-with-link sharing for sensitive data.",
+    },
+    {
+      id: "c",
+      label: "Email everyone who might have the link asking them to forget it",
+      correct: false,
+      explanation: "Wishful thinking. Once a URL is in three Slack channels, you can't audit who has it. The fix has to be structural, not social.",
+    },
+  ]}
+/>
 
 ## Auditing who has access
 
