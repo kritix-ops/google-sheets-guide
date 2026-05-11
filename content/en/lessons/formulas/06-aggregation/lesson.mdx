@@ -6,7 +6,17 @@ The aggregators compress a range into a single number. The plain ones (`SUM`, `A
 
 ## The plain aggregators
 
+The four functions every aggregation builds on. `SUM` and `AVERAGE` got their cards in lesson 3; `COUNT` and `COUNTA` are new here, and the COUNT-versus-COUNTA distinction is one of the most common silent-bug sources in adtech sheets.
+
 `SUM(range)` adds. `AVERAGE(range)` averages. `MIN`/`MAX` find extremes. `COUNT(range)` counts numeric cells. `COUNTA(range)` counts any non-empty cell (numbers, text, anything).
+
+<FunctionRef name="COUNT" />
+
+<FunctionRef name="COUNTA" />
+
+<FunctionRef name="MAX" />
+
+<FunctionRef name="MIN" />
 
 <MiniGrid
   data={CAMPAIGNS}
@@ -51,6 +61,12 @@ The aggregators compress a range into a single number. The plain ones (`SUM`, `A
 
 The "IF" suffix lets you aggregate only the cells that match a condition. `COUNTIF(range, criterion)` counts matches; `SUMIF(range, criterion, [sum_range])` sums them. The criterion is a string with the comparison inside (greater-than, less-than, etc.) or a literal value.
 
+In modern adtech workbooks the singular forms are mostly a stepping stone: once you understand them, you almost always switch to `COUNTIFS`/`SUMIFS` (next section) because filters in real reports are never single-criterion. The exception is a quick disposable "how many of X" check, where COUNTIF's two-argument shape is faster to type than COUNTIFS's pair.
+
+<FunctionRef name="COUNTIF" />
+
+<FunctionRef name="SUMIF" />
+
 The classic adtech use: "how many campaigns scored revenue above $400?"
 
 <TryIt
@@ -66,7 +82,11 @@ The classic adtech use: "how many campaigns scored revenue above $400?"
 
 ## SUMIFS and COUNTIFS: multiple conditions
 
-The plural versions take **multiple** condition pairs. Notice the argument order is different from `SUMIF`: the sum range comes **first**, then alternating criterion-range and criterion pairs. This is the most-used Sheets function in business spreadsheets.
+The plural versions take **multiple** condition pairs. Notice the argument order is different from `SUMIF`: the sum range comes **first**, then alternating criterion-range and criterion pairs. This is the most-used Sheets function in business spreadsheets: every buyer-vs-platform pivot, every date-bounded report, every dashboard alert counter.
+
+<FunctionRef name="SUMIFS" />
+
+<FunctionRef name="COUNTIFS" />
 
 ```
 =SUMIFS(sum_range, criteria_range1, criterion1, criteria_range2, criterion2, ...)

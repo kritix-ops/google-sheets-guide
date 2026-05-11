@@ -6,7 +6,17 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## פונקציות האגרגציה הפשוטות
 
+ארבע הפונקציות שכל אגרגציה נבנית עליהן. `SUM` ו-`AVERAGE` קיבלו את הכרטיסים שלהן בשיעור 3; `COUNT` ו-`COUNTA` חדשות פה, וההבחנה בין COUNT ל-COUNTA היא אחד המקורות הכי נפוצים לבאגים שקטים ב-spreadsheets של אדטק.
+
 `SUM(range)` מחבר. `AVERAGE(range)` ממצע. `MIN`/`MAX` מוצאים קצוות. `COUNT(range)` סופר תאים מספריים. `COUNTA(range)` סופר כל תא לא ריק (מספרים, טקסט, כל דבר).
+
+<FunctionRef name="COUNT" />
+
+<FunctionRef name="COUNTA" />
+
+<FunctionRef name="MAX" />
+
+<FunctionRef name="MIN" />
 
 <MiniGrid
   data={CAMPAIGNS}
@@ -51,6 +61,12 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 הסיומת "IF" מאפשרת לעשות אגרגציה רק על התאים שעומדים בתנאי. `COUNTIF(range, criterion)` סופר התאמות, `SUMIF(range, criterion, [sum_range])` מסכם אותן. הקריטריון הוא מחרוזת עם ההשוואה בפנים (גדול מ, קטן מ וכו'), או ערך בודד.
 
+ב-workbooks מודרניים של אדטק הצורות בלשון יחיד הן בעיקר אבן דרך: ברגע שמבינים אותן, כמעט תמיד עוברים ל-`COUNTIFS`/`SUMIFS` (הסעיף הבא) כי פילטרים בדוחות אמיתיים אף פעם לא חד-קריטריוניים. החריג הוא בדיקה זריקה של "כמה X", שבה צורת שני-הארגומנטים של COUNTIF מהירה יותר להקלדה מאשר זוג של COUNTIFS.
+
+<FunctionRef name="COUNTIF" />
+
+<FunctionRef name="SUMIF" />
+
 השימוש הקלאסי באדטק: "כמה קמפיינים הביאו revenue מעל 400 דולר?"
 
 <TryIt
@@ -66,7 +82,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## SUMIFS ו-COUNTIFS: כמה תנאים
 
-הגרסאות בלשון רבים מקבלות **כמה** זוגות תנאים. שימו לב שסדר הארגומנטים שונה מ-`SUMIF`: טווח הסכימה בא **קודם**, ואז זוגות מתחלפים של טווח-קריטריון וקריטריון. זאת פונקציית ה-Sheets שהכי הרבה משתמשים בה ב-spreadsheets עסקיים.
+הגרסאות בלשון רבים מקבלות **כמה** זוגות תנאים. שימו לב שסדר הארגומנטים שונה מ-`SUMIF`: טווח הסכימה בא **קודם**, ואז זוגות מתחלפים של טווח-קריטריון וקריטריון. זאת פונקציית ה-Sheets שהכי הרבה משתמשים בה ב-spreadsheets עסקיים: כל pivot של buyer-מול-platform, כל דוח חסום-בתאריכים, כל מונה alert של dashboard.
+
+<FunctionRef name="SUMIFS" />
+
+<FunctionRef name="COUNTIFS" />
 
 ```
 =SUMIFS(sum_range, criteria_range1, criterion1, criteria_range2, criterion2, ...)
