@@ -1,52 +1,148 @@
-import { MESSY_CAMPAIGNS } from "@/content/datasets/adtech";
+import { MESSY_CAMPAIGNS, CAMPAIGNS } from "@/content/datasets/adtech";
 
 # Fill with Gemini
 
-Fill with Gemini is a UI action, not a formula. You select a range, right-click, choose **Fill with Gemini**, type a natural-language instruction, and Gemini proposes a column of literal values. You review the proposal, then apply or discard. There's no formula, no `=AI()`, no spilling array. The cells are populated with plain values, the same way as if you'd typed them yourself.
+Fill with Gemini is a UI action, not a formula. You select a range, click the **Fill** entry point (drag-from-corner if at least one cell is filled, or the one-click Fill button if the selection is empty), type a natural-language instruction, and Gemini proposes a column of literal values. You review the proposal, then apply or discard. There's no formula, no `=AI()`, no spilling array. The cells are populated with plain values, the same way as if you'd typed them yourself.
 
-It feels magic the first time. It also disagrees with itself between runs, occasionally fills cells outside your selection, and leaves no audit trail of what it changed. Used correctly it saves an hour on a cleanup task that used to take an hour. Used carelessly it introduces silent bugs the team finds two weeks later.
+It feels magic the first time. It also disagrees with itself between runs, occasionally fills cells outside your selection, and leaves no audit trail of what it changed. The Workspace Updates announcement claims 9x faster than manual entry on 100-cell tasks, and on a clean cleanup task that's the right ballpark. Used carelessly it introduces silent bugs the team finds two weeks later. This lesson is how to use it deliberately and where it beats both Smart Fill and an `=AI()` column.
 
 ## How it works in practice
 
-1. Select the destination range (the column you want filled).
-2. Right-click and choose **Fill with Gemini**.
-3. Type the instruction in plain English: `Standardize each vertical name to Title Case and ensure it ends with PR`.
-4. Gemini reads the *neighboring* columns of your selection to understand context. It shows you a proposal in a preview pane.
-5. You hit **Apply** to commit the literal values into the cells, or **Discard**.
+Fill with Gemini has two invocation modes. Knowing which mode the team is in is half the lesson, because the prompt shape changes.
 
-The Apply step is what differs from `=AI()`. AI() leaves a formula behind that recomputes on demand. Fill with Gemini writes static values once and walks away. Both have their place.
+| Mode | When | Trigger |
+|---|---|---|
+| Drag-fill | At least one example cell in the column is filled | Hover the bottom-right corner of the seed cell, drag down. Gemini infers a pattern from the seed plus neighboring columns. |
+| Prompt-fill | The selection is empty | Click the Fill entry point above the selection, type a natural-language instruction. |
 
-## When Fill with Gemini beats Smart Fill
+Either way, the steps that follow are the same:
 
-Smart Fill (the older Sheets feature) learns from two or three example rows you type in. It works when the transformation is deterministic: extract a first name, capitalize a column, pull a country code out of a campaign name. If you can describe the transform with a regex or a `LEFT`/`MID` formula, Smart Fill probably does it too.
+1. Gemini reads the *neighboring* columns of your selection to understand context. It shows you a proposal in a preview pane.
+2. You review the proposal cell-by-cell.
+3. You hit **Apply** to commit the literal values into the cells, or **Discard**.
+
+The Apply step is what differs from `=AI()`. `=AI()` leaves a formula behind that recomputes on demand. Fill with Gemini writes static values once and walks away. Both have their place; the trade-off table below picks them apart.
+
+<MiniGrid
+  data={CAMPAIGNS.slice(0, 5)}
+  caption="Toy: 4 clean campaign rows. Drag-fill from a seed in column G ('profitable' for the first profitable row) and Gemini infers the rest of the column based on E (Spend) and F (Revenue)."
+/>
+
+## When Fill with Gemini beats Smart Fill and `=AI()`
+
+Smart Fill (the older Sheets feature) learns from two or three example rows you type in. It works when the transformation is deterministic: extract a first name, capitalize a column, pull a country code out of a campaign name. If you can describe the transform with a regex or a `LEFT`/`MID` formula, Smart Fill probably does it too. `=AI()` is the live, formulaic equivalent. Fill with Gemini sits between them: smarter than Smart Fill, lighter weight than `=AI()`, and unlike both it writes literal values that don't depend on a recompute.
 
 Fill with Gemini wins when the transformation is fuzzy:
 
-- **Normalizing inconsistent text.** "used cars pr", "Used Cars PR", "USEDCARSPR" all collapse to "Used Cars PR" with a single instruction.
+- **Normalizing inconsistent text.** `"used cars pr"`, `"Used Cars PR"`, `"USEDCARSPR"` all collapse to `"Used Cars PR"` with a single instruction.
 - **Classification of free text.** "Categorize this customer note as: complaint, question, compliment, other."
 - **Multi-step transformations.** "Pull the city out, capitalize it, and standardize country codes to 2 letters."
 
 Smart Fill needs examples. Fill with Gemini needs an instruction. When the rule is hard to demonstrate by example but easy to state in words, Fill with Gemini is the better tool.
 
-| Task | Smart Fill | Fill with Gemini |
-|---|---|---|
-| Extract first name | Wins. Deterministic, free, no review needed. | Overkill. |
-| Capitalize column | Wins. | Overkill. |
-| Standardize 12 variants of "Used Cars PR" | Slow (needs many examples) and fragile. | Wins. One instruction. |
-| Classify customer notes | Cannot do it. | Wins. |
-| Extract `card9999` from a 14-segment campaign name | Wins if the format is consistent. | Wins too, but costs a Gemini call per row. |
+| Task | Smart Fill | Fill with Gemini | `=AI()` |
+|---|---|---|---|
+| Extract first name | Wins. Deterministic, free. | Overkill. | Overkill and billable. |
+| Capitalize column | Wins. | Overkill. | Overkill. |
+| Standardize 12 variants of "Used Cars PR" | Slow (needs many examples) and fragile. | **Wins.** One instruction, literal output. | Works but leaves a live formula that recomputes. |
+| Classify customer notes (one-time clean) | Cannot do it. | **Wins.** | Works but the column drifts on each refresh. |
+| Classify customer notes (ongoing) | Cannot do it. | Loses: literals freeze, won't update. | **Wins.** Live formulas track new rows. |
+| Extract `card9999` from campaign name | Wins if format is consistent. | Wins too, but costs a Gemini call per row. | Same. |
 
-The rule of thumb: if a formula or Smart Fill can do it, use those. Reserve Fill with Gemini for the cases that need natural-language judgment.
+The rule of thumb: if a formula or Smart Fill can do it, use those. Reserve Fill with Gemini for one-time cleanup tasks that need natural-language judgment. Reserve `=AI()` for ongoing classification.
+
+<QuickCheck
+  question="You inherit a sheet with 600 rows of customer notes. You need to classify each as complaint/question/compliment/other once, then never re-classify. Which tool fits best?"
+  options={[
+    {
+      id: "a",
+      label: <>Smart Fill from two or three example classifications.</>,
+      correct: false,
+      explanation: "Smart Fill is for deterministic transformations (extract, capitalize, parse). Fuzzy classification of free text is past its limit.",
+    },
+    {
+      id: "b",
+      label: <>Fill with Gemini with a prompt that lists the four labels.</>,
+      correct: true,
+      explanation: "One-time fuzzy classification with a fixed label set is exactly Fill with Gemini's sweet spot. Apply writes literal values; the next refresh won't re-classify.",
+    },
+    {
+      id: "c",
+      label: <>An =AI() column with the same prompt, dragged down 600 rows.</>,
+      correct: false,
+      explanation: "=AI() works, but the column will quietly drift across runs (non-determinism). For a one-time classification, literals are safer than a live formula.",
+    },
+  ]}
+/>
 
 ## The proposal review step
 
 The proposal panel is the most important and most-skipped step. The proposal shows you the cells Gemini would write. Always check three things before applying:
 
-1. **Is every cell in the proposal what you expected?** Spot-check ten of them.
+1. **Is every cell in the proposal what you expected?** Spot-check ten of them, especially the rows you'd never look at otherwise (rows 50, 137, 244, etc.).
 2. **Did Gemini fill cells you did not select?** Occasionally the proposal extends beyond the original selection if Gemini decides additional derived columns are useful. Reject the apply if so.
-3. **Did Gemini reorder rows?** Rare but real. The proposal preview usually keeps the original order; verify.
+3. **Did Gemini reorder rows?** Rare but real. The proposal preview usually keeps the original order; verify against a sibling column you didn't touch.
 
-The Apply step is not always a clean single-undo unit. If you apply and then catch a mistake, Ctrl+Z may revert only some of the cells. Treat apply as commit-and-move-forward, not as a free preview.
+The Apply step is not always a clean single-undo unit. If you apply and then catch a mistake, `Ctrl+Z` may revert only some of the cells. Treat apply as commit-and-move-forward, not as a free preview. The team's rule: snapshot the workbook (File → Make a copy or version history) before any high-stakes Apply.
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Instruction: "Standardize the vertical names"
+
+Proposal contains:
+H2: "Car Deals PR"        ✓
+H5: "Hearing Aids PR"     ✓
+H10: "Senior Living PR"   ✗ (was "Senior Living P", a typo)
+...
+
+Reviewer skims; applies.`}</code></pre>
+    <p className="mt-2 text-sm">Gemini auto-corrected the typo, which sounds great until the team confirms there's also a separate "Seniors PR" vertical and Gemini's guess was wrong on three rows. No audit trail; downstream sums by vertical now misattribute.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Instruction: "Standardize the vertical names.
+Allowed values: Car Deals PR, Hearing Aids PR,
+Senior Living PR, Seniors PR, Online MBA PR.
+For anything else, write the literal text
+'needs review' (do not guess)."
+
+Proposal contains:
+H10: "needs review"  ✓
+
+Reviewer sees H10 flagged, opens the row, fixes manually.`}</code></pre>
+    <p className="mt-2 text-sm">Constrained label set, explicit "do not guess" instruction. Hallucination becomes a flag, not a silent wrong value.</p>
+  </ComparePanel>
+</Compare>
+
+## Schema and column-mismatch traps
+
+Fill with Gemini reads neighboring columns to infer context. When the header text is ambiguous or wrong, the inference is wrong. The team has hit two specific failure modes worth surfacing:
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Headers: A=Date, B=Buyer, C=Vertical,
+         D=Plt, E=Spnd, F=Rev
+
+Instruction: "Classify each row's
+risk based on spend and revenue."`}</code></pre>
+    <p className="mt-2 text-sm">Abbreviated headers force Gemini to guess what `Plt`, `Spnd`, `Rev` mean. On a 12-row toy, it guesses right; on a 600-row sheet with similar columns elsewhere, it can read the wrong column. Schema mismatch is invisible in the proposal preview.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Headers: A=Date, B=Buyer, C=Vertical,
+         D=Platform, E=Spend (USD),
+         F=Revenue (USD)
+
+Instruction: "Classify each row's
+risk based on Spend (column E) and
+Revenue (column F) only."`}</code></pre>
+    <p className="mt-2 text-sm">Full header names plus an explicit "based on column E and column F only" anchor. The inference becomes deterministic-ish.</p>
+  </ComparePanel>
+</Compare>
+
+## Cost, quota, and the privacy surface
+
+Fill with Gemini is metered per Workspace plan, with the same promo window through July 15 2026 mentioned in lesson 5.1, and the same per-plan limits afterward. Each Apply step counts against the quota. A 100-cell apply is one quota event in practice; a 600-cell apply is a bigger one. The 9x speed claim from the Workspace announcement is real for clean tasks, but the bill is real too. Watch it for high-volume cleanup runs.
+
+PII has the same surface as `=AI()`: neighbor columns get read into Gemini's context, so if your selection sits next to a customer-email column, those emails are in the snapshot. Lesson 5.6 covers the PII policy in detail. The short version: if you wouldn't paste a column into an external vendor's web form, don't trigger Fill with Gemini on it without checking your plan's data-handling terms first.
 
 ## Now do it for real
 
@@ -61,7 +157,7 @@ Click **Start lesson** to provision the messy campaign log on a Cleanup tab. Thr
 - **J1**: write the natural-language prompt you would use in Fill with Gemini. Include the words `standardize` (or `normalize`), `vertical`, and `PR`.
 - **No formulas** in column H. Fill with Gemini produces literal values, not formulas, and the grader enforces that.
 
-You're simulating the post-Apply state. In a real workbook you'd select column H, right-click, and run Fill with Gemini with the prompt you wrote in J1.
+You're simulating the post-Apply state. In a real workbook you'd select column H, trigger Fill with Gemini, and use the prompt you wrote in J1.
 
 ## Used in the wild
 
@@ -69,7 +165,7 @@ The team faces this exact mess every week. The Taboola export sends vertical nam
 
 - Paste the export into the staging tab.
 - Select the Vertical column.
-- Fill with Gemini, prompt: `Standardize each vertical name to Title Case and ensure it ends with PR. The known verticals are: Car Deals, Bathroom Remodeling, Cruises, ...`
+- Fill with Gemini, prompt: `Standardize each vertical name to Title Case and ensure it ends with PR. Allowed values: Car Deals PR, Bathroom Remodeling PR, Cruises PR, Hearing Aids PR, Online MBA PR, Dental Implants PR, Solar Systems & Panels PR, Senior Living PR, Pet Insurance PR, Cleaning Services PR, Roofing Services PR, Reverse Mortgage PR. For anything else, write 'needs review'.`
 - Review the proposal. Apply.
 - The remaining deterministic cleanups (whitespace trim, the date format) run through `TRIM` and `TEXT` formulas on the next column over.
 
@@ -78,7 +174,8 @@ The combination is faster than either tool alone: Gemini handles the fuzzy norma
 ## Pro pitfalls
 
 - **No formula trace.** The cells after apply look exactly like cells you typed. Two weeks later, nobody can tell which were AI-generated and which were manual. The fix: add a sibling column with the original value preserved, so a future reader can see the diff.
-- **Lossy normalization.** If your prompt is "Standardize to canonical Title Case PR form" and Gemini sees "Senior Living P" (a typo), Gemini will guess "Senior Living PR" and may be right or wrong depending on whether the team has a "Senior Living" or a "Seniors" vertical. Always include the allowed list in the prompt if you have one.
+- **Lossy normalization.** If your prompt is "Standardize to canonical Title Case PR form" and Gemini sees "Senior Living P" (a typo), Gemini will guess "Senior Living PR" and may be right or wrong depending on whether the team has a "Senior Living" or a "Seniors" vertical. Always include the allowed list in the prompt if you have one, with an explicit "do not guess" rule.
 - **Proposal that extends beyond your selection.** Gemini occasionally proposes derived columns alongside the main fill. The apply will write all of them. Inspect the preview carefully.
-- **Apply is not a clean undo unit.** Ctrl+Z after apply may revert partially. Treat apply like a commit; save a snapshot of the workbook first if the stakes are high.
+- **Apply is not a clean undo unit.** `Ctrl+Z` after apply may revert partially. Treat apply like a commit; save a snapshot of the workbook first if the stakes are high.
 - **The "looks right but is wrong" trap.** Fill with Gemini's proposal looks confident. On a 200-row column, three rows being subtly wrong (a name capitalized inconsistently, a typo Gemini guessed wrong) is invisible at a glance. Spot-check 10 random rows in every apply, especially for fields that downstream `SUMIFS` or pivots will group on.
+- **Header schema mismatch.** Abbreviated or ambiguous headers force Gemini to guess what your columns mean. The wrong guess is invisible in the proposal preview because the values look reasonable. Use full, unambiguous header names, and reference them in the instruction.
