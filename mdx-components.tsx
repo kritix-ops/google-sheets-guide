@@ -1,4 +1,5 @@
 import type { MDXComponents } from "mdx/types";
+import type { ReactNode } from "react";
 
 import {
   Compare,
@@ -10,7 +11,35 @@ import {
   StepThrough,
   TryIt,
 } from "@/components/lesson";
+import { slugify } from "@/lib/search/slugify";
 import { cn } from "@/lib/utils";
+
+// Recursively extract plain text from MDX heading children. Headings may
+// contain inline formatting (`## A **bold** word`), which arrives as a
+// mixed array of strings and React elements. We need the flat text to
+// compute a deterministic anchor ID that matches the search index.
+function nodeText(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") {
+    return "";
+  }
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+  if (Array.isArray(node)) {
+    return node.map(nodeText).join("");
+  }
+  if (typeof node === "object" && "props" in node) {
+    const children = (node as { props?: { children?: ReactNode } }).props
+      ?.children;
+    return children ? nodeText(children) : "";
+  }
+  return "";
+}
+
+function headingId(children: ReactNode): string {
+  const text = nodeText(children).trim();
+  return text.length > 0 ? slugify(text) : "";
+}
 
 const lessonComponents: MDXComponents = {
   Compare,
@@ -33,23 +62,29 @@ const proseComponents: MDXComponents = {
       {...props}
     />
   ),
-  h2: ({ className, ...props }) => (
+  h2: ({ className, id, children, ...props }) => (
     <h2
+      id={id ?? (headingId(children) || undefined)}
       className={cn(
-        "mb-3 mt-10 text-xl font-semibold tracking-tight text-foreground",
+        "scroll-mt-24 mb-3 mt-10 text-xl font-semibold tracking-tight text-foreground",
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+    </h2>
   ),
-  h3: ({ className, ...props }) => (
+  h3: ({ className, id, children, ...props }) => (
     <h3
+      id={id ?? (headingId(children) || undefined)}
       className={cn(
-        "mb-2 mt-6 text-lg font-semibold text-foreground",
+        "scroll-mt-24 mb-2 mt-6 text-lg font-semibold text-foreground",
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+    </h3>
   ),
   p: ({ className, ...props }) => (
     <p

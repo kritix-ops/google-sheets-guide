@@ -7,6 +7,61 @@
     "curriculum": "Curriculum",
     "comingSoon": "Coming soon"
   },
+  "search": {
+    "trigger": "Search",
+    "placeholder": "Search lessons, sections, users, audit log...",
+    "emptyInitial": "Type to search across everything.",
+    "emptyNoResults": "No results for “{query}”.",
+    "emptyTip": "Try a shorter word or a different language.",
+    "recent": "Recent",
+    "clearRecent": "Clear",
+    "fromOtherLang": "from other language",
+    "groups": {
+      "actions": "Quick actions",
+      "lessons": "Lessons",
+      "headings": "Sections",
+      "users": "Admin: Users",
+      "drafts": "Admin: Drafts",
+      "audit": "Admin: Audit log"
+    },
+    "hints": {
+      "nav": "Navigate",
+      "select": "Select",
+      "close": "Close"
+    },
+    "badges": {
+      "completed": "Completed",
+      "inProgress": "In progress",
+      "notStarted": "Not started"
+    },
+    "roleBadges": {
+      "admin": "admin",
+      "editor": "editor",
+      "viewer": "viewer"
+    },
+    "actions": {
+      "openCurriculum": {
+        "label": "Curriculum",
+        "hint": "Browse all lessons"
+      },
+      "editContent": {
+        "label": "Edit content",
+        "hint": "Open the lesson editor"
+      },
+      "manageUsers": {
+        "label": "Manage users",
+        "hint": "Add or change roles"
+      },
+      "openAudit": {
+        "label": "Audit log",
+        "hint": "See what changed"
+      }
+    },
+    "errors": {
+      "indexUnavailable": "Search index unavailable. Run npm run build:search.",
+      "adminSearchFailed": "Admin search failed. Lesson results still shown."
+    }
+  },
   "tracks": {
     "formulas": {
       "label": "Formulas",

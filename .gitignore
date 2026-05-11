@@ -59,3 +59,6 @@ desktop.ini
 
 # local dev output
 dev-output.log
+
+# search index (generated at build time)
+/public/search-index/

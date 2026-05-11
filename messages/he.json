@@ -7,6 +7,61 @@
     "curriculum": "תוכנית הלימודים",
     "comingSoon": "בקרוב"
   },
+  "search": {
+    "trigger": "חיפוש",
+    "placeholder": "חפשו שיעורים, סעיפים, משתמשים, יומן ביקורת...",
+    "emptyInitial": "התחילו להקליד כדי לחפש בכל המערכת.",
+    "emptyNoResults": "אין תוצאות עבור “{query}”.",
+    "emptyTip": "נסו מילה קצרה יותר או שפה אחרת.",
+    "recent": "חיפושים אחרונים",
+    "clearRecent": "ניקוי",
+    "fromOtherLang": "מהשפה השנייה",
+    "groups": {
+      "actions": "פעולות מהירות",
+      "lessons": "שיעורים",
+      "headings": "סעיפים",
+      "users": "אדמין: משתמשים",
+      "drafts": "אדמין: טיוטות",
+      "audit": "אדמין: יומן ביקורת"
+    },
+    "hints": {
+      "nav": "ניווט",
+      "select": "בחירה",
+      "close": "סגירה"
+    },
+    "badges": {
+      "completed": "הושלם",
+      "inProgress": "בתהליך",
+      "notStarted": "עוד לא התחיל"
+    },
+    "roleBadges": {
+      "admin": "admin",
+      "editor": "editor",
+      "viewer": "viewer"
+    },
+    "actions": {
+      "openCurriculum": {
+        "label": "תוכנית הלימודים",
+        "hint": "עיון בכל השיעורים"
+      },
+      "editContent": {
+        "label": "עריכת תוכן",
+        "hint": "פתיחת עורך השיעורים"
+      },
+      "manageUsers": {
+        "label": "ניהול משתמשים",
+        "hint": "הוספה או שינוי תפקידים"
+      },
+      "openAudit": {
+        "label": "יומן ביקורת",
+        "hint": "צפייה במה השתנה"
+      }
+    },
+    "errors": {
+      "indexUnavailable": "אינדקס החיפוש לא זמין. הריצו npm run build:search.",
+      "adminSearchFailed": "חיפוש האדמין נכשל. תוצאות השיעורים מוצגות בכל מקרה."
+    }
+  },
   "tracks": {
     "formulas": {
       "label": "נוסחאות",
