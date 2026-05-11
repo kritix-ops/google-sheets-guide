@@ -1,14 +1,22 @@
-import { CAMPAIGNS_TIMESERIES } from "@/content/datasets/adtech";
+import { CAMPAIGNS_TIMESERIES, CAMPAIGNS } from "@/content/datasets/adtech";
 
 # AI-assisted analysis
 
 There's a moment in every dashboard review where you stare at a spike or a drop and ask "what happened on Tuesday?" AI in Sheets is good at being the first answer to that question. It can flag a date that stands out, draft a paragraph for an exec summary, suggest a chart for an unfamiliar dataset, point at three outliers and explain what's odd. It is not good at being the last answer. The skill is using AI as the peer reviewer of your analysis, not the source of truth.
 
-This lesson is about that pairing. AI proposes candidates. Your domain knowledge decides what they mean. Use them together and analysis sessions move fast and stay grounded. Use AI alone and you ship reports that confidently misread a tracking pixel bug as a marketing win.
+This lesson is about that pairing. AI proposes candidates. Your domain knowledge decides what they mean. Use them together and analysis sessions move fast and stay grounded. Use AI alone and you ship reports that confidently misread a tracking pixel bug as a marketing win. Lesson 5.2 covered the mechanics of `=AI()`; this lesson is about the analytical workflow it slots into.
+
+## The AI() refresher for analysis prompts
+
+You'll reach for `=AI()` repeatedly in this lesson. The function spec is the same as lesson 5.2, but the pattern shifts: now you pass a bounded range as the second argument because the answer needs to ground on a specific data window.
+
+<FunctionRef name="AI" />
+
+The signature matters again here: when you write `=AI("Identify the date with the highest spend spike", Daily!A2:F31)`, the range argument is what grounds the answer. Without it, Gemini speculates from the active sheet's snapshot, which is what lesson 5.1 warned about.
 
 ## What AI is good at
 
-- **Surfacing candidates for investigation.** "Which three days had the largest deviation from the weekly average?" Gemini's good at this. The candidates may not all be real, but the list is a useful starting point.
+- **Surfacing candidates for investigation.** "Which three days had the largest deviation from the weekly average?" Gemini is good at this. The candidates may not all be real, but the list is a useful starting point.
 - **Drafting copy for a known finding.** "Write a one-paragraph summary of the week for an exec audience, mentioning the launch-day spike on 2026-04-15." Gemini turns your bullet points into prose faster than you can.
 - **Suggesting a chart for a question.** "What chart best shows the relationship between spend and conversions over time?" Reasonable suggestion, reasonable axis labels, reasonable defaults.
 - **Translating findings.** Hebrew-to-English, Spanish-to-English. The team uses this on customer feedback regularly.
@@ -19,10 +27,37 @@ This lesson is about that pairing. AI proposes candidates. Your domain knowledge
 - **Attribution that needs context.** "Which campaign drove the spike?" requires knowing that you launched a new offer last week, that one buyer's account was paused, that tracking was broken on Wednesday. Gemini sees the numbers, not the context.
 - **Distinguishing real outliers from instrumentation bugs.** A day with zero conversions and normal traffic looks like a striking outlier to Gemini. To you, it's an obvious tracking pixel failure.
 - **Time series without seasonality.** Adtech data has weekly cycles, end-of-month spikes, holiday dips. Gemini sometimes flags these as "outliers" when they're routine.
+- **Exact counts on large data.** Lesson 5.1 already named this: sampled snapshots give approximate answers, and "how many days had ROI > 1.5?" is an approximate answer when the model sees a sample.
 
 The mental model: AI is excellent at *what to look at*. You are still the one deciding *what it means*.
 
+<QuickCheck
+  question="Gemini's response to 'what happened on 2026-04-22?' says 'a marketing pull-back caused the dip in conversions'. Your dataset shows 2026-04-22 had normal spend but ~40% of the conversions of neighboring days. What should you actually conclude?"
+  options={[
+    {
+      id: "a",
+      label: <>Trust the analysis: Gemini has more context than I do.</>,
+      correct: false,
+      explanation: "Gemini has the numbers in the snapshot and nothing else. A marketing pull-back would correlate with lower spend, but spend was normal that day. The reasoning is wrong on its face.",
+    },
+    {
+      id: "b",
+      label: <>Tracking instrumentation likely failed; spend was normal but conversions weren't recorded. Investigate the tracking pixel.</>,
+      correct: true,
+      explanation: "Domain knowledge says: same spend, far fewer conversions = instrumentation gap, not a marketing decision. Gemini sees a dip and reaches for a plausible-sounding cause. You see the same dip and reach for the operational cause.",
+    },
+    {
+      id: "c",
+      label: <>The day is an outlier and should be excluded from analysis.</>,
+      correct: false,
+      explanation: "Excluding without investigating is how a tracking bug becomes a permanent silent loss. Investigate first; exclude only when you know why.",
+    },
+  ]}
+/>
+
 ## Specific prompts that work
+
+A few patterns the team reaches for every Monday review:
 
 ```
 =AI("Identify the date with the highest spend spike and explain why it stands out", Daily!A2:F31)
@@ -33,16 +68,72 @@ The mental model: AI is excellent at *what to look at*. You are still the one de
 
 What they share: a specific question with a specific output shape, and a bounded range as the second argument. The range is what grounds the answer. Without it, Gemini speculates.
 
+<Compare>
+  <ComparePanel label="Broken (no grounding range, prose question)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=AI("Why did our numbers drop last week?")`}</code></pre>
+    <p className="mt-2 text-sm">No range, no specific dataset, asks for causation. The answer will sound confident and be a guess. Two runs return two different reasons.</p>
+  </ComparePanel>
+  <ComparePanel label="Working (bounded range, candidate question)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=AI("List the three days with the largest week-over-week revenue decrease",
+  Daily!A2:F31)`}</code></pre>
+    <p className="mt-2 text-sm">Specific output (three dates), specific dataset (the bounded daily range), question that asks for candidates not causes. The answer is something to verify, not something to ship.</p>
+  </ComparePanel>
+</Compare>
+
 ## The verification step
 
 The single highest-leverage habit: never paste an AI claim into a report without checking the underlying data. The discipline:
 
 1. Read what AI said.
-2. Sort or filter the data to verify the claim.
+2. Sort or filter the data to verify the claim. (`=SORT(B2:C31, 2, FALSE)` to sort by revenue descending, for example. SORT is covered in Track 2 lesson 4.)
 3. Note the verification in a sibling cell.
 4. Only then put the claim in the dashboard.
 
 A confirmed finding has a date, a number, and a one-sentence interpretation. An unconfirmed finding has prose. Reports get only confirmed findings.
+
+<Compare>
+  <ComparePanel label="Broken workflow" tone="negative">
+    <pre className="font-mono text-xs"><code>{`I1: =AI("Top day this month", Daily!A2:F31)
+... Gemini returns "2026-04-17"
+J1: <paste-into-deck>
+Slide reads: "Best day: April 17"`}</code></pre>
+    <p className="mt-2 text-sm">No verification step. The claim went straight from a stochastic AI call to a deck. Next refresh, the AI might say April 16 or April 18. The deck disagrees with the next day's deck.</p>
+  </ComparePanel>
+  <ComparePanel label="Working workflow" tone="positive">
+    <pre className="font-mono text-xs"><code>{`I1: =AI("Top revenue day", Daily!A2:F31)
+... Gemini returns "2026-04-17"
+J1: =LARGE(Daily!C2:C31, 1)
+    → $4,188.00 (matches AI guess? check date)
+K1: =INDEX(Daily!A2:A31, MATCH(J1, Daily!C2:C31, 0))
+    → 2026-04-17 (confirmed by formula)
+L1: <paste-into-deck>`}</code></pre>
+    <p className="mt-2 text-sm">AI suggests; formula confirms; the confirmed value is what reaches the deck. The deck is reproducible because the source is `LARGE` + `INDEX/MATCH` (Track 1 lesson 5).</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="An AI summary paragraph says revenue 'continued its strong upward trend driven by buyer optimization'. The dataset shows revenue went up because spend went up proportionally; ROI was flat. What's the right edit?"
+  options={[
+    {
+      id: "a",
+      label: <>Keep the paragraph; it sounds confident and ships fast.</>,
+      correct: false,
+      explanation: "It misattributes cause. Buyer optimization would show as ROI improvement, not just revenue growth. Shipping it as written misleads stakeholders.",
+    },
+    {
+      id: "b",
+      label: <>Rewrite: 'Revenue rose alongside increased spend; ROI was unchanged at X%.' Strip the causal claim.</>,
+      correct: true,
+      explanation: "Removes the unverified causal claim and replaces it with a measurable, reproducible statement. The team's standard rewrite pattern.",
+    },
+    {
+      id: "c",
+      label: <>Add 'pending investigation' to the AI claim and ship.</>,
+      correct: false,
+      explanation: "Hedge language doesn't fix wrong attribution; readers still walk away with the wrong story. Edit the claim itself.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -67,6 +158,7 @@ In the team's weekly review:
 - **Every AI-flagged "outlier" gets a one-sentence note next to it.** "Confirmed: launch day." or "Tracking pixel error, not real." or "Real outlier, needs investigation." The notes accumulate into a weekly journal.
 - **AI drafts the exec summary paragraph; a human edits.** The draft saves 20 minutes. The edit is what makes it accurate.
 - **Anything AI says about causation gets removed.** "Revenue went up because" turns into "Revenue went up; investigation pending." The team learned this the hard way after a board deck cited an AI-generated causal claim that turned out to be a coincidence.
+- **Numbers that appear in the report are always formula-derived, never AI-derived.** AI may suggest "the top revenue day was 2026-04-17"; the deck slide reads `=LARGE(...)` + `=INDEX/MATCH(...)`. AI's number is a suggestion; the formula's number is the report.
 
 ## Pro pitfalls
 
@@ -76,3 +168,5 @@ In the team's weekly review:
 - **The "AI said it so it must be true" trap.** A polished AI paragraph carries undeserved authority. Use AI output as a starting draft, not a final claim.
 - **Asking AI for the "best" or "worst" buyer/vertical/platform.** Subjective frames produce different answers each call. Define the criterion ("highest ROI", "lowest CPC variance") and use a formula instead.
 - **AI's chart suggestions for time series.** Often a line chart with the y-axis starting at zero, which buries a 5% trend in a flat-looking line. Verify the suggested config against the actual data shape before applying.
+- **Large-dataset analysis without aggregation.** Asking AI to "find the worst week" across 50,000 rows of detail gives you a sampled answer (lesson 5.1). Pre-aggregate to a daily or weekly summary first; then ask AI on the rolled-up data.
+- **Non-deterministic candidate lists.** "Top three outliers" can return three different sets on Monday and Friday. If the candidates feed a recurring report, freeze the list once you've verified it.
