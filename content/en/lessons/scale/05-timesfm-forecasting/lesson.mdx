@@ -29,16 +29,47 @@ The team's daily-spend log on the aggregator workbook has six columns and 30 day
 - Forecast → Spend over Date → horizon 7 → confidence 0.95.
 - A new tab `Forecast` lands with three columns: forecast_timestamp, forecast_value, prediction_interval_lower_bound, prediction_interval_upper_bound.
 
-That tab is just a sheet. You can `=Forecast!B2` from anywhere, pipe it into a daily-budget alert, chart it next to the actuals, or hand it to a `QUERY` for a weekly summary. The forecast is materialized, which means it doesn't recompute every time the workbook opens. You refresh it by clicking Forecast again.
+That tab is just a sheet. You can `=Forecast!B2` from anywhere, pipe it into a daily-budget alert, chart it next to the actuals, or hand it to a `QUERY` for a weekly summary. The forecast is materialized, which means it does not recompute every time the workbook opens. You refresh it by clicking Forecast again.
+
+<MiniGrid
+  data={CAMPAIGNS_TIMESERIES.slice(0, 10)}
+  caption="The 30-day daily-totals input. TimesFM reads the Date column and the Spend column; the other columns are ignored unless you forecast them too."
+/>
 
 ## Horizon, confidence intervals, and what "the forecast" actually is
 
-The most common mistake when learning a forecasting tool is treating the predicted value as a deterministic estimate. The point estimate is a number. The forecast is the *interval*. TimesFM returns a lower bound and an upper bound at your chosen confidence level. On a daily-spend series with the kind of volatility this team sees, the 95% interval for tomorrow can easily be plus or minus 30% of the point estimate. By day 14 it's plus or minus 80%. By day 30 it's a coin flip.
+The most common mistake when learning a forecasting tool is treating the predicted value as a deterministic estimate. The point estimate is a number. The forecast is the *interval*. TimesFM returns a lower bound and an upper bound at your chosen confidence level. On a daily-spend series with the kind of volatility this team sees, the 95% interval for tomorrow can easily be plus or minus 30% of the point estimate. By day 14 it is plus or minus 80%. By day 30 it is a coin flip.
 
 Two rules for reading the output:
 
-1. **Quote the interval, not the point.** "TimesFM forecasts tomorrow's spend at \$3,440, with a 95% interval of \$2,900 to \$3,980" is honest. "TimesFM says \$3,440" is the kind of confidence that ends meetings badly.
+1. **Quote the interval, not the point.** "TimesFM forecasts tomorrow's spend at $3,440, with a 95% interval of $2,900 to $3,980" is honest. "TimesFM says $3,440" is the kind of confidence that ends meetings badly.
 2. **Stop reading past day 14.** The model is calibrated for short horizons. Past day 14 the confidence interval grows faster than the point estimate moves; you are reading noise.
+
+<Compare>
+  <ComparePanel label="Reading the point as the answer" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Tomorrow's forecast: $3,440
+Decision: set budget to $3,440`}</code></pre>
+    <p className="mt-2 text-sm">Treats the point estimate as gospel. When the actual lands at $4,100 (well inside the 95% upper bound), the budget cap throttles the day and the team blames the model. The model wasn't wrong; the reading was.</p>
+  </ComparePanel>
+  <ComparePanel label="Reading the interval" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Tomorrow's forecast: $3,440 (95% CI: $2,900-$3,980)
+Decision: budget cap at upper bound + 10% = ~$4,400`}</code></pre>
+    <p className="mt-2 text-sm">Decision survives the lower bound (do not under-spend on a slow day) and the upper bound (do not throttle on a hot day). The point estimate informs; the interval governs.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Reading past horizon 14" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Horizon: 30 days
+Use case: month-end budget`}</code></pre>
+    <p className="mt-2 text-sm">At day 30 the 95% interval typically spans 2-4x the point estimate. The prediction is decoration, not data. Anyone planning month-end against this is planning against noise.</p>
+  </ComparePanel>
+  <ComparePanel label="Short horizon, refresh weekly" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Horizon: 7 days
+Refresh: every Sunday`}</code></pre>
+    <p className="mt-2 text-sm">Weekly forecasts at 7-day horizon stay inside the model's calibrated zone. Month-end becomes "we'll re-forecast each week as the month progresses," not a single 30-day shot.</p>
+  </ComparePanel>
+</Compare>
 
 ## When TimesFM beats classical ARIMA
 
@@ -49,6 +80,30 @@ Where TimesFM loses:
 - **Very short series.** Under 14 days of history is too little context. TimesFM falls back to something close to a smoothed mean.
 - **Strong known seasonal anchors.** If you already know your series is dominated by a clean monthly billing cycle, a tuned ARIMA with that seasonality declared can match TimesFM with much smaller compute.
 - **Series with sharp regime changes.** If you launched a new vertical mid-series and the spend pattern fundamentally changed, neither approach works. Refit on the new regime.
+
+<QuickCheck
+  question="A buyer runs TimesFM on a 30-day daily-spend series with horizon 7 and confidence 0.95. The day-3 point estimate is $4,200; the interval is $3,400 to $5,100. The actual lands at $5,000. What does this tell you about the model?"
+  options={[
+    {
+      id: "a",
+      label: <>The model was wrong; $4,200 is far from $5,000.</>,
+      correct: false,
+      explanation: "The point estimate is a midpoint, not a guarantee. $5,000 is inside the 95% interval, which is exactly the calibration TimesFM advertised.",
+    },
+    {
+      id: "b",
+      label: <>The model was well-calibrated; the actual landed inside the predicted interval.</>,
+      correct: true,
+      explanation: "A 95% confidence interval should contain about 95% of actual realizations. The whole point of the interval is that the realization can land anywhere inside it without the model being broken. Decisions should hedge across the interval, not the point.",
+    },
+    {
+      id: "c",
+      label: <>The model under-predicted; you should reduce the horizon to 3 days.</>,
+      correct: false,
+      explanation: "Reducing horizon tightens the interval, which can be useful, but it does not address the misread. A $5,000 actual inside a $3,400-$5,100 interval is a successful forecast, not a failure.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -67,14 +122,16 @@ The two formulas are short; the discipline is referencing the right cells. The c
 
 ## Used in the wild
 
-- **Tomorrow's-budget alert.** The team's daily-budget alert reads `Forecast!B2` (tomorrow's predicted spend) plus the upper bound from `Forecast!D2`. If the upper bound exceeds the day's budget by 20%, Apps Script emails the buyer at 9pm. The forecast feeds a decision; the buyer doesn't read the model.
+- **Tomorrow's-budget alert.** The team's daily-budget alert reads `Forecast!B2` (tomorrow's predicted spend) plus the upper bound from `Forecast!D2`. If the upper bound exceeds the day's budget by 20%, Apps Script emails the buyer at 9pm. The forecast feeds a decision; the buyer does not read the model.
 - **Launch-day detection.** The 2026-04-15 spike in the seed series is what a new winning campaign looks like: spend jumps 22% overnight, holds. TimesFM rolls the spike into the trend by day 3; a naive 7-day moving average needs a week to catch up. Saving four days of under-budgeted serving on a winning vertical pays for the model many times over.
 - **Weekly close.** Every Sunday, the dashboard generates a fresh 7-day forecast and compares the previous week's predictions against the actuals. Persistent over-prediction on a vertical is a signal that something changed at the platform; persistent under-prediction is a signal that the vertical is scaling and budgets need a bump.
 
 ## Pro pitfalls
 
-- **Treating the point estimate as the answer.** It isn't. The deliverable is the interval. Decisions need to survive the lower bound, not just match the midpoint.
+- **Treating the point estimate as the answer.** It is not. The deliverable is the interval. Decisions need to survive the lower bound, not just match the midpoint.
 - **Extrapolating past 14 days.** The model degrades fast on long horizons. A 30-day forecast on a daily-spend series is decoration, not data.
-- **Forecasts that look right but are zero-anchored.** TimesFM assumes the historical pattern continues. If a campaign ended mid-week, the model doesn't know; the prediction follows the recent rate as if the campaign were still serving. Always cross-check the predicted days against the campaigns you actually have live.
+- **Forecasts that look right but are zero-anchored.** TimesFM assumes the historical pattern continues. If a campaign ended mid-week, the model does not know; the prediction follows the recent rate as if the campaign were still serving. Always cross-check the predicted days against the campaigns you actually have live.
 - **Re-forecasting on every workbook open.** TimesFM is a BigQuery ML inference. Each refresh costs money. The output tab is materialized for a reason; refresh on a schedule, not on every read.
 - **Forgetting to label the model.** Three months from now somebody opens the workbook and finds the Forecast tab. Was this TimesFM? Was it ETS? Was it the intern's Python script? The cell that names the model is the cheapest documentation in the building.
+
+Lesson 4.6 returns to the diagnostic track: when a dashboard goes red with `#REF!` or `#N/A`, the cure depends on knowing which one you have and why. The forecasting feature is the last new capability in this track; everything past here is keeping production workbooks alive.
