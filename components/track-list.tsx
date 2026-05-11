@@ -1,9 +1,14 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { CheckCircle2, ChevronDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import {
+  LessonStatusIcon,
+  ProgressBar,
+  ProgressCount,
+} from "@/components/progress-ui";
 import { Link, usePathname } from "@/lib/i18n/navigation";
 import {
   getLocalizedLessonTitle,
@@ -11,6 +16,7 @@ import {
   type Track,
 } from "@/lib/content/registry";
 import type { Locale } from "@/lib/i18n/routing";
+import { type ProgressMap, summarizeTrack } from "@/lib/progress-utils";
 import { cn } from "@/lib/utils";
 
 // Shared with the sidebar so expanding a track on the homepage also expands it
@@ -45,11 +51,18 @@ export type TrackListItem = {
   lessons: LessonInfo[];
 };
 
-export function TrackList({ tracks }: { tracks: TrackListItem[] }) {
+export function TrackList({
+  tracks,
+  progress = {},
+}: {
+  tracks: TrackListItem[];
+  progress?: ProgressMap;
+}) {
   const pathname = usePathname();
   const locale = useLocale() as Locale;
   const tHome = useTranslations("home");
   const tTracks = useTranslations("tracks");
+  const tProgress = useTranslations("progress");
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -78,6 +91,9 @@ export function TrackList({ tracks }: { tracks: TrackListItem[] }) {
       {tracks.map((t) => {
         const isOpen = !!expanded[t.track];
         const panelId = `home-track-panel-${t.track}`;
+        const summary = summarizeTrack(t.lessons, progress);
+        const hasLessons = t.lessons.length > 0;
+        const isComplete = hasLessons && summary.passed === summary.total;
         return (
           <div
             key={t.track}
@@ -90,13 +106,27 @@ export function TrackList({ tracks }: { tracks: TrackListItem[] }) {
               aria-controls={panelId}
               className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <div className="min-w-0">
-                <h2 className="text-xl font-semibold">
-                  {tTracks(`${t.track}.label`)}
-                </h2>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold">
+                    {tTracks(`${t.track}.label`)}
+                  </h2>
+                  {isComplete ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                      <CheckCircle2 className="size-3" strokeWidth={2.5} />
+                      {tProgress("trackComplete")}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {tTracks(`${t.track}.tagline`)}
                 </p>
+                {hasLessons ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    <ProgressBar summary={summary} tone="mixed" className="flex-1" />
+                    <ProgressCount summary={summary} />
+                  </div>
+                ) : null}
               </div>
               <ChevronDown
                 aria-hidden
@@ -118,18 +148,35 @@ export function TrackList({ tracks }: { tracks: TrackListItem[] }) {
                       const title =
                         getLocalizedLessonTitle(l.assignmentId, locale) ??
                         l.title;
+                      const lp = progress[l.assignmentId];
+                      const status = lp?.status ?? "not-started";
+                      const isPassed = status === "passed";
                       return (
                         <li key={l.assignmentId}>
                           <Link
                             href={`/lesson/${l.assignmentId}`}
-                            className="flex items-baseline gap-4 rounded-md border bg-background p-4 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            className={cn(
+                              "flex items-center gap-3 rounded-md border bg-background p-4 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                              isPassed && "border-success/30",
+                            )}
                           >
+                            <LessonStatusIcon status={status} size="sm" />
                             <span className="font-mono text-sm tabular-nums text-muted-foreground">
                               {String(l.order).padStart(2, "0")}
                             </span>
-                            <span className="flex-1 font-medium text-start">
+                            <span
+                              className={cn(
+                                "flex-1 font-medium text-start",
+                                isPassed ? "text-foreground" : "text-foreground",
+                              )}
+                            >
                               {title}
                             </span>
+                            {isPassed && typeof lp?.bestScore === "number" ? (
+                              <span className="hidden font-mono text-xs tabular-nums text-success sm:inline">
+                                {tProgress("score", { score: lp.bestScore })}
+                              </span>
+                            ) : null}
                           </Link>
                         </li>
                       );

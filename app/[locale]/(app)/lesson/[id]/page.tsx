@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { AssignmentPanel } from "@/components/assignment-panel";
+import { LessonStatusBadge } from "@/components/progress-ui";
 import {
   getAssignment,
   getLessonInfo,
@@ -9,6 +10,7 @@ import {
   loadLessonComponent,
 } from "@/lib/content/registry";
 import type { Locale } from "@/lib/i18n/routing";
+import { getProgressForCurrentUser } from "@/lib/progress";
 
 type Props = { params: Promise<{ id: string; locale: string }> };
 
@@ -37,12 +39,23 @@ export default async function LessonPage({ params }: Props) {
   const trackLabel = tTracks(`${info.track}.label`);
   const fellBackToEnglish = servedLocale === "en" && locale !== "en";
 
+  const progress = await getProgressForCurrentUser();
+  const lessonProgress = progress[info.assignmentId];
+
   return (
     <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 xl:grid-cols-[minmax(0,1fr)_360px]">
       <article className="min-w-0">
-        <p className="mb-6 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {trackLabel} · {info.order.toString().padStart(2, "0")}
-        </p>
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {trackLabel} · {info.order.toString().padStart(2, "0")}
+          </p>
+          {lessonProgress ? (
+            <LessonStatusBadge
+              status={lessonProgress.status}
+              bestScore={lessonProgress.bestScore}
+            />
+          ) : null}
+        </div>
         {fellBackToEnglish ? (
           <div
             role="status"

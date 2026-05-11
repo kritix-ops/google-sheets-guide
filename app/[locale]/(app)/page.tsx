@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { auth } from "@/auth";
+import { OverallProgressCard } from "@/components/overall-progress-card";
 import { TrackList } from "@/components/track-list";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -9,21 +10,33 @@ import {
 } from "@/lib/content/registry";
 import { Link } from "@/lib/i18n/navigation";
 import type { Locale } from "@/lib/i18n/routing";
+import {
+  getProgressForCurrentUser,
+  summarizeOverall,
+} from "@/lib/progress";
 import { cn } from "@/lib/utils";
 
 export default async function HomePage() {
   const session = await auth();
   const locale = (await getLocale()) as Locale;
   const tracks = listLessonsByTrack();
+  const progress = await getProgressForCurrentUser();
+  const overall = summarizeOverall(tracks, progress);
   const tHome = await getTranslations("home");
   const tApp = await getTranslations("app");
 
-  const firstLesson = tracks
+  const allLessons = tracks
     .flatMap((t) => t.lessons)
-    .sort((a, b) => a.order - b.order)[0];
-  const firstLessonTitle = firstLesson
-    ? getLocalizedLessonTitle(firstLesson.assignmentId, locale) ??
-      firstLesson.title
+    .sort((a, b) => a.order - b.order);
+  // Resume the first not-yet-passed lesson; fall back to the very first lesson
+  // so a user who has finished everything still has a button.
+  const resumeLesson =
+    allLessons.find(
+      (l) => (progress[l.assignmentId]?.status ?? "not-started") !== "passed",
+    ) ?? allLessons[0];
+  const resumeTitle = resumeLesson
+    ? getLocalizedLessonTitle(resumeLesson.assignmentId, locale) ??
+      resumeLesson.title
     : null;
 
   const firstName = session?.user?.name?.split(" ")[0];
@@ -42,17 +55,19 @@ export default async function HomePage() {
         <p className="mt-2 max-w-prose text-base text-muted-foreground">
           {tHome("intro")}
         </p>
-        {firstLesson && firstLessonTitle ? (
+        {resumeLesson && resumeTitle ? (
           <Link
-            href={`/lesson/${firstLesson.assignmentId}`}
+            href={`/lesson/${resumeLesson.assignmentId}`}
             className={cn(buttonVariants(), "mt-4")}
           >
-            {tHome("startWith", { title: firstLessonTitle })}
+            {tHome("startWith", { title: resumeTitle })}
           </Link>
         ) : null}
       </header>
 
-      <TrackList tracks={tracks} />
+      <OverallProgressCard summary={overall} />
+
+      <TrackList tracks={tracks} progress={progress} />
     </div>
   );
 }

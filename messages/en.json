@@ -54,6 +54,22 @@
     "translationPending": "Hebrew translation in progress",
     "viewInEnglish": "Showing English content for now."
   },
+  "progress": {
+    "passed": "Passed",
+    "inProgress": "In progress",
+    "notStarted": "Not started",
+    "overallHeading": "Your progress",
+    "overallSummary": "{passed} of {total} lessons passed",
+    "overallEmpty": "No lessons completed yet — pick one below to begin.",
+    "trackComplete": "Complete",
+    "trackProgressLabel": "{passed} / {total}",
+    "score": "{score} / 100",
+    "bestScore": "Best: {score} / 100",
+    "lessonStatusPassed": "Passed",
+    "lessonStatusInProgress": "In progress",
+    "lessonStatusNotStarted": "Not started",
+    "ariaProgress": "Progress: {percent} percent"
+  },
   "assignmentPanel": {
     "heading": "Assignment",
     "intro": "Work in real Google Sheets. When you finish, click Grade my work.",

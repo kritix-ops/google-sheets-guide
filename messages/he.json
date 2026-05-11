@@ -54,6 +54,22 @@
     "translationPending": "התרגום לעברית בתהליך",
     "viewInEnglish": "כרגע מוצג התוכן באנגלית."
   },
+  "progress": {
+    "passed": "הושלם",
+    "inProgress": "בעבודה",
+    "notStarted": "טרם התחיל",
+    "overallHeading": "ההתקדמות שלך",
+    "overallSummary": "{passed} מתוך {total} שיעורים הושלמו",
+    "overallEmpty": "עדיין לא הושלמו שיעורים — בחרו אחד מהרשימה כדי להתחיל.",
+    "trackComplete": "הושלם",
+    "trackProgressLabel": "{passed} / {total}",
+    "score": "{score} / 100",
+    "bestScore": "הציון הטוב ביותר: {score} / 100",
+    "lessonStatusPassed": "הושלם",
+    "lessonStatusInProgress": "בעבודה",
+    "lessonStatusNotStarted": "טרם התחיל",
+    "ariaProgress": "התקדמות: {percent} אחוז"
+  },
   "assignmentPanel": {
     "heading": "תרגיל",
     "intro": "עבודה ב-Google Sheets אמיתי. בסיום, לוחצים על Grade my work.",

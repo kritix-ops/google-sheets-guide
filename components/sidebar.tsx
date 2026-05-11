@@ -4,6 +4,11 @@ import { ChevronDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import {
+  LessonStatusIcon,
+  ProgressBar,
+  ProgressCount,
+} from "@/components/progress-ui";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Link, usePathname } from "@/lib/i18n/navigation";
 import {
@@ -12,6 +17,7 @@ import {
   type Track,
 } from "@/lib/content/registry";
 import type { Locale } from "@/lib/i18n/routing";
+import { type ProgressMap, summarizeTrack } from "@/lib/progress-utils";
 import { cn } from "@/lib/utils";
 
 export type SidebarTrack = {
@@ -44,7 +50,13 @@ function saveStored(state: Record<string, boolean>) {
   }
 }
 
-export function Sidebar({ tracks }: { tracks: SidebarTrack[] }) {
+export function Sidebar({
+  tracks,
+  progress = {},
+}: {
+  tracks: SidebarTrack[];
+  progress?: ProgressMap;
+}) {
   const pathname = usePathname();
   const locale = useLocale() as Locale;
   const tNav = useTranslations("nav");
@@ -85,6 +97,8 @@ export function Sidebar({ tracks }: { tracks: SidebarTrack[] }) {
             {tracks.map((t) => {
               const isOpen = !!expanded[t.track];
               const panelId = `track-panel-${t.track}`;
+              const summary = summarizeTrack(t.lessons, progress);
+              const hasLessons = t.lessons.length > 0;
               return (
                 <div key={t.track}>
                   <button
@@ -94,8 +108,16 @@ export function Sidebar({ tracks }: { tracks: SidebarTrack[] }) {
                     aria-controls={panelId}
                     className="flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-start hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                   >
-                    <span className="text-sm font-medium text-foreground">
-                      {tTracks(`${t.track}.label`)}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {tTracks(`${t.track}.label`)}
+                      </span>
+                      {hasLessons ? (
+                        <span className="mt-1 flex items-center gap-2">
+                          <ProgressBar summary={summary} tone="mixed" className="flex-1" />
+                          <ProgressCount summary={summary} />
+                        </span>
+                      ) : null}
                     </span>
                     <ChevronDown
                       aria-hidden
@@ -122,21 +144,30 @@ export function Sidebar({ tracks }: { tracks: SidebarTrack[] }) {
                             const title =
                               getLocalizedLessonTitle(l.assignmentId, locale) ??
                               l.title;
+                            const status =
+                              progress[l.assignmentId]?.status ?? "not-started";
+                            const isPassed = status === "passed";
                             return (
                               <li key={l.assignmentId}>
                                 <Link
                                   href={href}
                                   className={cn(
-                                    "flex items-baseline gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors",
+                                    "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors",
                                     active
                                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                                       : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                                   )}
                                 >
+                                  <LessonStatusIcon status={status} size="xs" />
                                   <span className="font-mono text-xs tabular-nums text-muted-foreground">
                                     {String(l.order).padStart(2, "0")}
                                   </span>
-                                  <span className="flex-1 truncate text-start">
+                                  <span
+                                    className={cn(
+                                      "flex-1 truncate text-start",
+                                      isPassed && "text-foreground",
+                                    )}
+                                  >
                                     {title}
                                   </span>
                                 </Link>
