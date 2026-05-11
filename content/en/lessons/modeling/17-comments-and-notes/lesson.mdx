@@ -4,6 +4,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 A workbook with no notes is a riddle. Six months in, nobody can answer "why is row 14 highlighted yellow?", "what does the Spend column actually include?", "who decided to filter out FR?". The data is there, the reasoning that produced it is not. Notes and comments are the workbook's documentation, and on a multi-sheet IMPORTRANGE-fed dashboard they are the only thing standing between you and a four-hour archaeology session.
 
+Think of notes as the workbook's column dictionary, and comments as its Slack thread. Different jobs, different tools. Mix them up and you'll find lineage hidden in a resolved comment or temporary review questions stuck in permanent notes. Pick the right one for each kind of message and the workbook becomes self-documenting.
+
 ## Three flavors, three jobs
 
 Sheets exposes three separate annotation surfaces. They look similar in the UI; they are very different things.
@@ -16,6 +18,30 @@ Sheets exposes three separate annotation surfaces. They look similar in the UI; 
 
 The grader for this lesson reads **notes**, not comments. The Sheets API exposes notes directly on the cell (we read them with `cellNote`). Threaded comments live on the Drive Comments API surface, which is a different access path and not part of the in-sheet metadata. Notes travel with the cell on copy-paste; comments do not, and neither do suggested edits.
 
+<QuickCheck
+  question="You need to document that 'Revenue' in column G is net of platform fees (gross is in column J). The documentation should travel with the cell forever, not get resolved away. Which annotation surface?"
+  options={[
+    {
+      id: "a",
+      label: "A comment on G1, assigned to the team lead",
+      correct: false,
+      explanation: "Comments are conversational. They can be resolved (which hides them) and don't survive Make-a-Copy. Lineage that disappears six months later isn't documentation.",
+    },
+    {
+      id: "b",
+      label: "A note on G1 explaining 'Net revenue after platform fees. Gross is in column J.'",
+      correct: true,
+      explanation: "Notes are durable. They live on the cell, travel with copy-paste, and can't be 'resolved away'. This is the right surface for definitions, lineage, and unit reminders.",
+    },
+    {
+      id: "c",
+      label: "A suggested edit replacing G1 with the explanation",
+      correct: false,
+      explanation: "Suggested edits propose value changes. Replacing the column header text would break every formula that references the header.",
+    },
+  ]}
+/>
+
 ## Notes are the team's lineage tags
 
 Every header cell on every Aggregator tab gets a note. The note answers three questions a future maintainer will ask:
@@ -27,6 +53,31 @@ Every header cell on every Aggregator tab gets a note. The note answers three qu
 Three sentences, written once when the column is created, that pay back every single time someone new opens the workbook. The team's IMPORTRANGE-heavy stack makes this non-optional: when an upstream sheet rename breaks `Spend` and the column suddenly imports `Revenue` instead, the note is the fastest way to figure out what the column was *supposed* to mean.
 
 A second pattern: every "magic constant" cell gets a note. If `J1` holds `0.27` and that number is the platform fee multiplier, a note saying "Platform fee, sourced from Q1 2026 contract, see Drive folder /contracts/2026-q1" turns a mystery number into a defensible one.
+
+<Compare>
+  <ComparePanel label="Mystery cell: undocumented magic number" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Cell J1: 0.27
+
+Six months later:
+  "Why are we multiplying by 0.27?"
+  "Is this still the right fee?"
+  "Where did this come from?"
+
+No way to know without archaeology.`}</code></pre>
+    <p className="mt-2 text-sm">Bare constants in formulas are the second-biggest source of workbook decay (after broken IMPORTRANGE). The number is right today, undefendable tomorrow.</p>
+  </ComparePanel>
+  <ComparePanel label="Documented cell: self-explaining" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Cell J1: 0.27
+Note on J1:
+  "Platform fee, Q1 2026 contract.
+   Source: /contracts/2026-q1/taboola.pdf
+   Last updated 2026-01-15."
+
+Hover J1, read the note, know exactly
+what this number is and why.`}</code></pre>
+    <p className="mt-2 text-sm">A three-line note turns institutional knowledge into something every future maintainer can read. Cost: 30 seconds at column creation. Benefit: every audit, every debug, every onboarding.</p>
+  </ComparePanel>
+</Compare>
 
 ## Comments are for review, not documentation
 
@@ -45,6 +96,30 @@ Switch the editing menu from `Editing` to `Suggesting` and every change you type
 - **Brief tracker contributions.** The Briefs sheet is owned by the strategy lead. Buyers don't have edit access; they have suggest access. A buyer suggesting a vertical change submits a suggestion, the strategy lead approves or rejects, and the audit trail is automatic.
 
 If you find yourself reaching for Suggesting mode for anything beyond that pattern, you probably want a comment instead.
+
+<QuickCheck
+  question="Your teammate left a comment last week asking 'is this CPC right?'. You've verified it is. What's the right next move?"
+  options={[
+    {
+      id: "a",
+      label: "Reply 'yes, verified' and resolve the comment",
+      correct: true,
+      explanation: "Reply confirms the answer; resolve closes the loop. The comment thread is the audit trail. Anyone scrolling back sees the question, the verification, and the closure.",
+    },
+    {
+      id: "b",
+      label: "Edit the cell to add a note saying 'CPC verified 2026-05-10'",
+      correct: false,
+      explanation: "Mixes notes and comments. The verification is a one-time review answer, not a permanent lineage definition. Resolving the comment is the right closure mechanism.",
+    },
+    {
+      id: "c",
+      label: "Delete the comment so it doesn't clutter the workbook",
+      correct: false,
+      explanation: "Deletion destroys the audit trail. Resolve, don't delete. Resolved comments are hidden by default but still searchable.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
