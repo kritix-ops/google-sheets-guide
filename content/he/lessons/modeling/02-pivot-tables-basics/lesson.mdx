@@ -4,51 +4,183 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 pivot table לוקח לוג ארוך וצר והופך אותו לסיכום קצר ורחב. אותם נתונים, צורה אחרת. ברגע שיודעים לקרוא pivot, חצי מעבודת ה-dashboard באדטק היא "מה ה-pivot הנכון לשאלה הזו". השיעור הזה מלמד את ארבעת הסלוטים ב-Pivot editor, Rows, Columns, Values, Filters, ואת פתח המילוט של calculated fields כשארבעת הסלוטים לא מספיקים.
 
+זו הפעם הראשונה ב-Track 2 שאתם פוגשים פיצ'ר שעושה את העבודה של עשרות נוסחאות. pivot הוא מה שמחליף קיר של `SUMIFS`, `COUNTIFS` ו-`AVERAGEIFS` כשהשאלה היא "תפרק לי את המספר הזה לפי buyer ופלטפורמה". ה-trade-off הוא אינטראקטיביות: pivot מוגדר בדיאלוג, לא בנוסחה, אז אי אפשר לעשות עליו תבניות באותה קלות. הניצחון הוא הצורה: pivot אחד מספק מטריצת 2-D ש-50 נוסחאות לא היו בונות ביד.
+
 ## המודל המנטלי
 
-ל-pivot יש טווח מקור אחד וארבעה סלוטים של תצורה. המקור הוא תמיד מלבן של שורות גולמיות עם שורת כותרת אחת בראש (תבנית "המלבן הגולמי" של שיעור 1 היא מה שמזין pivots בצורה נקייה).
+ל-pivot יש טווח מקור אחד וארבעה סלוטי הגדרה. המקור הוא תמיד מלבן של שורות גולמיות עם שורת כותרת אחת בראש (הדפוס של "המלבן הגולמי" מלסון 2.1 הוא מה שמזין pivots בצורה נקייה).
 
 | סלוט | מה הוא עושה | דוגמה |
 |---|---|---|
-| **Rows** | מקבץ שורות, שורת תוצאה אחת לכל ערך מובחן | שם media buyer |
-| **Columns** | מקבץ עמודות, עמודת תוצאה אחת לכל ערך מובחן | פלטפורמה |
-| **Values** | מבצע אגרגציה בתוך כל תא Row × Column | SUM של Revenue |
-| **Filters** | פוסל שורות מקור לפני שהאגרגציה רצה | Country = "DE" |
+| **Rows** | מקבץ שורות; שורת תוצאה אחת לכל ערך ייחודי | שם של media buyer |
+| **Columns** | מקבץ עמודות; עמודת תוצאה אחת לכל ערך ייחודי | פלטפורמה |
+| **Values** | מבצע אגרגציה בתוך כל תא של Row × Column | SUM של Revenue |
+| **Filters** | מסנן שורות מקור לפני שהאגרגציה רצה | Country = "DE" |
 
-הפלט של ה-pivot הוא רשת Rows × Columns עם ה-Values מסוכמים בתוך כל תא. עם Buyer ב-Rows, Platform ב-Columns, ו-SUM(Revenue) כ-value, מקבלים מטריצת revenue של media buyer מול פלטפורמה. זאת הצורה הכי שכיחה ב-dashboards של אדטק.
+הפלט של ה-pivot הוא רשת של Rows × Columns עם ה-Values מסוכמים בתוך כל תא. עם Buyer ב-Rows, Platform ב-Columns, ו-SUM(Revenue) כ-value, מקבלים מטריצת revenue של buyer-לפי-פלטפורמה. זו הצורה הכי נפוצה של dashboard באדטק.
 
-## עיגון של pivot
+<MiniGrid
+  data={[
+    ["Buyer", "Google", "Taboola", "Outbrain", "MediaGo", "TikTok"],
+    ["Yoav Cohen", 1099.30, "", 401.90, "", ""],
+    ["Dina Dayan", 412.15, 198.40, "", "", ""],
+    ["Maya Bar", "", "", 1124.60, 461.20, ""],
+    ["Gal Vered", "", "", "", "", 322.05],
+  ]}
+  caption="הצורה של pivot Buyer × Platform עם SUM(Revenue) כ-value. תאים ריקים אומרים שאין קמפיינים של אותו צירוף buyer/פלטפורמה."
+/>
 
-`Insert → Pivot table` פותח את הדיאלוג. בוחרים "Existing sheet" ובוחרים תא ריק (אנחנו משתמשים ב-K1 בשיעור הזה) כדי שה-pivot יישב ליד הלוג הגולמי בלי לדרוס אותו. התא שבוחרים הופך ל-**עוגן**, הפינה השמאלית-עליונה של ה-pivot, וה-pivot גדל למטה ולימין משם.
+<QuickCheck
+  question="רוצים לענות על 'איך ה-spend מתחלק בין מדינות לכל buyer ברבעון הזה?'. מה הולך בכל סלוט?"
+  options={[
+    {
+      id: "a",
+      label: "Rows: Buyer, Columns: Country, Values: SUM Spend, Filters: Date in Q2",
+      correct: true,
+      explanation: "Buyer ב-Rows נותן שורה לכל buyer. Country ב-Columns נותן עמודה לכל מדינה. SUM Spend מצרף את ה-spend לכל תא buyer-מדינה. ה-filter על Date מצמצם את המקור ל-Q2 לפני האגרגציה.",
+    },
+    {
+      id: "b",
+      label: "Rows: Country, Columns: Spend, Values: Buyer, Filters: Date in Q2",
+      correct: false,
+      explanation: "Spend הוא מדד מספרי, לא קטגוריה. הוא שייך ל-Values, לא ל-Columns. Buyer הוא קטגוריה, לא מדד. חוסר התאמה של סלוטים.",
+    },
+    {
+      id: "c",
+      label: "Rows: Buyer, Columns: Country, Values: Spend (בלי אגרגציה), Filters: Date in Q2",
+      correct: false,
+      explanation: "Values תמיד נושא אגרגציה. 'Spend' לבד הוא דו-משמעי: SUM, AVERAGE, MAX? ה-Pivot editor מכריח לבחור.",
+    },
+  ]}
+/>
 
-עוגן ה-pivot מיוחד: התא עצמו מחזיק את הגדרת ה-pivot, לא ערך. קריאה של K1 מ-script מחזירה את ה-config של ה-pivot, לא את המספר המוצג. שאר התאים שה-pivot ממלא (K2, K3, L1, L2…) מחזיקים את ה-`effectiveValue`-ים המחושבים שאפשר לקרוא כמו כל תא רגיל.
+## לעגן pivot
 
-## פונקציות summarize
+`Insert → Pivot table` פותח את הדיאלוג. בוחרים "Existing sheet" ובוחרים תא ריק (במקרה הזה K1) כדי שה-pivot יישב ליד הלוג הגולמי בלי לדרוס אותו. התא שבוחרים הופך ל-**anchor** (השמאלי-עליון של ה-pivot) וה-pivot גדל ממנו למטה ולימין.
 
-הסלוט Values לא מקבל רק עמודה, הוא מקבל עמודה **בנוסף** לפונקציה. הפונקציה קובעת מה כל תא מציג. האפשרויות הראשיות:
+ה-anchor של ה-pivot מיוחד: התא עצמו מכיל את הגדרת ה-pivot (לא ערך). קריאה של K1 מ-script מחזירה את ה-config של ה-pivot, לא את המספר המוצג. שאר התאים שה-pivot ממלא (K2, K3, L1, L2, ...) מחזיקים את ה-`effectiveValue`s המחושבים שאפשר לקרוא כמו תא רגיל.
 
-| פונקציה | מה היא עושה | מתי מושיטים יד |
+<Compare>
+  <ComparePanel label="שבור: מעוגן מעל הנתונים" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Source: A1:G61
+Anchor: A1
+
+תוצאה: ה-pivot דורס את המלבן הגולמי.
+SUMIFS שקוראים A:G נשברים. Charts שמצביעים
+על A1:G61 עכשיו מצביעים על תאי פלט של pivot.`}</code></pre>
+    <p className="mt-2 text-sm">ה-pivot גדל למטה ולימין מה-anchor שלו. עיגון בתוך טווח המקור הורס את המקור.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד: מעוגן ליד הנתונים" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Source: A1:G61
+Anchor: K1   (עם H/I/J כחיץ)
+
+תוצאה: ה-pivot ממלא מ-K1 למטה ולימין.
+המלבן הגולמי לא נוגע. הוספת שורות למקור
+מרחיבה את המלבן, לא את ה-pivot.`}</code></pre>
+    <p className="mt-2 text-sm">תמיד מעגנים pivot במרחב ריק לפחות עמודה אחת מהמקור. עמודת החיץ גם מפרידה ויזואלית בין "raw" ל-"summary" כמו בלסון 2.1.</p>
+  </ComparePanel>
+</Compare>
+
+## פונקציות סיכום
+
+הסלוט של Values לא רק לוקח עמודה, הוא לוקח עמודה **בתוספת** פונקציה. הפונקציה קובעת מה כל תא מציג. האפשרויות העיקריות:
+
+| פונקציה | מה היא עושה | מתי לבחור בה |
 |---|---|---|
-| `SUM` | מחבר את הערכים | סך spend, סך revenue, סך clicks |
-| `COUNTA` | סופר תאים לא ריקים | מספר קמפיינים לכל media buyer |
-| `COUNTUNIQUE` | סופר ערכים מובחנים | מספר verticals מובחנים לכל פלטפורמה |
-| `AVERAGE` | ממוצע | CPC ממוצע על פני הריצות של media buyer |
-| `MIN` / `MAX` | הערך הקטן/גדול ביותר | spend של היום הגרוע, revenue של היום הטוב |
-| `MEDIAN` | הערך האמצעי | revenue "טיפוסי" עמיד (מתעלם מ-outliers, בניגוד לממוצע) |
+| `SUM` | מסכמת את הערכים | סך spend, סך revenue, סך clicks |
+| `COUNTA` | סופרת תאים לא-ריקים | מספר קמפיינים לכל buyer |
+| `COUNTUNIQUE` | סופרת ערכים ייחודיים | מספר verticals שונים לכל פלטפורמה |
+| `AVERAGE` | ממוצע | CPC ממוצע על פני הריצות של buyer |
+| `MIN` / `MAX` | ערך קטן / גדול ביותר | ה-spend של היום הגרוע, ה-revenue של היום הטוב |
+| `MEDIAN` | הערך האמצעי | revenue "טיפוסי" עמיד (מתעלם מ-outliers, בניגוד ל-AVERAGE) |
 
-המהלך המקצועי: **`MEDIAN` במקום `AVERAGE` לכל מטריקה עם זנב ארוך של outliers**. יום אחד של בלוקבסטר מושך את הממוצע למעלה, ה-median לא זז. התפלגויות ROI במיוחד מספיק עקומות בשביל שהממוצע יטעה.
+מהלך מקצועי: **`MEDIAN` עדיף על `AVERAGE` לכל מדד עם זנב ארוך של outliers**. יום אחד מטורף מושך את ה-average למעלה; ה-median לא זז. בהתפלגויות של ROI במיוחד מספיק skewed כדי שה-average יטעה.
+
+<Compare>
+  <ComparePanel label="AVERAGE: מושפע מ-outliers" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Buyer revenue per campaign:
+[80, 95, 110, 88, 102, 4200]
+AVERAGE ➜ 779.17`}</code></pre>
+    <p className="mt-2 text-sm">ה-blockbuster האחד (4200) מושך את ה-average למעלה פי 7. דווח בתור "revenue טיפוסי לקמפיין", זה מטעה. רוב הקמפיינים של ה-buyer הם סביב 100.</p>
+  </ComparePanel>
+  <ComparePanel label="MEDIAN: עמיד ל-outliers" tone="positive">
+    <pre className="font-mono text-xs"><code>{`אותם שישה ערכים:
+[80, 88, 95, 102, 110, 4200]
+MEDIAN ➜ 98.5`}</code></pre>
+    <p className="mt-2 text-sm">הערך האמצעי (בין 95 ל-102) לא מושפע מ-outlier של 4200. תואם את הקריאה של העין: "טיפוסי" סביב 100. השתמשו בזה לכל מדד שההתפלגות שלו עם זנב ארוך.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="הסלוט Values שלכם מוגדר ל-AVERAGE של ROI. יום אחד blockbuster עם 9× ROI מעלה את ה-average המוצג של ה-buyer מעל 2.5×, אבל ה-median היומי של ה-ROI שלו הוא 0.8×. איזו אגרגציה אומרת את הסיפור האמיתי יותר ל-dashboard של 'יום טיפוסי'?"
+  options={[
+    {
+      id: "a",
+      label: "AVERAGE, הוא כולל את כל נקודות המידע, אז זו התמונה הכי שלמה",
+      correct: false,
+      explanation: "AVERAGE כולל כל נקודה אבל משקלל אותן באופן שווה. outlier אחד עם עוצמה קיצונית שולט. 'הכי שלם' זה לא 'הכי מייצג'.",
+    },
+    {
+      id: "b",
+      label: "MEDIAN, הוא מחזיר את הערך האמצעי, מה שמייצג יותר כשההתפלגות עם outliers",
+      correct: true,
+      explanation: "MEDIAN הוא ברירת המחדל הנכונה לכל התפלגות skewed. יום ה-blockbuster אמיתי אבל נדיר; ה-median 0.8× הוא איך 'יום טיפוסי' באמת נראה.",
+    },
+    {
+      id: "c",
+      label: "MAX, הוא מראה את הטוב ביותר שה-buyer יכול לעשות, וזה מה שחשוב לתכנון",
+      correct: false,
+      explanation: "MAX עונה על 'מה הטוב ביותר שהם עשו אי פעם', לא 'מה טיפוסי'. שאלה אחרת. השתמשו ב-MAX לציד outliers, לא לכותרת של 'יום טיפוסי'.",
+    },
+  ]}
+/>
 
 ## Calculated fields: פתח המילוט
 
-כשסלוט Values צריך יחס של שתי עמודות מקור (ROI, ROAS, CPC, מרג'ין), ארבעת הסלוטים הסטנדרטיים לא מכסים את זה. calculated fields כן. ב-Pivot editor, לוחצים על `Values → Add → Calculated field`, וכותבים נוסחה כמו:
+כשהסלוט Values צריך יחס בין שתי עמודות מקור (ROI, ROAS, CPC, margin), ארבעת הסלוטים הסטנדרטיים לא מכסים את זה. Calculated fields כן. ב-Pivot editor, לוחצים על `Values → Add → Calculated field`, וכותבים נוסחה כמו:
 
 ```
 = 'Revenue' / 'Spend'
 ```
 
-שמות בגרשיים יחידים מפנים לכותרות עמודות מקור (case-sensitive). הנוסחה מוערכת **בתוך** האגרגציה של ה-pivot, אז calculated field עבור `'Revenue' / 'Spend'` מחלק את ה-revenue ה**מסוכם** ב-spend ה**מסוכם** לכל תא, וזה מה שרוצים עבור ROI של פורטפוליו לכל צירוף buyer-platform, לא הממוצע של ROI-ים פר-שורה (שהיה מוטה לכיוון שורות עם spend קטן).
+שמות במירכאות בודדות מפנים לכותרות עמודה במקור (case-sensitive). הנוסחה מחושבת **בתוך** האגרגציה של ה-pivot, אז calculated field של `'Revenue' / 'Spend'` מחלק את ה-revenue **המסוכם** ב-spend **המסוכם** לכל תא, וזה מה שרוצים ל-ROI portfolio לכל צירוף buyer-פלטפורמה, לא ממוצע של יחסי-שורה (שהיה מושך לכיוון שורות עם spend קטן).
 
-המלכודת: calculated fields משתמשים ב-SUM כברירת מחדל. אם צריך אגרגציה אחרת בתוך ה-calculated field, כותבים אותה במפורש: `=SUMIF('Country','DE','Revenue') / SUMIF('Country','DE','Spend')`. רוב הזמן, ברירת המחדל של SUM-של-הנוסחה היא מה שרוצים, ואפשר להשאיר את הנוסחה פשוטה.
+הצרה: calculated fields משתמשים ב-SUM כברירת מחדל. אם צריך אגרגציה אחרת בתוך ה-calculated field, צריך לכתוב אותה במפורש: `=SUMIF('Country','DE','Revenue') / SUMIF('Country','DE','Spend')`. רוב הזמן ברירת המחדל של SUM-של-הנוסחה היא מה שרוצים, ואפשר להשאיר את הנוסחה פשוטה.
+
+<Compare>
+  <ComparePanel label="שבור: חוסר התאמת case" tone="negative">
+    <pre className="font-mono text-xs"><code>{`= 'revenue' / 'spend'`}</code></pre>
+    <p className="mt-2 text-sm">הכותרות במקור הן <code>Revenue</code> ו-<code>Spend</code> (title case). references באותיות קטנות מחזירים <code>#REF!</code> בתאי הפלט של ה-pivot. בשקט. אין באנר שמסביר.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד: התאמה מדויקת" tone="positive">
+    <pre className="font-mono text-xs"><code>{`= 'Revenue' / 'Spend'`}</code></pre>
+    <p className="mt-2 text-sm">טקסט הכותרת מתאים בדיוק. ה-calculated field מחושב כ-<code>SUM(Revenue) / SUM(Spend)</code> לכל תא של ה-pivot, ה-ROI של ה-portfolio שאתם רוצים.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="מוסיפים calculated field 'ROI' = 'Revenue' / 'Spend' ל-pivot של buyer-לפי-פלטפורמה. על פני כל הקמפיינים של Yoav ב-Google, סך ה-spend הוא $2000 וסך ה-revenue הוא $3000. מה מציג התא Yoav/Google?"
+  options={[
+    {
+      id: "a",
+      label: "1.5 (הממוצע של כל ערכי ה-ROI ברמת שורה ב-Yoav/Google)",
+      correct: false,
+      explanation: "Calculated fields לא ממצעים יחסים ברמת שורה. הם מחשבים SUM(Revenue) / SUM(Spend) לכל תא. ערך התא הוא SUM(3000) / SUM(2000) = 1.5, מה שבמקרה תואם את הממוצע פר-שורה כאן רק במקרה.",
+    },
+    {
+      id: "b",
+      label: "1.5 (SUM של revenue חלקי SUM של spend על פני השורות של Yoav ב-Google)",
+      correct: true,
+      explanation: "ערך נכון, סיבה נכונה. Calculated fields עם התנהגות ברירת המחדל עושים SUM(מונה) / SUM(מכנה), שזה היחס של ה-portfolio. 3000 / 2000 = 1.5.",
+    },
+    {
+      id: "c",
+      label: "התא מחזיר שגיאת #DIV/0! כי אי אפשר לחלק aggregates",
+      correct: false,
+      explanation: "בהחלט אפשר לחלק aggregates. בדיוק לזה calculated fields נבנו.",
+    },
+  ]}
+/>
 
 ## עכשיו לעבודה אמיתית
 
@@ -57,27 +189,28 @@ pivot table לוקח לוג ארוך וצר והופך אותו לסיכום ק�
   caption="60 שורות של נתוני קמפיינים ממלאות את A1:G61. ה-pivot יישב ב-K1, עם עמודות H/I/J ריקות שמפרידות אותו מהלוג הגולמי."
 />
 
-לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. ואז עוגנים pivot table ב-`K1`:
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. ואז עגנו pivot table ב-`K1`:
 
 - **טווח מקור**: `Campaigns!A1:G61` (המלבן הגולמי החסום).
 - **Rows**: Buyer.
 - **Columns**: Platform.
 - **Values**: SUM של Revenue.
 
-התוצאה היא מטריצת ה-revenue של media buyer מול פלטפורמה שכל dashboard צוותי פותח איתה. ה-grader קורא את הגדרת ה-pivot חזרה דרך ה-Sheets API ומאמת שכל סלוט מוגדר נכון. Layout (horizontal לעומת vertical) ו-calculated fields נוחתים בשיעור 3.
+התוצאה היא מטריצת ה-revenue של buyer-לפי-פלטפורמה שכל dashboard של הצוות פותח בה. ה-grader קורא את הגדרת ה-pivot חזרה דרך Sheets API ומאמת שכל סלוט מוגדר נכון. Layout (אופקי לעומת אנכי) ו-calculated fields מגיעים בלסון 2.3.
 
 ## נפוץ בשטח
 
 ב-spreadsheets האמיתיים של הצוות:
 
-- **ה-pivot הפותח של כל סקירה שבועית**: Rows = Buyer, Columns = Platform, Values = SUM Revenue. מבט אחד אומר מי רץ איפה ובאיזה סקייל.
-- **ה-pivot של תמהיל verticals**: Rows = Vertical, Values = SUM Spend, COUNTA Campaigns, AVERAGE ROI. שלושה values נערמים ב-pivot אחד. אומר "לאן הכסף הולך, וזה עובד".
-- **ה-pivot לפי מדינה לתקצוב**: Rows = Country, Columns = Quarter (calculated field שמקבץ את עמודת ה-Date), Values = SUM Spend. הקצאת geo רבעונית בצורה אחת.
+- **ה-pivot הפותח בכל סקירה שבועית**: Rows = Buyer, Columns = Platform, Values = SUM Revenue. מבט אחד אומר לכם מי רץ איפה ובאיזה היקף.
+- **ה-pivot של תמהיל ה-verticals**: Rows = Vertical, Values = SUM Spend, COUNTA Campaigns, AVERAGE ROI. שלושה ערכים נערמים ב-pivot אחד. אומר לכם "לאן הכסף הולך, והאם זה עובד".
+- **ה-pivot של מדינות לתקצוב**: Rows = Country, Columns = Quarter (calculated field שמקבץ את עמודת ה-Date), Values = SUM Spend. הקצאה גיאוגרפית רבעונית בצורה אחת.
 
 ## מלכודות מקצועיות
 
-- **מקור pivot שמצביע על עמודה מלאה** (`Campaigns!A:G`). ה-pivot מחשב מחדש על פני מיליון שורות ריקות בכל עריכה. חוסמים את המקור: `A1:G61`, `A1:G500`, מה שמתאים לנתונים בפועל.
-- **עריכה של הלוג הגולמי תחת pivot חי** מסדרת מחדש את הקיבוצים של ה-pivot. שמות media buyer חדשים מופיעים כשורות חדשות, פלטפורמות חדשות מופיעות כעמודות חדשות. זה בדרך כלל טוב, אבל אם ה-pivot הוא הבסיס לדוח יציב במורד הזרם, מקפיאים את טווח המקור או מעתיקים את פלט ה-pivot לטווח סטטי.
-- **calculated fields שמפנים לכותרת עמודה עם רווח** חייבים להשתמש באיות וב-case בדיוק. `'Total Spend'` שונה מ-`'Total spend'`.
-- **`AVERAGE` של יחס הוא לא היחס של ממוצעים**. calculated `'Revenue'/'Spend'` מחזיר SUM(Revenue) / SUM(Spend) לכל תא, וזה היחס של הפורטפוליו. אם רוצים את הממוצע של יחסי פר-שורה, מחשבים את היחס בעמודת מקור קודם, ואז SUM או AVERAGE אותו.
-- **Pivots לא שורדים copy-paste בצורה נקייה**. העתקה של טווח שמכיל תאי פלט של pivot מדביקה ערכים סטטיים, ה-pivot לא נעגן מחדש ביעד. כדי לשכפל pivot, יוצרים אותו מחדש מהמקור.
+- **מקור pivot שמצביע על עמודה מלאה** (`Campaigns!A:G`). ה-pivot מחשב מחדש מול מיליון שורות ריקות בכל עריכה. חוסמים את המקור: `A1:G61`, `A1:G500`, מה שמתאים לנתונים האמיתיים.
+- **עריכת הלוג הגולמי תחת pivot חי** מסדרת מחדש את הקיבוצים של ה-pivot. שמות buyer חדשים מופיעים כשורות חדשות; פלטפורמות חדשות מופיעות כעמודות חדשות. זה בדרך כלל טוב, אבל אם ה-pivot הוא הבסיס לדוח יציב במורד הזרם, מקפיאים את טווח המקור או מעתיקים את פלט ה-pivot לטווח סטטי.
+- **Calculated fields שמפנים לכותרת עמודה שמכילה רווח** חייבים להשתמש באיות ובאותיות מדויקים. `'Total Spend'` שונה מ-`'Total spend'`.
+- **`AVERAGE` של יחס הוא לא יחס של ממוצעים**. Calculated `'Revenue'/'Spend'` מחזיר SUM(Revenue) / SUM(Spend) לכל תא, שזה היחס של ה-portfolio. אם רוצים את הממוצע של יחסי-שורה, מחשבים את היחס בעמודת מקור קודם, ואז SUM או AVERAGE עליה.
+- **Pivots לא שורדים copy-paste נקי**. העתקה של טווח שמכיל תאי פלט של pivot מדביקה ערכים סטטיים; ה-pivot לא מתעגן מחדש ביעד. כדי לשכפל pivot, יוצרים אותו מחדש מהמקור.
+- **מקורות שמוזנים מ-`IMPORTRANGE` מתרחבים בלי אזהרה**. כשגיליון המקור מוסיף שורות, טווח המקור של ה-pivot עשוי לא להתרחב אם חסמתם אותו. או שמגדירים את המקור בנדיבות (`A1:G5000`) או מקבלים ש"אזור הנתונים" של ה-pivot צריך בדיקה חוזרת אחרי כל שינוי schema במעלה הזרם.

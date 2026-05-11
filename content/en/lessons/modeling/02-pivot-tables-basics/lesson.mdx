@@ -4,9 +4,11 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 A pivot table takes a long, narrow log and turns it into a short, wide summary. Same data, different shape. Once you can read a pivot, half the dashboard work in adtech is "what's the right pivot for this question". This lesson teaches the four slots in the Pivot editor (Rows, Columns, Values, Filters) and the calculated-field escape hatch when the four slots aren't enough.
 
+For the first time in Track 2, you're meeting a feature that does the work of dozens of formulas. A pivot is what replaces a wall of `SUMIFS`, `COUNTIFS`, and `AVERAGEIFS` when the question is "break this number down by buyer and platform". The trade-off is interactivity: a pivot is configured in a dialog, not in a formula, so you can't templatize one with the same ease. The win is shape: one pivot delivers a 2-D matrix that would take 50 formulas to assemble by hand.
+
 ## The mental model
 
-A pivot has one source range and four configuration slots. The source is always a rectangle of raw rows with a single header row at the top (lesson 1's "raw rectangle" pattern is what feeds pivots cleanly).
+A pivot has one source range and four configuration slots. The source is always a rectangle of raw rows with a single header row at the top (lesson 2.1's "raw rectangle" pattern is what feeds pivots cleanly).
 
 | Slot | What it does | Example |
 |---|---|---|
@@ -17,11 +19,67 @@ A pivot has one source range and four configuration slots. The source is always 
 
 The pivot's output is a Rows × Columns grid with the Values aggregated inside each cell. With Buyer on Rows, Platform on Columns, and SUM(Revenue) as the value, you get a buyer-by-platform revenue matrix. That's the single most common shape in adtech dashboards.
 
+<MiniGrid
+  data={[
+    ["Buyer", "Google", "Taboola", "Outbrain", "MediaGo", "TikTok"],
+    ["Yoav Cohen", 1099.30, "", 401.90, "", ""],
+    ["Dina Dayan", 412.15, 198.40, "", "", ""],
+    ["Maya Bar", "", "", 1124.60, 461.20, ""],
+    ["Gal Vered", "", "", "", "", 322.05],
+  ]}
+  caption="The shape of a Buyer × Platform pivot with SUM(Revenue) as the value. Empty cells mean no campaigns of that buyer/platform combination."
+/>
+
+<QuickCheck
+  question="You want to answer 'How does spend split between countries for each buyer this quarter?'. What goes in each slot?"
+  options={[
+    {
+      id: "a",
+      label: "Rows: Buyer, Columns: Country, Values: SUM Spend, Filters: Date in Q2",
+      correct: true,
+      explanation: "Buyer on Rows gives one row per buyer. Country on Columns gives one column per country. SUM Spend aggregates the spend per buyer-country cell. The Date filter scopes the source to Q2 before aggregation.",
+    },
+    {
+      id: "b",
+      label: "Rows: Country, Columns: Spend, Values: Buyer, Filters: Date in Q2",
+      correct: false,
+      explanation: "Spend is a numeric metric, not a category. It belongs in Values, not Columns. Buyer is a category, not a metric. Slot mismatch.",
+    },
+    {
+      id: "c",
+      label: "Rows: Buyer, Columns: Country, Values: Spend (no aggregation), Filters: Date in Q2",
+      correct: false,
+      explanation: "Values always carries an aggregation. 'Spend' alone is ambiguous: SUM, AVERAGE, MAX? The Pivot editor forces you to pick.",
+    },
+  ]}
+/>
+
 ## Anchoring a pivot
 
 `Insert → Pivot table` opens the dialog. Pick "Existing sheet" and choose an empty cell (we use K1 in this lesson) so the pivot sits next to the raw log without overwriting it. The cell you choose becomes the **anchor** (the top-left of the pivot) and the pivot grows down and right from there.
 
-The pivot anchor is special: the cell itself contains the pivot definition (not a value). Reading K1 from a script returns the pivot config, not the displayed number. The other cells the pivot fills (K2, K3, L1, L2, …) hold the calculated `effectiveValue`s you can read like any normal cell.
+The pivot anchor is special: the cell itself contains the pivot definition (not a value). Reading K1 from a script returns the pivot config, not the displayed number. The other cells the pivot fills (K2, K3, L1, L2, ...) hold the calculated `effectiveValue`s you can read like any normal cell.
+
+<Compare>
+  <ComparePanel label="Broken: anchored on top of data" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Source: A1:G61
+Anchor: A1
+
+Result: pivot overwrites the raw rectangle.
+SUMIFS that read A:G break. Charts pointing at
+A1:G61 now point at pivot output cells.`}</code></pre>
+    <p className="mt-2 text-sm">The pivot grows down and right from its anchor. Anchoring inside the source range destroys the source.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: anchored beside the data" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Source: A1:G61
+Anchor: K1   (with H/I/J as a buffer)
+
+Result: pivot fills K1 down and right.
+Raw rectangle is untouched. Adding rows to
+the source extends the rectangle, not the pivot.`}</code></pre>
+    <p className="mt-2 text-sm">Always anchor a pivot in empty space at least one column away from the source. The buffer column also visually separates "raw" from "summary" as in lesson 2.1.</p>
+  </ComparePanel>
+</Compare>
 
 ## Summarize functions
 
@@ -38,6 +96,45 @@ The Values slot doesn't just take a column, it takes a column **plus** a functio
 
 The pro move: **`MEDIAN` over `AVERAGE` for any metric that has long-tail outliers**. One blockbuster day pulls the average up; the median doesn't move. ROI distributions especially are skewed enough that the average misleads.
 
+<Compare>
+  <ComparePanel label="AVERAGE: skewed by outliers" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Buyer revenue per campaign:
+[80, 95, 110, 88, 102, 4200]
+AVERAGE ➜ 779.17`}</code></pre>
+    <p className="mt-2 text-sm">The one blockbuster (4200) pulls the average up by 7×. Reported as "typical revenue per campaign", it's misleading. Most of the buyer's campaigns are around 100.</p>
+  </ComparePanel>
+  <ComparePanel label="MEDIAN: outlier-resistant" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Same six values:
+[80, 88, 95, 102, 110, 4200]
+MEDIAN ➜ 98.5`}</code></pre>
+    <p className="mt-2 text-sm">The middle value (between 95 and 102) is unaffected by the 4200 outlier. Matches the eye's read of "typical": around 100. Use this for any metric whose distribution has a long tail.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="Your pivot Values slot is set to AVERAGE of ROI. One blockbuster day with 9× ROI lifts the displayed average for the buyer above 2.5×, but their daily ROI median is 0.8×. Which aggregation tells the truer story for a 'typical day' dashboard?"
+  options={[
+    {
+      id: "a",
+      label: "AVERAGE — it includes every data point, so it's the most complete picture",
+      correct: false,
+      explanation: "AVERAGE includes every point but weights them equally. One outlier with extreme magnitude dominates. 'Most complete' is not 'most representative'.",
+    },
+    {
+      id: "b",
+      label: "MEDIAN — it returns the middle value, which is more representative when the distribution has outliers",
+      correct: true,
+      explanation: "MEDIAN is the right default for any skewed distribution. The blockbuster day is real but rare; the median 0.8× is what 'a typical day' actually looks like.",
+    },
+    {
+      id: "c",
+      label: "MAX — it shows the best the buyer can do, which is what matters for planning",
+      correct: false,
+      explanation: "MAX answers 'what's the best they've ever done', not 'what's typical'. Different question. Use MAX for outlier hunting, not for a 'typical day' headline.",
+    },
+  ]}
+/>
+
 ## Calculated fields: the escape hatch
 
 When a Values slot needs a ratio of two source columns (ROI, ROAS, CPC, margin), the four standard slots don't cover it. Calculated fields do. In the Pivot editor, click `Values → Add → Calculated field`, and write a formula like:
@@ -49,6 +146,41 @@ When a Values slot needs a ratio of two source columns (ROI, ROAS, CPC, margin),
 Names in single quotes reference source column headers (case-sensitive). The formula is evaluated **inside** the pivot's aggregation, so a calculated field for `'Revenue' / 'Spend'` divides the **summed** revenue by the **summed** spend per cell, which is what you want for a portfolio ROI per buyer-platform combo, not the average of per-row ROIs (which would skew toward small-spend rows).
 
 The gotcha: calculated fields use SUM by default. If you need a different aggregation inside the calculated field, write it explicitly: `=SUMIF('Country','DE','Revenue') / SUMIF('Country','DE','Spend')`. Most of the time, the default SUM-of-the-formula is what you want, and you can leave the formula simple.
+
+<Compare>
+  <ComparePanel label="Broken: case mismatch" tone="negative">
+    <pre className="font-mono text-xs"><code>{`= 'revenue' / 'spend'`}</code></pre>
+    <p className="mt-2 text-sm">The source headers are <code>Revenue</code> and <code>Spend</code> (title case). Lowercase references return <code>#REF!</code> in the pivot output cells. Silently. No banner explains it.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: exact match" tone="positive">
+    <pre className="font-mono text-xs"><code>{`= 'Revenue' / 'Spend'`}</code></pre>
+    <p className="mt-2 text-sm">Header text matches exactly. Calculated field evaluates as <code>SUM(Revenue) / SUM(Spend)</code> per pivot cell — the portfolio ROI you actually want.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You add a calculated field 'ROI' = 'Revenue' / 'Spend' to a buyer-by-platform pivot. Across all of Yoav's campaigns on Google, total spend is $2000 and total revenue is $3000. What does the Yoav/Google cell show?"
+  options={[
+    {
+      id: "a",
+      label: "1.5 (the average of all per-row ROI values on Yoav/Google)",
+      correct: false,
+      explanation: "Calculated fields don't average row-level ratios. They compute SUM(Revenue) / SUM(Spend) per cell. The cell value is SUM(3000) / SUM(2000) = 1.5, which happens to match the per-row average here only by coincidence.",
+    },
+    {
+      id: "b",
+      label: "1.5 (SUM of revenue divided by SUM of spend across Yoav's Google rows)",
+      correct: true,
+      explanation: "Right value, right reason. Calculated fields with the default behavior do SUM(numerator) / SUM(denominator), which is the portfolio ratio. 3000 / 2000 = 1.5.",
+    },
+    {
+      id: "c",
+      label: "The cell errors with #DIV/0! because you can't divide aggregates",
+      correct: false,
+      explanation: "You absolutely can divide aggregates. That's what calculated fields are built for.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -64,7 +196,7 @@ Click **Start lesson** to provision the campaign log. Then anchor a pivot table 
 - **Columns**: Platform.
 - **Values**: SUM of Revenue.
 
-The result is the buyer-by-platform revenue matrix every team dashboard opens with. The grader reads the pivot definition back via the Sheets API and verifies each slot is configured correctly. Layout (horizontal vs vertical) and calculated fields land in lesson 3.
+The result is the buyer-by-platform revenue matrix every team dashboard opens with. The grader reads the pivot definition back via the Sheets API and verifies each slot is configured correctly. Layout (horizontal vs vertical) and calculated fields land in lesson 2.3.
 
 ## Used in the wild
 
@@ -81,3 +213,4 @@ In the team's actual workbooks:
 - **Calculated fields that reference a column header containing a space** must use the exact spelling and casing. `'Total Spend'` is different from `'Total spend'`.
 - **`AVERAGE` of a ratio is not the ratio of averages**. Calculated `'Revenue'/'Spend'` returns SUM(Revenue) / SUM(Spend) per cell, which is the portfolio ratio. If you want the average of per-row ratios, compute the ratio in a source column first, then SUM or AVERAGE it.
 - **Pivots don't survive copy-paste cleanly**. Copying a range that contains pivot output cells pastes static values; the pivot doesn't re-anchor at the destination. To duplicate a pivot, re-create it from the source.
+- **`IMPORTRANGE`-fed sources expand without warning**. When the upstream sheet adds rows, the pivot's source range may not extend if you bounded it. Either set the source generously (`A1:G5000`) or accept that the pivot's "data area" needs re-checking after every upstream schema change.
