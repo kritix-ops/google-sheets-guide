@@ -3123,6 +3123,160 @@ const REGISTRY = {
     },
     docsUrl: "https://support.google.com/docs/answer/3093343?hl=en",
   },
+
+  HYPERLINK: {
+    name: "HYPERLINK",
+    category: "info",
+    summary: {
+      en: "Turns a cell into a clickable link. The URL can be external (https://...), a mailto:, or an internal anchor (#gid=...&range=A1) that jumps to another tab in the same workbook.",
+      he: "הופך תא ללינק שניתן ללחוץ עליו. ה-URL יכול להיות חיצוני (https://...), mailto:, או anchor פנימי (#gid=...&range=A1) שקופץ לגיליון אחר באותו workbook.",
+    },
+    syntax: "HYPERLINK(url, [link_label])",
+    params: [
+      {
+        name: "url",
+        type: "string",
+        description: {
+          en: "The link target. A literal URL in quotes, or a cell reference holding a URL. Supports http://, https://, mailto:, ftp://, and the internal #gid=ID&range=A1 anchor form. If no protocol is given, Sheets prepends http://.",
+          he: "יעד הקישור. URL מילולי במירכאות, או reference לתא שמכיל URL. תומך ב-http://, https://, mailto:, ftp://, ובצורת ה-anchor הפנימי #gid=ID&range=A1. בלי protocol, Sheets מוסיף http:// אוטומטית.",
+        },
+      },
+      {
+        name: "link_label",
+        type: "string",
+        optional: true,
+        default: "the URL itself",
+        description: {
+          en: "The visible text in the cell. A literal string in quotes, a cell reference, or any expression that returns a string. Pass an empty string to render the cell empty but still clickable.",
+          he: "הטקסט הגלוי בתא. מחרוזת מילולית במירכאות, reference לתא, או כל ביטוי שמחזיר מחרוזת. אפשר להעביר מחרוזת ריקה כדי שהתא ייראה ריק אבל עדיין יהיה ניתן ללחיצה.",
+        },
+      },
+    ],
+    returns: {
+      en: "A clickable cell whose underlying value is the label. Reading the cell programmatically returns the label, not the URL; the URL lives in the cell's formula.",
+      he: "תא ניתן ללחיצה שהערך הבסיסי שלו הוא ה-label. קריאת התא תכנותית מחזירה את ה-label, לא את ה-URL; ה-URL חי בנוסחת התא.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093313?hl=en",
+  },
+
+  VALUE: {
+    name: "VALUE",
+    category: "text",
+    summary: {
+      en: "Coerces a text string that looks like a number, date, or time into a real numeric value. The fix for imports and CSV pastes that arrive with quotes around numbers (\"187.25\") so SUM silently skips them.",
+      he: "כופה המרה של מחרוזת טקסט שנראית כמספר, תאריך, או זמן לערך מספרי אמיתי. התיקון לייבוא ולהדבקת CSV שמגיעים עם מירכאות סביב מספרים (\"187.25\") כך ש-SUM מדלג עליהם בשקט.",
+    },
+    syntax: "VALUE(text)",
+    params: [
+      {
+        name: "text",
+        type: "string",
+        description: {
+          en: "The string to convert. Plain numeric strings (\"187.25\"), date strings (\"2026-05-01\"), and time strings (\"14:30\") all work. Currency-prefixed strings (\"$380.20\") often work on the locale's currency. A string Sheets cannot parse returns #VALUE!. An empty string returns 0.",
+          he: "המחרוזת להמרה. מחרוזות מספריות פשוטות (\"187.25\"), מחרוזות תאריך (\"2026-05-01\"), ומחרוזות שעה (\"14:30\") עובדות. מחרוזות עם prefix של מטבע (\"$380.20\") עובדות לרוב על המטבע של ה-locale. מחרוזת ש-Sheets לא יכול לפענח מחזירה #VALUE!. מחרוזת ריקה מחזירה 0.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number. The inverse operation of TEXT. Pair with IFERROR to keep bad rows from poisoning a SUM: IFERROR(VALUE(E2), 0).",
+      he: "מספר. הפעולה ההפוכה של TEXT. כדאי לשלב עם IFERROR כדי שמשורות גרועות לא יקלקלו SUM: IFERROR(VALUE(E2), 0).",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094220?hl=en",
+  },
+
+  DATEVALUE: {
+    name: "DATEVALUE",
+    category: "date",
+    summary: {
+      en: "Parses a date string into a real date serial number. The everyday fix when IMPORTRANGE, a CSV upload, or a form response delivers a date as text and a date format does nothing.",
+      he: "מפענח מחרוזת תאריך למספר סידורי של תאריך. התיקון היומיומי כש-IMPORTRANGE, העלאת CSV, או תגובת form מספקת תאריך כטקסט ופורמט תאריך לא עוזר.",
+    },
+    syntax: "DATEVALUE(date_string)",
+    params: [
+      {
+        name: "date_string",
+        type: "string",
+        description: {
+          en: "The text representation of a date. Any format the spreadsheet's locale would auto-parse on direct entry (\"2026-05-01\", \"5/1/2026\", \"May 1, 2026\"). Locale-sensitive: \"5/1/2026\" is May 1 on a US locale and January 5 on most others.",
+          he: "ייצוג טקסטואלי של תאריך. כל פורמט שה-locale של ה-spreadsheet היה מפענח אוטומטית בהקלדה ישירה (\"2026-05-01\", \"5/1/2026\", \"May 1, 2026\"). תלוי-locale: \"5/1/2026\" הוא 1 במאי ב-locale אמריקאי, ו-5 בינואר ברוב האחרים.",
+        },
+      },
+    ],
+    returns: {
+      en: "An integer: the date's serial number (days since 1899-12-30). To display as a date, format the cell as DATE. #VALUE! if the string cannot be parsed.",
+      he: "מספר שלם: המספר הסידורי של התאריך (ימים מ-30 בדצמבר 1899). כדי להציג כתאריך, יש לפרמט את התא כ-DATE. #VALUE! אם לא ניתן לפענח את המחרוזת.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093039?hl=en",
+  },
+
+  SUMPRODUCT: {
+    name: "SUMPRODUCT",
+    category: "math",
+    summary: {
+      en: "Multiplies corresponding cells across equally-shaped ranges and sums the products. The array-aware workhorse for weighted totals, conditional sums without SUMIF's single-condition limit, and coercing text-to-number across a range in one shot.",
+      he: "מכפיל תאים תואמים על פני טווחים בעלי צורה זהה ומסכם את המכפלות. סוס העבודה מודע-המערכים לסכומים משוקללים, סכומים מותנים בלי ההגבלה של תנאי-יחיד של SUMIF, וכפיית טקסט-למספר על פני טווח במכה אחת.",
+    },
+    syntax: "SUMPRODUCT(array1, [array2, ...])",
+    params: [
+      {
+        name: "array1",
+        type: "range | array",
+        description: {
+          en: "The first range or array. All arrays must share the same shape; mismatched shapes return #VALUE!. Non-numeric cells inside a range contribute 0.",
+          he: "הטווח או המערך הראשון. כל המערכים חייבים אותה צורה; צורות לא תואמות מחזירות #VALUE!. תאים לא-מספריים בתוך טווח תורמים 0.",
+        },
+      },
+      {
+        name: "array2, ...",
+        type: "range | array",
+        optional: true,
+        default: "{1, 1, 1, ...}",
+        description: {
+          en: "Additional ranges multiplied element-wise with the first. Omitted: each element of array1 is multiplied by 1, so SUMPRODUCT(A2:A14) is just the sum.",
+          he: "טווחים נוספים שמוכפלים איבר-איבר עם הראשון. אם מושמט: כל איבר של array1 מוכפל ב-1, אז SUMPRODUCT(A2:A14) זה פשוט הסכום.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single number: the sum of the element-wise products. Common patterns: weighted average (SUMPRODUCT(weights, values) / SUM(weights)), conditional sum (SUMPRODUCT((A2:A14=\"DE\") * F2:F14)), and text-to-number coercion (SUMPRODUCT(IFERROR(VALUE(E2:E14), 0))).",
+      he: "מספר יחיד: סכום המכפלות איבר-איבר. דפוסים נפוצים: ממוצע משוקלל (SUMPRODUCT(weights, values) / SUM(weights)), סכום מותנה (SUMPRODUCT((A2:A14=\"DE\") * F2:F14)), וכפיית טקסט-למספר (SUMPRODUCT(IFERROR(VALUE(E2:E14), 0))).",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094294?hl=en",
+  },
+
+  AI: {
+    name: "AI",
+    category: "info",
+    summary: {
+      en: "Sends a prompt to Gemini and returns the model's text response. The only spreadsheet function whose output is non-deterministic, slow (seconds per call), and billed against your Workspace plan; use it where fuzzy classification or summarization is the right tool and reach for plain formulas everywhere else.",
+      he: "שולח prompt ל-Gemini ומחזיר את תגובת המודל כטקסט. הפונקציה היחידה בגיליון שהפלט שלה לא דטרמיניסטי, איטית (שניות לקריאה) ומחויבת תחת ה-Workspace plan שלכם; משתמשים בה במקום בו סיווג מטושטש או סיכום הם הכלי הנכון, ובכל מקום אחר חוזרים לנוסחאות רגילות.",
+    },
+    syntax: "AI(prompt, [range])",
+    params: [
+      {
+        name: "prompt",
+        type: "string",
+        description: {
+          en: "The instruction text Gemini reads. Constrained prompts (\"label as low, medium, or high\") return useful column values; open-ended prompts (\"explain this campaign\") return prose that varies between calls.",
+          he: "טקסט ההוראה ש-Gemini קורא. prompts מצומצמים (\"label as low, medium, or high\") מחזירים ערכי עמודה שימושיים; prompts פתוחים (\"explain this campaign\") מחזירים פרוזה שמשתנה בין קריאות.",
+        },
+      },
+      {
+        name: "range",
+        type: "range",
+        optional: true,
+        description: {
+          en: "An optional cell or bounded range that grounds the answer. A bounded range like A1:G61 is far better than a column reference like A:G, which wastes context budget and rarely fits the model's window on large sheets.",
+          he: "תא או טווח חסום אופציונליים שמקרקעים את התשובה. טווח חסום כמו A1:G61 הרבה יותר טוב מ-reference לעמודה שלמה כמו A:G, שמבזבז context ולרוב לא נכנס לחלון של המודל בגיליונות גדולים.",
+        },
+      },
+    ],
+    returns: {
+      en: "A text string from Gemini, after you click Generate and insert in the cell. Output is non-deterministic between calls, capped at text only (no numbers, dates, arrays), and limited to 350 generated cells per multi-cell run.",
+      he: "מחרוזת טקסט מ-Gemini, אחרי לחיצה על Generate and insert בתא. הפלט אינו דטרמיניסטי בין קריאות, מוגבל לטקסט בלבד (לא מספרים, לא תאריכים, לא arrays), ומוגבל ל-350 תאים בריצה רב-תאית.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/15820999?hl=en",
+  },
 } as const satisfies Record<string, FunctionSpec>;
 
 export type RegistryName = keyof typeof REGISTRY;
