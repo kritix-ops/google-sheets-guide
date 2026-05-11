@@ -10,11 +10,68 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ב-Excel 365, `=B2:B13 - A2:A13` עושה spill ל-12 תאים אוטומטית. Sheets מחזיר רק את הערך הראשון. עטיפה ב-`ARRAYFORMULA` אומרת ל-Sheets לשדר את הפעולה על פני כל הטווח.
 
+<StepThrough
+  frames={[
+    {
+      caption: "שלב 1: קוראים את הביטוי הפנימי",
+      body: (
+        <>
+          המנוע רואה <code>F2:F13 - E2:E13</code>. בלי ARRAYFORMULA זה מתכווץ לערך בודד (התא הראשון של כל טווח מחוסר). העטיפה הופכת את המנוע למצב מערך.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 2: מרחיבים כל טווח למערך באותה צורה",
+      body: (
+        <>
+          <code>F2:F13</code> הופך למערך 12-אלמנטי של ערכי revenue. <code>E2:E13</code> הופך למערך 12-אלמנטי מקביל של ערכי spend. אותה צורה, מיושר שורה אחר שורה.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 3: מחילים את האופרטור איבר-איבר",
+      body: (
+        <>
+          שורה 1 פחות שורה 1, שורה 2 פחות שורה 2, וכך עד שורה 12. הפלט הוא מערך 12-אלמנטי של רווחים.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 4: עושים spill לתוצאה",
+      body: (
+        <>
+          המערך נכתב לתוך 12 תאים החל מתא הנוסחה. אם תא יעד אינו ריק, כל הנוסחה שוגה ב-<code>#REF!</code>: התנגשות spill.
+        </>
+      ),
+    },
+  ]}
+/>
+
+### דוגמה 1: נתוני צעצוע
+
+שתי עמודות קטנות, נוסחה אחת. צפו איך `ARRAYFORMULA` הופך ביטוי בודד לעמודה.
+
+<RefDemo
+  data={[
+    ["Item", "Price", "Qty"],
+    ["A", 10, 3],
+    ["B", 20, 2],
+    ["C", 15, 4],
+  ]}
+  formula="=ARRAYFORMULA(B2:B4*C2:C4)"
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={["=ARRAYFORMULA(B2:B4*C2:C4)", "", ""]}
+  caption="נוסחה אחת ב-D2 ממלאת את D2:D4 עם סה״כ השורה (price כפול qty)."
+/>
+
 <MiniGrid
   data={CAMPAIGNS}
   caption="לוג הקמפיינים. spend בעמודה E, revenue בעמודה F. נחשב רווח (F − E) לכל שורה מתא בודד."
   highlight={["E2", "F2"]}
 />
+
+### דוגמה 2: נתוני אדטק אמיתיים
 
 <TryIt
   data={CAMPAIGNS}
@@ -101,6 +158,65 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 ```
 
 אותו רעיון עם IFS: לחלק כל שורה לסל לפי ROI בנוסחה אחת. (שימו לב: IFS בתוך ARRAYFORMULA עובד ב-Sheets אבל יכול להיות איטי יותר מ-IF מקונן מקביל על גיליונות ענקיים.)
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(SUMIF(B2:B13, "Yoav", F2:F13))</code></pre>
+    <p className="mt-2 text-sm"><code>SUMIF</code> תא-בודד מטבעו. עטיפה ב-<code>ARRAYFORMULA</code> לא הופכת אותו למודע-מערך: עדיין מקבלים מספר אחד, לא עמודה לכל שורה. הצוות ראה את זה בשטח יותר מפעם אחת.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B13="Yoav", F2:F13, 0))`}</code></pre>
+    <p className="mt-2 text-sm">השתמשו בניב ה-IF המודע-למערך כדי לייצר תוצאה לכל שורה. אם רציתם בעצם סכום קבוצתי, הורידו את ה-ARRAYFORMULA ופשוט כתבו SUMIF.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(F2:F-E2:E)</code></pre>
+    <p className="mt-2 text-sm">טווחים פתוחים בלי מגן לשורות ריקות. Sheets עושה spill של "0" לכל שורה ריקה עד שורה 1000+, מזהם sums במורד הזרם ומאט recalc בכל שינוי.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(E2:E="", "", F2:F-E2:E))`}</code></pre>
+    <p className="mt-2 text-sm">טווח פתוח עם מגן לשורות ריקות. ה-spill נעצר בשורת הנתונים האחרונה. תבנית לכל עמודת "לוג גדל".</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", VLOOKUP(C2:C, X:Y, 2, FALSE), 0))`}</code></pre>
+    <p className="mt-2 text-sm">VLOOKUP לא משדר בתוך ARRAYFORMULA. מקבלים את ה-lookup של התא הראשון משוכפל, לא תוצאה מודעת-לשורה. הבאג של "ערכים שגויים על פני כל העמודה".</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", XLOOKUP(C2:C, X:X, Y:Y, 0), 0))`}</code></pre>
+    <p className="mt-2 text-sm">XLOOKUP משדר נקי. או זה או MAP עם LAMBDA שעוטף את ה-VLOOKUP (שיעור 19) ל-lookups לכל שורה כש-XLOOKUP אינו אפשרות.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="לוג קמפיינים בן 12 שורות. כותבים =ARRAYFORMULA(F2:F-E2:E) ב-G2 (משתמשים בטווחים פתוחים F:F ו-E:E). מה קורה?"
+  options={[
+    {
+      id: "a",
+      label: "G2:G13 מתמלא ב-12 ערכי הרווח ועוצר.",
+      correct: false,
+      explanation: "טווחים פתוחים לא נעצרים בנתונים: הם נמתחים עד תחתית הגיליון (לרוב 1000+ שורות).",
+    },
+    {
+      id: "b",
+      label: "G2:G1000+ מתמלא ב-12 רווחים ואחריהם מאות אפסים (או #DIV/0!), מזהם sums במורד הזרם ומאט את הגיליון.",
+      correct: true,
+      explanation: "טווחים פתוחים עושים spill עד הסוף. תמיד תוסיפו מגן לשורות ריקות: IF(E2:E=\"\", \"\", F2:F-E2:E).",
+    },
+    {
+      id: "c",
+      label: "G2 מתמלא רק עם רווח השורה הראשונה, הנוסחה לא עושה spill.",
+      correct: false,
+      explanation: "היא כן עושה spill: זה מה ש-ARRAYFORMULA עושה. הבעיה היא שהיא עושה spill הרבה יותר ממה שתכננתם.",
+    },
+  ]}
+/>
 
 ## נפוץ בשטח
 

@@ -10,11 +10,68 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 In Excel 365, `=B2:B13 - A2:A13` spills into 12 cells automatically. Sheets returns only the first value. Wrapping in `ARRAYFORMULA` tells Sheets to broadcast the operation across the whole range.
 
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: read the inner expression",
+      body: (
+        <>
+          The engine sees <code>F2:F13 - E2:E13</code>. Without ARRAYFORMULA this collapses to a single value (the first cell of each range subtracted). The wrapper flips the engine into array mode.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: expand each range to a same-shape array",
+      body: (
+        <>
+          <code>F2:F13</code> becomes a 12-element array of revenue values. <code>E2:E13</code> becomes the parallel 12-element array of spend values. Same shape, lined up row by row.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: apply the operator element-wise",
+      body: (
+        <>
+          Row 1 minus row 1, row 2 minus row 2, all the way to row 12. The output is a 12-element array of profits.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: spill the result",
+      body: (
+        <>
+          The array writes itself into 12 cells starting at the formula cell. If a destination cell isn't empty, the whole formula errors with <code>#REF!</code>: a spill collision.
+        </>
+      ),
+    },
+  ]}
+/>
+
+### Worked example 1: toy data
+
+Two small columns, one formula. Watch how `ARRAYFORMULA` turns a single expression into a column.
+
+<RefDemo
+  data={[
+    ["Item", "Price", "Qty"],
+    ["A", 10, 3],
+    ["B", 20, 2],
+    ["C", 15, 4],
+  ]}
+  formula="=ARRAYFORMULA(B2:B4*C2:C4)"
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={["=ARRAYFORMULA(B2:B4*C2:C4)", "", ""]}
+  caption="One formula in D2 fills D2:D4 with the row totals (price × qty)."
+/>
+
 <MiniGrid
   data={CAMPAIGNS}
   caption="The campaign log. Spend in column E, revenue in column F. We'll compute profit (F − E) for every row from one cell."
   highlight={["E2", "F2"]}
 />
+
+### Worked example 2: real adtech data
 
 <TryIt
   data={CAMPAIGNS}
@@ -101,6 +158,65 @@ The classic adtech use: a "Status" column that labels each campaign's profitabil
 ```
 
 Same idea with IFS: bucket every row by ROI in one formula. (Note: IFS inside ARRAYFORMULA works in Sheets but can be slower than the equivalent nested IF on huge sheets.)
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(SUMIF(B2:B13, "Yoav", F2:F13))</code></pre>
+    <p className="mt-2 text-sm"><code>SUMIF</code> is single-cell by design. Wrapping in <code>ARRAYFORMULA</code> doesn't make it array-aware: you still get one number, not a per-row column. The team has seen this in the wild more than once.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B13="Yoav", F2:F13, 0))`}</code></pre>
+    <p className="mt-2 text-sm">Use the array-aware IF idiom to produce a per-row result. If you actually wanted a single grouped total, drop the ARRAYFORMULA and just write the SUMIF.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=ARRAYFORMULA(F2:F-E2:E)</code></pre>
+    <p className="mt-2 text-sm">Open-ended ranges with no empty-row guard. Sheets spills "0" for every empty row down to row 1000+, polluting downstream sums and slowing recalc on every change.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(E2:E="", "", F2:F-E2:E))`}</code></pre>
+    <p className="mt-2 text-sm">Open-ended range with an empty-row guard. Spill stops at the last real data row. The pattern for any "growing log" column.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", VLOOKUP(C2:C, X:Y, 2, FALSE), 0))`}</code></pre>
+    <p className="mt-2 text-sm">VLOOKUP doesn't broadcast inside ARRAYFORMULA. You get the lookup of the first cell repeated, not a row-aware result. The "wrong values across the whole column" bug.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", XLOOKUP(C2:C, X:X, Y:Y, 0), 0))`}</code></pre>
+    <p className="mt-2 text-sm">XLOOKUP broadcasts cleanly. Either that or use MAP + a LAMBDA wrapping the VLOOKUP (lesson 19) for per-row lookups when XLOOKUP isn't an option.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="A 12-row campaign log. You write =ARRAYFORMULA(F2:F-E2:E) in G2 (using open-ended F:F and E:E). What happens?"
+  options={[
+    {
+      id: "a",
+      label: "G2:G13 fills with the 12 profit values and stops.",
+      correct: false,
+      explanation: "Open-ended ranges don't stop at the data: they extend to the bottom of the sheet (often 1000+ rows).",
+    },
+    {
+      id: "b",
+      label: "G2:G1000+ fills with 12 profits followed by hundreds of zeros (or #DIV/0!), polluting downstream sums and slowing the sheet.",
+      correct: true,
+      explanation: "Open-ended ranges spill all the way down. Always add an empty-row guard: IF(E2:E=\"\", \"\", F2:F-E2:E).",
+    },
+    {
+      id: "c",
+      label: "G2 fills with just the first row's profit; the formula doesn't spill.",
+      correct: false,
+      explanation: "It does spill: that's what ARRAYFORMULA does. The issue is that it spills further than you intended.",
+    },
+  ]}
+/>
 
 ## Used in the wild
 
