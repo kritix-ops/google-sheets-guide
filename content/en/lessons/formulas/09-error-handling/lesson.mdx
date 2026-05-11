@@ -96,6 +96,61 @@ You can usually express the same intent with IFNA/IFERROR. The IS-functions earn
   ]}
 />
 
+### Easy traps: IFERROR vs IFNA
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IFERROR(XLOOKUP(B2, Verticals!A:A, Verticals!B:B), "Unknown")`}</code></pre>
+    <p className="mt-2 text-sm"><code>IFERROR</code> catches every error including <code>#REF!</code> from a revoked IMPORTRANGE permission. The dashboard shows "Unknown" for every row and you have no clue the upstream is broken. Worst kind of bug: silent.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IFNA(XLOOKUP(B2, Verticals!A:A, Verticals!B:B), "Unknown")`}</code></pre>
+    <p className="mt-2 text-sm"><code>IFNA</code> catches only the "not found" case. <code>#REF!</code>, <code>#VALUE!</code>, and other infrastructure errors still surface visibly. Use this around every lookup that pulls from another sheet.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=IFERROR(A2 + B2/C2, 0)</code></pre>
+    <p className="mt-2 text-sm">Wrapping the whole expression hides three different failure modes (text in A2, divide by zero, etc.) behind one fallback. If A2 turns into text because of an IMPORTRANGE drift, you get <code>0</code> instead of an error: and the dashboard underreports until someone notices.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=A2 + IFERROR(B2/C2, 0)</code></pre>
+    <p className="mt-2 text-sm">Wrap only the part you know can fail (the division). Other failures still bubble up as errors so they get attention. The narrow wrap is the production pattern.</p>
+  </ComparePanel>
+</Compare>
+
+### Worked example: toy data
+
+A two-row sheet with a zero-spend campaign and a normal one. Watch the ROI division error contract to a friendly fallback.
+
+<RefDemo
+  data={[
+    ["Buyer", "Spend", "Revenue", "ROI"],
+    ["Paused buyer", 0, 0, ""],
+    ["Active buyer", 200, 350, ""],
+    ["Active buyer", 100, 175, ""],
+  ]}
+  formula='=IFERROR(C2/B2-1,"no spend")'
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={['=IFERROR(C2/B2-1,"no spend")', '=IFERROR(C3/B3-1,"no spend")', '=IFERROR(C4/B4-1,"no spend")']}
+  caption="Row 2 returns 'no spend' instead of #DIV/0!. Rows 3-4 compute normally."
+/>
+
+### Worked example: adtech data
+
+The kind of error wrapping every production dashboard needs.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=IFERROR((F2-E2)/E2,0)'
+  task={<>Compute ROI for the first campaign as <code>(Revenue - Spend) / Spend</code>, returning <code>0</code> if there's an error. The result should be approximately <code>0.424</code>.</>}
+  hint={<>Wrap the ROI math in <code>IFERROR(..., 0)</code>.</>}
+  answer={<>The first campaign has spend 342.18 and revenue 487.30, so ROI is about 0.424. IFERROR is the safety net: if a future row arrives with zero spend (or with text from a broken upstream), the result becomes 0 instead of crashing every aggregate downstream. The team's rule: every ROI/EPC/CPM column on a production sheet wraps its division in IFERROR with a numeric fallback of 0.</>}
+/>
+
 ## How to choose
 
 | Goal | Reach for |

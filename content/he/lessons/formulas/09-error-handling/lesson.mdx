@@ -96,6 +96,61 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   ]}
 />
 
+### מלכודות נפוצות: IFERROR לעומת IFNA
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IFERROR(XLOOKUP(B2, Verticals!A:A, Verticals!B:B), "Unknown")`}</code></pre>
+    <p className="mt-2 text-sm"><code>IFERROR</code> תופס כל שגיאה כולל <code>#REF!</code> מ-IMPORTRANGE שהרשאה נשללה ממנו. ה-dashboard מציג "Unknown" לכל שורה ואין מושג שהמעלה הזרם שבור. הבאג הגרוע ביותר: שקט.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IFNA(XLOOKUP(B2, Verticals!A:A, Verticals!B:B), "Unknown")`}</code></pre>
+    <p className="mt-2 text-sm"><code>IFNA</code> תופס רק את מקרה ה-"לא נמצא". <code>#REF!</code>, <code>#VALUE!</code> ושגיאות תשתית אחרות עדיין צצות בגלוי. השתמשו בזה סביב כל lookup שמושך מגיליון אחר.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=IFERROR(A2 + B2/C2, 0)</code></pre>
+    <p className="mt-2 text-sm">עטיפת הביטוי השלם מסתירה שלוש דרכי כשל שונות (טקסט ב-A2, חלוקה באפס וכו') מאחורי fallback אחד. אם A2 הופך לטקסט בגלל סחיפת IMPORTRANGE, מקבלים <code>0</code> במקום שגיאה: וה-dashboard מדווח פחות עד שמישהו ישים לב.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=A2 + IFERROR(B2/C2, 0)</code></pre>
+    <p className="mt-2 text-sm">עוטפים רק את החלק שיודעים שיכול לשגות (החלוקה). שגיאות אחרות עדיין מבעבעות כשגיאות כדי שיקבלו תשומת לב. עטיפה צרה היא תבנית הפרודקשן.</p>
+  </ComparePanel>
+</Compare>
+
+### דוגמה: נתוני צעצוע
+
+גיליון עם שתי שורות, אחת עם spend אפס ואחת רגילה. צפו בשגיאת ה-ROI מתכווצת ל-fallback ידידותי.
+
+<RefDemo
+  data={[
+    ["Buyer", "Spend", "Revenue", "ROI"],
+    ["Paused buyer", 0, 0, ""],
+    ["Active buyer", 200, 350, ""],
+    ["Active buyer", 100, 175, ""],
+  ]}
+  formula='=IFERROR(C2/B2-1,"no spend")'
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={['=IFERROR(C2/B2-1,"no spend")', '=IFERROR(C3/B3-1,"no spend")', '=IFERROR(C4/B4-1,"no spend")']}
+  caption="שורה 2 מחזירה 'no spend' במקום #DIV/0!. שורות 3-4 מחושבות רגיל."
+/>
+
+### דוגמה: נתוני אדטק
+
+סוג עטיפת השגיאות שכל dashboard בפרודקשן צריך.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula='=IFERROR((F2-E2)/E2,0)'
+  task={<>חשבו ROI לקמפיין הראשון בתור <code>(Revenue - Spend) / Spend</code>, החזירו <code>0</code> אם יש שגיאה. התוצאה אמורה להיות בערך <code>0.424</code>.</>}
+  hint={<>עטפו את חשבון ה-ROI ב-<code>IFERROR(..., 0)</code>.</>}
+  answer={<>לקמפיין הראשון יש spend של 342.18 ו-revenue של 487.30, אז ה-ROI הוא בערך 0.424. IFERROR היא רשת הביטחון: אם שורה עתידית תגיע עם spend אפס (או עם טקסט ממעלה זרם שבור), התוצאה תהפוך ל-0 במקום לקרוס לכל aggregate במורד הזרם. הכלל של הצוות: כל עמודת ROI/EPC/CPM בגיליון פרודקשן עוטפת את החלוקה שלה ב-IFERROR עם fallback מספרי של 0.</>}
+/>
+
 ## איך בוחרים
 
 | מטרה | מה בוחרים |
