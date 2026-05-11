@@ -4,7 +4,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 A slow workbook is the death of productivity. Recalc time is not free: every formula in a chain delays every edit, every paste, every filter toggle. The good news is that 80% of workbook slowness comes from 5% of cells, and the patterns to fix them are mechanical. The patterns to avoid them in the first place are even more mechanical.
 
-This lesson is the workbook-level companion to Track 1 lesson 28 (which covered formula-level performance). Lesson 28 was about the speed of one formula. Lesson 18 is about how a whole workbook ages, how a clean structure stays fast at 80,000 rows and a sloppy one chokes at 8,000.
+This lesson is the workbook-level companion to Track 1 lesson 28 (which covered formula-level performance). Lesson 28 was about the speed of one formula. Lesson 2.18 is about how a whole workbook ages, how a clean structure stays fast at 80,000 rows and a sloppy one chokes at 8,000.
 
 ## The big rocks, in rough order of cost
 
@@ -18,6 +18,30 @@ When the team profiles a slow workbook, the same handful of patterns explain the
 
 You will not fix all five at once. Walk down the list. The first two account for most of the wins.
 
+<QuickCheck
+  question="Your dashboard feels laggy. You open the conditional-formatting panel and see 8 rules, each with =TODAY() in the formula, applied to A:Z (whole sheet). The data is 50,000 rows. What's the biggest leverage fix?"
+  options={[
+    {
+      id: "a",
+      label: "Move the conditional-format rules to a smaller range like A2:Z50001",
+      correct: true,
+      explanation: "Bounding the range collapses the evaluation count from 1,000,000+ cells per rule to 50,000. Across 8 rules, the saving is huge. Combine with storing TODAY() in one cell that all rules reference, and the lag disappears.",
+    },
+    {
+      id: "b",
+      label: "Replace TODAY() with NOW() so it triggers fewer recalcs",
+      correct: false,
+      explanation: "NOW() recalcs every minute and is more volatile than TODAY(), not less. This makes the problem worse.",
+    },
+    {
+      id: "c",
+      label: "Delete the rules and rebuild them as values stored in a helper column",
+      correct: false,
+      explanation: "Values in a column don't update when dates change. The rules need to fire dynamically; the fix is to bound them, not eliminate them.",
+    },
+  ]}
+/>
+
 ## Range scope: the #1 lever
 
 `SUM(F:F)` walks the entire column. In a sheet sized to 60 rows of data, the engine reads 1,000,000 cells (Sheets allocates a large grid even for "small" sheets) and skips empties. Most of the time it does this fast enough that nobody notices. Then someone pastes one stray value into row 90,000 and now the engine is reading 90,000 cells per recalc.
@@ -25,6 +49,31 @@ You will not fix all five at once. Walk down the list. The first two account for
 `SUM(F2:F61)` walks 60. The cost is the difference. Use bounded ranges everywhere you know the row count.
 
 The same lever applies to `COUNTA`, `AVERAGE`, `MIN`, `MAX`, `COUNTIFS`, `SUMIFS`, every aggregator. Bound the range. The formula is one character longer; the recalc is two orders of magnitude shorter.
+
+<Compare>
+  <ComparePanel label="Slow: full-column reference" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUM(F:F)
+
+Engine walks 1,000,000 cells per recalc.
+On a 60-row sheet, fast enough.
+On a 50,000-row sheet pasted with one
+stray value at row 100,000, ~100k cells
+per SUM per recalc.
+
+With 20 such SUMs, multiply by 20.`}</code></pre>
+    <p className="mt-2 text-sm">Full-column refs look forward-compatible but force the engine to scan more cells than the data has. Cost compounds with every aggregate in the workbook.</p>
+  </ComparePanel>
+  <ComparePanel label="Fast: bounded reference" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUM(F2:F61)
+
+Engine walks 60 cells per recalc.
+Two orders of magnitude faster than F:F.
+
+When the data grows to 500 rows,
+update the bound once to F2:F501.`}</code></pre>
+    <p className="mt-2 text-sm">Bounded ranges are the cheapest optimization in spreadsheet work. One character longer in the formula, hundred-fold faster recalc.</p>
+  </ComparePanel>
+</Compare>
 
 ## Letting the data grow without giving up the bound
 
@@ -67,12 +116,36 @@ The same idea inside a single formula is `LET`:
 
 `spend` and `revenue` each compute once even though the result formula references both.
 
+<QuickCheck
+  question="Three dashboard cells need the same SUM(F2:F61). Which structure recomputes the SUM the fewest times?"
+  options={[
+    {
+      id: "a",
+      label: "Each cell holds =SUM(F2:F61) independently",
+      correct: false,
+      explanation: "Three SUMs over the same range, recomputed every time anything in F2:F61 changes. Three times the work.",
+    },
+    {
+      id: "b",
+      label: "One cell holds =SUM(F2:F61); the other two reference that cell",
+      correct: true,
+      explanation: "Compute once, reference many. The SUM runs once per recalc; the references are cheap lookups. This is the canonical pattern for any shared aggregate.",
+    },
+    {
+      id: "c",
+      label: "Use ARRAYFORMULA to compute all three SUMs in one shot",
+      correct: false,
+      explanation: "ARRAYFORMULA doesn't help here; you're not computing across an array. You're computing the same scalar three times. The fix is reuse, not array-broadcast.",
+    },
+  ]}
+/>
+
 ## The dependency graph
 
 Every formula has upstream cells (the ones it reads from) and downstream cells (the ones that read from it). A change to one cell triggers a recalc cascade through every dependent. Three rules follow:
 
 - **Long chains are slow.** A → B → C → D → E means a change to A walks through five recalculations to reach E. Flatten where you can: have D and E both read from B if neither depends on the others.
-- **Volatile functions force a recalc on every edit.** `TODAY`, `NOW`, `RAND`, `INDIRECT`, `OFFSET` (covered in lesson 28). One `INDIRECT` in your dashboard means the dashboard recomputes every time anyone types anywhere in the workbook.
+- **Volatile functions force a recalc on every edit.** `TODAY`, `NOW`, `RAND`, `INDIRECT`, `OFFSET` (covered in Track 1 lesson 28). One `INDIRECT` in your dashboard means the dashboard recomputes every time anyone types anywhere in the workbook.
 - **Circular references blow up.** Two formulas referencing each other's outputs cause Sheets to either stop calculating or oscillate. The error sometimes hides for weeks under a layer of `IFERROR` until someone removes the `IFERROR` and the workbook explodes.
 
 ## The 50,000-row threshold
