@@ -60,7 +60,7 @@
     "notStarted": "טרם התחיל",
     "overallHeading": "ההתקדמות שלך",
     "overallSummary": "{passed} מתוך {total} שיעורים הושלמו",
-    "overallEmpty": "עדיין לא הושלמו שיעורים — בחרו אחד מהרשימה כדי להתחיל.",
+    "overallEmpty": "עדיין לא הושלמו שיעורים. בחרו אחד מהרשימה כדי להתחיל.",
     "trackComplete": "הושלם",
     "trackProgressLabel": "{passed} / {total}",
     "score": "{score} / 100",
@@ -120,7 +120,8 @@
     "title": "ניהול",
     "nav": {
       "users": "משתמשים",
-      "content": "תוכן"
+      "content": "תוכן",
+      "audit": "יומן ביקורת"
     },
     "users": {
       "title": "ניהול משתמשים",
@@ -158,7 +159,59 @@
       "neverEdited": "אין עדיין טיוטה",
       "save": "שמירת טיוטה",
       "discard": "מחיקת טיוטה",
-      "missingFile": "אין קובץ לשפה הזו. צריך ליצור אותו ב-repo קודם."
+      "missingFile": "אין קובץ לשפה הזו. צריך ליצור אותו ב-repo קודם.",
+      "publish": "פרסום",
+      "publishing": "מפרסם...",
+      "publishSuccess": "פורסם. יעלה לאוויר תוך כדקה ברגע ש-Vercel ייבנה מחדש.",
+      "viewCommit": "צפייה ב-commit",
+      "publishDisabled": "שמרו את הטיוטה כדי להפעיל פרסום.",
+      "publishUnavailableNoToken": "פרסום לא זמין: אין token של GitHub בשרת. צריך admin שיגדיר GITHUB_PAT.",
+      "publishUnavailableRemoteMissing": "פרסום לא זמין: הקובץ לא קיים על branch ה-main. צריך ליצור אותו ב-git קודם.",
+      "publishUnavailableGithubError": "פרסום לא זמין: אי אפשר להגיע ל-GitHub כרגע. נסו שוב בעוד דקה.",
+      "noDraftToPublish": "אין טיוטה שמורה לפרסום.",
+      "conflictHeading": "מישהו אחר פרסם מאז שפתחתם את הדף.",
+      "conflictBody": "הטיוטה שלכם שמורה. רעננו כדי לראות את הבסיס החדש, ואז יישמו את העריכות מחדש ונסו שוב.",
+      "mdxInvalidHeading": "ה-MDX שלכם לא מתקמפל.",
+      "githubErrorHeading": "GitHub דחה את ה-commit.",
+      "configErrorHeading": "פרסום לא מוגדר.",
+      "preview": "תצוגה מקדימה",
+      "previewSaveFirst": "שמרו את הטיוטה קודם; התצוגה המקדימה מציגה את הגרסה השמורה."
+    },
+    "preview": {
+      "banner": "תצוגת טיוטה.",
+      "bannerBody": "{track}/{slug} ({lang}). עוד לא באוויר. פרסמו מהעורך כדי להעלות את הגרסה הזו.",
+      "noDraft": "אין טיוטה לתצוגה מקדימה בשיעור הזה.",
+      "compileErrorHeading": "לא הצלחנו לרנדר את הטיוטה."
+    },
+    "audit": {
+      "title": "יומן ביקורת",
+      "description": "כל שינוי שנעשה דרך ה-admin. החדשים למעלה.",
+      "filterByAction": "פעולה",
+      "allActions": "כל הפעולות",
+      "when": "מתי",
+      "who": "מי",
+      "action": "פעולה",
+      "target": "יעד",
+      "changes": "שינויים",
+      "before": "לפני",
+      "after": "אחרי",
+      "empty": "אין שורות יומן שמתאימות לסינון.",
+      "previousPage": "הקודם",
+      "nextPage": "הבא",
+      "pageN": "עמוד {n}",
+      "actions": {
+        "user": {
+          "add": "user.add",
+          "remove": "user.remove",
+          "role_change": "user.role_change"
+        },
+        "content": {
+          "publish": "content.publish"
+        },
+        "bootstrap": {
+          "initial_admin": "bootstrap.initial_admin"
+        }
+      }
     }
   }
 }

@@ -26,6 +26,14 @@ export async function AdminNav({ role }: { role: AppRole }) {
         >
           {t("nav.content")}
         </Link>
+        {roleAtLeast(role, "admin") && (
+          <Link
+            href="/admin/audit"
+            className="text-foreground/80 hover:text-foreground hover:underline"
+          >
+            {t("nav.audit")}
+          </Link>
+        )}
       </div>
     </nav>
   );

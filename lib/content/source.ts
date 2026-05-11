@@ -30,6 +30,16 @@ export function getLessonFilePath(
   );
 }
 
+// Repo-relative POSIX path for the same lesson file. Used by the GitHub
+// Contents API, which requires forward-slash paths regardless of host OS.
+export function getLessonRepoPath(
+  track: string,
+  slug: string,
+  lang: LessonLang,
+): string {
+  return `content/${lang}/lessons/${track}/${slug}/lesson.mdx`;
+}
+
 export function lessonFileExists(
   track: string,
   slug: string,

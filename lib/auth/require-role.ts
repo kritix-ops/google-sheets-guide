@@ -20,6 +20,7 @@ const ROLE_RANK: Record<AppRole, number> = {
 export type AuthedUser = {
   userId: string;
   email: string;
+  name: string | null;
   role: AppRole;
 };
 
@@ -30,6 +31,7 @@ export const getAuthedUser = cache(async (): Promise<AuthedUser | null> => {
   const session = await auth();
   const userId = session?.user?.id;
   const email = session?.user?.email?.toLowerCase();
+  const name = session?.user?.name ?? null;
   if (!userId || !email) return null;
 
   const row = await db.query.allowedUsers.findFirst({
@@ -39,7 +41,7 @@ export const getAuthedUser = cache(async (): Promise<AuthedUser | null> => {
   // access). Treat as unauthenticated; caller will redirect to sign-in.
   if (!row) return null;
 
-  return { userId, email, role: row.role };
+  return { userId, email, name, role: row.role };
 });
 
 export async function requireRole(min: AppRole): Promise<AuthedUser> {

@@ -60,7 +60,7 @@
     "notStarted": "Not started",
     "overallHeading": "Your progress",
     "overallSummary": "{passed} of {total} lessons passed",
-    "overallEmpty": "No lessons completed yet — pick one below to begin.",
+    "overallEmpty": "No lessons completed yet. Pick one below to begin.",
     "trackComplete": "Complete",
     "trackProgressLabel": "{passed} / {total}",
     "score": "{score} / 100",
@@ -120,7 +120,8 @@
     "title": "Admin",
     "nav": {
       "users": "Users",
-      "content": "Content"
+      "content": "Content",
+      "audit": "Audit log"
     },
     "users": {
       "title": "User management",
@@ -158,7 +159,59 @@
       "neverEdited": "No draft yet",
       "save": "Save draft",
       "discard": "Discard draft",
-      "missingFile": "No file exists for this language. Create it in the repo first."
+      "missingFile": "No file exists for this language. Create it in the repo first.",
+      "publish": "Publish",
+      "publishing": "Publishing...",
+      "publishSuccess": "Published. Live in about a minute once Vercel rebuilds.",
+      "viewCommit": "View commit",
+      "publishDisabled": "Save your draft first to enable publishing.",
+      "publishUnavailableNoToken": "Publishing is offline: the server has no GitHub token configured. Ask an admin to set GITHUB_PAT.",
+      "publishUnavailableRemoteMissing": "Publishing is unavailable: this file does not exist on the main branch. Create it via git first.",
+      "publishUnavailableGithubError": "Publishing is offline: cannot reach GitHub right now. Try again in a minute.",
+      "noDraftToPublish": "There is no saved draft to publish.",
+      "conflictHeading": "Someone else published since you opened this page.",
+      "conflictBody": "Your draft is safe. Reload to pull in the new base, then re-apply your edits and try again.",
+      "mdxInvalidHeading": "Your MDX does not compile.",
+      "githubErrorHeading": "GitHub refused the commit.",
+      "configErrorHeading": "Publishing is not configured.",
+      "preview": "Preview",
+      "previewSaveFirst": "Save your draft first; preview renders the saved version."
+    },
+    "preview": {
+      "banner": "Draft preview.",
+      "bannerBody": "{track}/{slug} ({lang}). Not live yet. Publish from the editor to ship this version.",
+      "noDraft": "There is no draft to preview for this lesson.",
+      "compileErrorHeading": "Could not render this draft."
+    },
+    "audit": {
+      "title": "Audit log",
+      "description": "Every change made through the admin UI. Newest first.",
+      "filterByAction": "Action",
+      "allActions": "All actions",
+      "when": "When",
+      "who": "Who",
+      "action": "Action",
+      "target": "Target",
+      "changes": "Changes",
+      "before": "Before",
+      "after": "After",
+      "empty": "No audit rows match your filter.",
+      "previousPage": "Previous",
+      "nextPage": "Next",
+      "pageN": "Page {n}",
+      "actions": {
+        "user": {
+          "add": "user.add",
+          "remove": "user.remove",
+          "role_change": "user.role_change"
+        },
+        "content": {
+          "publish": "content.publish"
+        },
+        "bootstrap": {
+          "initial_admin": "bootstrap.initial_admin"
+        }
+      }
     }
   }
 }

@@ -5,14 +5,47 @@ import { getTranslations } from "next-intl/server";
 import { LessonEditor } from "@/components/admin/lesson-editor";
 import { requireRole } from "@/lib/auth/require-role";
 import {
+  getLessonRepoPath,
   listLessonsForEditor,
   readLessonSource,
 } from "@/lib/content/source";
 import { db, schema } from "@/lib/db";
+import {
+  getCurrentFileSha,
+  PublishConfigError,
+} from "@/lib/github/publish";
+import type { LessonLang } from "@/lib/db/schema";
 
 type Props = {
   params: Promise<{ locale: string; track: string; slug: string }>;
 };
+
+// Per-language publish availability. Publish is "available" only when we
+// know the current SHA on main; anything else (no PAT, file absent
+// upstream, transient GitHub failure) blocks publishing and surfaces a
+// banner in the editor.
+type PublishState =
+  | { available: true; baseSha: string }
+  | { available: false; reason: "missing_file" | "remote_missing" | "no_token" | "github_error" };
+
+async function lookupPublishState(
+  track: string,
+  slug: string,
+  lang: LessonLang,
+  hasFile: boolean,
+): Promise<PublishState> {
+  if (!hasFile) return { available: false, reason: "missing_file" };
+  try {
+    const sha = await getCurrentFileSha(getLessonRepoPath(track, slug, lang));
+    if (sha === null) return { available: false, reason: "remote_missing" };
+    return { available: true, baseSha: sha };
+  } catch (err) {
+    if (err instanceof PublishConfigError) {
+      return { available: false, reason: "no_token" };
+    }
+    return { available: false, reason: "github_error" };
+  }
+}
 
 export default async function LessonEditorPage({ params }: Props) {
   const { track, slug } = await params;
@@ -27,9 +60,11 @@ export default async function LessonEditorPage({ params }: Props) {
     .find((l) => l.track === track && l.slug === slug);
   if (!lesson) notFound();
 
-  const [enSource, heSource] = await Promise.all([
+  const [enSource, heSource, enPublish, hePublish] = await Promise.all([
     readLessonSource(track, slug, "en"),
     readLessonSource(track, slug, "he"),
+    lookupPublishState(track, slug, "en", lesson.hasEn),
+    lookupPublishState(track, slug, "he", lesson.hasHe),
   ]);
 
   const myDrafts = await db
@@ -67,11 +102,13 @@ export default async function LessonEditorPage({ params }: Props) {
           publishedSource: enSource,
           draft: draftMap.get("en") ?? null,
           hasFile: lesson.hasEn,
+          publish: enPublish,
         }}
         he={{
           publishedSource: heSource,
           draft: draftMap.get("he") ?? null,
           hasFile: lesson.hasHe,
+          publish: hePublish,
         }}
         labels={{
           warningHeading: t("content.warningHeading"),
@@ -83,6 +120,26 @@ export default async function LessonEditorPage({ params }: Props) {
           save: t("content.save"),
           discard: t("content.discard"),
           missingFile: t("content.missingFile"),
+          publish: t("content.publish"),
+          publishing: t("content.publishing"),
+          publishSuccess: t("content.publishSuccess"),
+          viewCommit: t("content.viewCommit"),
+          publishDisabled: t("content.publishDisabled"),
+          publishUnavailableNoToken: t("content.publishUnavailableNoToken"),
+          publishUnavailableRemoteMissing: t(
+            "content.publishUnavailableRemoteMissing",
+          ),
+          publishUnavailableGithubError: t(
+            "content.publishUnavailableGithubError",
+          ),
+          conflictHeading: t("content.conflictHeading"),
+          conflictBody: t("content.conflictBody"),
+          mdxInvalidHeading: t("content.mdxInvalidHeading"),
+          githubErrorHeading: t("content.githubErrorHeading"),
+          configErrorHeading: t("content.configErrorHeading"),
+          noDraftToPublish: t("content.noDraftToPublish"),
+          preview: t("content.preview"),
+          previewSaveFirst: t("content.previewSaveFirst"),
         }}
       />
     </div>
