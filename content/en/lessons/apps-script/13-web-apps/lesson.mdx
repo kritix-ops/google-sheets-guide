@@ -4,9 +4,11 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 A bound Apps Script project is callable from the spreadsheet that hosts it (custom functions, menus, triggers) and from other Apps Script projects (libraries, lesson 12). It can also be **deployed as a web app**, in which case it gets a public URL that anyone with the URL can hit over plain HTTP. The team uses this for Slack slash command endpoints, Linear webhook receivers, and a few public dashboards. The shape is small but every field on the deployment dialog matters, because the wrong combination is either a security hole or a broken integration.
 
+This lesson covers the doGet/doPost convention (the only entry points web apps support), the event object shape, return types (HTML or text), the deployment dialog (Execute as, Who has access), and the security model that emerges from the combinations. The team learned the "Execute as me + Anyone" mistake the hard way; this lesson tries to save you the same week.
+
 ## The two function names
 
-Apps Script wires GET and POST requests to two specific function names. There's no router, no decorator, no annotation: the names themselves are the contract:
+Apps Script wires GET and POST requests to two specific function names. There is no router, no decorator, no annotation: the names themselves are the contract:
 
 ```js
 function doGet(e) {
@@ -32,8 +34,8 @@ The function receives a single argument, conventionally named `e`, that carries 
 
 | Field | What it holds |
 |---|---|
-| `e.parameter` | Query string as a flat object. `?x=1&y=2` → `{ x: "1", y: "2" }`. **Duplicate keys flatten to the last value.** |
-| `e.parameters` | Query string as object of arrays. `?x=1&x=2` → `{ x: ["1", "2"] }`. Use this when you accept repeats. |
+| `e.parameter` | Query string as a flat object. `?x=1&y=2` to `{ x: "1", y: "2" }`. **Duplicate keys flatten to the last value.** |
+| `e.parameters` | Query string as object of arrays. `?x=1&x=2` to `{ x: ["1", "2"] }`. Use this when you accept repeats. |
 | `e.queryString` | The raw query string after the `?`. Empty for POST. |
 | `e.postData.contents` | The raw request body as a string. For a JSON POST, this is the JSON; you `JSON.parse(e.postData.contents)` to get the object. |
 | `e.postData.type` | The Content-Type header sent by the caller. |
@@ -58,20 +60,20 @@ return HtmlService.createHtmlOutput(`<h1>Total spend: $${spend}</h1>`)
   .setTitle("Daily spend");
 ```
 
-Returning a raw string from `doGet` or `doPost` doesn't work: Apps Script can't pick a Content-Type for you. The script will fail at deploy or at runtime depending on the editor version.
+Returning a raw string from `doGet` or `doPost` does not work: Apps Script cannot pick a Content-Type for you. The script will fail at deploy or at runtime depending on the editor version.
 
 ## Deploying the web app
 
-From the editor: **Deploy → New deployment → Web app**. The dialog asks four questions:
+From the editor: **Deploy then New deployment then Web app**. The dialog asks four questions:
 
 | Setting | What it controls |
 |---|---|
 | Description | Free-text label that shows up in the deployments list. Write what changed since last deploy. |
 | Execute as | Either "**Me**" (script owner, with the owner's auth context: the script can read the owner's Drive, send mail as the owner, etc.) or "**User accessing the web app**" (each caller's own auth, which Apps Script collects on first hit). |
 | Who has access | "Only myself", "Anyone with Google account", or "Anyone" (truly public, no login). |
-| Version | A snapshot of the code at the moment of deploy. Subsequent code changes don't go live until a new deployment. |
+| Version | A snapshot of the code at the moment of deploy. Subsequent code changes do not go live until a new deployment. |
 
-Click Deploy. Apps Script mints a URL of the shape `https://script.google.com/macros/s/<deployment-id>/exec`. That's the URL Slack / Linear / GitHub / your dashboard hit.
+Click Deploy. Apps Script mints a URL of the shape `https://script.google.com/macros/s/<deployment-id>/exec`. That is the URL Slack / Linear / GitHub / your dashboard hit.
 
 ## Execute as: the security minefield
 
@@ -83,11 +85,123 @@ The honest defaults:
 - **Public dashboard?** Execute as me, Anyone. Make absolutely sure the manifest scopes are the minimum your code needs: `spreadsheets.currentonly` if you only read the bound sheet, NOT `drive`.
 - **User-impersonating action (one user per request, each pulling their own Drive files)?** Execute as user accessing the web app, Anyone with Google account. Each user authorizes once on first hit; the script runs with their auth.
 
+<Compare>
+  <ComparePanel label="Dangerous: open + broad scopes" tone="negative">
+    <pre className="font-mono text-xs"><code>{`// manifest:
+"oauthScopes": [
+  "https://www.googleapis.com/auth/drive",
+  "https://www.googleapis.com/auth/gmail.modify"
+]
+
+// deploy: Execute as ME, Who has access: Anyone
+
+// doGet:
+function doGet(e) {
+  const fileId = e.parameter.fileId;
+  return ContentService.createTextOutput(
+    DriveApp.getFileById(fileId).getBlob().getDataAsString()
+  );
+}`}</code></pre>
+    <p className="mt-2 text-sm">Anyone who finds the URL can hand-craft <code>?fileId=ANY_FILE</code> and read any file YOU can. The script's code is the only gate.</p>
+  </ComparePanel>
+  <ComparePanel label="Safer: narrow scopes + filter" tone="positive">
+    <pre className="font-mono text-xs"><code>{`// manifest:
+"oauthScopes": [
+  "https://www.googleapis.com/auth/spreadsheets.currentonly"
+]
+
+// deploy: Execute as ME, Who has access: Anyone with Google account
+
+// doGet:
+function doGet(e) {
+  const spend = SpreadsheetApp.getActive()
+    .getSheetByName("Campaigns")
+    .getRange("J1")
+    .getValue();
+  return ContentService.createTextOutput(
+    JSON.stringify({ spend })
+  ).setMimeType(ContentService.MimeType.JSON);
+}`}</code></pre>
+    <p className="mt-2 text-sm">Scopes are narrow (bound sheet only). Access requires a Google account. Even if the URL leaks, the worst case is the spend number, not your Drive.</p>
+  </ComparePanel>
+</Compare>
+
 ## Deployment URLs change when you redeploy
 
-Every "Deploy → New deployment" mints a NEW URL. The previous deployment keeps working (good: your existing integrations don't break the second you ship a bug fix), but the new URL is different. To keep the same URL across code updates, use **Deploy → Manage deployments → (edit the existing deployment) → New version**. That swaps the code under the same URL.
+Every "Deploy then New deployment" mints a NEW URL. The previous deployment keeps working (good: your existing integrations do not break the second you ship a bug fix), but the new URL is different. To keep the same URL across code updates, use **Deploy then Manage deployments then (edit the existing deployment) then New version**. That swaps the code under the same URL.
 
-The team has learned this the hard way. The first version of the Slack slash command endpoint went out with "New deployment" every time, which meant every code push required updating the URL inside Slack's app config. The third time someone forgot, the Slack slash command silently died for a week. Now they only use "Manage deployments → New version" for that endpoint.
+The team has learned this the hard way. The first version of the Slack slash command endpoint went out with "New deployment" every time, which meant every code push required updating the URL inside Slack's app config. The third time someone forgot, the Slack slash command silently died for a week. Now they only use "Manage deployments then New version" for that endpoint.
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: first deploy mints URL_v1",
+      body: (
+        <>
+          You click Deploy then New deployment, Web app. Apps Script
+          generates <code>https://script.google.com/.../exec_v1</code>. Slack's
+          app config gets URL_v1.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: code fix, redeploy via New deployment",
+      body: (
+        <>
+          You find a bug, fix it, and click Deploy then New deployment
+          again. Apps Script generates URL_v2. URL_v1 still works (still
+          pointing at the old code). Slack still talks to URL_v1: still
+          buggy.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: realize the mistake",
+      body: (
+        <>
+          You notice Slack is still calling the old version. You either
+          update Slack's app config to URL_v2 (a chore) or you delete the
+          v1 deployment (Slack starts erroring).
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: right pattern: Manage then New version",
+      body: (
+        <>
+          Use Deploy then Manage deployments then (existing deployment) then
+          New version instead. The URL stays the same. Slack does not need
+          a config change. The discipline is: New deployment for a fresh
+          integration, New version for code updates.
+        </>
+      ),
+    },
+  ]}
+/>
+
+<QuickCheck
+  question="You deploy a web app with Execute as ME + Who has access: Anyone, and the manifest declares the spreadsheets and drive scopes. Someone discovers your URL. What is the worst-case data exposure?"
+  options={[
+    {
+      id: "a",
+      label: "Only the data your doGet/doPost explicitly returns is exposed.",
+      correct: false,
+      explanation: "That's the best case. The worst case depends on what an attacker can persuade the script to do via crafted parameters, and on what your scopes allow if they find a vulnerability in the code.",
+    },
+    {
+      id: "b",
+      label: "Anything readable under the script's scopes is potentially exposed if your code has any unintended path. With drive scope and Execute as ME, that's effectively your entire Drive.",
+      correct: true,
+      explanation: "Right. Execute as ME means every request runs with your auth. Broad scopes mean the worst-case code path can reach broad data. Narrow scopes to spreadsheets.currentonly when possible; require at least 'Anyone with Google account' if you need public-ish access.",
+    },
+    {
+      id: "c",
+      label: "Apps Script's sandbox prevents any cross-document access even with the drive scope.",
+      correct: false,
+      explanation: "There is no such sandbox at the web-app layer. The scopes in the manifest are the access ceiling.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -107,22 +221,23 @@ The starter file `Lesson.gs` declares `doGet(e)` and `doPost(e)` as stubs. Two f
 2. Write the value to K1: `sheet.getRange("K1").setValue(payload.value);`.
 3. Return a JSON success response with `ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);`.
 
-The grader checks the source shapes since it can't deploy the web app and hit the URL. Once the shapes pass, **Deploy → New deployment → Web app** in the editor to get a real URL. Hit the URL from a browser to see the spend HTML; `curl -X POST -d '{"value": 42}' '<URL>'` to test the POST half.
+The grader checks the source shapes since it cannot deploy the web app and hit the URL. Once the shapes pass, **Deploy then New deployment then Web app** in the editor to get a real URL. Hit the URL from a browser to see the spend HTML; curl with POST to test the POST half.
 
 ## Used in the wild
 
 The team's three web apps are different shapes that all use this skeleton:
 
 - **The Slack `/spend` slash command.** When a buyer types `/spend yesterday` in Slack, Slack POSTs to a deployment URL. `doPost` reads `e.parameter.text`, looks up the requested period in the Aggregator tab, and returns a JSON response Slack renders as a chat message. Execute as me, "Anyone with Google account" not even possible (Slack POSTs unauthenticated), so the function verifies the Slack signing secret itself before doing anything else.
-- **The Linear webhook receiver.** Linear POSTs JSON every time a ticket changes state. `doPost` appends a row to a "Linear events" tab. The receiver doesn't need to return anything meaningful; it just acks with `{ ok: true }`. Execute as me, Anyone.
-- **The public daily dashboard.** A `doGet` that renders a small HTML page with the day's top three verticals, total spend, and a sparkline. Linked from a Linear ticket; anyone with the URL sees it. Execute as me, Anyone. Manifest scope is `spreadsheets.currentonly` so the URL can't be used to read anything else.
+- **The Linear webhook receiver.** Linear POSTs JSON every time a ticket changes state. `doPost` appends a row to a "Linear events" tab. The receiver does not need to return anything meaningful; it just acks with `{ ok: true }`. Execute as me, Anyone.
+- **The public daily dashboard.** A `doGet` that renders a small HTML page with the day's top three verticals, total spend, and a sparkline. Linked from a Linear ticket; anyone with the URL sees it. Execute as me, Anyone. Manifest scope is `spreadsheets.currentonly` so the URL cannot be used to read anything else.
 
 ## Pro pitfalls
 
-- **New deployment = new URL.** Every integration pointing at the old URL keeps working (the old deployment still exists) but doesn't see your new code. Use **Manage deployments → New version** to ship a code update under the existing URL.
-- **"Execute as me" + "Anyone" is the worst-case security pattern.** A public URL running with your full Drive scope. Audit the manifest before deploying with that combo: drop scopes you don't actually use, and never include `drive` if `spreadsheets.currentonly` will do.
-- **`e.parameter` collapses duplicate keys to the last value.** `?x=1&x=2` → `e.parameter.x === "2"`. Use `e.parameters.x` (note the plural) to get the array `["1", "2"]`. Slack and a few other senders use repeated keys idiomatically.
-- **POST request size is technically 50 MB but you'll hit the 6-minute execution timeout first.** Don't design a web app around large request bodies. If you need to ingest a CSV, have the caller upload it to Drive and POST you the file ID: pull and process it from Drive in a separate triggered job.
+- **New deployment = new URL.** Every integration pointing at the old URL keeps working (the old deployment still exists) but does not see your new code. Use **Manage deployments then New version** to ship a code update under the existing URL.
+- **"Execute as me" + "Anyone" is the worst-case security pattern.** A public URL running with your full Drive scope. Audit the manifest before deploying with that combo: drop scopes you do not actually use, and never include `drive` if `spreadsheets.currentonly` will do.
+- **`e.parameter` collapses duplicate keys to the last value.** `?x=1&x=2` to `e.parameter.x === "2"`. Use `e.parameters.x` (note the plural) to get the array `["1", "2"]`. Slack and a few other senders use repeated keys idiomatically.
+- **POST request size is technically 50 MB but you will hit the 6-minute execution timeout first.** Do not design a web app around large request bodies. If you need to ingest a CSV, have the caller upload it to Drive and POST you the file ID: pull and process it from Drive in a separate triggered job.
 - **`doPost` runs with the deployer's auth, even when called by anonymous traffic.** Slack's POST to your endpoint has no Google identity, but `doPost` runs as you. That means `SpreadsheetApp.getActiveSpreadsheet()` works (because YOU have access), but it also means anyone who finds the URL can trigger code that touches your sheet. Always verify a shared-secret header or a payload signature before doing real work.
-- **HtmlService is sandboxed.** Web-app HTML runs inside a Google iframe, with most cookies and storage APIs blocked. Don't try to build a real SPA there: use it for small inline pages and embed serious frontends behind a real hosting service.
-- **The deployment URL ends in `/exec` for the published version and `/dev` for the HEAD test URL.** During development you hit the `/dev` URL to test edits without redeploying; production integrations hit `/exec`. Don't paste the `/dev` URL into Slack's app config: that URL requires you to be logged in as the script owner, so external callers can't reach it.
+- **HtmlService is sandboxed.** Web-app HTML runs inside a Google iframe, with most cookies and storage APIs blocked. Do not try to build a real SPA there: use it for small inline pages and embed serious frontends behind a real hosting service.
+- **The deployment URL ends in `/exec` for the published version and `/dev` for the HEAD test URL.** During development you hit the `/dev` URL to test edits without redeploying; production integrations hit `/exec`. Do not paste the `/dev` URL into Slack's app config: that URL requires you to be logged in as the script owner, so external callers cannot reach it.
+- **CORS does not apply.** Web apps respond with CORS-permissive headers by default. A browser fetch from any origin can call your `doGet`/`doPost`. If you do not want that, verify the `Origin` header inside the handler.
