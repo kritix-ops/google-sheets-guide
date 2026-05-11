@@ -20,7 +20,11 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
 
 ## VLOOKUP: ברירת המחדל הישנה
 
-`VLOOKUP` סורק את **העמודה הראשונה** של טווח, מוצא את ההתאמה הראשונה, ומחזיר ערך מעמודה אחרת באותה שורה. ארבעה ארגומנטים: `search_key`, `range`, `column_index`, `[is_sorted]`. הדגל `is_sorted` כמעט תמיד צריך להיות `FALSE` להתאמה מדויקת.
+`VLOOKUP` סורק את **העמודה הראשונה** של טווח, מוצא את ההתאמה הראשונה, ומחזיר ערך מעמודה אחרת באותה שורה. זאת הפונקציה ש-lookup רוב האנשים לומדים קודם: spreadsheets שלחו אותה במשך עשורים, ורוב ה-workbooks שהצוות יורש עדיין מסתמכים עליה. ידיעה איך היא עובדת היא חצי לשימוש וחצי לקריאה של מה שהיא עשתה כשמשהו נשבר.
+
+ארבעת הארגומנטים הם `search_key`, `range`, `index`, `[is_sorted]`. הדגל `is_sorted` כמעט תמיד צריך להיות `FALSE` להתאמה מדויקת; ברירת המחדל `TRUE` מניחה בשקט שעמודה ראשונה ממוינת, וזה המקור של הבאג הקלאסי של "הוחזרה שורה לא נכונה" שנראה למטה.
+
+<FunctionRef name="VLOOKUP" />
 
 <StepThrough
   frames={[
@@ -70,15 +74,71 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
   answer={<>הארגומנט השלישי הוא מספר העמודה <strong>בתוך הטווח</strong>, לא בתוך הגיליון. כיוון שהטווח מתחיל בעמודה I, "Category" הוא עמודה 2 של הטווח. הארגומנט הרביעי <code>FALSE</code> מאלץ התאמה מדויקת. השמטה שלו (או העברת <code>TRUE</code>) אומרת ל-VLOOKUP שהמידע ממוין, מה שעלול להחזיר התאמות שגויות בשקט אם הוא לא. תמיד תעבירו <code>FALSE</code> אלא אם אתם מבצעים lookup של range-bucket במכוון.</>}
 />
 
-המלכודת הכי גדולה של VLOOKUP: הוא יכול לסרוק **רק** בכיוון של column index עולה (משמאל לימין באנגלית). אם עמודת ה-lookup שלכם נמצאת מימין לעמודה שאתם רוצים להחזיר, VLOOKUP לא יעזור. מקרה אדטק אמיתי: בגיליון verticals יש עמודות Vertical, Category, Avg CPC. למצוא איזה vertical יש לו Avg CPC מסוים, VLOOKUP לא מסוגל. Avg CPC נמצא מימין ל-Vertical.
+המלכודת הכי גדולה של VLOOKUP: הוא יכול לקרוא **רק** עמודות שמימין לעמודת ה-lookup. אם עמודת ה-lookup שלכם נמצאת מימין לעמודה שאתם רוצים להחזיר, VLOOKUP לא יעזור. מקרה אדטק אמיתי: בגיליון verticals יש עמודות Vertical, Category, Avg CPC. למצוא איזה vertical יש לו Avg CPC מסוים, VLOOKUP לא מסוגל. Avg CPC נמצא מימין ל-Vertical.
+
+### מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=VLOOKUP(C2, I2:K11, 2)`}</code></pre>
+    <p className="mt-2 text-sm">בלי הארגומנט הרביעי, אז <code>is_sorted</code> מקבל ערך ברירת מחדל <code>TRUE</code>. VLOOKUP מניח שהעמודה הראשונה ממוינת בסדר עולה ומחזיר את השורה עם הערך הגדול ביותר &lt;= search_key. על שמות vertical לא ממוינים, התוצאה לא צפויה ולעיתים קרובות שגויה בשקט.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=VLOOKUP(C2, I2:K11, 2, FALSE)`}</code></pre>
+    <p className="mt-2 text-sm">להעביר <code>FALSE</code> במפורש כדי לאלץ exact match. זה צריך להיות רפלקס: בכל פעם שכותבים VLOOKUP, הארגומנט הרביעי הוא <code>FALSE</code> אלא אם אתם יכולים לנמק למה לא.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=VLOOKUP(C2, I:K, 3, FALSE)`}</code></pre>
+    <p className="mt-2 text-sm">Reference לעמודה שלמה ו-index קשיח של 3. אם מישהו מכניס עמודה בין Vertical ל-Avg CPC, הנוסחה עכשיו מחזירה את העמודה הלא נכונה. בלי שגיאה, רק מספרים שגויים.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP(C2, I2:I11, K2:K11)`}</code></pre>
+    <p className="mt-2 text-sm">לעשות reference לעמודת ההחזרה דרך טווח, לא דרך מספר. הוספת עמודה לא שוברת את הנוסחה כי שני הטווחים מתעדכנים יחד.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="אתם כותבים =VLOOKUP(C2, I2:K11, 2) בלי הארגומנט הרביעי. התוצאה שגויה אבל לא מופיעה שגיאה. מה קרה?"
+  options={[
+    {
+      id: "a",
+      label: "VLOOKUP החזיר את השורה הראשונה כברירת מחדל.",
+      correct: false,
+      explanation: "הוא לא החזיר את השורה הראשונה באופן שרירותי. הוא יישם את התנהגות ההתאמה הברירת מחדל שלו.",
+    },
+    {
+      id: "b",
+      label: "בלי is_sorted, VLOOKUP קיבל ערך ברירת מחדל TRUE (התאמה מקורבת) והחזיר את הערך הגדול ביותר בעמודה הראשונה <= search_key.",
+      correct: true,
+      explanation: "ברירת המחדל TRUE היא ה-footgun הקלאסי של VLOOKUP. תעבירו FALSE תמיד למידע לא ממוין.",
+    },
+    {
+      id: "c",
+      label: "VLOOKUP לא מסתדר עם טווח שכולל את שורת הכותרת.",
+      correct: false,
+      explanation: "כותרות בתוך הטווח בסדר; הבעיה היא ההיעדרות של הארגומנט הרביעי.",
+    },
+  ]}
+/>
 
 ## HLOOKUP: VLOOKUP מסובב ב-90 מעלות
 
-`HLOOKUP` סורק את **השורה הראשונה** של טווח ומחזיר ערך משורה אחרת באותה עמודה. אותם ארגומנטים כמו ב-VLOOKUP, רק במגמה אופקית. נדיר שתצטרכו אותו כי טבלאות כמעט תמיד אנכיות. (לוחות סיכום רבעוניים הם החריג, שבהם החודשים מסודרים על פני עמודות.)
+`HLOOKUP` סורק את **השורה הראשונה** של טווח ומחזיר ערך משורה אחרת באותה עמודה. אותם ארגומנטים כמו ב-VLOOKUP, רק במגמה אופקית. נדיר שתצטרכו אותו כי טבלאות כמעט תמיד אנכיות. המקום היחיד שהוא מופיע באדטק: לוחות סיכום רבעוניים שבהם החודשים מסודרים על פני עמודות, ורוצים lookup של מדד לפי שם חודש. גם שם, `INDEX/MATCH` או `XLOOKUP` (עם המידע transposed) בדרך כלל מנצחים.
+
+<FunctionRef name="HLOOKUP" />
 
 ## INDEX/MATCH: הקלאסיקה הגמישה
 
-הצירוף של INDEX/MATCH מפצל את ה-lookup לשתי פונקציות. `MATCH(search_key, range)` מחזיר את **המיקום** של ההתאמה. `INDEX(range, position)` מחזיר את הערך באותו מיקום. משלבים אותן ומקבלים lookup שלא אכפת לו מסדר העמודות.
+הצירוף של INDEX/MATCH מפצל את ה-lookup לשתי פונקציות. `MATCH(search_key, range)` מחזיר את **המיקום** של ההתאמה. `INDEX(range, position)` מחזיר את הערך באותו מיקום. משלבים אותן ומקבלים lookup שלא אכפת לו מסדר העמודות. במשך עשור זאת הייתה התשובה ה"נכונה" ב-workbooks רציניים, כי בניגוד ל-VLOOKUP הוא שורד הוספת עמודות ועובד משמאל לימין או מימין לשמאל.
+
+המחיר הוא ריבוי מילים: שתי קריאות פונקציה במקום שאחת תספיק. workbooks מודרניים של Sheets מעדיפים XLOOKUP לנוסחאות חדשות; INDEX/MATCH עדיין מופיע במקומות שבהם תאימות ל-legacy חשובה או בנוסחאות שאתם מתחזקים במקום לכתוב מחדש.
+
+<FunctionRef name="MATCH" />
+
+<FunctionRef name="INDEX" />
 
 <StepThrough
   frames={[
@@ -128,7 +188,9 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
 
 ## XLOOKUP: הזוכה המודרני
 
-`XLOOKUP` הגיע ל-Sheets ב-2022. פונקציה אחת, בלי תעלולים של column-index, עובדת בכל כיוון, ויש לה ענף not-found מובנה.
+`XLOOKUP` הגיע ל-Sheets ב-2022 ועכשיו הוא ברירת המחדל של פונקציית lookup לכל workbook חדש שהצוות פותח. פונקציה אחת, בלי תעלולים של column-index, עובדת בכל כיוון, ויש לה ענף not-found מובנה. ה-spec המלא חי בשיעור 2 שבו פגשנו אותו לראשונה; המוקד פה הוא איך הוא משתלב במשפחת ה-lookup ומנצח את האחרים בכל ציר שמשנה ל-spreadsheets פרודקשן.
+
+<FunctionRef name="XLOOKUP" />
 
 <Compare>
   <ComparePanel label="VLOOKUP" tone="negative">

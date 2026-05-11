@@ -20,7 +20,11 @@ The setup: every campaign has a **vertical** (the topic, like "Car Deals PR"). A
 
 ## VLOOKUP: the legacy default
 
-`VLOOKUP` scans the **first column** of a range, finds the first match, and returns a value from another column in the same row. Four arguments: `search_key`, `range`, `column_index`, `[is_sorted]`. The `is_sorted` flag should almost always be `FALSE` for an exact match.
+`VLOOKUP` scans the **first column** of a range, finds the first match, and returns a value from another column in the same row. It's the lookup function nearly everyone learns first: spreadsheets shipped with it for decades, and most workbooks the team inherits still rely on it. Knowing how it works is half about using it and half about reading what it did when something breaks.
+
+The four arguments are `search_key`, `range`, `index`, `[is_sorted]`. The `is_sorted` flag should almost always be `FALSE` for an exact match; the default `TRUE` silently assumes a sorted first column and is the source of the classic "wrong row returned" bug we'll see below.
+
+<FunctionRef name="VLOOKUP" />
 
 <StepThrough
   frames={[
@@ -70,15 +74,71 @@ In the assignment, the Verticals table sits at columns I-K of the same sheet. In
   answer={<>The third argument is the column number <strong>within the range</strong>, not within the sheet. Since the range starts at column I, "Category" is column 2 of the range. The fourth argument <code>FALSE</code> forces an exact match: leaving it off (or passing <code>TRUE</code>) tells VLOOKUP the data is sorted, which can return wrong matches silently if it isn't. Always pass <code>FALSE</code> unless you're explicitly doing a range-bucket lookup.</>}
 />
 
-The biggest VLOOKUP trap: it can **only** scan left-to-right. If your lookup column is to the right of the column you want to return, VLOOKUP can't help. Real adtech case: the verticals sheet has columns Vertical, Category, Avg CPC. To find which vertical has a given Avg CPC, VLOOKUP can't do it because Avg CPC is to the right of Vertical.
+The biggest VLOOKUP trap: it can **only** read columns to the right of the lookup column. If your lookup column is to the right of the column you want to return, VLOOKUP can't help. Real adtech case: the verticals sheet has columns Vertical, Category, Avg CPC. To find which vertical has a given Avg CPC, VLOOKUP can't do it because Avg CPC is to the right of Vertical.
+
+### Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=VLOOKUP(C2, I2:K11, 2)`}</code></pre>
+    <p className="mt-2 text-sm">No fourth argument, so <code>is_sorted</code> defaults to <code>TRUE</code>. VLOOKUP assumes the first column is sorted ascending and returns the row with the largest value &lt;= search_key. On unsorted vertical names, the result is unpredictable and often silently wrong.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=VLOOKUP(C2, I2:K11, 2, FALSE)`}</code></pre>
+    <p className="mt-2 text-sm">Pass <code>FALSE</code> explicitly to force exact match. Make this a reflex: any time you write VLOOKUP, the fourth argument is <code>FALSE</code> unless you can articulate why not.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=VLOOKUP(C2, I:K, 3, FALSE)`}</code></pre>
+    <p className="mt-2 text-sm">Whole-column reference and a hard-coded index of 3. If someone inserts a column between Vertical and Avg CPC, the formula now returns the wrong column. No error, just wrong numbers.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP(C2, I2:I11, K2:K11)`}</code></pre>
+    <p className="mt-2 text-sm">Reference the return column by range, not by number. Column inserts don't break the formula because both ranges adjust together.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You write =VLOOKUP(C2, I2:K11, 2) without the fourth argument. The result is wrong but no error appears. What happened?"
+  options={[
+    {
+      id: "a",
+      label: "VLOOKUP returned the first row by default.",
+      correct: false,
+      explanation: "It didn't return the first row arbitrarily. It applied its default match behavior.",
+    },
+    {
+      id: "b",
+      label: "Without is_sorted, VLOOKUP defaulted to TRUE (approximate match) and returned the largest first-column value <= search_key.",
+      correct: true,
+      explanation: "The TRUE default is the classic VLOOKUP footgun. Pass FALSE always for unsorted data.",
+    },
+    {
+      id: "c",
+      label: "VLOOKUP can't handle a range that includes the header row.",
+      correct: false,
+      explanation: "Headers in the range are fine; the issue is the missing fourth argument.",
+    },
+  ]}
+/>
 
 ## HLOOKUP: VLOOKUP rotated 90 degrees
 
-`HLOOKUP` scans the **first row** of a range and returns a value from another row in the same column. Same argument layout as VLOOKUP, but oriented horizontally. You'll rarely need it because tables are almost always vertical. (Quarterly summary boards are the exception, where months sit across columns.)
+`HLOOKUP` scans the **first row** of a range and returns a value from another row in the same column. Same argument layout as VLOOKUP, but oriented horizontally. You'll rarely need it because tables are almost always vertical. The one place it shows up in adtech: quarterly summary boards where months sit across columns and you want to look up a metric by month name. Even there, `INDEX/MATCH` or `XLOOKUP` (with the transposed data shape) usually wins.
+
+<FunctionRef name="HLOOKUP" />
 
 ## INDEX/MATCH: the flexible classic
 
-The INDEX/MATCH combo splits the lookup into two functions. `MATCH(search_key, range)` returns the **position** of the match. `INDEX(range, position)` returns the value at that position. Combine them and you have a lookup that doesn't care about column order.
+The INDEX/MATCH combo splits the lookup into two functions. `MATCH(search_key, range)` returns the **position** of the match. `INDEX(range, position)` returns the value at that position. Combine them and you have a lookup that doesn't care about column order. For a decade this was the "right" answer in serious workbooks, because unlike VLOOKUP it survives column inserts and works left-to-right or right-to-left.
+
+The price is verbosity: two function calls where XLOOKUP needs one. Modern Sheets workbooks default to XLOOKUP for new formulas; INDEX/MATCH still shows up where legacy compatibility matters or in formulas you're maintaining rather than rewriting.
+
+<FunctionRef name="MATCH" />
+
+<FunctionRef name="INDEX" />
 
 <StepThrough
   frames={[
@@ -128,7 +188,9 @@ The INDEX/MATCH combo splits the lookup into two functions. `MATCH(search_key, r
 
 ## XLOOKUP: the modern winner
 
-`XLOOKUP` shipped to Sheets in 2022. One function, no column-index quirks, works in any direction, and has a built-in not-found branch.
+`XLOOKUP` shipped to Sheets in 2022 and is now the default lookup function for every new workbook the team starts. One function, no column-index quirks, works in any direction, and has a built-in not-found branch. The full spec lives in lesson 2 where we first met it; the focus here is how it slots into the lookup family and beats the others on every axis that matters for production sheets.
+
+<FunctionRef name="XLOOKUP" />
 
 <Compare>
   <ComparePanel label="VLOOKUP" tone="negative">
