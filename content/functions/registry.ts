@@ -1980,6 +1980,143 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/12569202?hl=en",
   },
 
+  FILTER: {
+    name: "FILTER",
+    category: "filter",
+    summary: {
+      en: "Returns the rows of a range where every provided boolean condition is TRUE. Spilled and array-aware: no ARRAYFORMULA wrapper needed. The lightweight cousin of QUERY when you don't need projection or grouping.",
+      he: "מחזיר את שורות הטווח שבהן כל תנאי boolean שסופק הוא TRUE. זורם ומודע למערכים: לא צריך ARRAYFORMULA. בן-הדוד הקל יותר של QUERY כשלא צריך projection או grouping.",
+    },
+    syntax: "FILTER(range, condition1, [condition2, ...])",
+    params: [
+      {
+        name: "range",
+        type: "range",
+        description: {
+          en: "The data to filter. All columns are returned for every passing row.",
+          he: "המידע לסינון. כל העמודות מוחזרות לכל שורה עוברת.",
+        },
+      },
+      {
+        name: "condition1",
+        type: "boolean array",
+        description: {
+          en: "A boolean array (TRUE/FALSE) the same length as range, one entry per row.",
+          he: "מערך boolean (TRUE/FALSE) באותו אורך כמו range, ערך אחד לכל שורה.",
+        },
+      },
+      {
+        name: "condition2, ...",
+        type: "boolean array",
+        optional: true,
+        description: {
+          en: "Additional conditions ANDed with the first. For OR logic, add the boolean arrays with +: (B = 'Yoav') + (B = 'Sarah').",
+          he: "תנאים נוספים שמשולבים ב-AND עם הראשון. ללוגיקת OR, מחברים את מערכי ה-boolean עם +: (B = 'Yoav') + (B = 'Sarah').",
+        },
+      },
+    ],
+    returns: {
+      en: "The matching rows of range. #N/A when no rows match: wrap in IFNA with a fallback for production sheets.",
+      he: "השורות התואמות של range. #N/A כשלא נמצאו שורות תואמות: עוטפים ב-IFNA עם fallback לגיליונות פרודקשן.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093197?hl=en",
+  },
+
+  SORT: {
+    name: "SORT",
+    category: "filter",
+    summary: {
+      en: "Returns a range sorted by one or more columns. Spilled output. The simple alternative to QUERY's ORDER BY when you don't need projection.",
+      he: "מחזיר טווח ממוין לפי עמודה אחת או יותר. פלט זורם. החלופה הפשוטה ל-ORDER BY של QUERY כשלא צריך projection.",
+    },
+    syntax: "SORT(range, sort_column, is_ascending, [sort_column2, is_ascending2, ...])",
+    params: [
+      {
+        name: "range",
+        type: "range",
+        description: {
+          en: "The data to sort.",
+          he: "המידע למיון.",
+        },
+      },
+      {
+        name: "sort_column",
+        type: "number | range",
+        description: {
+          en: "Column number WITHIN the range (1-indexed) or a parallel single-column range holding the sort keys.",
+          he: "מספר עמודה בתוך ה-range (1-indexed) או טווח מקביל של עמודה יחידה שמחזיק את מפתחות המיון.",
+        },
+      },
+      {
+        name: "is_ascending",
+        type: "boolean",
+        description: {
+          en: "TRUE for ascending, FALSE for descending.",
+          he: "TRUE לסדר עולה, FALSE לסדר יורד.",
+        },
+      },
+      {
+        name: "sort_column2, is_ascending2, ...",
+        type: "pairs",
+        optional: true,
+        description: {
+          en: "Additional sort keys for tie-breaking, in priority order.",
+          he: "מפתחות מיון נוספים לקביעת tiebreaker, בסדר עדיפויות.",
+        },
+      },
+    ],
+    returns: {
+      en: "The range with rows reordered. Other columns keep their original sequence relative to the sort keys.",
+      he: "ה-range עם שורות מסודרות מחדש. עמודות אחרות שומרות על הסדר המקורי שלהן יחסית למפתחות המיון.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093150?hl=en",
+  },
+
+  UNIQUE: {
+    name: "UNIQUE",
+    category: "filter",
+    summary: {
+      en: "Returns the distinct rows of a range, preserving order of first appearance. On a single column, distinct values; on multiple columns, distinct row combinations.",
+      he: "מחזיר את השורות הייחודיות של טווח, שומר על סדר ההופעה הראשונה. בעמודה יחידה, ערכים ייחודיים; בכמה עמודות, צירופי שורות ייחודיים.",
+    },
+    syntax: "UNIQUE(range, [by_column], [exactly_once])",
+    params: [
+      {
+        name: "range",
+        type: "range",
+        description: {
+          en: "The data to dedupe.",
+          he: "המידע לדה-דופליקציה.",
+        },
+      },
+      {
+        name: "by_column",
+        type: "boolean",
+        optional: true,
+        default: "FALSE",
+        description: {
+          en: "FALSE = dedupe rows (default). TRUE = dedupe columns.",
+          he: "FALSE = דה-דופליקציה של שורות (ברירת מחדל). TRUE = דה-דופליקציה של עמודות.",
+        },
+      },
+      {
+        name: "exactly_once",
+        type: "boolean",
+        optional: true,
+        default: "FALSE",
+        description: {
+          en: "TRUE = keep only values that appeared exactly once in the source. Useful for spotting duplicates indirectly.",
+          he: "TRUE = שומר רק ערכים שהופיעו פעם אחת בדיוק במקור. שימושי לזיהוי כפילויות בעקיפין.",
+        },
+      },
+    ],
+    returns: {
+      en: "Distinct rows in order of first appearance. Watch out: whitespace and case differences are treated as distinct.",
+      he: "שורות ייחודיות בסדר ההופעה הראשונה. שימו לב: הבדלי whitespace ו-case מטופלים כשונים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/10522653?hl=en",
+  },
+
   QUERY: {
     name: "QUERY",
     category: "query",

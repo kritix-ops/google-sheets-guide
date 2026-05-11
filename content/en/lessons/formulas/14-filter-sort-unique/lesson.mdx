@@ -8,6 +8,8 @@ QUERY is powerful but its SQL-style syntax is heavy for simple operations. `FILT
 
 `FILTER(range, condition1, [condition2, ...])` returns the rows of `range` where every condition is `TRUE`. Conditions are arrays the same length as the range.
 
+<FunctionRef name="FILTER" />
+
 ```
 =FILTER(A2:F13, B2:B13 = "Yoav Cohen")
 ```
@@ -38,6 +40,8 @@ For OR logic, use `+` between boolean arrays: `FILTER(A2:F13, (B2:B13 = "Yoav") 
 
 `SORT(range, sort_column, ascending, [sort_column2, ascending2, ...])` returns the range sorted. The sort_column is a column **number within the range**, 1-indexed.
 
+<FunctionRef name="SORT" />
+
 ```
 =SORT(A2:F13, 6, FALSE)
 ```
@@ -56,6 +60,8 @@ Sorts by column 6 (Revenue), descending. To sort by multiple columns, add more p
 ## UNIQUE: dedupe a column or rows
 
 `UNIQUE(range)` returns the distinct values. On a single column, you get the unique values. On multiple columns, you get the unique row combinations.
+
+<FunctionRef name="UNIQUE" />
 
 ```
 =UNIQUE(C2:C13)

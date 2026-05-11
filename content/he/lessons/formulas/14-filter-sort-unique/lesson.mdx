@@ -8,6 +8,8 @@ QUERY חזק, אבל התחביר שלו בסגנון SQL כבד מדי לפעו
 
 `FILTER(range, condition1, [condition2, ...])` מחזיר את השורות של `range` שבהן כל תנאי הוא `TRUE`. התנאים הם מערכים באותו אורך כמו הטווח.
 
+<FunctionRef name="FILTER" />
+
 ```
 =FILTER(A2:F13, B2:B13 = "Yoav Cohen")
 ```
@@ -38,6 +40,8 @@ QUERY חזק, אבל התחביר שלו בסגנון SQL כבד מדי לפעו
 
 `SORT(range, sort_column, ascending, [sort_column2, ascending2, ...])` מחזיר את הטווח ממוין. ה-sort_column הוא **מספר עמודה בתוך הטווח**, ספירה שמתחילה ב-1.
 
+<FunctionRef name="SORT" />
+
 ```
 =SORT(A2:F13, 6, FALSE)
 ```
@@ -56,6 +60,8 @@ QUERY חזק, אבל התחביר שלו בסגנון SQL כבד מדי לפעו
 ## UNIQUE: הסרת כפילויות מעמודה או משורות
 
 `UNIQUE(range)` מחזיר את הערכים השונים. על עמודה אחת, מקבלים את הערכים הייחודיים. על מספר עמודות, מקבלים את צירופי השורות הייחודיים.
+
+<FunctionRef name="UNIQUE" />
 
 ```
 =UNIQUE(C2:C13)
