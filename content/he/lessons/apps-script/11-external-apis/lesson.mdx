@@ -2,13 +2,15 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # קריאה ל-APIs חיצוניים מ-Apps Script: UrlFetchApp, OAuth, וקריאה ל-Slack / Linear / GitHub
 
-עד עכשיו Track 3 נשאר בתוך המשטח של Google: תאים, ה-sheet, Drive, Gmail, Calendar. scripts אמיתיים בעולם האדטק מבלים את רוב הזמן בשיחה עם שירותים *אחרים*. ה-API של Taboola backstage לנתוני spend גולמיים. Slack להתראות ROI. Linear ליצירת tickets כש-media buyer מסמן קמפיין. GitHub כש-Cloud Function deployed צריך redeploy. כל אחת מהקפיצות האלה עוברת דרך API אחד של Apps Script: **`UrlFetchApp`**. השיעור הזה עוסק ב-options bag שלו, ב-patterns לשיחה עם API של JSON, ובצורות auth שבאמת עובדות בפועל.
+עד עכשיו Track 3 נשאר בתוך המשטח של Google: תאים, ה-sheet, Drive, Gmail, Calendar. scripts אמיתיים בעולם האדטק מבלים את רוב הזמן בשיחה עם שירותים *אחרים*. ה-API של Taboola backstage לנתוני spend גולמיים. Slack להתראות ROI. Linear ליצירת tickets כש-media buyer מסמן קמפיין. GitHub כש-Cloud Function deployed צריך redeploy. כל אחת מהקפיצות האלה עוברת דרך API אחד של Apps Script: **`UrlFetchApp`**.
+
+השיעור הזה עוסק ב-options bag שלו, ב-patterns לשיחה עם API של JSON, בצורות auth שבאמת עובדות בפועל, ובמשמעת טיפול שגיאות ששומרת cron לילי בחיים אחרי שלשותף יש אחר צהריים רע. אם תתפסו את השיעור נכון, תוכלו לחבר את Apps Script כמעט לכל דבר בצורת HTTP בלי לעזוב את ה-bound script.
 
 ## הצורה של קריאת fetch
 
 ```js
 const response = UrlFetchApp.fetch("https://example.com/api/taboola/summary", {
-  method: "get",                       // ברירת מחדל; כאן רק בשביל הבהירות
+  method: "get",                       // ברירת מחדל; כלול לבהירות
   headers: { Authorization: "Bearer demo-token" },
   muteHttpExceptions: true,            // קריטי, ראו למטה
 });
@@ -18,76 +20,77 @@ const body = response.getContentText();
 const data = JSON.parse(body);
 ```
 
-הארגומנט הראשון הוא ה-URL. השני הוא **options bag** שמנהל כמעט כל דבר מעניין בקריאה:
+הארגומנט הראשון הוא ה-URL. השני הוא **options bag** שמניע כמעט כל דבר מעניין על הקריאה:
 
-| Option | מה הוא עושה |
+| אפשרות | מה זה עושה |
 |---|---|
-| `method` | `"get"` (ברירת מחדל), `"post"`, `"put"`, `"patch"`, או `"delete"`. לא רגיש לאותיות. |
-| `headers` | object רגיל של שם-header → ערך. `Authorization`, `Accept`, headers מותאמים של פלטפורמות חיים כאן. |
-| `payload` | גוף הבקשה. string נשלח כמו שהוא; object מקודד form-urlencoded (לא ב-JSON, ראו את השורה הבאה). |
-| `contentType` | אם מציבים את זה ומעבירים `payload` כ-string, Apps Script שולח בדיוק את מה שכתבתם. כדי לעשות POST של JSON מציבים `contentType: "application/json"` ומפעילים `JSON.stringify` על ה-payload בעצמכם. |
-| `muteHttpExceptions` | כש-`true`, 4xx או 5xx מחזירים אובייקט response שאפשר לבדוק. כש-`false` (ברירת מחדל), Apps Script זורק ואי אפשר לקרוא את גוף השגיאה. **כמעט תמיד מציבים `true`.** |
-| `followRedirects` | ברירת מחדל `true`. מציבים `false` ל-endpoints מסוג tracking-pixel שבהם ה-302 הוא התשובה. |
+| `method` | `"get"` (ברירת מחדל), `"post"`, `"put"`, `"patch"`, או `"delete"`. case-insensitive. |
+| `headers` | object רגיל של header-name לערך. `Authorization`, `Accept`, headers מותאמים של פלטפורמה חיים כאן. |
+| `payload` | ה-body של ה-request. מחרוזת נשלחת כפי שהיא; object הוא form-urlencoded (לא JSON-encoded: ראו שורה הבאה). |
+| `contentType` | אם מגדירים את זה ומעבירים `payload` מחרוזת, Apps Script שולח בדיוק מה שכתבתם. כדי לעשות POST של JSON מגדירים `contentType: "application/json"` ומעשים stringify ל-payload בעצמכם. |
+| `muteHttpExceptions` | כש-`true`, 4xx או 5xx מחזיר response object שאפשר לבדוק. כש-`false` (ברירת מחדל), Apps Script זורק ולא ניתן לקרוא את ה-body של השגיאה. **כמעט תמיד מגדירים את זה ל-`true`.** |
+| `followRedirects` | ברירת מחדל `true`. מגדירים `false` ל-endpoints של tracking-pixel שבהם ה-302 הוא התשובה. |
 
-## POSTing של JSON בצורה הנכונה
+## איך לעשות POST של JSON נכון
 
 הטעות שכולם עושים פעם אחת:
 
-```js
-// שגוי. Apps Script מקודד את ה-object ב-form-urlencoded.
-// הגוף שיוצא הוא "name=Yoav&buyer=yc", לא JSON.
-UrlFetchApp.fetch(url, {
+<Compare>
+  <ComparePanel label="לא נכון: object payload, ללא contentType" tone="negative">
+    <pre className="font-mono text-xs"><code>{`UrlFetchApp.fetch(url, {
   method: "post",
   payload: { name: "Yoav", buyer: "yc" },
 });
-```
-
-התיקון:
-
-```js
-UrlFetchApp.fetch(url, {
+// Body שנשלח: "name=Yoav&buyer=yc"
+// API משיב: "invalid JSON"`}</code></pre>
+    <p className="mt-2 text-sm">Apps Script עושה form-urlencode ל-object. ה-body אינו JSON. ה-API מחזיר שגיאה שאתם מבלים שעה בקריאת ה-docs הלא נכונים בשבילה.</p>
+  </ComparePanel>
+  <ComparePanel label="נכון: JSON מפורש" tone="positive">
+    <pre className="font-mono text-xs"><code>{`UrlFetchApp.fetch(url, {
   method: "post",
   contentType: "application/json",
   payload: JSON.stringify({ name: "Yoav", buyer: "yc" }),
   muteHttpExceptions: true,
-});
-```
+});`}</code></pre>
+    <p className="mt-2 text-sm">עושים stringify ל-payload, מגדירים contentType, משתיקים exceptions כך ש-422 נותן לכם את ה-body של שגיאת ה-validation במקום exception של runtime.</p>
+  </ComparePanel>
+</Compare>
 
-מפעילים `JSON.stringify` על ה-payload, מציבים `contentType`, ומשתיקים exceptions כדי ש-422 מה-API יחזיר את גוף השגיאה ולא ייהפך ל-exception ב-runtime. ה-function של הצוות שיוצרת tickets ב-Linear משתמשת בדיוק בצורה הזאת.
+אתם stringify את ה-payload, אתם מגדירים `contentType`, ואתם משתיקים exceptions כך ש-422 מ-API נותן לכם את ה-body של שגיאת ה-validation במקום exception של runtime. ה-function של יוצר ה-tickets של Linear של הצוות משתמשת בדיוק בצורה הזו.
 
 ## OAuth וטיפול ב-tokens
 
-שלושה patterns מכסים כמעט כל מה שתעשו:
+שלושה patterns מכסים כמעט הכל שתעשו:
 
-1. **Token סטטי ב-`PropertiesService`.** ה-URL של ה-webhook ל-Slack וה-token של Linear של הצוות חיים ב-user properties של ה-script, מציבים אותם פעם אחת עם `PropertiesService.getScriptProperties().setProperty("LINEAR_TOKEN", "lin_api_...")`. ה-script קורא אותם עם `getProperty` ברגע הקריאה. ה-token אף פעם לא נוחת במקור, מה שאומר שהוא לא מגיע ל-git כשמישהו exportנה את הפרויקט ב-Apps Script.
+1. **token סטטי ב-`PropertiesService`.** ה-URL של ה-webhook של Slack של הצוות וה-token של ה-API של Linear חיים ב-user properties של ה-script, מוגדרים פעם אחת דרך `PropertiesService.getScriptProperties().setProperty("LINEAR_TOKEN", "lin_api_...")`. ה-script קורא עם `getProperty` בזמן הקריאה. ה-token אף פעם לא נוחת במקור, מה שאומר שהוא לא נכנס ל-git כשמישהו עושה export ל-Apps Script project.
 
-2. **ספריית OAuth2 ל-flows מלאים.** כשצריך ריקוד OAuth (Google, GitHub, כל דבר עם refresh token), הספרייה הקהילתית **OAuth2 for Apps Script** מטפלת ב-redirect URI, ב-token exchange, וב-refresh על תפוגה. מוסיפים אותה כ-library dependency (שיעור 12 מכסה איך) וקוראים ל-`OAuth2.createService(...)` פעם אחת לכל שירות.
+2. **ספרייה OAuth2 לזרימות מלאות.** כשצריך ריקוד OAuth (Google, GitHub, כל דבר עם refresh token), הספרייה המתוחזקת על ידי הקהילה **OAuth2 for Apps Script** מטפלת ב-redirect URI, ב-token exchange, וב-refresh עם פקיעה. מוסיפים אותה כ-dependency של ספרייה (שיעור 12 מכסה איך) וקוראים ל-`OAuth2.createService(...)` פעם אחת לכל שירות.
 
-3. **Webhook URLs שהם עצמם ה-secret.** Slack incoming webhooks הם הצורה הנקייה ביותר. ה-URL מכיל את ה-auth, מבצעים POST של גוף JSON, ואין token לנהל. מתייחסים ל-URL כסוד (הוא עדיין הולך ל-`PropertiesService`, לא למקור).
+3. **URLs של webhook שהם עצמם הסוד.** webhooks נכנסים של Slack הם הנקיים ביותר. ה-URL מכיל את ה-auth, אתם עושים POST ל-body של JSON, ואין token לנהל. מתייחסים ל-URL כסוד (זה עדיין הולך ל-`PropertiesService`, לא למקור).
 
-## Rate limits ו-quotas
+## מגבלות קצב ומכסות
 
-ה-quota של Apps Script על `UrlFetchApp` הוא **20,000 קריאות ביום** לחשבונות צרכניים, **100,000 / יום** ל-Workspace. רוב ה-scripts פוגעים ב-rate limit של השירות המטרה הרבה לפני שהם פוגעים ב-quota של Apps Script. גוצ'ות נפוצות:
+המכסה של Apps Script עצמו על `UrlFetchApp` היא **20,000 קריאות ביום** לחשבונות consumer, **100,000 / יום** ל-Workspace. רוב ה-scripts פוגעים במגבלת הקצב של השירות היעד הרבה לפני שהם פוגעים בזו של Apps Script. gotchas נפוצים:
 
-- **Slack incoming webhooks**: הודעה אחת בשנייה לכל URL של webhook. לולאה של מאה ב-burst צפוף וה-90 האחרונות נופלות בשקט בצד של Slack.
-- **Linear API**: 1,200 בקשות בשעה לכל access token. script שיוצר tickets ב-mass צריך exponential backoff בתוך הלולאה.
-- **GitHub API (בלי auth)**: 60 בשעה לכל source IP. עם auth (עם personal access token) קופץ ל-5,000 בשעה.
-- **Taboola, Outbrain, MediaGo**: מתועד כ-"be sensible", שבפועל אומר כמה מאות בקשות בשעה לפני שהם מחזירים 429. תמיד בודקים בדוקס לפני שמתרחבים.
+- **Slack incoming webhooks**: 1 הודעה לשנייה לכל URL webhook. לולאה של מאה ב-burst הדוק ו-90 האחרונות נופלות בשקט בצד של Slack.
+- **Linear API**: 1,200 בקשות לשעה לכל access token. script שיוצר tickets בהמוניים צריך exponential backoff בתוך הלולאה.
+- **GitHub API (לא מאומת)**: 60 לשעה לכל IP מקור. מאומת (עם personal access token) קופץ ל-5,000 לשעה.
+- **Taboola, Outbrain, MediaGo**: מתועדים ב-"היו הגיוניים", מה שבפועל אומר כמה מאות בקשות לשעה לפני שהם 429 אתכם. תמיד בודקים את ה-docs לפני קנה מידה.
 
-`UrlFetchApp.fetchAll(requests)` מקבילי batch של fetches בקריאה אחת ל-method, מה שגם חוסך quota (זה נספר כ-round-trip אחד מהצד של Apps Script, אם כי כל fetch בודד עדיין נספר כקריאה אחת מול שירות המטרה) וגם מהיר דרמטית מלולאה סדרתית. הקאץ': זה חוזר כשכל הבקשות מסתיימות, כך שבקשה אחת איטית חוסמת את כל ה-batch.
+`UrlFetchApp.fetchAll(requests)` עושה parallelize ל-batch של fetches עם קריאת method אחת, שזה גם חוסך מכסה (זה נספר כ-round-trip אחד מצד Apps Script, אם כי כל fetch בודד עדיין נספר כקריאה אחת מול היעד שלכם) וזה דרמטית מהיר יותר מ-loop טורי. ה-catch: זה מחזיר כשכל הבקשות הסתיימו, אז בקשה אחת איטית חוסמת את כל ה-batch.
 
-## Webhooks לעומת polling
+## Webhooks מול polling
 
-שתי דרכים להתחבר לשירות חיצוני:
+שתי דרכים לאינטגרציה עם שירות חיצוני:
 
-- **Webhook** = הם קוראים לכם. השירות מבצע POST ל-URL שאתם חושפים (ראו שיעור 13 איך לעשות deploy ל-endpoint של doPost). אתם מגיבים. אצלם זה fire-and-forget; אין לכם שליטה מתי זה יתפוצץ.
-- **Polling** = אתם קוראים להם. trigger מבוסס-זמן כל N דקות, מריצים `UrlFetchApp.fetch` לנתונים חדשים, וכותבים את ההפרש לגיליון.
+- **Webhook** = הם קוראים אליכם. השירות עושה POST ל-URL שאתם חושפים (ראו שיעור 13 איך לפרוס doPost endpoint). אתם מגיבים. fire-and-forget בצד שלהם; אין לכם שליטה מתי זה יורה.
+- **Polling** = אתם קוראים אליהם. trigger מבוסס-זמן כל N דקות, אתם עושים `UrlFetchApp.fetch` לנתונים חדשים, אתם כותבים את ה-diff ל-sheet.
 
-התראות Slack קלות כי Slack מציע *receivers* של webhook (incoming webhooks): מבצעים POST ל-URL שלהם כשקורה משהו מעניין ב-script, אין צורך ב-polling. GitHub ו-Linear עובדים בשני הכיוונים, הם מציעים webhooks לאירועים שהם פולטים, ו-APIs לפעולות שאתם מבצעים.
+התראות Slack קלות כי Slack מציעה *מקבלי* webhook (incoming webhooks): אתם עושים POST ל-URL שלהם כשמשהו מעניין קורה ב-script שלכם, אין צורך ב-polling. GitHub ו-Linear הולכים בשני הכיוונים: הם מציעים webhooks ל-events שהם פולטים, ו-APIs לפעולות שאתם לוקחים.
 
-## טיפול בשגיאות
+## טיפול שגיאות
 
-הצורה הישרה והמגננת:
+הצורה הכנה וההגנתית:
 
 ```js
 function fetchWithRetry(url, options, maxAttempts = 3) {
@@ -100,7 +103,7 @@ function fetchWithRetry(url, options, maxAttempts = 3) {
       const code = response.getResponseCode();
       if (code >= 200 && code < 300) return response;
       if (code >= 500 && attempt < maxAttempts) {
-        // שגיאת שרת, ממתינים ומנסים שוב עם backoff.
+        // שגיאת שרת: מחכים ומנסים שוב עם backoff.
         Utilities.sleep(1000 * Math.pow(2, attempt - 1));
         continue;
       }
@@ -108,45 +111,115 @@ function fetchWithRetry(url, options, maxAttempts = 3) {
       throw new Error(`HTTP ${code}: ${response.getContentText()}`);
     } catch (err) {
       if (attempt === maxAttempts) throw err;
-      // שגיאות רשת (DNS, connection reset) זוכות גם הן לניסיון חוזר.
+      // שגיאות רשת (DNS, connection reset) מקבלות retry גם.
       Utilities.sleep(1000 * Math.pow(2, attempt - 1));
     }
   }
 }
 ```
 
-זה overkill להתראת Slack חד-פעמית. לכל דבר שרץ על trigger מבוסס-זמן והצוות תלוי בו, זה המינימום.
+זה מוגזם להודעת Slack של one-shot. לכל דבר שרץ על time-driven trigger ושהצוות תלוי בו, זה המינימום הבסיסי.
+
+<StepThrough
+  frames={[
+    {
+      caption: "שלב 1: ניסיון ראשון מחזיר 503",
+      body: (
+        <>
+          ה-endpoint של דיווח Taboola עובר דקה רעה.{" "}
+          <code>UrlFetchApp.fetch</code> מחזיר response עם{" "}
+          <code>getResponseCode() === 503</code>. ענף ה-5xx רץ.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 2: backoff ו-retry",
+      body: (
+        <>
+          <code>Utilities.sleep(1000 * Math.pow(2, 0))</code>: שנייה אחת.
+          ניסיון 2 רץ. ה-endpoint עדיין למטה: עוד 503.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 3: backoff ארוך יותר",
+      body: (
+        <>
+          <code>Utilities.sleep(1000 * Math.pow(2, 1))</code>: 2 שניות.
+          ניסיון 3. ה-endpoint התאושש; response הוא 200. ה-handler
+          מחזיר את ה-response.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 4: 4xx מסתיים בלי retry",
+      body: (
+        <>
+          ביום אחר, ניסיון 1 מחזיר 401 (token פג). ענף ה-4xx זורק מיד;
+          retry לא היה עוזר. הקורא החיצוני רואה את ה-exception ו(אידיאלית)
+          שולח מייל לצוות.
+        </>
+      ),
+    },
+  ]}
+/>
+
+<QuickCheck
+  question="ה-UrlFetchApp.fetch הלילי שלכם ל-Slack משתמש ב-payload: { text: 'spend alert' } ללא contentType. הודעת Slack אף פעם לא מגיעה. מה לא בסדר?"
+  options={[
+    {
+      id: "a",
+      label: "Slack incoming webhooks יש מגבלת קצב של הודעה אחת לשנייה; פגעתם בה.",
+      correct: false,
+      explanation: "מגבלות קצב חשובות, אבל הן גורמות לשחרורים חלקיים, לא לאי-מסירה אפסית. בעיית הצורה היא bug אחר.",
+    },
+    {
+      id: "b",
+      label: "ללא contentType מוגדר, Apps Script עושה form-urlencode ל-payload ל-'text=spend+alert'. Slack מצפה ל-JSON ומתעלם מההודעה בשקט.",
+      correct: true,
+      explanation: "נכון. ברירת המחדל ל-object payload היא form-urlencoded, לא JSON. Slack דוחה (או מתעלם) bodies שאינם JSON ב-URL ה-webhook הנכנס שלה. מעבירים contentType: 'application/json' ו-JSON.stringify(payload).",
+    },
+    {
+      id: "c",
+      label: "Slack דורש Authorization headers גם ב-incoming webhooks.",
+      correct: false,
+      explanation: "Incoming webhooks יש להם את ה-auth מובנה ב-URL. הבעיה היא צורת ה-body, לא ה-headers.",
+    },
+  ]}
+/>
 
 ## עכשיו לעבודה אמיתית
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="לוג ה-Campaigns תופס את A1:G61. המשימה: לקרוא לסיכום היומי של Taboola מ-URL placeholder של API ולכתוב את ה-total שהוא החזיר לתוך J1."
+  caption="לוג ה-Campaigns תופס A1:G61. המשימה שלכם: לאחזר את הסיכום היומי של Taboola מ-URL placeholder של API ולכתוב את הסכום שהוא החזיר ל-J1."
 />
 
-קובץ ה-starter `Lesson.gs` מצהיר על `function fetchTaboolaSummary()` עם TODO. שלושה צעדים:
+הקובץ ההתחלתי `Lesson.gs` מצהיר על `function fetchTaboolaSummary()` עם TODO. שלושה צעדים:
 
-1. קוראים ל-`UrlFetchApp.fetch("https://example.com/api/taboola/summary", { headers: { Authorization: "Bearer demo-token" }, muteHttpExceptions: true })`. ה-URL הוא placeholder; אנחנו לא באמת פוגעים ב-Taboola, ה-grader לא מריץ את ה-fetch.
-2. מפענחים את ה-response: `const data = JSON.parse(response.getContentText())`. בשטח זה מחזיר object כמו `{ total_spend: 32418.20, top_vertical: "Reverse Mortgage PR" }`.
-3. כותבים את `data.total_spend` ל-J1 בלשונית Campaigns: `sheet.getRange("J1").setValue(data.total_spend)`.
+1. קוראים ל-`UrlFetchApp.fetch("https://example.com/api/taboola/summary", { headers: { Authorization: "Bearer demo-token" }, muteHttpExceptions: true })`. ה-URL הוא placeholder; אנחנו לא באמת פוגעים ב-Taboola: ה-grader לא מריץ את ה-fetch.
+2. מנתחים את ה-response: `const data = JSON.parse(response.getContentText())`. בשטח זה מחזיר object כמו `{ total_spend: 32418.20, top_vertical: "Reverse Mortgage PR" }`.
+3. כותבים את `data.total_spend` ל-J1 ב-tab של Campaigns: `sheet.getRange("J1").setValue(data.total_spend)`.
 
-ה-grader בודק את המקור לארבעת החלקים האלה, הוא לא יכול באמת לקרוא ל-URL, אז הצורה הנכונה היא מה שחשוב. ברגע שהצורה עוברת, ה-URL האמיתי של Taboola backstage נכנס בהחלפת מחרוזת אחת.
+ה-grader בודק את המקור עבור ארבעת החלקים האלה: הוא לא יכול באמת לקרוא ל-URL, אז להשיג את ה**צורה** נכון זה מה שחשוב. ברגע שהצורה שלכם עוברת, ה-URL האמיתי של Taboola backstage נכנס על ידי החלפת מחרוזת אחת.
 
 ## נפוץ בשטח
 
 האינטגרציות החיצוניות של הצוות הן כולן וריאציות של השיעור הזה:
 
-- **התראות Slack על ירידות ROI.** trigger מבוסס-זמן קורא את לשונית ה-Aggregator, מקבץ לפי buyer, וכל buyer ש-7d ROI שלו ירד מתחת ל-1.0 גורם ל-POST ל-Slack incoming webhook עם `{ "text": "<!channel> Buyer Yoav: 7d ROI dropped to 0.82" }`. URL אחד של webhook שמור ב-`PropertiesService`.
-- **יצירת tickets ל-Linear מכפתור ב-sidebar.** הכפתור "Flag this campaign" ב-sidebar אוסף את שם הקמפיין של השורה ואת הסיבה, מבצע POST ל-`https://api.linear.app/graphql` עם ה-mutation `issueCreate` ב-GraphQL, וכותב את ה-URL של ה-ticket שנוצר לעמודה בגיליון. ה-token של Linear API מגיע מ-`PropertiesService`.
-- **תגובה ל-GitHub על עדכוני aggregator.** כשה-aggregator הלילי מסיים, function המשך מבצעת POST של תגובה ל-issue ב-GitHub שעוקב אחרי ההרצה היומית, עם טבלת סיכום ב-Markdown. personal access token ב-`PropertiesService`.
+- **התראות Slack על ירידות ROI.** trigger מבוסס-זמן קורא את ה-tab של Aggregator, מקבץ לפי buyer, ולכל buyer ש-ROI של 7 ימים שלו ירד מתחת ל-1.0 הוא עושה POST ל-incoming webhook של Slack עם JSON payload כמו `{ "text": "buyer Yoav: 7d ROI dropped to 0.82" }`. URL webhook אחד מאוחסן ב-`PropertiesService`.
+- **יצירת ticket ב-Linear מכפתור sidebar.** כפתור ה-sidebar "Flag this campaign" אוסף את שם הקמפיין של השורה ואת הסיבה, עושה POST ל-`https://api.linear.app/graphql` עם ה-mutation `issueCreate` של GraphQL, וכותב את ה-URL של ה-ticket שנוצר לעמודת sheet. ה-token של Linear API מגיע מ-`PropertiesService`.
+- **תגובת GitHub על עדכוני אגרגטור.** כשהאגרגטור הלילי מסיים, function follow-up מפרסמת תגובה ל-issue ב-GitHub שעוקב אחרי הריצה היומית, עם טבלת סיכום Markdown. personal access token ב-`PropertiesService`.
 
-כל אחת מהן היא אותה צורה של חמש שורות: שולפים את ה-secret, בונים את הגוף, fetch, בודקים את ה-response code, logging או כתיבה של התוצאה.
+כל אחד מהם הוא אותה צורה של חמש שורות: לקבל את הסוד, לבנות את ה-body, fetch, לבדוק את קוד התגובה, לכתוב log או לכתוב את התוצאה.
 
 ## מלכודות מקצועיות
 
-- **`muteHttpExceptions: false` (ברירת המחדל) זורק על 4xx ו-5xx כך שאי אפשר לראות את גוף השגיאה.** מציבים תמיד `true`. במקרים הבודדים שבהם רוצים את התנהגות ברירת המחדל, הקוד שלכם עוטף את ה-fetch ב-try/catch שזורק שוב, תדעו לבד.
-- **Apps Script מבצע caching ל-fetches עם אותו URL + headers בחלון קצר.** לולאת retry צפופה שפוגעת באותו URL מקבלת תשובות מ-cache. כדי לכפות בקשה טרייה, מוסיפים cache-busting query param: `url + "?ts=" + Date.now()`.
-- **OAuth tokens שהתיישנו.** token ב-`PropertiesService` שעבד בחודש שעבר לא תמיד עובד היום. tokens של Linear ו-GitHub יכולים להישלל או לפוג כשהמשתמש המנפיק עוזב את הארגון. בונים את ה-script כך שיעשה logging של ה-response code, וכך שה-aggregator היומי ישלח מייל למישהו כשהוא רואה 401. כשלים שקטים הם הסוג הגרוע ביותר.
-- **`UrlFetchApp.fetchAll` חוסם על הבקשה האיטית ביותר ב-batch.** אם זורקים 50 fetches לארבעה שירותים שונים ולאחד מהם יש דקה קשה, כל ה-batch מחכה. מפצלים את ה-batch לפי שירות אם אחד מהם לא אמין.
-- **`payload` ב-form-urlencoded כשהתכוונתם ל-JSON.** הצבת `payload: { foo: "bar" }` בלי `contentType` שולחת `foo=bar`, לא `{"foo":"bar"}`. ה-API מחזיר "invalid JSON" ואתם מבלים שעה בקריאת הדוקס הלא נכונים. ברירת מחדל ל-`contentType: "application/json"` בתוספת `payload: JSON.stringify(...)` לכל API של JSON שאינו של Google.
-- **URLs של webhook שנכנסו בטעות למקור.** URL של Slack webhook הוא ה-auth, לכל מי שיש את ה-URL יש יכולת לפרסם לערוץ שלכם. תמיד קוראים אותו מ-`PropertiesService.getScriptProperties()`, אף פעם לא מצמידים אחד אמיתי בקוד. אם גיליתם אחד במקור, מסובבים אותו ב-Slack admin לפני שעושים משהו אחר.
+- **`muteHttpExceptions: false` (ברירת המחדל) זורק על 4xx ו-5xx כך שלא ניתן לראות את ה-body של השגיאה.** תמיד מגדירים את זה ל-`true`. המקרים הבודדים שבהם רוצים את ההתנהגות ברירת מחדל: הקוד שלכם עוטף את ה-fetch ב-try/catch שזורק שוב: תדעו את זה.
+- **Apps Script שומר ב-cache fetches עם אותו URL + headers בחלון קצר.** loop של retry צמוד שפוגע באותו URL מקבל responses ב-cache. כדי לכפות בקשה טרייה, מצמידים פרמטר cache-busting: `url + "?ts=" + Date.now()`.
+- **OAuth tokens שהולכים מיושנים.** token ב-`PropertiesService` שעבד חודש שעבר לא תמיד עובד היום. tokens של Linear ו-GitHub יכולים להיות מבוטלים או לפוג כשהמשתמש שהנפיק עוזב את ה-org. בונים את ה-script לרשום log של קוד התגובה, ועושים את האגרגטור היומי שולח מייל למישהו כשהוא רואה 401: כשלים שקטים הם הגרועים ביותר.
+- **`UrlFetchApp.fetchAll` חוסם על הבקשה האיטית ביותר ב-batch.** אם אתם משגרים 50 fetches בארבעה שירותים שונים ואחד מהם עובר דקה רעה, כל ה-batch מחכה. מפצלים את ה-batch לפי שירות אם אחד מהם לא אמין.
+- **`payload` form-urlencoded כשהתכוונתם ל-JSON.** הגדרת `payload: { foo: "bar" }` ללא `contentType` שולחת `foo=bar`, לא `{"foo":"bar"}`. ה-API מגיב עם "invalid JSON" ואתם מבלים שעה בקריאת ה-docs הלא נכונים. ברירת מחדל ל-`contentType: "application/json"` פלוס `payload: JSON.stringify(...)` לכל JSON API שאינו של Google.
+- **URLs של Webhook שמופקדים בטעות במקור.** URL webhook של Slack הוא ה-auth: כל מי שיש לו את ה-URL יכול לפרסם לערוץ שלכם. תמיד קוראים אותו מ-`PropertiesService.getScriptProperties()`, אף פעם לא inline אמיתי בקוד. אם אתם מגלים אחד במקור, מבצעים rotation מ-admin של Slack לפני שעושים שום דבר אחר.
+- **מגבלת body של response של 50 MB.** response גדול של GitHub API (רשימה של issues עם bodies מלאים) יכול לחרוג מזה. משתמשים ב-pagination של ה-API (ה-`Link` header) וב-`UrlFetchApp.fetchAll` לדפים במקביל.
+- **מצב HTTPS קפדני.** Apps Script מאמת את התעודה. endpoints של בדיקה עם תעודה עצמית נכשלים. אין דגל לדלג על אימות; פורסים תעודה אמיתית על היעד (Let's Encrypt בחינם) והבעיה נעלמת.

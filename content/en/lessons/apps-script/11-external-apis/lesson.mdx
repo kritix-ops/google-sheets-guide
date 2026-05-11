@@ -2,7 +2,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # External APIs from Apps Script: UrlFetchApp, OAuth, calling Slack / Linear / GitHub
 
-So far Track 3 has stayed inside Google's surface: cells, the sheet, Drive, Gmail, Calendar. Real adtech scripts spend most of their time talking to *other* services. The Taboola backstage API for raw spend numbers. Slack for ROI alerts. Linear for ticket creation when a buyer flags a campaign. GitHub when a deployed Cloud Function needs a redeploy. Every one of those hops goes through one Apps Script API: **`UrlFetchApp`**. This lesson is about its options bag, the patterns for talking to a JSON API, and the auth shapes that actually work in practice.
+So far Track 3 has stayed inside Google's surface: cells, the sheet, Drive, Gmail, Calendar. Real adtech scripts spend most of their time talking to *other* services. The Taboola backstage API for raw spend numbers. Slack for ROI alerts. Linear for ticket creation when a buyer flags a campaign. GitHub when a deployed Cloud Function needs a redeploy. Every one of those hops goes through one Apps Script API: **`UrlFetchApp`**.
+
+This lesson is about its options bag, the patterns for talking to a JSON API, the auth shapes that actually work in practice, and the error-handling discipline that keeps a nightly cron alive after a partner has a bad afternoon. Get this lesson right and you can wire Apps Script to almost anything HTTP-shaped without leaving the bound script.
 
 ## The shape of a fetch call
 
@@ -23,47 +25,48 @@ The first argument is the URL. The second is an **options bag** that drives almo
 | Option | What it does |
 |---|---|
 | `method` | `"get"` (default), `"post"`, `"put"`, `"patch"`, or `"delete"`. Case-insensitive. |
-| `headers` | Plain object of header-name → value. `Authorization`, `Accept`, custom platform headers live here. |
+| `headers` | Plain object of header-name to value. `Authorization`, `Accept`, custom platform headers live here. |
 | `payload` | The request body. A string is sent as-is; an object is form-urlencoded (NOT JSON-encoded: see next row). |
 | `contentType` | If you set this and pass a string `payload`, Apps Script ships exactly what you wrote. To POST JSON you set `contentType: "application/json"` and stringify the payload yourself. |
-| `muteHttpExceptions` | When `true`, a 4xx or 5xx returns a response object you can inspect. When `false` (default), Apps Script throws and you can't read the error body. **Almost always set this to `true`.** |
+| `muteHttpExceptions` | When `true`, a 4xx or 5xx returns a response object you can inspect. When `false` (default), Apps Script throws and you cannot read the error body. **Almost always set this to `true`.** |
 | `followRedirects` | Defaults `true`. Set `false` for tracking-pixel-style endpoints where the 302 IS the answer. |
 
 ## POSTing JSON the right way
 
 The mistake everyone makes once:
 
-```js
-// WRONG. Apps Script form-urlencodes the object.
-// The body that ships is "name=Yoav&buyer=yc", not JSON.
-UrlFetchApp.fetch(url, {
+<Compare>
+  <ComparePanel label="Wrong: object payload, no contentType" tone="negative">
+    <pre className="font-mono text-xs"><code>{`UrlFetchApp.fetch(url, {
   method: "post",
   payload: { name: "Yoav", buyer: "yc" },
 });
-```
-
-The fix:
-
-```js
-UrlFetchApp.fetch(url, {
+// Body that ships: "name=Yoav&buyer=yc"
+// API responds: "invalid JSON"`}</code></pre>
+    <p className="mt-2 text-sm">Apps Script form-urlencodes the object. The body is NOT JSON. The API returns an error you spend an hour reading the wrong docs for.</p>
+  </ComparePanel>
+  <ComparePanel label="Right: explicit JSON" tone="positive">
+    <pre className="font-mono text-xs"><code>{`UrlFetchApp.fetch(url, {
   method: "post",
   contentType: "application/json",
   payload: JSON.stringify({ name: "Yoav", buyer: "yc" }),
   muteHttpExceptions: true,
-});
-```
+});`}</code></pre>
+    <p className="mt-2 text-sm">Stringify the payload, set contentType, mute exceptions so a 422 gives you the validation error body back instead of a runtime exception.</p>
+  </ComparePanel>
+</Compare>
 
 You stringify the payload, you set `contentType`, and you mute exceptions so a 422 from the API gives you the validation error body back instead of a runtime exception. The team's Linear ticket-creator function uses exactly this shape.
 
 ## OAuth and token handling
 
-Three patterns cover almost everything you'll do:
+Three patterns cover almost everything you will do:
 
-1. **Static token in `PropertiesService`.** The team's Slack webhook URL and the Linear API token live in the script's user properties, set once via `PropertiesService.getScriptProperties().setProperty("LINEAR_TOKEN", "lin_api_...")`. The script reads with `getProperty` at call time. The token never lands in source, which means it doesn't end up in git when someone exports the Apps Script project.
+1. **Static token in `PropertiesService`.** The team's Slack webhook URL and the Linear API token live in the script's user properties, set once via `PropertiesService.getScriptProperties().setProperty("LINEAR_TOKEN", "lin_api_...")`. The script reads with `getProperty` at call time. The token never lands in source, which means it does not end up in git when someone exports the Apps Script project.
 
 2. **OAuth2 library for full flows.** When you need an OAuth dance (Google, GitHub, anything with a refresh token), the community-maintained **OAuth2 for Apps Script** library handles the redirect URI, the token exchange, and the refresh on expiry. You add it as a library dependency (lesson 12 covers how) and call `OAuth2.createService(...)` once per service.
 
-3. **Webhook URLs that are themselves the secret.** Slack incoming webhooks are the cleanest. The URL contains the auth, you POST a JSON body, and there's no token to manage. Treat the URL as a secret (it still goes in `PropertiesService`, not in source).
+3. **Webhook URLs that are themselves the secret.** Slack incoming webhooks are the cleanest. The URL contains the auth, you POST a JSON body, and there is no token to manage. Treat the URL as a secret (it still goes in `PropertiesService`, not in source).
 
 ## Rate limits and quotas
 
@@ -115,7 +118,75 @@ function fetchWithRetry(url, options, maxAttempts = 3) {
 }
 ```
 
-That's overkill for a one-shot Slack notification. For anything that runs on a time-driven trigger and the team depends on, it's the bare minimum.
+That is overkill for a one-shot Slack notification. For anything that runs on a time-driven trigger and the team depends on, it is the bare minimum.
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: first attempt returns 503",
+      body: (
+        <>
+          The Taboola reporting endpoint is having a bad minute.{" "}
+          <code>UrlFetchApp.fetch</code> returns a response with{" "}
+          <code>getResponseCode() === 503</code>. The 5xx branch runs.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: backoff and retry",
+      body: (
+        <>
+          <code>Utilities.sleep(1000 * Math.pow(2, 0))</code>: 1 second.
+          Attempt 2 runs. The endpoint is still down: another 503.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: longer backoff",
+      body: (
+        <>
+          <code>Utilities.sleep(1000 * Math.pow(2, 1))</code>: 2 seconds.
+          Attempt 3. The endpoint recovered; response is 200. The handler
+          returns the response.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: 4xx terminates without retry",
+      body: (
+        <>
+          On a different day, attempt 1 returns 401 (token expired). The 4xx
+          branch throws immediately; no retry would help. The outer caller
+          sees the exception and (ideally) emails the team.
+        </>
+      ),
+    },
+  ]}
+/>
+
+<QuickCheck
+  question="Your nightly UrlFetchApp.fetch to Slack uses payload: { text: 'spend alert' } with no contentType. The Slack message never arrives. What is wrong?"
+  options={[
+    {
+      id: "a",
+      label: "Slack incoming webhooks have a 1 message per second rate limit; you tripped it.",
+      correct: false,
+      explanation: "Rate limits matter, but they cause partial drops, not zero-delivery. The shape issue is a different bug.",
+    },
+    {
+      id: "b",
+      label: "Without contentType set, Apps Script form-urlencodes the payload to 'text=spend+alert'. Slack expects JSON and silently ignores the message.",
+      correct: true,
+      explanation: "Right. The default for an object payload is form-urlencoded, not JSON. Slack rejects (or ignores) non-JSON bodies on its incoming webhook URL. Pass contentType: 'application/json' and JSON.stringify(payload).",
+    },
+    {
+      id: "c",
+      label: "Slack requires Authorization headers even on incoming webhooks.",
+      correct: false,
+      explanation: "Incoming webhooks have the auth baked into the URL. The issue is the body shape, not the headers.",
+    },
+  ]}
+/>
 
 ## Now do it for real
 
@@ -126,17 +197,17 @@ That's overkill for a one-shot Slack notification. For anything that runs on a t
 
 The starter file `Lesson.gs` declares `function fetchTaboolaSummary()` with a TODO. Three steps:
 
-1. Call `UrlFetchApp.fetch("https://example.com/api/taboola/summary", { headers: { Authorization: "Bearer demo-token" }, muteHttpExceptions: true })`. The URL is a placeholder; we're not really hitting Taboola: the grader doesn't run the fetch.
+1. Call `UrlFetchApp.fetch("https://example.com/api/taboola/summary", { headers: { Authorization: "Bearer demo-token" }, muteHttpExceptions: true })`. The URL is a placeholder; we are not really hitting Taboola: the grader does not run the fetch.
 2. Parse the response: `const data = JSON.parse(response.getContentText())`. In the wild this returns an object like `{ total_spend: 32418.20, top_vertical: "Reverse Mortgage PR" }`.
 3. Write `data.total_spend` to J1 on the Campaigns tab: `sheet.getRange("J1").setValue(data.total_spend)`.
 
-The grader checks the source for these four pieces: it can't actually call the URL: so getting the **shape** right is what matters. Once your shape passes, the real Taboola backstage URL slots in by swapping one string.
+The grader checks the source for these four pieces: it cannot actually call the URL, so getting the **shape** right is what matters. Once your shape passes, the real Taboola backstage URL slots in by swapping one string.
 
 ## Used in the wild
 
 The team's external integrations are all variations of this lesson:
 
-- **Slack alerts on ROI drops.** A time-driven trigger reads the Aggregator tab, groups by buyer, and for any buyer whose 7-day ROI drops below 1.0 it POSTs a Slack incoming webhook with `{ "text": "<!channel> Buyer Yoav: 7d ROI dropped to 0.82" }`. One webhook URL stored in `PropertiesService`.
+- **Slack alerts on ROI drops.** A time-driven trigger reads the Aggregator tab, groups by buyer, and for any buyer whose 7-day ROI drops below 1.0 it POSTs a Slack incoming webhook with a JSON payload like `{ "text": "buyer Yoav: 7d ROI dropped to 0.82" }`. One webhook URL stored in `PropertiesService`.
 - **Linear ticket creation from a sidebar button.** The "Flag this campaign" sidebar button collects the row's campaign name and the reason, POSTs to `https://api.linear.app/graphql` with the GraphQL `issueCreate` mutation, and writes the resulting ticket URL into a sheet column. The Linear API token comes from `PropertiesService`.
 - **GitHub comment on aggregator updates.** When the nightly aggregator finishes, a follow-up function POSTs a comment to a GitHub issue tracking the daily run, with a Markdown summary table. Personal access token in `PropertiesService`.
 
@@ -144,9 +215,11 @@ Every one of them is the same five-line shape: get the secret, build the body, f
 
 ## Pro pitfalls
 
-- **`muteHttpExceptions: false` (the default) throws on 4xx and 5xx so you can't see the error body.** Always set it to `true`. The few cases where you want the default behavior: your code is wrapping the fetch in a try/catch that re-throws: you'll know it.
+- **`muteHttpExceptions: false` (the default) throws on 4xx and 5xx so you cannot see the error body.** Always set it to `true`. The few cases where you want the default behavior: your code is wrapping the fetch in a try/catch that re-throws: you will know it.
 - **Apps Script caches fetches with the same URL + headers within a short window.** A retry-tight loop hitting the same URL gets cached responses. To force a fresh request, add a cache-busting query param: `url + "?ts=" + Date.now()`.
-- **OAuth tokens that go stale.** A token in `PropertiesService` that worked last month doesn't always work today. Linear and GitHub tokens can be revoked or expire when the issuing user leaves the org. Build the script to log the response code, and have the daily aggregator email someone when it sees a 401: silent failures are the worst kind.
+- **OAuth tokens that go stale.** A token in `PropertiesService` that worked last month does not always work today. Linear and GitHub tokens can be revoked or expire when the issuing user leaves the org. Build the script to log the response code, and have the daily aggregator email someone when it sees a 401: silent failures are the worst kind.
 - **`UrlFetchApp.fetchAll` blocks on the slowest request in the batch.** If you fire 50 fetches at four different services and one of them is having a bad minute, the whole batch waits. Split the batch by service if any one of them is unreliable.
 - **Form-urlencoded `payload` when you meant JSON.** Setting `payload: { foo: "bar" }` without `contentType` ships `foo=bar`, not `{"foo":"bar"}`. The API responds with "invalid JSON" and you spend an hour reading the wrong docs. Default to `contentType: "application/json"` plus `payload: JSON.stringify(...)` for any non-Google JSON API.
 - **Webhook URLs accidentally committed to source.** A Slack webhook URL IS the auth: anyone with the URL can post to your channel. Always read it from `PropertiesService.getScriptProperties()`, never inline a real one in code. If you discover one in source, rotate it from the Slack admin before doing anything else.
+- **Response body limit of 50 MB.** A large GitHub API response (a list of issues with full bodies) can exceed this. Use the API's pagination (the `Link` header) and `UrlFetchApp.fetchAll` for the pages in parallel.
+- **HTTPS strict mode.** Apps Script verifies the certificate. Self-signed test endpoints fail. There is no flag to skip verification; deploy a real cert on the target (Let's Encrypt is free) and the issue goes away.
