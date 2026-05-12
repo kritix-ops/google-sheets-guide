@@ -2,7 +2,7 @@
 
 This is the lesson the team is going to want printed out and pinned to the wall. `IMPORTRANGE` is the most-used and most-broken formula in the workbooks: it pulls data from another spreadsheet, which is *the* foundation of every cross-team dashboard. When it works, it feels like magic. When it breaks, the whole reporting day stops.
 
-Read this twice. Then read it again next time IMPORTRANGE breaks.
+`IMPORTRANGE` shows up in every workbook the team touches: the per-platform sheets pulling raw data from each ad network, the aggregator sheets that join everything, the dashboards built on top of the aggregators. Permission revocations, source workbook renames, range expansions that drift, refresh-rate quirks, and `#REF!` cascades when one upstream sheet breaks. They hit all of it, constantly. Read this lesson twice. Then read it again next time IMPORTRANGE breaks.
 
 ## The four IMPORT functions
 
@@ -13,7 +13,7 @@ Read this twice. Then read it again next time IMPORTRANGE breaks.
 | `IMPORTDATA` | URL serving CSV/TSV | Pulling exported data from a public URL |
 | `IMPORTXML` | XML/HTML page with XPath | Targeted scraping with XPath selectors |
 
-`IMPORTRANGE` dominates day-to-day adtech work. The other three show up occasionally for one-off analyses. We'll cover them briefly after the deep dive on IMPORTRANGE.
+`IMPORTRANGE` dominates day-to-day adtech work. The other three show up occasionally for one-off analyses. We will cover them briefly after the deep dive on IMPORTRANGE.
 
 ## IMPORTRANGE: the syntax
 
@@ -38,28 +38,28 @@ The result spills as a 2D array starting at the formula cell. With `A:F`, you ge
 
 The first time you use IMPORTRANGE pointing at a new source, the formula returns `#REF!` with the message **"You need to connect these sheets."** You click the cell, click **Allow access**, and Sheets establishes a one-way trust relationship from the source to the destination.
 
-**Critical details about the auth:**
+Critical details about the auth:
 
-- The trust is **per source sheet → destination sheet pair**. Connecting from "dashboard" to "raw data" doesn't auto-connect from "dashboard" to a *different* "raw data" sheet.
-- Only someone with **edit access** to both sheets can authorize the connection. If your team's permissions are split, the dashboard owner who lacks edit on the source can't approve.
-- Once connected, **any user with view access to the destination** can see the imported data, even if they don't have access to the source. This is the load-bearing detail to remember when handling sensitive data: importing leaks downstream.
-- Removing access from the source doesn't break the formula immediately: Sheets caches; the break shows up when the cache expires or someone hits "refresh."
+- The trust is **per source sheet → destination sheet pair**. Connecting from "dashboard" to "raw data" does not auto-connect from "dashboard" to a *different* "raw data" sheet.
+- Only someone with **edit access** to both sheets can authorize the connection. If your team's permissions are split, the dashboard owner who lacks edit on the source cannot approve.
+- Once connected, **any user with view access to the destination** can see the imported data, even if they do not have access to the source. This is the load-bearing detail to remember when handling sensitive data: importing leaks downstream.
+- Removing access from the source does not break the formula immediately. Sheets caches; the break shows up when the cache expires or someone hits "refresh."
 
 ## The performance reality
 
 `IMPORTRANGE` is **slow**. Every cell that uses IMPORTRANGE makes a network round-trip on first load and on cache invalidation. A dashboard with 50 IMPORTRANGE formulas takes seconds (or tens of seconds) to load on a cold start.
 
-**Patterns that don't scale:**
+Patterns that do not scale:
 
 - One IMPORTRANGE per cell, dragged across a column. Each cell makes its own request.
 - IMPORTRANGE inside a MAP or BYROW: fires N times.
-- IMPORTRANGE inside a volatile function (like INDIRECT): refires on every recalc.
+- IMPORTRANGE inside a volatile function (like INDIRECT, lesson 25): refires on every recalc.
 
-**Patterns that do scale:**
+Patterns that do scale:
 
 - **One IMPORTRANGE per source per dashboard.** Pull all the columns you need, in one call, into one block. Reference *that block* from downstream formulas.
-- **Wrap with QUERY to filter at the source.** `=QUERY(IMPORTRANGE(...), "SELECT Col2, Col5 WHERE Col2 = 'Yoav'", 1)` is faster than importing everything and filtering downstream because Sheets only spills the filtered result.
-- **Wrap with LET** (lesson 20) so the import is computed once even when used multiple times in the same formula:
+- **Wrap with QUERY to filter at the source.** `=QUERY(IMPORTRANGE(...), "SELECT Col2, Col5 WHERE Col2 = 'Yoav'", 1)` is faster than importing everything and filtering downstream, because Sheets only spills the filtered result.
+- **Wrap with LET** (lesson 1.20) so the import is computed once even when used multiple times in the same formula:
 
 ```
 =LET(
@@ -70,7 +70,26 @@ The first time you use IMPORTRANGE pointing at a new source, the formula returns
 )
 ```
 
-The `data` is the IMPORTRANGE; `total` and `count` both reference it. Without LET, you'd run the IMPORTRANGE twice.
+The `data` is the IMPORTRANGE; `total` and `count` both reference it. Without LET, you would run the IMPORTRANGE twice.
+
+## The single biggest performance trap
+
+The pattern below is the one the team has lost the most days to. Both formulas return the same average revenue. One of them works on a 50-row dashboard. The other one melts the workbook.
+
+<Compare
+  panels={[
+    {
+      title: "Slow: IMPORTRANGE called per cell",
+      formula: '=AVERAGE(IMPORTRANGE("...", "Campaigns!E2:E10000"))\n=SUM(IMPORTRANGE("...", "Campaigns!E2:E10000"))\n=COUNT(IMPORTRANGE("...", "Campaigns!E2:E10000"))',
+      why: "Three IMPORTRANGE calls = three network round-trips, three caches, three places to break. Drag this across 50 rows and the dashboard makes hundreds of cold requests on first open.",
+    },
+    {
+      title: "Fast: one IMPORTRANGE, referenced",
+      formula: '=LET(\n  data, IMPORTRANGE("...", "Campaigns!E2:E10000"),\n  avg, AVERAGE(data),\n  total, SUM(data),\n  count, COUNT(data),\n  {avg; total; count}\n)',
+      why: "One IMPORTRANGE call, three reuses via LET. The cache is hit once. The dashboard loads in seconds instead of a minute.",
+    },
+  ]}
+/>
 
 ## The cache and refresh
 
@@ -78,31 +97,30 @@ IMPORTRANGE caches results to avoid re-fetching constantly. The cache invalidate
 
 - A change in the source data (Sheets watches and pushes updates, usually within a minute).
 - A workbook open after the cache expires (TTL is variable, often around an hour).
-- Manual refresh: there's no UI button; the workaround is to delete the formula and retype it.
+- Manual refresh: there is no UI button; the workaround is to delete the formula and retype it.
 
-**To force-refresh:** make a no-op edit to the source (type a value, undo): Sheets re-pushes to all subscribers. Or in the destination, edit and revert the IMPORTRANGE formula.
+**To force-refresh:** make a no-op edit to the source (type a value, undo). Sheets re-pushes to all subscribers. Or in the destination, edit and revert the IMPORTRANGE formula.
 
 The team's "the dashboard is wrong" tickets are 80% stale-cache issues. Build a habit of force-refreshing before quoting numbers in a meeting.
 
 ## Defensive patterns
 
-```
-=IFERROR(
-  IMPORTRANGE("https://...", "Campaigns!A:F"),
-  "Source unavailable - check connection"
-)
-```
+Wrap every load-bearing IMPORTRANGE in IFERROR (lesson 1.9). The fallback message tells the next person what is wrong, instead of showing a bare `#REF!`.
 
-Wrap every load-bearing IMPORTRANGE in IFERROR (lesson 9). The fallback message tells the next person what's wrong, instead of showing a bare `#REF!`.
-
-```
-=LET(
-  data, IFERROR(IMPORTRANGE("...", "Campaigns!A:F"), {""}),
-  IF(ROWS(data) < 2, "No data: check source", QUERY(data, "SELECT ...", 1))
-)
-```
-
-Belt-and-suspenders: catch the import error, then check the result is non-empty before running QUERY. This is the pattern for dashboards that get screen-shared to leadership: never show `#REF!` to a CEO.
+<Compare
+  panels={[
+    {
+      title: "Naked IMPORTRANGE (shows #REF! to stakeholders)",
+      formula: '=IMPORTRANGE("https://...", "Campaigns!A:F")',
+      why: "If the source is renamed, permissions are revoked, or the tab disappears, this returns `#REF!` and the whole dashboard cell shows an error. A CEO sees `#REF!` in a screen-share and trust evaporates.",
+    },
+    {
+      title: "Wrapped with IFERROR + LET safety check",
+      formula: '=LET(\n  data, IFERROR(IMPORTRANGE("...", "Campaigns!A:F"), {""}),\n  IF(ROWS(data) < 2, "No data: check source", QUERY(data, "SELECT *", 1))\n)',
+      why: "Catch the import error to a fallback array, then verify the result has rows before passing to QUERY. Belt-and-suspenders for dashboards that get screen-shared to leadership.",
+    },
+  ]}
+/>
 
 ## IMPORTHTML, IMPORTDATA, IMPORTXML
 
@@ -132,14 +150,24 @@ Useful when a partner publishes daily data as a CSV at a stable URL.
 
 XPath is verbose but powerful when you need a single element rather than a whole table.
 
-All three of these only work on **public** URLs (no auth). For private data sources, you'd use Apps Script with `UrlFetchApp` instead.
+All three of these only work on **public** URLs (no auth). For private data sources, you would use Apps Script with `UrlFetchApp` instead.
+
+<QuickCheck
+  prompt="A dashboard pulls campaign data from a source sheet via IMPORTRANGE. The source owner shares the dashboard externally with a partner agency. The partner needs to see the dashboard numbers but is not supposed to access the underlying campaign log. Is the source data exposed?"
+  options={[
+    { id: "a", text: "No, because IMPORTRANGE requires explicit per-user authorization on the source.", correct: false, explanation: "Wrong. IMPORTRANGE auth is per source-destination *sheet* pair, not per user. Once the dashboard owner authorized the connection, anyone with view access to the destination sees the imported cells." },
+    { id: "b", text: "Yes. Anyone with view access on the destination can see whatever the IMPORTRANGE pulled.", correct: true, explanation: "Correct. The imported range is visible to all destination viewers, regardless of whether they have access to the source. This is the load-bearing detail when handling sensitive data: importing leaks downstream." },
+    { id: "c", text: "No, only the columns selected by an inner QUERY are visible to the partner.", correct: false, explanation: "QUERY filters what's spilled, but the IMPORTRANGE itself still surfaces those cells. Anything that lands in the destination is visible to destination viewers." },
+    { id: "d", text: "Yes, but only if the partner is signed in with a Google account.", correct: false, explanation: "Sign-in state of the viewer doesn't gate the imported cells. Whatever IMPORTRANGE spilled is part of the destination sheet now." },
+  ]}
+/>
 
 ## Used in the wild
 
 - **One source-of-truth campaign log per market.** Each region's team owns one workbook; every dashboard pulls via IMPORTRANGE wrapped in QUERY to filter to the metrics that dashboard needs.
 - **Cross-account billing dashboard.** IMPORTRANGE from each platform's exported sheet, UNION via curly brace stacking, normalize column names, present in one view.
 - **Daily exchange-rate sheet.** IMPORTDATA from a free FX API endpoint that returns CSV; cells reference it for currency normalization.
-- **Competitor pricing tracker.** IMPORTHTML against a public competitor pricing page; spotty (HTML changes break it), but useful when it works.
+- **Competitor pricing tracker.** IMPORTHTML against a public competitor pricing page. Spotty (HTML changes break it), but useful when it works.
 - **Status pages.** IMPORTXML with XPath against a partner's public status page; a tiny `=IF(IMPORTXML(...) = "operational", "OK", "DOWN")` cell on the team dashboard.
 
 ## Pro pitfalls
@@ -147,12 +175,13 @@ All three of these only work on **public** URLs (no auth). For private data sour
 - **`#REF!` after working fine for weeks** usually means the source's tab was renamed, columns shifted, or someone revoked access. First check is "did the source sheet change?"
 - **`#N/A` instead of `#REF!`** can mean the connection auth was revoked. Re-establish via the cell's "Allow access" prompt.
 - **Importing huge ranges (`A:Z`) on every formula** brings the dashboard to a crawl. Always import the smallest range you need; better, wrap in QUERY to filter at the source.
-- **IMPORTRANGE columns are positional, not named.** When you reference imported data via `INDEX(imported, , 3)`, you're saying "column 3 of what I imported": if the source adds a column at position 2, your INDEX 3 now points to a different field. Use named columns by importing column headers and looking up positions with MATCH.
+- **IMPORTRANGE columns are positional, not named.** When you reference imported data via `INDEX(imported, , 3)`, you are saying "column 3 of what I imported". If the source adds a column at position 2, your INDEX 3 now points to a different field. Import column headers and look up positions with MATCH (lesson 1.4).
 - **IMPORTRANGE-of-IMPORTRANGE is allowed but doubles the latency.** If you need a chain (sheet A → sheet B → sheet C), each hop pays the round-trip cost. Restructure when possible.
-- **Sharing a dashboard widely** with IMPORTRANGE means the source data is implicitly accessible to everyone with view access on the dashboard, even those who don't have access to the source. Audit before sharing externally.
-- **`IMPORTRANGE` doesn't preserve cell formatting**: colors, number formats, conditional formatting are all stripped. Format the destination separately or apply conditional formatting on the imported range.
+- **Sharing a dashboard widely** with IMPORTRANGE means the source data is implicitly accessible to everyone with view access on the dashboard, even those who do not have access to the source. Audit before sharing externally.
+- **`IMPORTRANGE` does not preserve cell formatting.** Colors, number formats, conditional formatting are all stripped. Format the destination separately or apply conditional formatting on the imported range.
 - **Recursive cycles cause a `#REF!` error.** If sheet A imports from sheet B and sheet B imports from sheet A, both break. Sheets detects the cycle and refuses both.
+- **`IMPORTRANGE` text dates arrive as strings, not dates.** A `2026-05-11` in the source can land in the destination as the literal text `"2026-05-11"` and not match a `DATE()`-based filter. Wrap with `DATEVALUE` or coerce upstream (lesson 1.8).
 
 ## Now do it for real
 
-Click **Start lesson** to provision a sheet with the campaign log. You'll write three formulas mimicking IMPORTRANGE patterns: a basic IMPORTRANGE (against a public sample sheet provisioned by the system), an IMPORTRANGE wrapped in QUERY to filter at the source, and an IFERROR-protected IMPORTRANGE with a fallback message.
+Click **Start lesson** to provision a sheet with the campaign log. You will write three formulas mimicking IMPORTRANGE patterns: a basic IMPORTRANGE (against a public sample sheet provisioned by the system), an IMPORTRANGE wrapped in QUERY to filter at the source, and an IFERROR-protected IMPORTRANGE with a fallback message.
