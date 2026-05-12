@@ -168,5 +168,5 @@ In the team's weekly review:
 - **The "AI said it so it must be true" trap.** A polished AI paragraph carries undeserved authority. Use AI output as a starting draft, not a final claim.
 - **Asking AI for the "best" or "worst" buyer/vertical/platform.** Subjective frames produce different answers each call. Define the criterion ("highest ROI", "lowest CPC variance") and use a formula instead.
 - **AI's chart suggestions for time series.** Often a line chart with the y-axis starting at zero, which buries a 5% trend in a flat-looking line. Verify the suggested config against the actual data shape before applying.
-- **Large-dataset analysis without aggregation.** Asking AI to "find the worst week" across 50,000 rows of detail gives you a sampled answer (lesson 5.1). Pre-aggregate to a daily or weekly summary first; then ask AI on the rolled-up data.
+- **Large-dataset analysis without aggregation.** Asking AI to "find the worst week" across 50,000 rows of detail gives you a sampled answer (lesson 5.1). Pre-aggregate to a daily or weekly summary first with `QUERY` (lesson 1.12) or a pivot (Track 2 lesson 2); then ask AI on the rolled-up data.
 - **Non-deterministic candidate lists.** "Top three outliers" can return three different sets on Monday and Friday. If the candidates feed a recurring report, freeze the list once you've verified it.
