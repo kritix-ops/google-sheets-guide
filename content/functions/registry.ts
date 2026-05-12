@@ -2262,6 +2262,40 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/7013992?hl=en",
   },
 
+  FLATTEN: {
+    name: "FLATTEN",
+    category: "array",
+    summary: {
+      en: "Collapses one or more 2D ranges into a single column, row by row. The bridge between grid-shaped data and column-shaped helpers like UNIQUE, FILTER, or QUERY that expect a single column.",
+      he: "מקפל טווח דו-ממדי אחד או יותר לעמודה יחידה, שורה אחר שורה. הגשר בין נתונים בצורת רשת לעוזרים בצורת עמודה כמו UNIQUE, FILTER, או QUERY שמצפים לעמודה אחת.",
+    },
+    syntax: "FLATTEN(range1, [range2, ...])",
+    params: [
+      {
+        name: "range1",
+        type: "range | value",
+        description: {
+          en: "The first range, literal value, or array to flatten. A 2D range is read in row-major order (entire first row before the second row).",
+          he: "הטווח, הערך הליטרלי, או המערך הראשון לקפל. טווח דו-ממדי נקרא בסדר row-major (כל השורה הראשונה לפני השנייה).",
+        },
+      },
+      {
+        name: "range2, ...",
+        type: "range | value",
+        optional: true,
+        description: {
+          en: "Additional ranges or values to append to the output. Each is flattened and appended to the column.",
+          he: "טווחים או ערכים נוספים להוסיף לפלט. כל אחד מקופל ומוצמד לעמודה.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single spilled column containing every value from the input ranges. Empty cells are preserved; wrap with FILTER to drop them. Array-aware: no ARRAYFORMULA needed.",
+      he: "עמודה זורמת יחידה שמכילה כל ערך מטווחי הקלט. תאים ריקים נשמרים; עוטפים ב-FILTER כדי להוריד אותם. מודע למערכים: לא צריך ARRAYFORMULA.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/10307761?hl=en",
+  },
+
   REGEXMATCH: {
     name: "REGEXMATCH",
     category: "regex",
