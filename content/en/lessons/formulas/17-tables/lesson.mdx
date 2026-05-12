@@ -2,22 +2,53 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # Tables: structured ranges that don't break
 
-A **Table** is a Sheets feature that turns a range into a structured object with a name, typed columns, and self-extending bounds. Once data is in a table, you reference columns by name (`Campaigns[Spend]`) instead of position (`E2:E13`). When rows are added, every formula and chart referencing the table updates automatically: no `$E$2:$E$1000` "extend the range now and hope it's enough" pattern.
+A **Table** is a Sheets feature that turns a range into a structured object: it gets a name, typed columns, alternating-row formatting, and self-extending bounds. Once data is in a table, you stop saying "the cells from `E2` to `E1000`" and start saying `Campaigns[Spend]`. When a new campaign is pasted at the bottom, every formula, chart, and pivot that references the table picks it up automatically. No `$E$2:$E$1000` "extend the range now and hope it covers tomorrow's rows."
 
-This is the single biggest readability and robustness upgrade Sheets has shipped in years. Use it everywhere your team's data has a recognizable schema.
+This is the single biggest readability and robustness upgrade Sheets has shipped in years, and the team's master campaign log is exactly the kind of data that should live in one. The lesson walks through the conceptual model, the structured-reference syntax, the workflow gotchas (especially the Excel-isms that *don't* carry over), and the patterns that turn a brittle "growing log" into something the whole dashboard layer can lean on safely.
+
+## What a table looks like
+
+When you convert a range, Sheets wraps it in a visual frame: bold header row, alternating-row striping, a small table-name dropdown at the top-left, and per-column type dropdowns in each header cell. The data underneath looks like any other range, but Sheets now treats it as a single object with a name.
+
+<MiniGrid
+  data={[
+    ["📋 Campaigns", "", "", "", "", ""],
+    ["Date", "Buyer", "Vertical", "Platform", "Spend", "Revenue"],
+    ["2026-05-01", "Yoav Cohen", "Used Cars PR", "Taboola", 342.18, 487.30],
+    ["2026-05-02", "Sarah Levi", "Lingerie PR", "Outbrain", 198.40, 312.55],
+    ["2026-05-03", "David Mizrahi", "Solar Panels PR", "Mediago", 612.90, 1124.6],
+  ]}
+  caption="A converted table named Campaigns. The header row carries typed columns (text, date, currency); the body extends every time a new campaign is added. From outside the table, formulas reference it as Campaigns[Spend], Campaigns[Buyer], etc."
+  highlight={["A1", "F1"]}
+/>
 
 ## Convert a range into a table
 
-1. Select the range (or click any cell in the data: Sheets will detect the bounds).
-2. **Format → Convert to table.** (Or right-click → "Convert to table".)
+The workflow is short:
+
+1. Select the range, or click any cell in the data (Sheets detects the bounds).
+2. **Format → Convert to table** (or right-click → "Convert to table").
 3. Sheets infers column types (text, number, currency, date, percent), applies formatting, and gives the table an auto-name like `Table1`.
-4. Click the small table-name dropdown at the top-left to rename it to something meaningful: `Campaigns`, `Buyers`, `Verticals`.
+4. Click the table-name dropdown at the top-left to rename it to something meaningful: `Campaigns`, `Buyers`, `Verticals`.
 
-**Always rename the table immediately after creating it.** `Table1` is meaningless; `Campaigns` makes formulas read like English.
+The fourth step is non-optional. `Table1` is meaningless and every formula reads worse for it.
 
-## Structured references: the syntax
+### Easy traps: naming the table
 
-Once your range is a table named `Campaigns` with columns `Date | Buyer | Vertical | Platform | Spend | Revenue`:
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=SUM(Table1[Spend])</code></pre>
+    <p className="mt-2 text-sm"><strong>Default name left in place.</strong> The formula reads as nothing in particular. Two months later a teammate sees <code>Table1</code> in a dashboard cell and has no idea what it refers to. Renaming after the table grows is harder because dependent formulas need updating.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=SUM(Campaigns[Spend])</code></pre>
+    <p className="mt-2 text-sm"><strong>Renamed immediately after creation.</strong> The formula reads like English. Anyone scanning the dashboard knows the source. Rename the table the moment you create it, before any formula references it.</p>
+  </ComparePanel>
+</Compare>
+
+## Structured reference syntax
+
+Once a range is a table named `Campaigns` with columns `Date | Buyer | Vertical | Platform | Spend | Revenue`, every formula can reference it by name:
 
 | Reference | Means |
 |---|---|
@@ -29,77 +60,139 @@ Once your range is a table named `Campaigns` with columns `Date | Buyer | Vertic
 | `Campaigns[[#HEADERS],[Spend]]` | Just the header cell of the Spend column |
 | `Campaigns[[#ALL],[Spend]]` | The Spend column including its header |
 
-Examples:
+The plain `Campaigns[Spend]` form is the one you reach for 95% of the time. Reserve the `#HEADERS`, `#ALL`, `#TOTALS` variants for the cases where you genuinely need the header text or totals row pulled in.
 
-```
-=SUM(Campaigns[Spend])
-=AVERAGE(Campaigns[Revenue])
-=COUNTIF(Campaigns[Buyer], "Yoav Cohen")
-=SUMIFS(Campaigns[Revenue], Campaigns[Platform], "Taboola")
-```
+### Worked example 1: toy data
 
-**Naming rule that bites everyone:** spaces in the table name are replaced with underscores in formulas. A table named `Used Cars` becomes `Used_Cars[Spend]`. Spaces inside *column* names are kept as-is: `Campaigns[Vertical Name]` is valid: though many teams avoid spaces in column names entirely and use underscores or camelCase to keep formulas terse.
+A small toy table. The sum below references the column by name; in real Sheets you would write `Sales[Amount]`, but the sandboxed engine here cannot resolve table references, so the worked example uses an ordinary range. The point of the demo is the structural pattern, not the syntax variant.
 
-## Why tables matter in adtech
+<RefDemo
+  data={[
+    ["Item", "Amount"],
+    ["A", 100],
+    ["B", 200],
+    ["C", 150],
+  ]}
+  formula="=SUM(B2:B4)"
+  formulaCell="D2"
+  fillTo="D2"
+  expectedFills={["=SUM(B2:B4)"]}
+  caption="Range version: =SUM(B2:B4). Once converted to a table named Sales, the same formula reads =SUM(Sales[Amount]). Same total today (450); the table version survives row additions."
+/>
 
-The team's campaign log grows by ~50 rows per week. Without a table, every dashboard formula is `=SUMIFS(Sheet1!F:F, Sheet1!B:B, "Yoav Cohen")`: referencing entire columns to handle "future rows we haven't added yet." The whole-column reference is wasteful and slow, and breaks the moment someone inserts a header.
+### Worked example 2: real adtech data
 
-With a table:
-
-```
-=SUMIFS(Campaigns[Revenue], Campaigns[Buyer], "Yoav Cohen")
-```
-
-- **Auto-extends** when new rows are added: no need to widen the range.
-- **No accidental header inclusion**: `Campaigns[Spend]` already means "the data, not the header."
-- **Self-documenting**: anyone reading the formula knows what column is involved.
-- **Survives column inserts**: if someone adds a "Currency" column between Platform and Spend, range-based `E:E` breaks; `Campaigns[Spend]` still resolves correctly.
-
-## What HyperFormula doesn't see
-
-This lesson's **Try it** boxes use a sandboxed engine that doesn't understand Sheets tables. So the in-lesson examples below use ordinary ranges: but in the real assignment (Start lesson) you'll write the table-reference forms.
+The team's master pattern. Total spend across the whole campaign log, then total revenue for a single buyer using `SUMIFS`. In real Sheets these would be `=SUM(Campaigns[Spend])` and `=SUMIFS(Campaigns[Revenue], Campaigns[Buyer], "Yoav Cohen")`. The sandbox here uses the equivalent range forms.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
-  expectedFormula='=SUM(E2:E13)'
-  task={<>Sum the Spend column (E2:E13) using ordinary ranges. In real Sheets, you would write <code>=SUM(Campaigns[Spend])</code> instead: the result is the same, but the table form survives row additions.</>}
+  expectedFormula="=SUM(E2:E13)"
+  task={<>Sum the Spend column. In real Sheets with a Campaigns table this would be <code>{`=SUM(Campaigns[Spend])`}</code>. Here the sandbox needs the range form: <code>=SUM(E2:E13)</code>.</>}
   hint={<>Just <code>=SUM(E2:E13)</code>. Skip the header row.</>}
-  answer={<>The two formulas give identical results today. The difference shows up tomorrow: when you add row 14, the range version still ends at row 13 unless you remember to extend it. The table version expands automatically.</>}
+  answer={<>The two formulas give identical results today. The difference shows up tomorrow: when a new campaign is pasted into row 14, the range version still ends at row 13 unless someone remembers to extend it. The table version expands automatically. Multiply that across every dashboard formula in the workbook and the table form pays for itself by the end of the first week.</>}
 />
+
+### Combined example: SUMIFS by buyer
+
+The cross-reference pattern that the team's per-buyer dashboards are built on.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
   expectedFormula='=SUMIFS(F2:F13,B2:B13,"Yoav Cohen")'
-  task={<>Sum the Revenue for all of Yoav Cohen's campaigns. With ranges: <code>=SUMIFS(F2:F13, B2:B13, "Yoav Cohen")</code>. With a table: <code>=SUMIFS(Campaigns[Revenue], Campaigns[Buyer], "Yoav Cohen")</code>: same result, way more readable.</>}
+  task={<>Sum the Revenue for all of Yoav Cohen's campaigns. With ranges (sandbox form): <code>=SUMIFS(F2:F13, B2:B13, "Yoav Cohen")</code>. With a table (real Sheets): <code>{`=SUMIFS(Campaigns[Revenue], Campaigns[Buyer], "Yoav Cohen")`}</code>. Same result, far more readable.</>}
   hint={<>SUMIFS(sum_range, criteria_range, criterion). Sum_range is column F (Revenue), criteria_range is column B (Buyer).</>}
-  answer={<>Once you're using tables, every condition reads like English: "sum Revenue where Buyer = Yoav Cohen." Compare that to "sum F2 through F13 where the parallel B column equals Yoav Cohen": same logic, three times more cognitive load.</>}
+  answer={<>With tables, every condition reads like English: "sum Revenue where Buyer = Yoav Cohen." Compare that to "sum F2 through F13 where the parallel B column equals Yoav Cohen": same logic, three times more cognitive load. After you have lived with a table for a week, going back to range-based formulas feels archaic.</>}
 />
 
-## The current-row gotcha
+### Easy traps: structured reference syntax
 
-In Excel, you can write `=[@Spend] * 1.1` inside a table column to reference "the current row's Spend." **Sheets does not support this.** There is no `@column` or `[#ThisRow]` syntax. Inside a table, you still use a regular cell reference like `=E2*1.1` for current-row math, and Sheets auto-fills it down the column. The auto-fill is smart: but the formula reads as `E2`, not as `[@Spend]`, so the readability advantage doesn't extend to per-row calculations.
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUM('Used Cars'[Spend])`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Quoted table name with the space preserved.</strong> Sheets does not accept spaces inside the table-name part of a structured reference. The single quotes don't help. The formula errors with a parse error and the dashboard cell shows <code>#ERROR!</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=SUM(Used_Cars[Spend])</code></pre>
+    <p className="mt-2 text-sm"><strong>Underscores replace spaces.</strong> A table named "Used Cars" is referenced as <code>Used_Cars</code> in formulas. Spaces inside *column* names are kept as-is (<code>{`Campaigns[Vertical Name]`}</code> is valid), but spaces in *table* names always become underscores. The team usually skips spaces in both for sanity.</p>
+  </ComparePanel>
+</Compare>
 
-This is the single biggest gotcha when migrating from Excel: **structured references work for whole-column aggregates but not for current-row math.** Keep the table for what it's good at; use ordinary references for in-row formulas.
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=[@Spend] * 1.1</code></pre>
+    <p className="mt-2 text-sm"><strong>Excel's current-row syntax.</strong> The <code>[@col]</code> shorthand for "this row's Spend" works in Excel tables but Sheets does not support it. The formula errors with <code>#NAME?</code>. People migrating from Excel hit this every single time.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=E2 * 1.1</code></pre>
+    <p className="mt-2 text-sm"><strong>Plain cell reference for current-row math.</strong> Inside a table, you write per-row formulas with ordinary cell references. Sheets' auto-fill propagates the formula down the column intelligently, but the formula text still reads as <code>E2</code>, not <code>[@Spend]</code>. The readability win is for whole-column aggregates only.</p>
+  </ComparePanel>
+</Compare>
+
+## The sandbox caveat
+
+The interactive **TryIt** examples on this page run inside a sandboxed formula engine that does not understand Sheets tables. So the in-lesson cells use ordinary range references like `E2:E13`. When you click **Start lesson** to provision a real sheet, you will write the structured-reference forms (`Campaigns[Spend]`) against an actual table and see how they auto-extend.
+
+Read the two versions side by side as you scan the page: the range form is what you type here, the table form is what you type in production.
+
+## When tables shine, when they don't
+
+Tables earn their place for any data that has a recognizable schema and that grows over time:
+
+- **Master logs.** Campaign logs, order logs, error logs, anything append-only.
+- **Lookup references.** A `Verticals` table with vertical → category → benchmark CPC. Adding a new vertical is one row; downstream `VLOOKUP`s pick it up.
+- **Dashboard sources.** Pivot tables, charts, and `SUMIFS` aggregations all benefit from naming.
+
+Tables are *not* the right shape for:
+
+- **Sparse pivot-style grids** where the column count varies. Tables expect a stable column schema.
+- **Free-form scratch sheets** with no consistent header row.
+- **Data that lives in another workbook** and arrives via `IMPORTRANGE`. The imported copy is plain values; the source's table-ness does not carry across the workbook boundary.
+
+<QuickCheck
+  question={"Your teammate writes =SUMIFS(Campaigns[Revenue], [@Buyer], \"Yoav Cohen\") inside a Sheets table column and gets a #NAME? error. They insist this works in Excel. What's going on?"}
+  options={[
+    {
+      id: "a",
+      label: "The table needs to be renamed because the column header has a space.",
+      correct: false,
+      explanation: "Column-name issues produce different errors (typically #REF! or unresolved-name). #NAME? on [@Buyer] specifically is the Excel-isms-don't-work signature.",
+    },
+    {
+      id: "b",
+      label: "Sheets does not support the [@col] current-row syntax that Excel has. You have to use an ordinary cell reference like B2 for the current row's Buyer value.",
+      correct: true,
+      explanation: "This is the single biggest Excel migration gotcha. Whole-column refs (Campaigns[Buyer]) work fine; per-row refs ([@Buyer]) don't. Use the plain cell reference inside the table for current-row math and let Sheets auto-fill it down the column.",
+    },
+    {
+      id: "c",
+      label: "SUMIFS does not work inside a table; you need to wrap with ARRAYFORMULA.",
+      correct: false,
+      explanation: "SUMIFS works fine inside tables. The error is specifically about the [@Buyer] token, not about SUMIFS.",
+    },
+  ]}
+/>
 
 ## Used in the wild
 
-- **Master campaign log → table.** Convert the team's main campaign sheet to a table named `Campaigns`. Every dashboard pivot, sumifs, and chart now references `Campaigns[Revenue]` instead of `Sheet1!F:F`. New campaigns added at the bottom flow into every downstream formula automatically.
-- **Verticals lookup table.** A small lookup with vertical → category → benchmark CPC. As a table, the lookup reads `=VLOOKUP(B2, Verticals[#ALL], 2, FALSE)` and never breaks when new verticals are added.
+- **Master campaign log as a table.** The team's main campaign sheet becomes `Campaigns`. Every dashboard pivot, `SUMIFS`, and chart references `Campaigns[Revenue]` instead of `Sheet1!F:F`. Pasted-in rows flow into every downstream formula automatically.
+- **Verticals lookup table.** A small table with vertical → category → benchmark CPC. Lookup formulas read `=VLOOKUP(B2, Verticals[#ALL], 2, FALSE)` and survive new-vertical additions without edits.
 - **Per-buyer dashboards.** `=SUMIFS(Campaigns[Spend], Campaigns[Buyer], $A2)` filled across Yoav, Sarah, David, Maya, Tom: readable and stable.
-- **Chart sources.** Point a chart at `Campaigns[Date]` and `Campaigns[Revenue]`. Chart updates as the table grows; no need to re-edit chart ranges every week.
+- **Chart sources.** Point a chart at `Campaigns[Date]` and `Campaigns[Revenue]`. The chart updates as the table grows; no need to re-edit chart ranges every Friday.
+- **Conditional formatting with structured refs.** Rules like "highlight rows where Revenue < Spend" written against `Campaigns[Revenue]` and `Campaigns[Spend]` extend with the data automatically.
 
 ## Pro pitfalls
 
-- **No `@column` syntax.** Per-row formulas inside a table use plain cell references (`=E2*1.1`), not `=[@Spend]*1.1`. Excel users get this wrong constantly.
-- **Spaces in table names become underscores in formulas.** A table named "Used Cars" is `Used_Cars[Spend]`, not `'Used Cars'[Spend]` and not `Used Cars[Spend]`.
-- **You can't easily un-table.** "Convert back to range" exists in the table dropdown but it strips formatting and column types. Plan the table boundaries deliberately.
-- **Tables don't span IMPORTRANGE.** A table on Sheet A doesn't carry to Sheet B when you `IMPORTRANGE` the data: the imported copy is plain values. Use QUERY against the import or convert the imported range to a new local table.
-- **Column-type inference can mis-read.** If your "Date" column has one stray text entry, Sheets might infer the column as text. Fix the source data, then change the column type from the column-header dropdown.
-- **Sorting/filtering inside a table is built-in but isolates from outside formulas.** A `=Campaigns[Revenue]` reference returns the sorted view from outside, not the original physical row order. Usually fine, occasionally surprising.
-- **Conditional formatting on tables uses the table reference.** Rules like "highlight rows where ROI < 1" written against `Campaigns[Revenue]/Campaigns[Spend]` survive row additions. Range-based rules don't.
+- **No `[@col]` current-row syntax.** Per-row formulas inside a table use plain cell references (`=E2*1.1`), not `=[@Spend]*1.1`. Excel-trained users get this wrong constantly.
+- **Spaces in table names become underscores in formulas.** A table named "Used Cars" is `Used_Cars[Spend]`, not `'Used Cars'[Spend]` or `Used Cars[Spend]`. The team usually avoids spaces entirely.
+- **Tables don't carry through `IMPORTRANGE`.** A table in workbook A becomes plain values when imported into workbook B. Either convert the imported range to a new local table in B, or operate on the import with `QUERY` (lesson 1.12).
+- **Column type inference can mis-read.** One stray text entry in a "Date" column makes Sheets infer the whole column as text. Fix the source data, then set the column type explicitly from the header dropdown.
+- **You can't easily un-table.** "Convert back to range" exists in the table dropdown but it strips formatting and column types. Plan the table boundaries deliberately before converting.
+- **Sorting inside a table reorders the physical rows.** From outside, `Campaigns[Revenue]` returns the values in current physical order. Usually fine, occasionally surprising when a teammate sorts the table for a one-off scan and forgets.
+- **Adding a column at the edge auto-extends the table, but adding a column outside the table does not extend it.** New columns to the right are picked up if Sheets detects them as part of the schema. To force inclusion, drag the table's resize handle or use **Format → Resize table**.
+- **Conditional formatting on plain ranges does not auto-extend.** If your CF rule is on `F2:F1000` rather than `Campaigns[Revenue]`, new rows past row 1000 are unstyled. Tables fix this *only* if the CF rule was written against the structured reference.
 
 ## Now do it for real
 
-Click **Start lesson** to provision a campaign log. You'll convert the range to a table named `Campaigns`, then write three formulas using structured references: a `SUM` over the Spend column, a `SUMIFS` filtered by buyer, and a `COUNTIF` against the Vertical column.
+Click **Start lesson** to provision a campaign log. You will convert the range to a table named `Campaigns`, then write three formulas using structured references: a `SUM` over the Spend column, a `SUMIFS` filtered by buyer, and a `COUNTIF` against the Vertical column. The provisioned sheet behaves as a real Sheets table, so the structured-reference forms will work end-to-end.
