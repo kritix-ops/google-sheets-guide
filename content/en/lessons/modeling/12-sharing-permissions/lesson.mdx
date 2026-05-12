@@ -2,7 +2,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Sharing and permissions: viewer, commenter, editor, link sharing, expirations, transfer of ownership
 
-A workbook is only as private as its weakest share. The team has been burned by this exactly once and once was enough: a "Anyone with the link can edit" share got pasted into a Slack channel, the channel got forwarded, and three weeks later a sheet of vendor payout rates was being read by people who should never have seen it. Validation keeps bad values out of the data. Protected ranges keep bad edits out of the cells. **Permissions are the access policy that survives forwarding.** They decide who can open the file at all, and they are the only line of defense once the link is in the wild.
+A workbook is only as private as its weakest share. The team has been burned by this exactly once and once was enough: a "Anyone with the link can edit" share got pasted into a Slack channel, the channel got forwarded, and three weeks later a sheet of vendor payout rates was being read by people who should never have seen it. Validation (lesson 2.4) keeps bad values out of the data. Protected ranges (lesson 2.7) keep bad edits out of the cells. **Permissions are the access policy that survives forwarding.** They decide who can open the file at all, and they are the only line of defense once the link is in the wild.
 
 Think of permissions as a one-way gate. Adding access is reversible; revoking access doesn't reach the screenshot a contractor took yesterday. Every team that loses data to over-sharing learns this the same way: once. The cheap discipline is: name a role, name a type, set an expiration on anything external.
 
@@ -101,7 +101,7 @@ The transfer happens from the share dialog: change the leaving person's role to 
 
 ## Link-sharing pitfalls
 
-"Anyone with the link can view" is the single most common accidental over-share in this team's history. The flow is: someone wants to quickly send a tab to a vendor, they click "Get link," the link defaults to "Restricted" but they switch it to "Anyone with the link" because that's the path of least resistance, the vendor opens it, the vendor's CC'd colleague opens it, the colleague forwards it to their manager, and now the workbook is being read by six people the original sharer doesn't know exist. Once the link is out, you cannot put it back. The only fix is to break the link by deleting and replacing the workbook, which breaks every `IMPORTRANGE` downstream.
+"Anyone with the link can view" is the single most common accidental over-share in this team's history. The flow is: someone wants to quickly send a tab to a vendor, they click "Get link," the link defaults to "Restricted" but they switch it to "Anyone with the link" because that's the path of least resistance, the vendor opens it, the vendor's CC'd colleague opens it, the colleague forwards it to their manager, and now the workbook is being read by six people the original sharer doesn't know exist. Once the link is out, you cannot put it back. The only fix is to break the link by deleting and replacing the workbook, which breaks every `IMPORTRANGE` downstream (lesson 1.27 covers what re-authorizing all of those looks like).
 
 **Team policy: never use "Anyone with the link" for campaign data, vendor pricing, PII, or anything covered by an NDA. Always specify users by email.** If the vendor wants link sharing because it's easier for them, that's their preference; the team's data security trumps their convenience.
 
