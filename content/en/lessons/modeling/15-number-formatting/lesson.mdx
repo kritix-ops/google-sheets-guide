@@ -123,7 +123,7 @@ sign. Locale doesn't get a vote.`}</code></pre>
 
 ## The "format follows the data" rule
 
-A format lives on the *consuming* sheet. It does not travel through `IMPORTRANGE`. If the source workbook formats a column as currency and the destination workbook pulls it via `IMPORTRANGE`, the imported numbers arrive raw and the destination has to apply its own formatting. This sounds obvious until somebody renames a column header in the source, the destination's import shifts, and the formatting that *was* on the right column ends up on the wrong one. Apply formats to a column once, on the consuming sheet, after the import shape is stable.
+A format lives on the *consuming* sheet. It does not travel through `IMPORTRANGE` (lesson 1.27). If the source workbook formats a column as currency and the destination workbook pulls it via `IMPORTRANGE`, the imported numbers arrive raw and the destination has to apply its own formatting. This sounds obvious until somebody renames a column header in the source, the destination's import shifts, and the formatting that *was* on the right column ends up on the wrong one. Apply formats to a column once, on the consuming sheet, after the import shape is stable.
 
 A second wrinkle: imported dates sometimes arrive as text strings rather than serial numbers. A text date can't be formatted as a date. The format pattern silently does nothing. Use `DATEVALUE` (covered in lesson 2.14) to coerce, then format.
 
