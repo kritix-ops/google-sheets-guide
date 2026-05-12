@@ -222,7 +222,7 @@ toRename.forEach(f => f.setName(f.getName().replace(" pr", " PR")));
 ## נפוץ בשטח
 
 - **Nightly Taboola pull, refactored.** ה-script המקורי כתב 5,000 שורות תא בכל פעם ולקח 20 דקות (ולפעמים timeout). refactored לקריאת `setValues` אחת עם מערך דו-ממדי של 5,000 שורות, הוא מסיים תוך 30 שניות. אותה לוגיקה, שתי קריאות API במקום 5,000.
-- **מסלול המיגרציה מ-IMPORTRANGE ל-Apps Script.** כשה-sheet upstream יש לו 50,000 שורות ו-`IMPORTRANGE` גורם ל-dashboard לקחת 90 שניות להיפתח, הצוות עובר ל-pull יומי של Apps Script: `Sheets.Spreadsheets.values.get` (או `SpreadsheetApp.openById(...)`) פעם אחת על המקור, `setValues` אחד למראה המקומית, ה-dashboard קורא מהמקומית. מחליף טריות בזמן אמת (שלא הייתה ל-IMPORTRANGE באמת בכל מקרה) ל-load מיידי.
+- **מסלול המיגרציה מ-`IMPORTRANGE` ל-Apps Script** (שיעור 1.27 מכסה את החלופה החיה). כשה-sheet upstream יש לו 50,000 שורות ו-`IMPORTRANGE` גורם ל-dashboard לקחת 90 שניות להיפתח, הצוות עובר ל-pull יומי של Apps Script: `Sheets.Spreadsheets.values.get` (או `SpreadsheetApp.openById(...)`) פעם אחת על המקור, `setValues` אחד למראה המקומית, ה-dashboard קורא מהמקומית. מחליף טריות בזמן אמת (שלא הייתה ל-`IMPORTRANGE` באמת בכל מקרה) ל-load מיידי.
 - **Trigger פר-buyer ששולח roll-up במייל.** קורא את כל ה-tab `Campaigns` פעם אחת, מחשב סכומים פר-buyer ב-JS, כותב ל-tab dashboard בבת אחת, ואז שולח מייל אחד פר-buyer (עם `UrlFetchApp.fetchAll` אם ה-API של buyer-portal צריך הודעה גם). כל הזרימה לוקחת 4 שניות עבור 8 buyers; הגרסה פר-תא לקחה 90 שניות.
 
 ## מלכודות מקצועיות
@@ -234,4 +234,4 @@ toRename.forEach(f => f.setName(f.getName().replace(" pr", " PR")));
 - **Triggers שעושים timeout באמצע כתיבה משאירים נתונים חלקיים.** כשכתיבה של 5,000 שורות עושה timeout בנקודת 6 הדקות, השורות שהתחייבו לפני ה-timeout נשארות; השאר לא. ריצה הבאה רואה sheet לא עקבי. עוטפים batches גדולים ב-try/catch וכותבים סימן "last completed row" כך שריצות חוזרות יכולות לחזור.
 - **`UrlFetchApp.fetch` בלולאה פוגע ב-throttle של 600/דקה.** משתמשים ב-`fetchAll` ל-requests מקביליים, או `Utilities.sleep(100)` בין bursts כדי להישאר מתחת למגבלת הקצב על pulls ארוכים. שגיאת ה-throttle שקטה; הקריאה פשוט חוסמת יותר ויותר זמן עד שטיימר ההרצה הורג את הריצה.
 - **לחץ זיכרון על קריאות `getValues` ענקיות.** קריאה של 100,000 שורות × 20 עמודות זה 2 מיליון תאים, ~50 MB של זיכרון JS. Apps Script לא מתעד מגבלה קשה אבל בפועל scripts יכולים לעשות OOM. עבור datasets גדולים מאוד, מחלקים את הקריאה לבלוקים של 10,000 שורות ומעבדים כל אחד בזה.
-- **`setValues` על ranges מוגנים read-only נכשל בשקט.** אם חלק מה-range היעד מוגן, `setValues` או זורק או מדלג על התאים המוגנים, תלוי בהגדרת "warning only" של ההגנה. תמיד מאשרים את ההגנה ב-tab היעד לפני כתיבה גדולה.
+- **`setValues` על ranges מוגנים read-only נכשל בשקט** (שיעור 2.7 מכסה הגנת טווח לעומת הגנת גיליון). אם חלק מה-range היעד מוגן, `setValues` או זורק או מדלג על התאים המוגנים, תלוי בהגדרת "warning only" של ההגנה. תמיד מאשרים את ההגנה ב-tab היעד לפני כתיבה גדולה.
