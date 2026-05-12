@@ -2,7 +2,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Diagnosing slow Apps Script: profiles and batch ops
 
-Track 3 lesson 16 taught the batch-API fix: read once with `getValues()`, write once with `setValues()`, do the math in JavaScript in between. This lesson is the diagnostic layer underneath that fix. You have a script that runs slowly. Maybe it times out. Maybe the team's nightly aggregator started taking eighteen minutes when last month it took two. Before you refactor, you need to know which line is the slow one. Guessing wastes a day. Profiling takes ten minutes.
+Track 3 lesson 16 taught the batch-API fix: read once with `getValues()`, write once with `setValues()` (introduced in lesson 3.4), do the math in JavaScript in between. This lesson is the diagnostic layer underneath that fix. You have a script that runs slowly. Maybe it times out. Maybe the team's nightly aggregator started taking eighteen minutes when last month it took two. Before you refactor, you need to know which line is the slow one. Guessing wastes a day. Profiling takes ten minutes.
 
 The bar for this lesson: by the end you can open Executions, read durations, instrument a function with `console.time`, recognize the per-cell-loop antipattern in someone else's code, and know when `flush()` is a foot-gun versus a real tool. The team's nightly aggregator dropped from 18 minutes to 40 seconds with exactly these moves; the rewrite was a thirty-minute edit once profiling told us where to cut.
 
