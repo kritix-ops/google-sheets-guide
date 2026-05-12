@@ -2,80 +2,227 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # FILTER, SORT, UNIQUE
 
-QUERY is powerful but its SQL-style syntax is heavy for simple operations. `FILTER`, `SORT`, and `UNIQUE` are direct, expressive shortcuts for the everyday "give me just these rows", "sort this", "deduplicate this column" needs. All three are array-aware on their own: no `ARRAYFORMULA` wrapper needed.
+QUERY (lesson 1.12) is powerful, but its SQL-style syntax is heavy for everyday work. `FILTER`, `SORT`, and `UNIQUE` are the direct, expressive shortcuts for the three things you reach for constantly: "give me only these rows," "sort this," "show me each value once." Reading them out loud reads like English. The result is the most common adtech-dashboard idiom on the team.
+
+All three are array-aware on their own (no `ARRAYFORMULA` wrapper needed) and spill into the cells below from a single formula. They compose cleanly with each other and with `SUM`, `SUMIFS`, `COUNTA`, and the rest of the aggregation family from lesson 1.6.
 
 ## FILTER: keep rows that match a condition
 
-`FILTER(range, condition1, [condition2, ...])` returns the rows of `range` where every condition is `TRUE`. Conditions are arrays the same length as the range.
+`FILTER(range, condition1, [condition2, ...])` returns the rows of `range` where every condition is `TRUE`. Each condition is a boolean array the same length as the range's row count. Multiple conditions are combined AND-style.
+
+Use `*` between boolean arrays to force AND when you would otherwise express the logic with `+` or operators. Use `+` for OR. The arithmetic-on-booleans trick is how Sheets lets you build complex boolean conditions inline.
 
 <FunctionRef name="FILTER" />
 
-```
-=FILTER(A2:F13, B2:B13 = "Yoav Cohen")
-```
+### Worked example 1: toy data
 
-This returns every column for every row where the buyer is Yoav. Combine multiple conditions with comma (which is AND-style):
+Four products with sales numbers. We want only the rows where sales beat 50. One formula in `D2`, the result spills down column D.
 
-```
-=FILTER(A2:F13, B2:B13 = "Yoav Cohen", F2:F13 > 400)
-```
+<RefDemo
+  data={[
+    ["Product", "Sales"],
+    ["A", 100],
+    ["B", 80],
+    ["C", 60],
+    ["D", 30],
+  ]}
+  formula="=FILTER(A2:A5, B2:B5 > 50)"
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={["=FILTER(A2:A5, B2:B5 > 50)", "", ""]}
+  caption="The condition B2:B5 > 50 evaluates to TRUE, TRUE, TRUE, FALSE. FILTER returns the three rows that passed: A, B, C."
+/>
 
-For OR logic, use `+` between boolean arrays: `FILTER(A2:F13, (B2:B13 = "Yoav") + (B2:B13 = "Sarah"))`.
+### Worked example 2: real adtech data
+
+The whole-row case. Filter the campaign log down to a single buyer's campaigns. This is the live filtered-view pattern that every per-buyer dashboard uses.
 
 <MiniGrid
   data={CAMPAIGNS}
-  caption="The campaign log."
+  caption="The campaign log. Column B is the media buyer."
+  highlight={["B2", "B13"]}
 />
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
   expectedFormula='=FILTER(A2:F13,B2:B13="Yoav Cohen")'
-  task={<>Filter the campaign log to show only Yoav Cohen's campaigns. Use <code>FILTER</code>.</>}
-  hint={<>Two arguments: the range to return, and a boolean condition that's the same length as the range's row count.</>}
-  answer={<>FILTER returns every row where the condition is TRUE. The condition <code>B2:B13 = "Yoav Cohen"</code> evaluates to a TRUE/FALSE array per row. Yoav has 3 campaigns, so the result is 3 rows × 6 columns. The whole row is returned, not just specific columns: for column projection, combine FILTER with QUERY or add INDEX wrappers.</>}
+  task={<>Filter the campaign log to show only Yoav Cohen's campaigns. Put the result in <code>H1</code> and let it spill across all six columns.</>}
+  hint={<>Two arguments: the range to return, then a boolean condition the same length as the range's row count. <code>B2:B13 = "Yoav Cohen"</code> is your condition.</>}
+  answer={<>FILTER returns every column for every row where the condition is TRUE. The condition <code>B2:B13 = "Yoav Cohen"</code> resolves to a 12-row TRUE/FALSE array. Yoav has 3 campaigns, so the result is a 3 × 6 spill into <code>H1:M3</code>. The whole row comes back. For column projection (just buyer + revenue, say), reach for <code>QUERY</code> instead. The destination needs at least 3 × 6 of empty cells or the formula errors with a spill conflict.</>}
 />
+
+### Combined example: FILTER + SUM for a buyer's total revenue
+
+Wrap the spilled FILTER output in an aggregator and you get "Yoav's total revenue this period" in a single cell. The same trick lets you replace a `SUMIFS` when you find the criteria range easier to read as a FILTER condition.
+
+```
+=SUM(FILTER(F2:F13, B2:B13 = "Yoav Cohen"))
+```
+
+The inner `FILTER` returns just Yoav's revenue column (a 3-cell array). `SUM` adds them. Compare to `SUMIFS(F2:F13, B2:B13, "Yoav Cohen")` from lesson 1.6: same result, different readability. Use whichever matches how your brain frames the question. The FILTER form generalizes to AVERAGE, MAX, COUNTA, and friends with no rewrite.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=SUM(FILTER(F2:F13,B2:B13="Yoav Cohen"))'
+  task={<>Compute the total revenue for Yoav Cohen's campaigns. Combine <code>FILTER</code> on the revenue column with <code>SUM</code>.</>}
+  hint={<>FILTER the revenue column (F2:F13) by the buyer condition. Wrap the whole thing in SUM.</>}
+  answer={<>The composition is <code>SUM(FILTER(F2:F13, B2:B13 = "Yoav Cohen"))</code>. FILTER returns Yoav's three revenue values; SUM adds them. The same shape works for AVERAGE, MAX, MIN, COUNTA: change the outer function, keep the inner FILTER. This is the most common alternative to SUMIFS on the team, and it composes more naturally when the condition gets complex.</>}
+/>
+
+### Easy traps: FILTER
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=FILTER(A2:F13, B2:B="Yoav Cohen")</code></pre>
+    <p className="mt-2 text-sm"><strong>Condition length mismatch.</strong> The range covers 12 rows (<code>A2:F13</code>) but the condition is open-ended (<code>B2:B</code>, 999+ rows). FILTER returns <code>#N/A</code> with an "array arguments are of different size" message. Surprisingly common when refactoring an old formula.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=FILTER(A2:F, B2:B="Yoav Cohen")</code></pre>
+    <p className="mt-2 text-sm"><strong>Both ranges open-ended.</strong> Range and condition now both extend to the bottom of the sheet, so the lengths match. FILTER ignores empty rows in the result. Use this form when the log grows and you do not want to keep updating row numbers.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=FILTER(A2:F13, B2:B13="DoesNotExist")</code></pre>
+    <p className="mt-2 text-sm"><strong>No rows match.</strong> Returns <code>#N/A</code>. If this feeds into a dashboard, downstream cells (SUMs, counts, charts) all break visibly. The team has shipped this bug more than once.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IFERROR(FILTER(A2:F13, B2:B13="DoesNotExist"), "No results")`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Wrapped in IFERROR.</strong> Empty-result returns a soft fallback ("No results" or just <code>""</code>). Dashboards keep rendering. Always wrap any FILTER that feeds a user-facing cell.</p>
+  </ComparePanel>
+</Compare>
 
 ## SORT: sort by one or more columns
 
-`SORT(range, sort_column, ascending, [sort_column2, ascending2, ...])` returns the range sorted. The sort_column is a column **number within the range**, 1-indexed.
+`SORT(range, sort_column, ascending, [sort_column2, ascending2, ...])` returns the range sorted. The sort column is a **column number within the range**, 1-indexed, not the sheet letter. This is the single biggest stumble; people pass `"F"` or `6` for the sheet's column F and forget that if the range starts at `B`, the index of `F` is `5`, not `6`.
+
+For multi-key sorts, add more `column, ascending` pairs. The first pair is primary, the second is the tie-breaker, and so on.
 
 <FunctionRef name="SORT" />
 
-```
-=SORT(A2:F13, 6, FALSE)
-```
+### Worked example 1: toy data
 
-Sorts by column 6 (Revenue), descending. To sort by multiple columns, add more pairs.
+Three items, prices unsorted. `SORT` on the price column returns the values in ascending order.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 30],
+    ["B", 10],
+    ["C", 20],
+  ]}
+  formula="=SORT(B2:B4)"
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={["=SORT(B2:B4)", "", ""]}
+  caption="One-argument SORT on a single column. Result: 10, 20, 30 spilled into D2:D4. To sort descending, add FALSE: =SORT(B2:B4, 1, FALSE)."
+/>
+
+### Worked example 2: real adtech data
+
+The "top of the leaderboard" pattern. Sort the entire campaign log by revenue, descending. Whatever you want at the top of a dashboard goes here.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
   expectedFormula="=SORT(A2:F13,6,FALSE)"
-  task={<>Sort the entire campaign log by revenue (column 6 within the range) in descending order.</>}
-  hint={<>Three arguments: range, column number, ascending boolean. Column 6 is Revenue (F). Pass FALSE for descending.</>}
-  answer={<>SORT preserves all columns and reorders rows. Column 6 is the sixth column of the range A2:F13: that's column F, Revenue. The boolean argument: TRUE for ascending, FALSE for descending. SORT also accepts a second/third sort criterion for tie-breaking. SORT is fast for small ranges; use QUERY's ORDER BY for anything more sophisticated like sort-by-computed-field.</>}
+  task={<>Sort the entire campaign log by revenue (column 6 within the range) in descending order. Put the formula in <code>H1</code>.</>}
+  hint={<>Three arguments: range, column number within the range, ascending boolean. Column 6 is Revenue (F). Pass FALSE for descending.</>}
+  answer={<>The result is the full 12 × 6 grid, reordered by revenue. Top rows: Solar Panels PR (1124.6), Reverse Mortgage PR (982.7), Dental Implants PR (588.4), and so on. Note that column 6 means the sixth column of the range you passed (<code>A2:F13</code>), which is column F. Pass a smaller range like <code>B2:F13</code> and "6" would be out of bounds (only 5 columns). Always count columns within the range, not the sheet.</>}
 />
+
+### Easy traps: SORT
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=SORT(B2:F13, 6, FALSE)</code></pre>
+    <p className="mt-2 text-sm"><strong>Column index out of range.</strong> The range <code>B2:F13</code> has 5 columns, not 6. SORT errors with "function SORT parameter 2 value is 6. Valid values are between 1 and 5 inclusive." Easy mistake when you copy a formula that used the full <code>A:F</code> range and shrink it later.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=SORT(B2:F13, 5, FALSE)</code></pre>
+    <p className="mt-2 text-sm"><strong>Column 5 of the range.</strong> Revenue is now the 5th column inside <code>B2:F13</code> (B=1, C=2, D=3, E=4, F=5). Count from the leftmost column of the range you pass, every time.</p>
+  </ComparePanel>
+</Compare>
 
 ## UNIQUE: dedupe a column or rows
 
-`UNIQUE(range)` returns the distinct values. On a single column, you get the unique values. On multiple columns, you get the unique row combinations.
+`UNIQUE(range)` returns the distinct values. On one column, you get the distinct values. On multiple columns, you get the distinct row combinations.
+
+UNIQUE is exact: it treats `"Yoav"`, `"Yoav "` (trailing space), and `"yoav"` as three different values. On dirty data, run `TRIM` and `LOWER` first (lesson 1.7 covers both) so UNIQUE collapses what you actually mean.
 
 <FunctionRef name="UNIQUE" />
 
-```
-=UNIQUE(C2:C13)
-```
+### Worked example 1: toy data
 
-Returns the unique vertical names. Combined with COUNTIF or SORT for ranked unique lists.
+Five color rows with duplicates. UNIQUE collapses them to three distinct values, in the order of first appearance.
+
+<RefDemo
+  data={[
+    ["Color"],
+    ["red"],
+    ["blue"],
+    ["red"],
+    ["green"],
+    ["blue"],
+  ]}
+  formula="=UNIQUE(A2:A6)"
+  formulaCell="C2"
+  fillTo="C4"
+  expectedFills={["=UNIQUE(A2:A6)", "", ""]}
+  caption="UNIQUE returns one row per distinct value, in the order they first appeared. Result: red, blue, green."
+/>
+
+### Worked example 2: real adtech data
+
+The dropdown-source pattern. UNIQUE on the vertical column gives you the list that feeds the team's "filter by vertical" dropdown. Add a new campaign with a new vertical, the dropdown picks it up automatically.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
   expectedFormula="=UNIQUE(C2:C13)"
-  task={<>List every distinct vertical that appears in the campaign log. Use <code>UNIQUE</code>.</>}
-  hint={<>Single argument: the range to dedupe.</>}
-  answer={<>UNIQUE returns one row per distinct value, in the order of first appearance. Some verticals appear twice (Used Cars PR, Mortgage Refinance PR run by different buyers); UNIQUE collapses them to one row each. The result is 10 unique verticals (or fewer, if some appeared more than once). Companion: <code>UNIQUE(B2:C13)</code> on two columns returns unique buyer-vertical pairs: useful for "which buyers have run which verticals".</>}
+  task={<>List every distinct vertical that appears in the campaign log. Put the formula in <code>H1</code>.</>}
+  hint={<>One argument: the range to dedupe. <code>C2:C13</code> is the vertical column.</>}
+  answer={<>UNIQUE returns each distinct vertical once, in order of first appearance. Some verticals appear twice in the log (run by different buyers); UNIQUE collapses each pair. Companion form: <code>UNIQUE(B2:C13)</code> on two columns returns distinct (buyer, vertical) pairs: useful for "which buyers ran which verticals" answers without a pivot table.</>}
+/>
+
+### Easy traps: UNIQUE
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=UNIQUE(B2:B13)</code></pre>
+    <p className="mt-2 text-sm"><strong>Raw column with dirty values.</strong> If the buyer column has "Yoav Cohen", "Yoav Cohen " (trailing space), and "yoav cohen" mixed in, UNIQUE returns all three. The dropdown then has three "Yoavs" and the filtered view splits Yoav's campaigns across them.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=UNIQUE(ARRAYFORMULA(TRIM(LOWER(B2:B13))))</code></pre>
+    <p className="mt-2 text-sm"><strong>Normalize before dedupe.</strong> <code>TRIM</code> drops surrounding whitespace; <code>LOWER</code> collapses case. UNIQUE then sees a single "yoav cohen" no matter how it was typed. Lesson 1.7 covers TRIM/LOWER/CLEAN; lesson 1.10 covers ARRAYFORMULA broadcasting.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question={"You write =FILTER(A2:F13, B2:B13=\"Yoav Cohen\", F2:F13>500) and get the right rows. A teammate writes the same but with the conditions joined by * instead of a comma: =FILTER(A2:F13, (B2:B13=\"Yoav Cohen\")*(F2:F13>500)). What's the difference?"}
+  options={[
+    {
+      id: "a",
+      label: "The * version errors because FILTER does not accept arithmetic on boolean arrays.",
+      correct: false,
+      explanation: "FILTER accepts arithmetic on boolean arrays just fine. TRUE * TRUE = 1 (truthy), TRUE * FALSE = 0 (falsy).",
+    },
+    {
+      id: "b",
+      label: "Both work and return the same result. Comma is the readable form; * is the trick for cases where the AND has to be inline, like inside a single expression argument.",
+      correct: true,
+      explanation: "Comma combines conditions AND-style at the FILTER level. * combines them AND-style inside a single boolean expression. Both produce the same filtered rows. Use commas for readability; reach for * when you need to combine OR (+) and AND (*) inside one expression, like ((cond1)+(cond2))*(cond3).",
+    },
+    {
+      id: "c",
+      label: "The * version returns more rows because the multiplication broadens the match.",
+      correct: false,
+      explanation: "Multiplication on booleans is exactly AND. TRUE*TRUE=1, anything*FALSE=0. The set of passing rows is identical.",
+    },
+  ]}
 />
 
 ## When to choose which
@@ -83,29 +230,32 @@ Returns the unique vertical names. Combined with COUNTIF or SORT for ranked uniq
 | Need | Reach for |
 |---|---|
 | Filter rows by condition, no projection | `FILTER` |
-| Filter rows AND project specific columns | `QUERY` |
+| Filter AND project specific columns | `QUERY` |
 | Sort by one or two columns | `SORT` |
-| Sort with SQL expressions (computed sort) | `QUERY ... ORDER BY` |
+| Sort with computed keys or SQL expressions | `QUERY ... ORDER BY` |
 | Dedupe a column or row combinations | `UNIQUE` |
-| Distinct values WITH counts | `QUERY ... GROUP BY ... COUNT(...)` |
+| Distinct values with their counts | `QUERY ... GROUP BY ... COUNT(...)` |
 
-`FILTER`, `SORT`, `UNIQUE` win on conciseness and read-time clarity. QUERY wins when you need projection, aggregation, multi-condition logic that gets ugly in FILTER, or when you want one expression instead of nested calls.
+`FILTER`, `SORT`, `UNIQUE` win on conciseness and read-time clarity. `QUERY` wins when you need projection, aggregation, multi-condition logic that gets ugly in FILTER, or when you want a single expression instead of nested calls.
 
 ## Used in the wild
 
-- **Live filtered views per buyer.** A dropdown cell holding a buyer name; FILTER pulls just that buyer's campaigns. Change the dropdown, the view updates.
-- **Top-N lists.** SORT + array-trim: `=ARRAY_CONSTRAIN(SORT(A2:F13, 6, FALSE), 5, 6)` for top 5.
-- **Dedup'd vertical or buyer dropdowns.** A UNIQUE on the source column drives a Data Validation dropdown elsewhere.
-- **Spend-by-vertical for new verticals.** UNIQUE the vertical column, SUMIFS each unique value, and you've got a per-vertical revenue table that auto-updates.
+- **Live filtered views per buyer.** A dropdown cell holds a buyer name; `FILTER(A2:F, B2:B = dropdown_cell)` pulls just that buyer's campaigns. Change the dropdown, the view updates instantly.
+- **Top-N leaderboards.** `=ARRAY_CONSTRAIN(SORT(A2:F, 6, FALSE), 5, 6)` returns the top 5 rows by revenue. The team rebuilds this pattern on every new campaign sheet.
+- **Dropdown sources.** `UNIQUE(ARRAYFORMULA(TRIM(C2:C)))` on the vertical column feeds a Data Validation dropdown that auto-extends as new verticals appear.
+- **Per-vertical revenue tables.** Use `UNIQUE` on the vertical column to drive the row labels, then `SUMIFS` against each vertical to build a revenue summary that needs zero maintenance.
+- **Composed views.** `=SORT(FILTER(A2:F, B2:B = "Yoav"), 6, FALSE)` gives Yoav's campaigns sorted by revenue. Two functions, one cell, one line of intent.
 
 ## Pro pitfalls
 
-- **FILTER returns `#N/A` when no rows match.** Wrap in IFERROR/IFNA with a fallback for empty-result safety.
-- **SORT's column index is within the range.** Pass `SORT(B2:F13, 5, FALSE)` and the "5" means the 5th column of B:F: that's column F. Easy to count wrong.
-- **UNIQUE preserves whitespace and case.** "Yoav " (trailing space) and "Yoav" are two distinct entries. TRIM/LOWER first.
-- **All three lock surrounding cells.** Spilled output errors with `#REF!` if anything is in the way.
-- **FILTER with multi-column ranges and complex conditions can be slow.** Beyond a few thousand rows, QUERY tends to be faster.
+- **`FILTER` returns `#N/A` when no rows match.** Wrap any user-facing FILTER in `IFERROR` or `IFNA` with a fallback. The team has shipped broken dashboards over this twice.
+- **`FILTER`'s condition has to be the same length as the range.** Mix `A2:F13` with `B2:B` and you get a size-mismatch error. Either close both ranges or open both.
+- **`SORT`'s column index is positional within the range, not the sheet.** `SORT(B2:F13, 6, FALSE)` errors because `B:F` has 5 columns, not 6. Count columns starting from the range's leftmost.
+- **`UNIQUE` is case- and whitespace-sensitive.** Normalize with `TRIM` and `LOWER` (lesson 1.7) before deduping anything that came from human input.
+- **All three spill, and anything in the destination errors them out.** `#REF!` with a spill-conflict message if a cell in the result range has a value. Clear the destination before placing the formula.
+- **`FILTER` on tens of thousands of rows can be slower than `QUERY`.** If you find yourself adding more than two or three conditions, switching to a single `QUERY` is usually the right move.
+- **`FILTER` over `IMPORTRANGE` inherits all of IMPORTRANGE's quirks.** Permission revoke, source rename, or row-count change in the source can break the filter silently. Lesson 1.27 covers the patterns.
 
 ## Now do it for real
 
-Click **Start lesson** to provision the campaign log. You'll write three formulas: a FILTER for one buyer's campaigns, a SORT by revenue, and a UNIQUE list of distinct verticals.
+Click **Start lesson** to provision the campaign log. You will write four formulas: a `FILTER` for one buyer's campaigns, a `SORT` by revenue, a `UNIQUE` list of distinct verticals, and a composed `SORT(FILTER(...))` that returns one buyer's campaigns sorted by revenue.

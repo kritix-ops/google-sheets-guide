@@ -2,80 +2,227 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # FILTER, SORT, UNIQUE
 
-QUERY חזק, אבל התחביר שלו בסגנון SQL כבד מדי לפעולות פשוטות. `FILTER`, `SORT`, ו-`UNIQUE` הם קיצורי דרך ישירים וברורים לצרכים היומיומיים של "תן לי רק את השורות האלו", "מיין את זה", "הוצא כפילויות מהעמודה הזו". שלושתם מודעים למערך בעצמם, אין צורך בעטיפת `ARRAYFORMULA`.
+QUERY (שיעור 1.12) חזק, אבל התחביר שלו בסגנון SQL כבד מדי לעבודה היומיומית. `FILTER`, `SORT`, ו-`UNIQUE` הם קיצורי הדרך הישירים והברורים לשלושת הדברים שמושיטים אליהם את היד כל הזמן: "תן לי רק את השורות האלו", "מיין את זה", "תראה לי כל ערך פעם אחת". קריאה שלהם בקול נשמעת כמו אנגלית. התוצאה היא הניב הנפוץ ביותר בדאשבורדים אדטקיים בצוות.
+
+שלושתם מודעים למערך מטבעם (לא צריך עטיפת `ARRAYFORMULA`) ועושים spill לתאים שמתחת מנוסחה אחת. הם מתחברים בקלות זה לזה ו-ל-`SUM`, `SUMIFS`, `COUNTA`, ושאר משפחת האגרגציה משיעור 1.6.
 
 ## FILTER: שמירה על שורות שעומדות בתנאי
 
-`FILTER(range, condition1, [condition2, ...])` מחזיר את השורות של `range` שבהן כל תנאי הוא `TRUE`. התנאים הם מערכים באותו אורך כמו הטווח.
+`FILTER(range, condition1, [condition2, ...])` מחזיר את השורות של `range` שבהן כל תנאי הוא `TRUE`. כל תנאי הוא מערך boolean באותו אורך כמו מספר השורות של הטווח. תנאים מרובים משולבים בסגנון AND.
+
+השתמשו ב-`*` בין מערכי boolean כדי לאלץ AND כשהייתם מבטאים את הלוגיקה אחרת. השתמשו ב-`+` ל-OR. הטריק של חשבון על booleans הוא הדרך של Sheets לאפשר לכם לבנות תנאי boolean מורכבים inline.
 
 <FunctionRef name="FILTER" />
 
-```
-=FILTER(A2:F13, B2:B13 = "Yoav Cohen")
-```
+### דוגמה 1: נתוני צעצוע
 
-זה מחזיר כל עמודה לכל שורה שבה ה-buyer הוא Yoav. משלבים מספר תנאים עם פסיק (סגנון AND):
+ארבעה מוצרים עם מספרי מכירות. רוצים רק שורות שמכירות שלהן גבוהות מ-50. נוסחה אחת ב-`D2`, התוצאה עושה spill במורד עמודה D.
 
-```
-=FILTER(A2:F13, B2:B13 = "Yoav Cohen", F2:F13 > 400)
-```
+<RefDemo
+  data={[
+    ["Product", "Sales"],
+    ["A", 100],
+    ["B", 80],
+    ["C", 60],
+    ["D", 30],
+  ]}
+  formula="=FILTER(A2:A5, B2:B5 > 50)"
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={["=FILTER(A2:A5, B2:B5 > 50)", "", ""]}
+  caption="התנאי B2:B5 > 50 מתורגם ל-TRUE, TRUE, TRUE, FALSE. FILTER מחזיר את שלוש השורות שעברו: A, B, C."
+/>
 
-ללוגיקת OR, משתמשים ב-`+` בין מערכי boolean: `FILTER(A2:F13, (B2:B13 = "Yoav") + (B2:B13 = "Sarah"))`.
+### דוגמה 2: נתוני אדטק אמיתיים
+
+המקרה של שורה שלמה. סננו את לוג הקמפיינים לקמפיינים של media buyer אחד. זו תבנית התצוגה המסוננת החיה שבה כל דאשבורד לפי media buyer משתמש.
 
 <MiniGrid
   data={CAMPAIGNS}
-  caption="יומן הקמפיינים."
+  caption="לוג הקמפיינים. עמודה B היא ה-media buyer."
+  highlight={["B2", "B13"]}
 />
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
   expectedFormula='=FILTER(A2:F13,B2:B13="Yoav Cohen")'
-  task={<>סננו את יומן הקמפיינים כדי להציג רק את הקמפיינים של Yoav Cohen. השתמשו ב-<code>FILTER</code>.</>}
-  hint={<>שני ארגומנטים: הטווח להחזיר, ותנאי boolean באותו אורך כמו מספר השורות בטווח.</>}
-  answer={<>FILTER מחזיר כל שורה שבה התנאי הוא TRUE. התנאי <code>B2:B13 = "Yoav Cohen"</code> מתורגם למערך של TRUE/FALSE לכל שורה. ל-Yoav יש 3 קמפיינים, אז התוצאה היא 3 שורות על 6 עמודות. השורה השלמה מוחזרת, לא רק עמודות ספציפיות. להקרנת עמודות, משלבים FILTER עם QUERY או מוסיפים עטיפות INDEX.</>}
+  task={<>סננו את לוג הקמפיינים כדי להציג רק את הקמפיינים של Yoav Cohen. שימו את התוצאה ב-<code>H1</code> ותנו לה לעשות spill על פני כל שש העמודות.</>}
+  hint={<>שני ארגומנטים: הטווח להחזיר, ואז תנאי boolean באותו אורך כמו מספר השורות של הטווח. <code>B2:B13 = "Yoav Cohen"</code> הוא התנאי שלכם.</>}
+  answer={<>FILTER מחזיר כל עמודה לכל שורה שבה התנאי הוא TRUE. התנאי <code>B2:B13 = "Yoav Cohen"</code> מתורגם למערך TRUE/FALSE של 12 שורות. ל-Yoav יש 3 קמפיינים, אז התוצאה היא spill של 3 × 6 ל-<code>H1:M3</code>. השורה המלאה חוזרת. להקרנת עמודות (רק buyer ו-revenue למשל), תושיטו את היד ל-<code>QUERY</code> במקום. ביעד צריך לפחות 3 × 6 תאים ריקים אחרת הנוסחה שוגה בהתנגשות spill.</>}
 />
+
+### דוגמה משולבת: FILTER + SUM ל-revenue כולל של buyer
+
+עטיפת הפלט שעושה spill של FILTER באגרגטור נותנת לכם את "ה-revenue הכולל של Yoav בתקופה הזו" בתא בודד. אותו טריק מאפשר לכם להחליף `SUMIFS` כשמוצאים את טווח הקריטריונים קל יותר לקריאה כתנאי FILTER.
+
+```
+=SUM(FILTER(F2:F13, B2:B13 = "Yoav Cohen"))
+```
+
+ה-`FILTER` הפנימי מחזיר רק את עמודת ה-revenue של Yoav (מערך של 3 תאים). `SUM` מחבר אותם. השוו ל-`SUMIFS(F2:F13, B2:B13, "Yoav Cohen")` משיעור 1.6: אותה תוצאה, קריאות שונה. השתמשו במה שמתאים לאופן שבו המוח שלכם ממסגר את השאלה. צורת ה-FILTER מתכללת ל-AVERAGE, MAX, COUNTA וחבריהם בלי שכתוב.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula='=SUM(FILTER(F2:F13,B2:B13="Yoav Cohen"))'
+  task={<>חשבו את ה-revenue הכולל של קמפיינים של Yoav Cohen. שלבו <code>FILTER</code> על עמודת ה-revenue עם <code>SUM</code>.</>}
+  hint={<>סננו את עמודת ה-revenue (F2:F13) לפי תנאי ה-buyer. עטפו את הכל ב-SUM.</>}
+  answer={<>השילוב הוא <code>SUM(FILTER(F2:F13, B2:B13 = "Yoav Cohen"))</code>. FILTER מחזיר את שלושת ערכי ה-revenue של Yoav; SUM מחבר אותם. אותה צורה עובדת ל-AVERAGE, MAX, MIN, COUNTA: משנים את הפונקציה החיצונית, שומרים על ה-FILTER הפנימי. זו החלופה הכי נפוצה ל-SUMIFS בצוות, והיא מתחברת באופן יותר טבעי כשהתנאי נהיה מורכב.</>}
+/>
+
+### מלכודות נפוצות: FILTER
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=FILTER(A2:F13, B2:B="Yoav Cohen")</code></pre>
+    <p className="mt-2 text-sm"><strong>אי-התאמה באורך התנאי.</strong> הטווח מכסה 12 שורות (<code>A2:F13</code>) אבל התנאי פתוח (<code>B2:B</code>, 999+ שורות). FILTER מחזיר <code>#N/A</code> עם הודעה של "ארגומנטים של מערך באורכים שונים". מפתיע כמה נפוץ זה כשמשפצים נוסחה ישנה.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=FILTER(A2:F, B2:B="Yoav Cohen")</code></pre>
+    <p className="mt-2 text-sm"><strong>שני הטווחים פתוחים.</strong> טווח ותנאי שניהם נמתחים עד תחתית הגיליון, אז האורכים תואמים. FILTER מתעלם משורות ריקות בתוצאה. השתמשו בצורה הזו כשהלוג גדל ואתם לא רוצים להמשיך לעדכן מספרי שורות.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=FILTER(A2:F13, B2:B13="DoesNotExist")</code></pre>
+    <p className="mt-2 text-sm"><strong>אין שורות שמתאימות.</strong> מחזיר <code>#N/A</code>. אם זה מזין דאשבורד, תאים במורד הזרם (SUMs, ספירות, גרפים) כולם נשברים בצורה גלויה. הצוות שילח את הבאג הזה יותר מפעם אחת.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=IFERROR(FILTER(A2:F13, B2:B13="DoesNotExist"), "No results")`}</code></pre>
+    <p className="mt-2 text-sm"><strong>עטוף ב-IFERROR.</strong> תוצאה ריקה מחזירה נפילה רכה ("No results" או פשוט <code>""</code>). דאשבורדים ממשיכים לרנדר. תמיד תעטפו כל FILTER שמזין תא שמופנה למשתמש.</p>
+  </ComparePanel>
+</Compare>
 
 ## SORT: מיון לפי עמודה אחת או יותר
 
-`SORT(range, sort_column, ascending, [sort_column2, ascending2, ...])` מחזיר את הטווח ממוין. ה-sort_column הוא **מספר עמודה בתוך הטווח**, ספירה שמתחילה ב-1.
+`SORT(range, sort_column, ascending, [sort_column2, ascending2, ...])` מחזיר את הטווח ממוין. עמודת המיון היא **מספר עמודה בתוך הטווח**, ספירה שמתחילה ב-1, לא אות העמודה בגיליון. זאת המכשלה הכי גדולה: אנשים מעבירים `"F"` או `6` לעמודה F של הגיליון ושוכחים שאם הטווח מתחיל ב-`B`, ה-index של `F` הוא `5`, לא `6`.
+
+למיונים רב-מפתחיים, מוסיפים עוד זוגות `column, ascending`. הזוג הראשון הוא ראשי, השני שובר תיקו, וכן הלאה.
 
 <FunctionRef name="SORT" />
 
-```
-=SORT(A2:F13, 6, FALSE)
-```
+### דוגמה 1: נתוני צעצוע
 
-ממיין לפי עמודה 6 (Revenue), בסדר יורד. למיון לפי מספר עמודות, מוסיפים עוד זוגות.
+שלושה פריטים, מחירים לא ממוינים. `SORT` על עמודת המחיר מחזיר את הערכים בסדר עולה.
+
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 30],
+    ["B", 10],
+    ["C", 20],
+  ]}
+  formula="=SORT(B2:B4)"
+  formulaCell="D2"
+  fillTo="D4"
+  expectedFills={["=SORT(B2:B4)", "", ""]}
+  caption="SORT עם ארגומנט יחיד על עמודה בודדת. תוצאה: 10, 20, 30 עושים spill ל-D2:D4. למיון יורד, מוסיפים FALSE: =SORT(B2:B4, 1, FALSE)."
+/>
+
+### דוגמה 2: נתוני אדטק אמיתיים
+
+תבנית "ראש לוח המובילים". מיינו את כל לוג הקמפיינים לפי revenue, יורד. כל מה שאתם רוצים בראש דאשבורד הולך כאן.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
   expectedFormula="=SORT(A2:F13,6,FALSE)"
-  task={<>מיינו את כל יומן הקמפיינים לפי revenue (עמודה 6 בתוך הטווח) בסדר יורד.</>}
-  hint={<>שלושה ארגומנטים: טווח, מספר עמודה, ו-boolean של עולה. עמודה 6 היא Revenue (F). מעבירים FALSE לסדר יורד.</>}
-  answer={<>SORT שומר על כל העמודות וממיין מחדש את השורות. עמודה 6 היא העמודה השישית של הטווח A2:F13, כלומר עמודה F, Revenue. הארגומנט ה-boolean: TRUE לסדר עולה, FALSE לסדר יורד. SORT מקבל גם קריטריון מיון שני או שלישי לשבירת תיקו. SORT מהיר על טווחים קטנים. ל-ORDER BY של QUERY עדיף לפנות לכל דבר מתוחכם יותר כמו מיון לפי שדה מחושב.</>}
+  task={<>מיינו את כל לוג הקמפיינים לפי revenue (עמודה 6 בתוך הטווח) בסדר יורד. שימו את הנוסחה ב-<code>H1</code>.</>}
+  hint={<>שלושה ארגומנטים: טווח, מספר עמודה בתוך הטווח, ו-boolean של עולה. עמודה 6 היא Revenue (F). מעבירים FALSE לסדר יורד.</>}
+  answer={<>התוצאה היא הרשת המלאה של 12 × 6, מסודרת מחדש לפי revenue. שורות עליונות: Solar Panels PR (1124.6), Reverse Mortgage PR (982.7), Dental Implants PR (588.4), וכן הלאה. שימו לב שעמודה 6 משמעותה העמודה השישית של הטווח שהעברתם (<code>A2:F13</code>), שהיא עמודה F. תעבירו טווח קטן יותר כמו <code>B2:F13</code> ו-"6" תהיה מחוץ לטווח (רק 5 עמודות). תמיד ספרו עמודות בתוך הטווח, לא בגיליון.</>}
 />
+
+### מלכודות נפוצות: SORT
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=SORT(B2:F13, 6, FALSE)</code></pre>
+    <p className="mt-2 text-sm"><strong>אינדקס עמודה מחוץ לטווח.</strong> לטווח <code>B2:F13</code> יש 5 עמודות, לא 6. SORT שוגה עם "function SORT parameter 2 value is 6. Valid values are between 1 and 5 inclusive." טעות קלה כשמעתיקים נוסחה שהשתמשה בטווח המלא <code>A:F</code> ומקטינים אותה מאוחר יותר.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=SORT(B2:F13, 5, FALSE)</code></pre>
+    <p className="mt-2 text-sm"><strong>עמודה 5 של הטווח.</strong> Revenue הוא עכשיו העמודה ה-5 בתוך <code>B2:F13</code> (B=1, C=2, D=3, E=4, F=5). תספרו מהעמודה השמאלית ביותר של הטווח שאתם מעבירים, כל פעם.</p>
+  </ComparePanel>
+</Compare>
 
 ## UNIQUE: הסרת כפילויות מעמודה או משורות
 
-`UNIQUE(range)` מחזיר את הערכים השונים. על עמודה אחת, מקבלים את הערכים הייחודיים. על מספר עמודות, מקבלים את צירופי השורות הייחודיים.
+`UNIQUE(range)` מחזיר את הערכים השונים. על עמודה אחת, מקבלים את הערכים השונים. על מספר עמודות, מקבלים את צירופי השורות השונים.
+
+UNIQUE מדויק: הוא מתייחס ל-`"Yoav"`, `"Yoav "` (רווח בסוף), ו-`"yoav"` כשלושה ערכים שונים. על נתונים מלוכלכים, הריצו `TRIM` ו-`LOWER` קודם (שיעור 1.7 מכסה את שניהם) כדי ש-UNIQUE יקפל את מה שבאמת התכוונתם.
 
 <FunctionRef name="UNIQUE" />
 
-```
-=UNIQUE(C2:C13)
-```
+### דוגמה 1: נתוני צעצוע
 
-מחזיר את שמות ה-verticals הייחודיים. בשילוב עם COUNTIF או SORT לרשימות ייחודיות מדורגות.
+חמש שורות צבעים עם כפילויות. UNIQUE מקפל אותן לשלושה ערכים שונים, בסדר ההופעה הראשונה.
+
+<RefDemo
+  data={[
+    ["Color"],
+    ["red"],
+    ["blue"],
+    ["red"],
+    ["green"],
+    ["blue"],
+  ]}
+  formula="=UNIQUE(A2:A6)"
+  formulaCell="C2"
+  fillTo="C4"
+  expectedFills={["=UNIQUE(A2:A6)", "", ""]}
+  caption="UNIQUE מחזיר שורה אחת לכל ערך שונה, בסדר שבו הופיעו לראשונה. תוצאה: red, blue, green."
+/>
+
+### דוגמה 2: נתוני אדטק אמיתיים
+
+תבנית מקור-ה-dropdown. UNIQUE על עמודת ה-vertical נותן לכם את הרשימה שמזינה את dropdown ה"סנן לפי vertical" של הצוות. תוסיפו קמפיין חדש עם vertical חדש, וה-dropdown יתפוס אותו אוטומטית.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
   expectedFormula="=UNIQUE(C2:C13)"
-  task={<>הציגו כל vertical שונה שמופיע ביומן הקמפיינים. השתמשו ב-<code>UNIQUE</code>.</>}
-  hint={<>ארגומנט יחיד: הטווח להסרת כפילויות.</>}
-  answer={<>UNIQUE מחזיר שורה אחת לכל ערך שונה, בסדר ההופעה הראשונה. חלק מה-verticals מופיעים פעמיים (Used Cars PR, Mortgage Refinance PR מורצים על ידי media buyers שונים). UNIQUE מקפל אותם לשורה אחת לכל אחד. התוצאה היא 10 verticals ייחודיים (או פחות, אם חלקם הופיעו יותר מפעם). חבר משלים: <code>UNIQUE(B2:C13)</code> על שתי עמודות מחזיר זוגות ייחודיים של buyer ו-vertical, שימושי לשאלה "אילו buyers הריצו אילו verticals".</>}
+  task={<>הציגו כל vertical שונה שמופיע בלוג הקמפיינים. שימו את הנוסחה ב-<code>H1</code>.</>}
+  hint={<>ארגומנט יחיד: הטווח להסרת כפילויות. <code>C2:C13</code> היא עמודת ה-vertical.</>}
+  answer={<>UNIQUE מחזיר כל vertical שונה פעם אחת, בסדר ההופעה הראשונה. חלק מה-verticals מופיעים פעמיים בלוג (מורצים על ידי buyers שונים); UNIQUE מקפל כל זוג. צורה משלימה: <code>UNIQUE(B2:C13)</code> על שתי עמודות מחזיר זוגות (buyer, vertical) שונים: שימושי לתשובות על "אילו buyers הריצו אילו verticals" בלי טבלת ציר.</>}
+/>
+
+### מלכודות נפוצות: UNIQUE
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=UNIQUE(B2:B13)</code></pre>
+    <p className="mt-2 text-sm"><strong>עמודה גולמית עם ערכים מלוכלכים.</strong> אם עמודת ה-buyer מכילה "Yoav Cohen", "Yoav Cohen " (רווח בסוף), ו-"yoav cohen" מעורבבים, UNIQUE מחזיר את שלושתם. ה-dropdown אז מכיל שלושה "Yoavs" והתצוגה המסוננת מפצלת את הקמפיינים של Yoav ביניהם.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=UNIQUE(ARRAYFORMULA(TRIM(LOWER(B2:B13))))</code></pre>
+    <p className="mt-2 text-sm"><strong>נרמלו לפני הסרת כפילויות.</strong> <code>TRIM</code> מוריד whitespace סובב; <code>LOWER</code> מקפל case. UNIQUE אז רואה "yoav cohen" אחד יחיד לא משנה איך הוא הוקלד. שיעור 1.7 מכסה TRIM/LOWER/CLEAN; שיעור 1.10 מכסה שידור של ARRAYFORMULA.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question={"אתם כותבים =FILTER(A2:F13, B2:B13=\"Yoav Cohen\", F2:F13>500) ומקבלים את השורות הנכונות. חבר לצוות כותב את אותו דבר אבל עם התנאים משולבים ב-* במקום בפסיק: =FILTER(A2:F13, (B2:B13=\"Yoav Cohen\")*(F2:F13>500)). מה ההבדל?"}
+  options={[
+    {
+      id: "a",
+      label: "גרסת ה-* שוגה כי FILTER לא מקבל חשבון על מערכי boolean.",
+      correct: false,
+      explanation: "FILTER מקבל חשבון על מערכי boolean בלי בעיה. TRUE * TRUE = 1 (truthy), TRUE * FALSE = 0 (falsy).",
+    },
+    {
+      id: "b",
+      label: "שתי הצורות עובדות ומחזירות את אותה תוצאה. פסיק היא הצורה הקריאה; * הוא הטריק למקרים שבהם ה-AND חייב להיות inline, למשל בתוך ביטוי ארגומנט יחיד.",
+      correct: true,
+      explanation: "פסיק משלב תנאים בסגנון AND ברמת ה-FILTER. * משלב אותם בסגנון AND בתוך ביטוי boolean יחיד. שניהם מפיקים את אותן שורות עוברות. השתמשו בפסיקים לקריאות; תושיטו את היד ל-* כשצריך לשלב OR (+) ו-AND (*) בתוך ביטוי אחד, כמו ((cond1)+(cond2))*(cond3).",
+    },
+    {
+      id: "c",
+      label: "גרסת ה-* מחזירה יותר שורות כי הכפל מרחיב את ההתאמה.",
+      correct: false,
+      explanation: "כפל על booleans הוא בדיוק AND. TRUE*TRUE=1, anything*FALSE=0. קבוצת השורות העוברות זהה.",
+    },
+  ]}
 />
 
 ## איך בוחרים
@@ -83,29 +230,32 @@ QUERY חזק, אבל התחביר שלו בסגנון SQL כבד מדי לפעו
 | צורך | מה לבחור |
 |---|---|
 | סינון שורות לפי תנאי, בלי הקרנה | `FILTER` |
-| סינון שורות וגם הקרנה של עמודות ספציפיות | `QUERY` |
+| סינון וגם הקרנה של עמודות ספציפיות | `QUERY` |
 | מיון לפי עמודה אחת או שתיים | `SORT` |
-| מיון עם ביטויי SQL (מיון מחושב) | `QUERY ... ORDER BY` |
+| מיון עם מפתחות מחושבים או ביטויי SQL | `QUERY ... ORDER BY` |
 | הסרת כפילויות מעמודה או מצירופי שורות | `UNIQUE` |
-| ערכים שונים יחד עם ספירות | `QUERY ... GROUP BY ... COUNT(...)` |
+| ערכים שונים יחד עם הספירות שלהם | `QUERY ... GROUP BY ... COUNT(...)` |
 
-`FILTER`, `SORT`, `UNIQUE` מנצחים בתמציתיות ובבהירות בזמן קריאה. QUERY מנצח כשצריך הקרנה, אגרגציה, לוגיקה מרובת תנאים שנעשית מכוערת ב-FILTER, או כשרוצים ביטוי אחד במקום קריאות מקוננות.
+`FILTER`, `SORT`, `UNIQUE` מנצחים בתמציתיות ובבהירות בזמן קריאה. `QUERY` מנצח כשצריך הקרנה, אגרגציה, לוגיקה מרובת תנאים שנעשית מכוערת ב-FILTER, או כשרוצים ביטוי בודד במקום קריאות מקוננות.
 
 ## נפוץ בשטח
 
-- **תצוגות מסוננות חיות לפי media buyer.** תא dropdown שמחזיק שם של media buyer, FILTER מושך רק את הקמפיינים של אותו buyer. משנים את ה-dropdown, התצוגה מתעדכנת.
-- **רשימות Top-N.** SORT עם חיתוך מערך: `=ARRAY_CONSTRAIN(SORT(A2:F13, 6, FALSE), 5, 6)` ל-top 5.
-- **Dropdowns של verticals או buyers בלי כפילויות.** UNIQUE על עמודת המקור מזין dropdown של Data Validation במקום אחר.
-- **Spend לפי vertical כשנוספים verticals חדשים.** UNIQUE על עמודת ה-vertical, SUMIFS על כל ערך ייחודי, ויש טבלת revenue פר vertical שמתעדכנת אוטומטית.
+- **תצוגות מסוננות חיות לפי buyer.** תא dropdown מחזיק שם של buyer; `FILTER(A2:F, B2:B = dropdown_cell)` שואב רק את הקמפיינים של אותו buyer. משנים את ה-dropdown, התצוגה מתעדכנת מיד.
+- **לוחות Top-N.** `=ARRAY_CONSTRAIN(SORT(A2:F, 6, FALSE), 5, 6)` מחזיר את 5 השורות העליונות לפי revenue. הצוות בונה מחדש את התבנית הזו בכל גיליון קמפיינים חדש.
+- **מקורות dropdown.** `UNIQUE(ARRAYFORMULA(TRIM(C2:C)))` על עמודת ה-vertical מזין dropdown של Data Validation שמתרחב אוטומטית כשמופיעים verticals חדשים.
+- **טבלאות revenue לפי vertical.** השתמשו ב-`UNIQUE` על עמודת ה-vertical כדי לבנות את תוויות השורה, ואז `SUMIFS` מול כל vertical כדי לבנות סיכום revenue שלא צריך תחזוקה.
+- **תצוגות מורכבות.** `=SORT(FILTER(A2:F, B2:B = "Yoav"), 6, FALSE)` נותן את הקמפיינים של Yoav ממוינים לפי revenue. שתי פונקציות, תא אחד, שורת כוונה אחת.
 
 ## מלכודות מקצועיות
 
-- **FILTER מחזיר `#N/A` כשאין שורות שמתאימות.** עוטפים ב-IFERROR/IFNA עם נפילה רכה לבטיחות מול תוצאה ריקה.
-- **אינדקס העמודה של SORT הוא בתוך הטווח.** מעבירים `SORT(B2:F13, 5, FALSE)` והמשמעות של "5" היא העמודה החמישית של B:F, כלומר עמודה F. קל לטעות בספירה.
-- **UNIQUE שומר על whitespace ועל case.** "Yoav " (רווח בסוף) ו-"Yoav" הם שתי רשומות שונות. TRIM/LOWER לפני.
-- **שלושתן נועלות תאים סביבן.** פלט שמתפרס נכשל ב-`#REF!` אם משהו מפריע.
-- **FILTER עם טווחים רבי עמודות ותנאים מורכבים יכול להיות איטי.** מעבר לכמה אלפי שורות, QUERY נוטה להיות מהיר יותר.
+- **`FILTER` מחזיר `#N/A` כשאין שורות שמתאימות.** עטפו כל FILTER שמופנה למשתמש ב-`IFERROR` או ב-`IFNA` עם נפילה רכה. הצוות שילח דאשבורדים שבורים על הזה פעמיים.
+- **התנאי של `FILTER` חייב להיות באותו אורך כמו הטווח.** תערבבו <code>A2:F13</code> עם <code>B2:B</code> ותקבלו שגיאת אי-התאמה. סגרו את שני הטווחים או פתחו את שניהם.
+- **אינדקס העמודה של `SORT` הוא מיקומי בתוך הטווח, לא בגיליון.** <code>SORT(B2:F13, 6, FALSE)</code> שוגה כי ב-<code>B:F</code> יש 5 עמודות, לא 6. ספרו עמודות החל מהעמודה השמאלית ביותר של הטווח.
+- **`UNIQUE` רגיש ל-case ול-whitespace.** נרמלו עם `TRIM` ו-`LOWER` (שיעור 1.7) לפני הסרת כפילויות של כל דבר שהגיע מקלט אנושי.
+- **שלושתם עושים spill, וכל דבר ביעד מחזיר אותם לשגיאה.** `#REF!` עם הודעה של spill-conflict אם תא בטווח התוצאה מכיל ערך. נקו את היעד לפני הצבת הנוסחה.
+- **`FILTER` על עשרות אלפי שורות יכול להיות איטי יותר מ-`QUERY`.** אם אתם מוצאים את עצמכם מוסיפים יותר משניים-שלושה תנאים, מעבר ל-`QUERY` בודד הוא בדרך כלל המהלך הנכון.
+- **`FILTER` מעל `IMPORTRANGE` יורש את כל ה-quirks של IMPORTRANGE.** ביטול הרשאה, שינוי שם של מקור, או שינוי בכמות השורות במקור יכולים לשבור את הסינון בשקט. שיעור 1.27 מכסה את התבניות.
 
 ## עכשיו לעבודה אמיתית
 
-לחצו על **Start lesson** כדי להעלות את יומן הקמפיינים. תכתבו שלוש נוסחאות: FILTER לקמפיינים של media buyer אחד, SORT לפי revenue, ו-UNIQUE לרשימה של verticals שונים.
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. תכתבו ארבע נוסחאות: `FILTER` לקמפיינים של buyer אחד, `SORT` לפי revenue, `UNIQUE` לרשימה של verticals שונים, ו-`SORT(FILTER(...))` מורכב שמחזיר את הקמפיינים של buyer אחד ממוינים לפי revenue.
