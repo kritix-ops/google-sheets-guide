@@ -1,18 +1,21 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import { useLocale } from "next-intl";
 import { useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
-
-const STORAGE_KEY = "sheets-guide-theme";
+import type { Locale } from "@/lib/i18n/routing";
+import { THEME_STORAGE_PREFIX } from "@/lib/i18n/theme-defaults";
 
 type Theme = "dark" | "light";
 
 // The active theme lives in `document.documentElement.classList`. React doesn't
 // know when we mutate it from `toggle()`, so we run an in-module notifier set
 // that `toggle()` fires after each DOM mutation. Cross-tab updates come in via
-// the `storage` event.
+// the `storage` event — we listen for any key with our prefix so a toggle in
+// one locale tab still notifies a tab on a different locale (matters when the
+// user is browsing the same locale across two tabs).
 const themeListeners = new Set<() => void>();
 
 function notifyThemeChange(): void {
@@ -22,7 +25,7 @@ function notifyThemeChange(): void {
 function subscribeTheme(cb: () => void): () => void {
   themeListeners.add(cb);
   function onStorage(e: StorageEvent) {
-    if (e.key === STORAGE_KEY) cb();
+    if (e.key && e.key.startsWith(THEME_STORAGE_PREFIX)) cb();
   }
   window.addEventListener("storage", onStorage);
   return () => {
@@ -52,6 +55,7 @@ function useMounted(): boolean {
 }
 
 export function ThemeToggle() {
+  const locale = useLocale() as Locale;
   const theme = useSyncExternalStore(
     subscribeTheme,
     getThemeSnapshot,
@@ -67,7 +71,7 @@ export function ThemeToggle() {
       document.documentElement.classList.remove("dark");
     }
     try {
-      localStorage.setItem(STORAGE_KEY, next);
+      localStorage.setItem(`${THEME_STORAGE_PREFIX}${locale}`, next);
     } catch {
       // ignore storage errors (incognito, etc.)
     }
