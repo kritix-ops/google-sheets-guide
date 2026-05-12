@@ -100,7 +100,7 @@ The catch when sharing: **the keyboard shortcut is per-user, per-spreadsheet.** 
 
 ## Apps Script writes are NOT undoable
 
-This is the most painful surprise in any macro. **Ctrl+Z does not undo what a macro did.** Apps Script writes go through a different API path than user edits, and the undo stack is for user edits only. A macro that overwrites 500 rows with the wrong data leaves the buyer with no way back except restoring from version history (File then Version history then See version history).
+This is the most painful surprise in any macro. **Ctrl+Z does not undo what a macro did.** Apps Script writes go through a different API path than user edits, and the undo stack is for user edits only. A macro that overwrites 500 rows with the wrong data leaves the buyer with no way back except restoring from version history (Track 4 lesson 10 walks through the recovery flow end to end).
 
 Two consequences for how you write macros:
 
