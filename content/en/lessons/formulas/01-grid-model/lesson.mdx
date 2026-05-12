@@ -2,7 +2,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # The grid model
 
-Every spreadsheet is built from sheets, and each sheet is a grid of cells. A cell has an address: column letter plus row number. In the table below, **B5** is the cell at column B, row 5: the fourth campaign's media buyer, Eitan Kohen. This is the campaign log you'll keep coming back to in this course.
+Every spreadsheet is built from sheets, and each sheet is a grid of cells. A cell has an address: column letter plus row number. In the table below, **B5** is the cell at column B, row 5: the fourth campaign's media buyer, Eitan Kohen. This is the campaign log you will keep coming back to throughout the course.
+
+This first lesson is about the layer underneath every formula: how cell addresses work, what happens when a reference is copied across cells, and the four locking forms (`B5`, `$B5`, `B$5`, `$B$5`) that decide whether a reference walks with you or stays anchored. Get this right and every later lesson reads cleanly. Get this wrong and the whole formulas track is a struggle, because every multi-cell formula in the rest of Track 1 leans on these rules.
 
 <MiniGrid
   data={CAMPAIGNS.map((row, r) =>
@@ -14,9 +16,9 @@ Every spreadsheet is built from sheets, and each sheet is a grid of cells. A cel
 
 ## References shift when you copy
 
-When you write `=E2` somewhere, you're storing a *reference* to the cell, not a copy of its value. If `E2` (the spend on the first campaign) changes, your formula updates. Copy the formula somewhere else and the reference shifts too. This is the single most useful behavior in spreadsheets, and the source of about 40% of broken formulas.
+When you write `=E2` somewhere, you are storing a *reference* to the cell, not a copy of its value. If `E2` (the spend on the first campaign) changes, your formula updates. Copy the formula somewhere else and the reference shifts too. This is the single most useful behavior in spreadsheets, and the source of about 40% of broken formulas.
 
-The next demo computes profit (revenue − spend) for the first three campaigns. Type `=F2-E2` in `H2`, drag down: the references walk with you.
+The next demo computes profit (revenue minus spend) for the first three campaigns. Type `=F2-E2` in `H2`, drag down: the references walk with you.
 
 <RefDemo
   data={CAMPAIGNS}
@@ -29,7 +31,7 @@ The next demo computes profit (revenue − spend) for the first three campaigns.
 
 ## Pinning a reference with `$`
 
-Sometimes the reference should *not* shift when copied. Pin it with `$`. The classic adtech case: a media-buying fee that lives in **one cell** and applies to **every campaign**. Imagine `J1` holds the fee percentage `0.10` (a 10% platform fee on revenue). The formula `=F2*$J$1` computes the fee for one row; copy down and the row reference (F2 → F3 → F4) shifts, but `$J$1` stays anchored.
+Sometimes the reference should *not* shift when copied. Pin it with `$`. The classic adtech case: a media-buying fee that lives in **one cell** and applies to **every campaign**. Imagine `J1` holds the fee percentage `0.10` (a 10% platform fee on revenue). The formula `=F2*$J$1` computes the fee for one row; copy down and the row reference (`F2` → `F3` → `F4`) shifts, but `$J$1` stays anchored.
 
 <RefDemo
   data={CAMPAIGNS}
@@ -48,6 +50,19 @@ The four reference forms cover every locking pattern. Each `$` locks one axis: i
 | `$B5` | **locked** | moves |
 | `B$5` | moves | **locked** |
 | `$B$5` | **locked** | **locked** |
+
+### Easy traps: missing the `$`
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=F2*J1</code>  (in H2, filled down to H13)</pre>
+    <p className="mt-2 text-sm"><strong>No anchor on the fee cell.</strong> The reference walks: <code>J1 → J2 → J3 → ...</code>. After row 2, every formula multiplies revenue by an empty cell (or by whatever happens to be in column J on that row). The output is silently zero for every row past the first. No error, just wrong numbers.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=F2*$J$1</code>  (in H2, filled down to H13)</pre>
+    <p className="mt-2 text-sm"><strong>Dollar signs on both axes of the fee cell.</strong> When filled down, the row reference <code>F2</code> shifts naturally with each row, but <code>$J$1</code> stays glued to the fee cell. Every row's fee = that row's revenue × 10%.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="A lookup table sits in B2:C100. You'll fill the lookup formula down a column. Which form keeps the table anchored?"
@@ -107,6 +122,19 @@ To create one: select the range (here `E2:E13`), open **Data > Named ranges**, t
 
 In the team's actual workbooks, named ranges are everywhere: `media_fee_pct`, `target_roi`, `vertical_lookup`, `current_period`. The pattern is to define them once at the top of a "Config" sheet and reference them from every other formula. When the fee changes from 10% to 12%, you edit one cell, not 200 formulas.
 
+### Easy traps: named ranges vs. tables
+
+<Compare>
+  <ComparePanel label="Fragile" tone="negative">
+    <pre className="font-mono text-xs"><code>=AVERAGE(E2:E13)</code></pre>
+    <p className="mt-2 text-sm"><strong>Hard-coded bounds.</strong> Add row 14 (a new campaign) and this formula still stops at row 13. Insert a row above row 2 and the range shifts but its meaning changes. Two failure modes from one formula.</p>
+  </ComparePanel>
+  <ComparePanel label="Better" tone="positive">
+    <pre className="font-mono text-xs"><code>=AVERAGE(spend)</code></pre>
+    <p className="mt-2 text-sm"><strong>Named range.</strong> Self-documenting and survives row insertions inside the range. For a log that grows over time, the next step up is a table (lesson 1.17): <code>=AVERAGE(Campaigns[Spend])</code> auto-extends without manual range edits.</p>
+  </ComparePanel>
+</Compare>
+
 <QuickCheck
   question="Which is the right reason to convert =SUM(E2:E13) to =SUM(spend)?"
   options={[
@@ -136,16 +164,18 @@ In the team's actual workbooks, named ranges are everywhere: `media_fee_pct`, `t
 In the team's real workbooks, three patterns built on this lesson show up everywhere:
 
 - **The `Config` sheet.** A single tab holding named cells: `media_fee_pct`, `target_roi`, `current_period_start`, `current_period_end`, `usd_to_ils`. Every other sheet in the workbook references these by name. Change the value once, the whole model updates.
-- **Cross-platform aggregator formulas.** Each platform sheet has its own raw-data tab. The aggregator references them with a mix of relative refs (per-row) and absolute refs (per-formula constants). Forgetting the `$` is how a SUMIFS that "worked yesterday" returns zero today.
-- **The "fill down to row 100,000" pattern.** Setting up formulas to handle rows you haven't imported yet. Without `$` discipline, the formulas reference each other in a cascade and break when you actually paste new data in.
+- **Cross-platform aggregator formulas.** Each platform sheet has its own raw-data tab. The aggregator references them with a mix of relative refs (per-row) and absolute refs (per-formula constants). Forgetting the `$` is how a `SUMIFS` that "worked yesterday" returns zero today.
+- **The "fill down to row 100,000" pattern.** Setting up formulas to handle rows you haven't imported yet. Without `$` discipline, the formulas reference each other in a cascade and break when you actually paste new data in. Lesson 1.10 covers the `ARRAYFORMULA` alternative that sidesteps this entirely.
 
 ## Pro pitfalls
 
-- **A range like `B2:B13` walks if rows are inserted above row 2.** Use a named range or a whole-column reference (`B:B` or `B2:B`) when stability matters.
+- **A range like `B2:B13` walks if rows are inserted above row 2.** Use a named range or a whole-column reference (`B:B` or `B2:B`) when stability matters. For appendable logs, tables (lesson 1.17) are the durable answer.
 - **`B:B` is convenient but slow on big sheets.** It scans every cell in the column. Bounded ranges (`B2:B10000`) are usually the right middle ground.
-- **Copy-paste of formulas is reference math, not text math.** `=B5` pasted into `D2` doesn't say "B5"; it computes "the cell two columns to my left, three rows down" relative to D2 and resolves accordingly. Pasting as values (`Ctrl+Shift+V`) breaks the link.
+- **Copy-paste of formulas is reference math, not text math.** `=B5` pasted into `D2` does not say "B5"; it computes "the cell two columns to my left, three rows down" relative to D2 and resolves accordingly. Pasting as values (`Ctrl+Shift+V`) breaks the link.
 - **`F4` (Windows) / `Cmd+T` (Mac)** cycles through reference forms in the formula bar. Muscle memory worth investing in.
+- **Forgetting the `$` on a lookup-table range** is the most common cause of `#N/A` cascades. The first row of a fill-down looks correct; rows below silently break as the table walks off itself.
+- **Mixed references (`$B5`, `B$5`) are the right tool for grid formulas** where a single formula needs to fill both across columns AND down rows. Plan which axis stays anchored before you write the formula.
 
 ## Now do it for real
 
-Click **Start lesson** to provision the campaign log in your Drive. You'll demonstrate each reference form on the actual data, then create a named range for the spend column.
+Click **Start lesson** to provision the campaign log in your Drive. You will demonstrate each reference form on the actual data, create a named range for the spend column, then use both to write a per-row fee formula that survives copying and surviving new campaigns being pasted in.
