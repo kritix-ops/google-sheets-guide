@@ -190,7 +190,7 @@ function deleteAllRefreshTriggers() {
 
 שני patterns אמיתיים מ-workbooks של הצוות:
 
-- **Pulls לילים של פלטפורמות.** כל רשת מודעות (Taboola, Outbrain, MediaGo) מקבלת `.everyDays(1).atHour(2)` trigger משלה רשום מול handler פר-פלטפורמה. ה-handler פוגע ב-API הדיווח של הפלטפורמה דרך `UrlFetchApp.fetch`, מנתח את ה-JSON, וכותב את ה-spend וה-revenue של היום ל-tab הפלטפורמה-ספציפי. ה-workbook של האגרגטור אז מושך כל tab דרך `IMPORTRANGE`. בלי installable triggers, שום דבר מזה לא עובד: `UrlFetchApp` מחוץ לתחום ל-simple triggers.
+- **Pulls לילים של פלטפורמות.** כל רשת מודעות (Taboola, Outbrain, MediaGo) מקבלת `.everyDays(1).atHour(2)` trigger משלה רשום מול handler פר-פלטפורמה. ה-handler פוגע ב-API הדיווח של הפלטפורמה דרך `UrlFetchApp.fetch`, מנתח את ה-JSON, וכותב את ה-spend וה-revenue של היום ל-tab הפלטפורמה-ספציפי. ה-workbook של האגרגטור אז מושך כל tab דרך `IMPORTRANGE` (שיעור 1.27). בלי installable triggers, שום דבר מזה לא עובד: `UrlFetchApp` מחוץ לתחום ל-simple triggers.
 - **התראות Slack מבוססות-עריכה.** ל-workbook של ראשי buyers יש installable edit trigger שצופה בעמודת Profit. כששורה חוצה מתחת ל-`-$500` ליום, ה-handler עושה ping ל-channel `#spend-alerts` ב-Slack עם ה-buyer, ה-vertical, וה-loss הנוכחי של השורה. חייב להיות installable: simple triggers לא יכולים להגיע ל-Slack.
 
 ## עכשיו לעבודה אמיתית

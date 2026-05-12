@@ -191,7 +191,7 @@ Every script account has a **per-account limit of 20 triggers per script**. If y
 
 Two real patterns from the team's workbooks:
 
-- **Nightly platform pulls.** Each ad network (Taboola, Outbrain, MediaGo) gets its own `.everyDays(1).atHour(2)` trigger registered against a per-platform handler. The handler hits the platform's reporting API via `UrlFetchApp.fetch`, parses the JSON, and writes the day's spend and revenue into the platform-specific tab. The aggregator workbook then pulls each tab via `IMPORTRANGE`. Without installable triggers, none of this works: `UrlFetchApp` is off-limits to simple triggers.
+- **Nightly platform pulls.** Each ad network (Taboola, Outbrain, MediaGo) gets its own `.everyDays(1).atHour(2)` trigger registered against a per-platform handler. The handler hits the platform's reporting API via `UrlFetchApp.fetch`, parses the JSON, and writes the day's spend and revenue into the platform-specific tab. The aggregator workbook then pulls each tab via `IMPORTRANGE` (lesson 1.27). Without installable triggers, none of this works: `UrlFetchApp` is off-limits to simple triggers.
 - **Edit-driven Slack alerts.** The buyer leads' workbook has an installable edit trigger that watches the Profit column. When a row crosses below `-$500` for the day, the handler pings a `#spend-alerts` Slack channel with the row's buyer, vertical, and current loss. Has to be installable: simple triggers cannot reach Slack.
 
 ## Now do it for real
