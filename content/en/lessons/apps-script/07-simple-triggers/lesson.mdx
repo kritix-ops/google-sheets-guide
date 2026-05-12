@@ -98,7 +98,7 @@ A short tour:
 - **`onOpen`**: the only reliable place to install a custom menu. Workbook opens, menu appears. Anything more intricate (autosizing rows, recolouring a status column) belongs in a function the menu *calls*, not in `onOpen` itself, because the open path is on the workbook-load critical path.
 - **`onEdit`**: the workhorse. Use it for in-row data hygiene: auto-fill the buyer from the editor's email when a new campaign row appears, normalize a vertical name as it is typed, stamp the last-modified time. Be careful about what counts as "an edit": typing in a cell, fill-down, paste, delete, and *checkbox toggles* all fire it. Mass-pastes fire it once with the whole paste range as `e.range`.
 - **`onSelectionChange`**: fires on every arrow-key tap. Cheap things only: update a status bar cell, highlight the active row. A 100ms handler here is fine; a 500ms one feels janky.
-- **`onChange`**: fires on structural changes the others miss. Auto-protect a header row when someone inserts a column. Watch for unintended sheet renames in a workbook where downstream `IMPORTRANGE` formulas depend on tab names.
+- **`onChange`**: fires on structural changes the others miss. Auto-protect a header row when someone inserts a column. Watch for unintended sheet renames in a workbook where downstream `IMPORTRANGE` formulas (lesson 1.27) depend on tab names.
 
 <StepThrough
   frames={[
