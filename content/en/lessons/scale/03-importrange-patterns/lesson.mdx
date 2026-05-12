@@ -2,7 +2,7 @@
 
 `IMPORTRANGE` is how this team's workbooks talk to each other. It is also the single biggest source of broken formulas, weird permission errors, and "the dashboard is stale and nobody noticed" mornings. Every aggregator in the company has at least one `IMPORTRANGE`, usually a dozen, sometimes fifty. The function itself is simple. The patterns around it are not.
 
-This lesson is the working pro's reference for the function: the spec, the auth model nobody documents clearly, the bounded-range rule, the fan-out shape, the defensive wrapper, and the four failure modes that account for almost every IMPORTRANGE incident the team has ever opened a ticket on.
+Lesson 1.27 introduced the function and its mechanics; this lesson is the working pro's reference for the patterns around it at scale: the auth model nobody documents clearly, the bounded-range rule, the fan-out shape, the defensive wrapper, and the four failure modes that account for almost every IMPORTRANGE incident the team has ever opened a ticket on.
 
 ## What IMPORTRANGE actually does
 
@@ -74,7 +74,7 @@ When you commit an `IMPORTRANGE` formula, Sheets opens a connection to the sourc
 
 You grant access once per source workbook. After that, every IMPORTRANGE in your destination can read every range from that source. If the source owner revokes access (or leaves the company and their account is deactivated), every IMPORTRANGE pointed at that source breaks at once. The fix is for somebody with edit access to re-grant. Plan for this: the workbook should not have a single point of failure on one person's account.
 
-The team rule that grew out of three painful incidents: source workbooks are owned by the team's shared account (`info@flexelent.com`), not by an individual. When media buyers turn over, the cross-workbook connections survive. Lesson 4.8 walks the diagnostic flow for when this rule wasn't followed and the original grantor has since left.
+The team rule that grew out of three painful incidents: source workbooks are owned by the team's shared account (`info@flexelent.com`), not by an individual (lesson 2.12 covers the broader ownership-transfer discipline that makes this work). When media buyers turn over, the cross-workbook connections survive. Lesson 4.8 walks the diagnostic flow for when this rule wasn't followed and the original grantor has since left.
 
 ## Bounded ranges, always
 
