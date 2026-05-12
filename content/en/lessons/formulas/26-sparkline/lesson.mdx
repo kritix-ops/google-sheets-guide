@@ -2,33 +2,44 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # SPARKLINE: charts inside cells
 
-`SPARKLINE` draws a tiny chart inside a single cell. No chart object, no resizing, no separate render: the cell *is* the chart. For a dashboard with one row per buyer or per vertical, a sparkline column gives instant visual context without burning screen real estate.
+A working dashboard usually has one row per buyer, per vertical, or per campaign, and the eye wants a trend line for each row without opening a separate chart. `SPARKLINE` is the answer: it draws a tiny chart inside the formula cell itself. No chart object, no resizing, no separate render layer. The cell is the chart.
 
-## Basic syntax
-
-```
-=SPARKLINE(data_range)
-=SPARKLINE(data_range, {"option1", value1; "option2", value2; ...})
-```
-
-The first argument is the data: usually a row or column of numbers. The second argument is an options object specifying chart type, colors, and axis behavior.
+For a team running fifty buyers across five platforms, a sparkline column turns a wall of numbers into a one-screen visual. You see who is climbing, who is flat, who spiked on a single Tuesday. The cost is one formula per row. The payoff is that a stakeholder can scan the report in ten seconds instead of squinting at totals.
 
 <FunctionRef name="SPARKLINE" />
 
-The simplest call:
+## The minimum viable sparkline
+
+The simplest call passes a single range of numbers:
 
 ```
 =SPARKLINE(B2:B8)
 ```
 
-Draws a default line chart from those 7 values. Resize the row to make the sparkline taller; resize the column to make it wider.
+Default chart type is `line`. Row height controls vertical pixels; column width controls horizontal pixels. That is the whole formula. The interesting choices live in the second argument: the options object.
+
+<RefDemo
+  data={[
+    ["Day", "Revenue"],
+    ["Mon", 412],
+    ["Tue", 387],
+    ["Wed", 450],
+    ["Thu", 522],
+    ["Fri", 489],
+    ["Sat", 540],
+    ["Sun", 510],
+  ]}
+  formulaCell="D2"
+  initialFormula="=SUM(B2:B8)"
+  hint="Try =AVERAGE(B2:B8) or =MAX(B2:B8) to see how the same range answers different questions. SPARKLINE itself doesn't render in the sandbox, but the data here is what a sparkline cell would visualize."
+/>
 
 ## The four chart types
 
 | Type | Use when |
 |---|---|
 | `line` (default) | Trends over time, continuous data |
-| `column` | Comparing discrete categories |
+| `column` | Comparing discrete categories side-by-side |
 | `bar` | Single-segment progress bar (one or two values) |
 | `winloss` | Outcomes where direction matters more than magnitude |
 
@@ -39,14 +50,16 @@ Draws a default line chart from those 7 values. Resize the row to make the spark
 =SPARKLINE(B2:B8, {"charttype","winloss"})
 ```
 
+Pick the chart type by the *question the row is answering*. Daily revenue trend? `line`. Spend by platform? `column`. Progress to monthly goal? `bar`. Days where ROI was positive vs negative? `winloss`.
+
 ## The options object
 
-Options are passed as a 2-column array. Pairs are separated by `;` (row separator), name and value by `,` (column separator):
+Options come in as a 2-column array. Inside the braces, separate pairs with `;` (row separator) and the option name from its value with `,` (column separator).
 
 ```
 =SPARKLINE(B2:B8, {
   "charttype", "line";
-  "color", "blue";
+  "color", "#4285F4";
   "linewidth", 2;
   "ymin", 0
 })
@@ -61,66 +74,121 @@ Common options:
 | `color1` / `color2` | colors | For winloss: positive vs negative bars |
 | `linewidth` | number | Line thickness for line charts |
 | `ymin` / `ymax` | numbers | Force Y-axis bounds |
-| `firstcolor`, `lastcolor`, `highcolor`, `lowcolor`, `negcolor` | colors | Highlight specific points (column/winloss) |
+| `firstcolor`, `lastcolor`, `highcolor`, `lowcolor`, `negcolor` | colors | Highlight specific points |
 | `axis` | TRUE/FALSE | Show baseline at y=0 |
-| `rtl` | TRUE/FALSE | Right-to-left display (for date axes that count down) |
+| `rtl` | TRUE/FALSE | Right-to-left display |
 
 ## Adtech: per-buyer revenue trend
 
-A dashboard with one row per buyer and a 7-day revenue trend in one cell:
+Picture a dashboard with one row per buyer and a 7-day revenue trend in one cell. The columns to the left carry totals; the sparkline column carries shape.
 
 | Buyer | Total revenue | 7-day trend |
 |---|---|---|
-| Yoav Cohen | $4,310 | sparkline of last 7 days |
-| Sarah Levi | $3,820 | sparkline |
-| David Mizrahi | $5,640 | sparkline |
+| Yoav Cohen | $4,310 | (sparkline of B2:H2) |
+| Sarah Levi | $3,820 | (sparkline of B3:H3) |
+| David Mizrahi | $5,640 | (sparkline of B4:H4) |
 
-Formula in the trend column (assuming each buyer's daily revenue is in a row 7 columns wide):
+The formula in the trend column, assuming each buyer's daily revenue is in a row 7 columns wide:
 
 ```
 =SPARKLINE(B2:H2, {"charttype","line"; "color","#4285F4"; "linewidth",2})
 ```
 
-Drag down for each buyer. At a glance you see who's trending up, who's flat, who's spiking on a single day.
+Drag it down. At a glance you see who is trending up, who is flat, who spiked on one day. The team uses this every Monday morning to spot the buyers worth a one-on-one.
 
 <TryIt
   data={[["Buyer", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Trend"],
          ["Yoav Cohen", 412, 387, 450, 522, 489, 540, 510, ""]]}
   inputCell="I2"
   expectedFormula='=SPARKLINE(B2:H2)'
-  task={<>Add a sparkline in <code>I2</code> showing Yoav Cohen's 7-day revenue trend (cells B2:H2). Use the default line chart.</>}
+  task={<>Add a sparkline in <code>I2</code> showing Yoav Cohen's 7-day revenue trend (cells <code>B2:H2</code>). Use the default line chart.</>}
   hint={<><code>SPARKLINE(range)</code>. The range is the 7 daily values.</>}
-  answer={<>The default sparkline is a thin line. With options you can color it, set bounds, change to columns/bars/winloss. The biggest gain isn't the chart itself but the row layout: 50 buyers × 7 days × 1 mini-chart = a one-screen dashboard. Compared to a separate chart object per buyer, sparklines are an order of magnitude denser.</>}
+  answer={<>The default sparkline is a thin line. With options you can color it, set bounds, change to columns/bars/winloss. The biggest gain is not the chart itself but the row layout: 50 buyers × 7 days × 1 mini-chart = a one-screen dashboard. Compared to a separate chart object per buyer, sparklines are an order of magnitude denser.</>}
 />
 
-## Win/loss for ROI bands
+## Win/loss for ROI consistency
 
-A winloss sparkline draws a small bar above (positive) or below (negative) the baseline for each value. Magnitude is ignored; only direction matters.
+A winloss sparkline draws a small bar above (positive) or below (negative) the baseline for each value. Magnitude is ignored. Only direction matters.
 
 ```
 =SPARKLINE(B2:H2, {"charttype","winloss"; "color1","green"; "color2","red"; "negcolor","red"})
 ```
 
-For a row of daily ROIs, this becomes a "8 wins, 4 losses" bar pattern at a glance: useful for quick consistency checks without quoting numbers.
+For a row of daily ROIs, this becomes a "5 wins, 2 losses" bar pattern at a glance. Useful for quick consistency checks: a buyer with seven greens beats a buyer with five greens and two big reds, even if their week-total ROI is identical.
+
+## Easy traps
+
+The options array is where most sparkline formulas die. Two patterns the team has lost time to, side-by-side:
+
+<Compare
+  panels={[
+    {
+      title: "Broken: comma instead of semicolon",
+      formula: '=SPARKLINE(B2:H2, {"charttype","line", "color","blue"})',
+      why: "Inside the options array, `,` is the column separator (between option name and value) and `;` is the row separator (between pairs). Using a comma between pairs collapses everything onto one row, which is not a valid options shape. Result is a parse error.",
+    },
+    {
+      title: "Working: semicolon between pairs",
+      formula: '=SPARKLINE(B2:H2, {"charttype","line"; "color","blue"})',
+      why: "Pairs are separated by `;`. Inside each pair, `,` separates the name from the value. Two pairs → two rows in the array.",
+    },
+  ]}
+/>
+
+<Compare
+  panels={[
+    {
+      title: "Broken: #N/A in the data range",
+      formula: '=SPARKLINE(VLOOKUP_RESULTS)',
+      why: "If even one cell in the range is `#N/A` (from a broken lookup upstream), the entire sparkline returns `#N/A`. The chart does not render at all. Common when the data range pulls from a lookup that has not been resolved yet.",
+    },
+    {
+      title: "Working: wrap with IFERROR",
+      formula: '=SPARKLINE(ARRAYFORMULA(IFERROR(VLOOKUP_RESULTS, 0)))',
+      why: "Coerce missing values to 0 (or to a sentinel like NA() that SPARKLINE will skip) before the chart sees them. From lesson 1.9 on error handling.",
+    },
+  ]}
+/>
+
+## Locking the Y-axis for honest comparison
+
+A sparkline of values 95-100 looks identical to one of 5-100 because the Y-axis auto-scales to the data. Across rows in a dashboard, that auto-scaling is dishonest: a tiny drift looks the same as a tenfold spike.
+
+```
+=SPARKLINE(B2:H2, {"charttype","line"; "ymin",0; "ymax",1000})
+```
+
+With `ymin` and `ymax` set to the same bounds across all rows, the sparklines become directly comparable. Sarah's $400-500 line stays small at the bottom while David's $1,000 spike fills the cell. That is the picture you actually want stakeholders to see.
+
+<QuickCheck
+  prompt="A dashboard shows daily revenue sparklines for 50 buyers. Each sparkline auto-scales its Y-axis to its own buyer's data. A stakeholder complains that two buyers with very different revenue look identical. What's the fix?"
+  options={[
+    { id: "a", text: "Change the chart type from line to column", correct: false, explanation: "The chart type doesn't affect Y-axis scaling. Both line and column would auto-scale independently." },
+    { id: "b", text: "Set ymin and ymax to the same fixed values for all rows", correct: true, explanation: "Right. Locking the bounds removes per-row auto-scaling, which is the only way different rows become visually comparable." },
+    { id: "c", text: "Wrap each sparkline in IFERROR", correct: false, explanation: "IFERROR handles missing data; it doesn't affect Y-axis behavior." },
+    { id: "d", text: "Use winloss instead of line", correct: false, explanation: "Winloss removes magnitude entirely, which is the opposite of what the stakeholder is asking for: they want magnitude to be visible across rows." },
+  ]}
+/>
 
 ## Pro pitfalls
 
-- **Sparklines render in the cell only.** They don't appear in screenshots taken via the Sheets API in some versions, and don't appear in `print to PDF` if the row height is too small. Always test before depending on a sparkline-heavy dashboard for stakeholder reports.
-- **The options array uses semicolons for row separators.** A typo using comma instead breaks the formula silently with a confusing parse error. Keep the pattern: name comma value, then semicolon, then next pair.
-- **Empty cells in the data range** are ignored by default: but a single non-numeric value (like `#N/A` from a broken lookup) breaks the whole sparkline. Wrap the data with `IFERROR` (lesson 9) before passing it.
-- **Color names** are case-sensitive in some cases and inconsistent across charts. Hex codes (`"#4285F4"`) are safer than names (`"blue"` vs `"Blue"`).
-- **Y-axis defaults to data range.** A sparkline of values 95-100 looks identical to one of 5-100 unless you set `ymin` and `ymax`. For consistent visual comparison across rows, lock the bounds.
-- **Sparklines don't auto-update on conditional formatting.** They render based on data, not on formatting state. If you want "trends colored red when below threshold," compute the colors in the options programmatically.
-- **The data range can be a column or row** but not a 2D grid. If you want multiple series, you can't.
+- **Render quirks in exports.** Sparklines render in the live grid but sometimes vanish from PDF print or screenshots taken via the Sheets API. Test the export path *before* depending on sparkline-heavy dashboards for stakeholder reports.
+- **Options array uses `;` between pairs and `,` inside each pair.** Swapping them breaks the formula with a confusing parse error. The pattern is: `name, value; name, value; name, value`.
+- **Non-numeric values poison the chart.** `#N/A` from a broken lookup, `"#REF!"` from a deleted range, or a text string in a numeric range will fail the whole sparkline. Wrap upstream data with `IFERROR` (lesson 9) or `IFNA` before passing it.
+- **Color names are inconsistent.** `"blue"` works, `"navy blue"` does not. Hex codes (`"#4285F4"`) are safer and team-consistent.
+- **Y-axis defaults to the data range.** Two sparklines with vastly different absolute values can look identical without locked `ymin`/`ymax`. For honest cross-row comparison, set the bounds explicitly.
+- **No 2D data.** The data range must be a single row or column. Multiple series in one sparkline is not supported. If you need that, use a real chart object.
+- **Conditional formatting does not cascade.** Sparklines render from the data range, not from cell formatting. "Color red when below threshold" has to be computed in the options object, not in the cell's CF rule.
+- **Volatile data sources.** If the sparkline pulls from an `IMPORTRANGE` (lesson 1.27) that lags, the chart will lag with it. Refresh state is the upstream source's problem; the sparkline just renders whatever is there.
 
 ## Used in the wild
 
-- **Per-buyer or per-vertical trend column** in dashboards. One cell, instant visual context, dragable across the whole list.
-- **ROI consistency winloss bars.** Daily ROI as a row of green/red ticks: flags inconsistent buyers without dumping numbers.
-- **Period-over-period sparkline.** Last 30 days of spend as one tiny chart per row of the report.
-- **Goal tracking bars.** A bar-type sparkline showing % progress to monthly goal, with `ymax` set to the goal value.
-- **A/B test outcome strip.** Win/loss across N test arms, color-coded green/red, in a single cell of the experiment summary.
+- **Per-buyer or per-vertical trend column.** One cell, instant visual context, dragable across the whole list. The team's Monday-morning standup dashboard relies on this.
+- **ROI consistency winloss bars.** Daily ROI as a row of green/red ticks. Flags inconsistent buyers without dumping numbers into the conversation.
+- **Period-over-period sparkline.** Last 30 days of spend per platform as one tiny chart per row of the platform-summary report.
+- **Goal tracking bars.** A bar-type sparkline showing % progress to monthly goal, with `ymax` locked to the goal value. The bar fills as the month progresses.
+- **A/B test outcome strip.** Win/loss across N test arms, color-coded green/red, in a single cell of the experiment summary table.
 
 ## Now do it for real
 
-Click **Start lesson** to provision a small per-buyer 7-day revenue table. You'll add three sparkline columns: a default line trend, a colored line with custom width, and a winloss strip showing days where revenue exceeded the buyer's daily target.
+Click **Start lesson** to provision a small per-buyer 7-day revenue table. You will add three sparkline columns: a default line trend, a colored line with custom width and locked Y-axis, and a winloss strip showing days where revenue exceeded the buyer's daily target.
