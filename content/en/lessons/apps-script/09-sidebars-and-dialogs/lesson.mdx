@@ -206,7 +206,7 @@ Two patterns from the team:
 
 ## Pro pitfalls
 
-- **The sidebar tab does not survive a reload.** Refresh the workbook and the sidebar closes silently. If you have a "Show sidebar" entry on a custom menu, the user just clicks it again. Do not put critical state in the sidebar: keep it in cells or in the script's `PropertiesService` so a reload does not lose it.
+- **The sidebar tab does not survive a reload.** Refresh the workbook and the sidebar closes silently. If you have a "Show sidebar" entry on a custom menu, the user just clicks it again. Do not put critical state in the sidebar: keep it in cells or in the script's `PropertiesService` (lesson 15) so a reload does not lose it.
 - **Modal dialogs block the whole sheet.** No editing, no scrolling, no clicking elsewhere until the user dismisses the dialog. Use them sparingly: they break flow if used for anything other than a one-step confirm.
 - **`setTitle` on a sidebar is the visible heading at the top of the panel.** If you set it to an empty string, the header is blank but the panel still has a top bar.
 - **The HTML file name is case-sensitive.** `createHtmlOutputFromFile("reports")` does not find `Reports.html`. The editor's file picker shows the canonical capitalization.

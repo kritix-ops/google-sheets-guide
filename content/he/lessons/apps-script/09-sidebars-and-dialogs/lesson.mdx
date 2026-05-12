@@ -205,7 +205,7 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
 
 ## מלכודות מקצועיות
 
-- **ה-tab של ה-sidebar לא שורד reload.** מרעננים את ה-workbook וה-sidebar נסגר בשקט. אם יש לכם רשומת "Show sidebar" בתפריט מותאם, המשתמש פשוט לוחץ שוב. לא שמים state קריטי ב-sidebar: שומרים אותו בתאים או ב-`PropertiesService` של ה-script כך ש-reload לא יאבד אותו.
+- **ה-tab של ה-sidebar לא שורד reload.** מרעננים את ה-workbook וה-sidebar נסגר בשקט. אם יש לכם רשומת "Show sidebar" בתפריט מותאם, המשתמש פשוט לוחץ שוב. לא שמים state קריטי ב-sidebar: שומרים אותו בתאים או ב-`PropertiesService` (שיעור 15) של ה-script כך ש-reload לא יאבד אותו.
 - **modal dialogs חוסמים את כל ה-sheet.** אין עריכה, אין גלילה, אין לחיצה במקום אחר עד שהמשתמש סוגר את ה-dialog. משתמשים בהם במשורה: הם שוברים זרימה אם משתמשים בהם בכל דבר מעבר ל-confirm של one-step.
 - **`setTitle` על sidebar היא הכותרת הנראית בראש הפאנל.** אם מגדירים אותה למחרוזת ריקה, הכותרת ריקה אבל לפאנל עדיין יש top bar.
 - **שם הקובץ של HTML רגיש לרישיות.** `createHtmlOutputFromFile("reports")` לא מוצא את `Reports.html`. בוחר הקבצים של העורך מציג את הרישיות הקנונית.
