@@ -2,7 +2,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Connected Sheets and BigQuery
 
-When the data outgrows what a single Sheet can hold (or what `IMPORTRANGE` can stitch together), the next step is BigQuery. Connected Sheets is the bridge: it lets you point Google Sheets at a BigQuery table and pull a refreshable extract into a tab. You read from the extract with regular formulas, charts, and pivot tables. You do not write SQL unless you want to.
+When the data outgrows what a single Sheet can hold (or what `IMPORTRANGE` can stitch together, covered in lessons 1.27 and 4.3), the next step is BigQuery. Connected Sheets is the bridge: it lets you point Google Sheets at a BigQuery table and pull a refreshable extract into a tab. You read from the extract with regular formulas, charts, and pivot tables. You do not write SQL unless you want to.
 
 This is the architecture the team's heavier reporting workbooks have been moving to throughout 2025 and 2026. Two things you should know up front: it requires a Workspace edition that includes Connected Sheets (Business Plus and above), and every refresh runs a BigQuery query that bills against the project. Both of those have cost implications you will want to design around.
 
