@@ -183,6 +183,37 @@ Use `"needs review"` (or similar) as the fallback string so a human knows the ro
   ]}
 />
 
+## Validating AI output with a sidecar formula
+
+`IFERROR` catches the call that failed. It does not catch the call that returned `very high` when you asked for `low / medium / high`. Hallucinated labels are the more common production problem because they look like real values to a downstream `COUNTIF`. The defense is a sidecar formula in the next column over that checks each cell against the allowed set and flags drift.
+
+<Compare>
+  <ComparePanel label="Broken (no validator)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`H2: =AI("Risk: low, medium, or high. " & F2 & " " & G2)
+... 60 rows of classifications
+
+Dashboard: =COUNTIF(H2:H61, "high")
+       → 7 (looks right)
+
+But: three rows actually contain "very high".
+The 7 should be 10. Nobody knows.`}</code></pre>
+    <p className="mt-2 text-sm">The label drift is invisible at the row level. The COUNTIF undercounts silently. Reports based on this column are quietly wrong.</p>
+  </ComparePanel>
+  <ComparePanel label="Working (validator in column I)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`H2: =IFERROR(AI("Risk: low, medium, or high. " & F2 & " " & G2),
+            "needs review")
+I2: =IF(REGEXMATCH(H2, "^(low|medium|high)$"),
+       H2, "needs review")
+... drag both to row 61
+
+Dashboard: =COUNTIF(I2:I61, "high")
+       → 10 (correct)
+Audit:     =COUNTIF(I2:I61, "needs review")
+       → 3 (surfaces drift for a human)`}</code></pre>
+    <p className="mt-2 text-sm">Column I is the audited copy. The dashboard reads from I, not H. Drift becomes a counted operational metric instead of a silent error. `REGEXMATCH` is in Track 2 lesson 8.</p>
+  </ComparePanel>
+</Compare>
+
 ## Non-determinism in practice
 
 Two calls of `=AI("Sentiment of: " & A1)` can return `positive` and `neutral` in succession. The model is non-deterministic by design. The implications cascade:

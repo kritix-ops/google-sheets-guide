@@ -183,6 +183,37 @@ AI() יכולה להיכשל. הקריאה יכולה לעבור timeout, ה-wor
   ]}
 />
 
+## ולידציה של פלט AI עם נוסחת sidecar
+
+`IFERROR` תופס את הקריאה שנכשלה. הוא לא תופס את הקריאה שהחזירה `very high` כששאלתם `low / medium / high`. תוויות מהוזות הן הבעיה הנפוצה יותר ב-production כי הן נראות כמו ערכים אמיתיים ל-`COUNTIF` במורד הזרם. ההגנה היא נוסחת sidecar בעמודה הבאה שבודקת כל תא מול הסט המותר ומסמנת drift.
+
+<Compare>
+  <ComparePanel label="שבור (בלי validator)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`H2: =AI("Risk: low, medium, or high. " & F2 & " " & G2)
+... 60 שורות של סיווגים
+
+Dashboard: =COUNTIF(H2:H61, "high")
+       → 7 (נראה נכון)
+
+אבל: שלוש שורות מכילות בפועל "very high".
+ה-7 צריך להיות 10. אף אחד לא יודע.`}</code></pre>
+    <p className="mt-2 text-sm">ה-drift של התוויות בלתי נראה ברמת השורה. ה-COUNTIF סופר חסר בשקט. דוחות שמבוססים על העמודה הזו שגויים בשקט.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד (validator בעמודה I)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`H2: =IFERROR(AI("Risk: low, medium, or high. " & F2 & " " & G2),
+            "needs review")
+I2: =IF(REGEXMATCH(H2, "^(low|medium|high)$"),
+       H2, "needs review")
+... גוררים את שתיהן לשורה 61
+
+Dashboard: =COUNTIF(I2:I61, "high")
+       → 10 (נכון)
+Audit:     =COUNTIF(I2:I61, "needs review")
+       → 3 (חושף את ה-drift לבדיקה אנושית)`}</code></pre>
+    <p className="mt-2 text-sm">עמודה I היא העותק המבוקר. הדשבורד קורא מ-I, לא מ-H. Drift הופך למדד תפעולי ספיר במקום שגיאה שקטה. `REGEXMATCH` ב-Track 2 שיעור 8.</p>
+  </ComparePanel>
+</Compare>
+
 ## אי-דטרמיניזם בפועל
 
 שתי קריאות של `=AI("Sentiment of: " & A1)` יכולות להחזיר `positive` ו-`neutral` ברצף. המודל אינו דטרמיניסטי בעיצוב. ההשלכות מתגלגלות:
