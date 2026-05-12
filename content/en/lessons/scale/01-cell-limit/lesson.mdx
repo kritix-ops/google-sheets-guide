@@ -4,7 +4,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 Google Sheets caps a workbook at 10,000,000 cells. Not 10 million *filled* cells. Ten million cells, period. The empty ones count. A tab allocated as `A1:ZZ50000` burns 1.7M cells out of your budget before anyone types a digit. This is the limit that quietly kills aggregator workbooks: the team adds a platform, an IMPORTRANGE drags more rows than expected, somebody pastes a 200,000-row export onto an existing tab, and one morning Sheets refuses to insert another row.
 
-The rule to internalize: **what counts is not the data, it is the grid.** Sheets bills you for cells you allocated, not cells you used. Until you understand that, every workbook the team owns is one paste away from the wall.
+The rule to internalize: **what counts is not the data, it is the grid.** Sheets bills you for cells you allocated, not cells you used. Until you understand that, every workbook the team owns is one paste away from the wall. The bounded-range discipline from lesson 2.1 (and the `IMPORTRANGE` patterns from lesson 1.27) are the upstream defenses that keep grids from drifting in the first place.
 
 ## How Sheets allocates cells
 
