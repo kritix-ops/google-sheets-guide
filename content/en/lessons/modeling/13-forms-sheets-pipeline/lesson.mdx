@@ -128,7 +128,7 @@ Forms allow editors to edit responses (if you enabled it). Sheets logs the edit 
 )
 ```
 
-The formula counts how many later rows share this email. Zero later rows → this is the latest → tag it `"latest"`. Add an extra column filter (or use `FILTER(... , latest_col="latest")`) and the duplicates fall out.
+The formula counts how many later rows share this email. Zero later rows means this is the latest, so tag it `"latest"`. Add an extra column filter (or use `FILTER(... , latest_col="latest")`) and the duplicates fall out. The `ARRAYFORMULA` wrapper (lesson 1.10) is what lets the rule spill down every row of the response set instead of being copy-pasted per cell.
 
 For the lesson assignment we keep it simpler: cleanup as count-distinct. Real workbooks layer the dedupe pattern on top of that.
 
