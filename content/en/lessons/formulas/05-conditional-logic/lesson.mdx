@@ -2,7 +2,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # Conditional logic: IF, IFS, SWITCH, AND, OR
 
-`IF` was a sneak preview in lesson 3. The full story is bigger: nested `IF`s collapse fast under their own weight, `IFS` cleans them up, `SWITCH` handles equality matches, and `AND`/`OR`/`NOT` compose any condition you can describe in words. This lesson covers the full vocabulary using the everyday adtech case: bucketing campaigns by ROI and translating platform names into categories.
+`IF` was a sneak preview in lesson 1.3. The full story is bigger: nested `IF`s collapse fast under their own weight, `IFS` cleans them up, `SWITCH` handles equality matches, and `AND`/`OR`/`NOT` compose any condition you can describe in words. This lesson covers the full vocabulary using the everyday adtech case: bucketing campaigns by ROI and translating platform names into categories.
+
+The progression matters because almost every dashboard formula past a certain complexity is conditional logic in disguise. "Scale candidate" labels, ROI tier buckets, platform-to-category translations, "pause if losing and below threshold" decisions: each is a conditional with a particular shape. Pick the wrong shape (nested `IF` for what should be `IFS`, `IF` chain for what should be `SWITCH`) and the formula gets unreadable; pick the right shape and a four-line conditional reads like a single thought.
 
 ## Nested IF: where it breaks
 
@@ -152,7 +154,9 @@ In the team's actual workbooks:
 - **`#N/A` from IFS** means none of your conditions matched. Always end with `TRUE, default_value`.
 - **`#N/A` from SWITCH** means no match and no default supplied. Always pass a default as the last argument.
 - **Order matters in IFS.** Strictest condition first, loosest last (or use `TRUE` catch-all). Reversed order silently returns the wrong bucket.
-- **Comparing imported text to a number** doesn't error but always returns FALSE. If revenue comes in via IMPORTRANGE as a string ("487.30" not 487.30), <code>F2 {">"} E2</code> never matches. Coerce with `VALUE(F2)` or `F2*1`.
+- **Comparing imported text to a number** does not error but always returns FALSE. If revenue comes in via IMPORTRANGE as a string ("487.30" not 487.30), `F2 > E2` never matches. Coerce with `VALUE(F2)` or `F2*1`.
+- **`AND` and `OR` short-circuit differently inside `ARRAYFORMULA`.** Per-row, `AND(A2:A, B2:B)` reduces to a single scalar (all rows combined), not a per-row array. For per-row boolean arrays, use `*` (AND) and `+` (OR) between the conditions; lesson 1.14 covers the trick in depth.
+- **SWITCH growing past ~10 branches becomes unmaintainable.** Move it to a config sheet and `XLOOKUP` against the map. The mapping then becomes data, not code, and non-coders can edit it.
 
 ## Now do it for real
 
