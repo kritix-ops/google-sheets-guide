@@ -24,7 +24,7 @@ const inlineScript = `
     btn.addEventListener('click', async function () {
       out.textContent = 'Pinging...';
       try {
-        var r = await fetch('/api/test-ping', { credentials: 'omit' });
+        var r = await fetch('/api/auth/session', { credentials: 'omit' });
         var body = await r.json();
         out.textContent = r.status + ' ' + r.statusText + '\\n\\n' + JSON.stringify(body, null, 2);
       } catch (err) {

@@ -7,6 +7,8 @@ import {
 } from "drizzle-orm/sqlite-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
+import { encryptedText } from "./encrypted-text";
+
 // Auth.js tables — column names and types match @auth/drizzle-adapter contract.
 
 export const users = sqliteTable("user", {
@@ -28,12 +30,17 @@ export const accounts = sqliteTable(
     type: text("type").$type<AdapterAccountType>().notNull(),
     provider: text("provider").notNull(),
     providerAccountId: text("providerAccountId").notNull(),
-    refresh_token: text("refresh_token"),
-    access_token: text("access_token"),
+    // Long-lived OAuth tokens — encrypted at rest via the encryptedText
+    // custom type. Stored as TEXT, transparently encrypted on write and
+    // decrypted on read. Legacy plaintext rows from before this column
+    // type landed continue to read as-is; the next refresh rewrites them
+    // encrypted. See lib/db/crypto.ts.
+    refresh_token: encryptedText("refresh_token"),
+    access_token: encryptedText("access_token"),
     expires_at: integer("expires_at"),
     token_type: text("token_type"),
     scope: text("scope"),
-    id_token: text("id_token"),
+    id_token: encryptedText("id_token"),
     session_state: text("session_state"),
   },
   (account) => [

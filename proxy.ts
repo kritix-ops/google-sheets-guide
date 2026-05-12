@@ -1,12 +1,15 @@
+import { and, eq, gt } from "drizzle-orm";
 import createIntlMiddleware from "next-intl/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { db, schema } from "@/lib/db";
 import { DEFAULT_LOCALE, LOCALES, routing } from "@/lib/i18n/routing";
 
-// Auth.js v5 stores the session token in an http-only cookie. With the database
-// session strategy the actual validation requires the DB adapter (Node-only),
-// which can't run in Edge middleware. We do a cheap presence-check here and
-// rely on auth() inside server components / route handlers for real validation.
+// In Next.js 16 the proxy file runs on the Node.js runtime, so we can do a
+// real DB validation of the session token here instead of the older
+// cookie-presence-only check. That closes a defense-in-depth gap: any route
+// or server component that forgets to call `auth()` is still protected by
+// this layer.
 
 const intlMiddleware = createIntlMiddleware(routing);
 
@@ -24,14 +27,41 @@ const PUBLIC_LOCALE_PATTERNS: RegExp[] = [
   new RegExp(`^/${LOCALE_PATTERN}/sidebar(/.*)?$`),
   new RegExp(`^/${LOCALE_PATTERN}/test-sidebar(/.*)?$`),
 ];
+
+// Surfaces that bypass the session check. Each must do its own
+// authorization (signed token, NextAuth handler, etc.). DO NOT widen this
+// list without an explicit threat model — the session gate is the cheap
+// default and removing it for a route makes that route directly
+// internet-reachable.
 const PUBLIC_API_PATTERNS: RegExp[] = [
   /^\/api\/auth(\/.*)?$/,
-  /^\/api\/sidebar(\/.*)?$/,
-  /^\/api\/test-ping(\/.*)?$/,
+  // Grade endpoint validates an HMAC-signed attempt token (see
+  // lib/auth/sidebar-token.ts) — the iframe carries it, victims do not.
+  /^\/api\/sidebar\/grade$/,
 ];
 
-function hasSessionCookie(req: NextRequest): boolean {
-  return SESSION_COOKIE_NAMES.some((name) => req.cookies.has(name));
+function readSessionToken(req: NextRequest): string | null {
+  for (const name of SESSION_COOKIE_NAMES) {
+    const cookie = req.cookies.get(name);
+    if (cookie?.value) return cookie.value;
+  }
+  return null;
+}
+
+async function hasValidSession(req: NextRequest): Promise<boolean> {
+  const token = readSessionToken(req);
+  if (!token) return false;
+  const rows = await db
+    .select({ userId: schema.sessions.userId })
+    .from(schema.sessions)
+    .where(
+      and(
+        eq(schema.sessions.sessionToken, token),
+        gt(schema.sessions.expires, new Date()),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 function localeFromPath(pathname: string): string {
@@ -52,7 +82,7 @@ function preferredLocale(req: NextRequest): string {
   return DEFAULT_LOCALE;
 }
 
-export default function proxy(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
   // API routes don't carry a locale prefix; gate them with auth only.
@@ -60,7 +90,7 @@ export default function proxy(req: NextRequest) {
     if (PUBLIC_API_PATTERNS.some((re) => re.test(pathname))) {
       return NextResponse.next();
     }
-    if (hasSessionCookie(req)) return NextResponse.next();
+    if (await hasValidSession(req)) return NextResponse.next();
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -73,12 +103,12 @@ export default function proxy(req: NextRequest) {
     return intlResponse;
   }
 
-  // Public pages within a locale (sign-in) bypass auth.
+  // Public pages within a locale (sign-in, sidebar iframe surfaces) bypass auth.
   if (PUBLIC_LOCALE_PATTERNS.some((re) => re.test(pathname))) {
     return intlResponse;
   }
 
-  if (hasSessionCookie(req)) {
+  if (await hasValidSession(req)) {
     return intlResponse;
   }
 

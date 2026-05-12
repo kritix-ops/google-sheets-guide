@@ -44,6 +44,11 @@ export async function gradeAttempt(
     };
   });
 
+  // The judge can write commentary but cannot decide the grade. We assemble
+  // the recorded result here using rulesResult.score / rulesResult.passed
+  // exclusively. If a future refactor accidentally reads
+  // judgeResult.output.overall.passed into the final result, that's a
+  // grading-bypass bug — keep this layered explicitly.
   return {
     score: rulesResult.score,
     passed: rulesResult.passed,

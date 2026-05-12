@@ -26,12 +26,12 @@ import { isRtl, type Locale } from "@/lib/i18n/routing";
 
 type Props = {
   params: Promise<{ locale: string; id: string }>;
-  searchParams: Promise<{ attemptId?: string }>;
+  searchParams: Promise<{ attemptId?: string; t?: string }>;
 };
 
 export default async function SidebarPage({ params, searchParams }: Props) {
   const { locale, id } = await params;
-  const { attemptId: attemptIdRaw } = await searchParams;
+  const { attemptId: attemptIdRaw, t: attemptToken } = await searchParams;
   setRequestLocale(locale);
 
   const info = getLessonInfo(id);
@@ -41,7 +41,12 @@ export default async function SidebarPage({ params, searchParams }: Props) {
 
   const tSidebar = await getTranslations("sidebar");
   const attemptId = attemptIdRaw ? Number(attemptIdRaw) : null;
-  if (attemptId == null || Number.isNaN(attemptId)) {
+  if (
+    attemptId == null ||
+    Number.isNaN(attemptId) ||
+    !attemptToken ||
+    typeof attemptToken !== "string"
+  ) {
     return (
       <div className="sc-empty">
         <p className="sc-empty-title">{tSidebar("missingAttemptTitle")}</p>
@@ -65,6 +70,7 @@ export default async function SidebarPage({ params, searchParams }: Props) {
       <SidebarCompanion
         assignmentId={assignment.id}
         attemptId={attemptId}
+        attemptToken={attemptToken}
         tasks={tasks}
         lessonHref={lessonHref}
         lessonTitle={lessonTitle}

@@ -39,6 +39,7 @@ type TaskState = "idle" | "passed" | "not-yet";
 type Props = {
   assignmentId: string;
   attemptId: number;
+  attemptToken: string;
   tasks: TaskSummary[];
   lessonHref: string;
   lessonTitle: string;
@@ -50,6 +51,7 @@ type Props = {
 export function SidebarCompanion({
   assignmentId,
   attemptId,
+  attemptToken,
   tasks,
   lessonHref,
   lessonTitle,
@@ -79,7 +81,7 @@ export function SidebarCompanion({
       const r = await fetch("/api/sidebar/grade", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ assignmentId, attemptId }),
+        body: JSON.stringify({ assignmentId, attemptId, attemptToken }),
         credentials: "omit",
       });
       if (!r.ok) throw new Error(await r.text());

@@ -22,6 +22,24 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `SELECT *` מחזיר את כל העמודות. `SELECT A, B, F` מחזיר עמודות ספציפיות בסדר הזה. `SELECT F-E` מחזיר עמודה מחושבת.
 
+מתחילים מטבלת צעצוע עם ארבע שורות כדי שתחביר ה-SELECT יישב היטב לפני שעוברים ללוג הקמפיינים האמיתי.
+
+<RefDemo
+  data={[
+    ["Buyer", "Revenue"],
+    ["Yoav", 487.30],
+    ["Dina", 198.40],
+    ["Maya", 1124.60],
+    ["Eitan", 245.80],
+  ]}
+  formula='=QUERY(A1:B5, "SELECT A", 1)'
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={['=QUERY(A1:B5, "SELECT A", 1)']}
+  caption="עמודה אחת בלבד נבחרה. ערכו את ה-SELECT ל-A, B וצפו בתוצאה מתרחבת."
+/>
+
+עכשיו אותו רעיון על לוג הקמפיינים האמיתי של הצוות:
 
 <MiniGrid
   data={CAMPAIGNS}
@@ -57,6 +75,72 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   hint={<>WHERE בא לפני ORDER BY במחרוזת. השוואות מספריות לא צריכות גרשיים סביב המספר.</>}
   answer={<>ה-query המשולב: <code>SELECT B, C, F WHERE F {">"} 400 ORDER BY F DESC</code>. WHERE מסנן שורות; ORDER BY ממיין את השורות שנותרו; SELECT בוחר אילו עמודות להציג. סדר הסעיפים במחרוזת תואם ל-SQL: SELECT → WHERE → ORDER BY → LIMIT. (אי אפשר לשנות את הסדר. זה נוקשה.) התוצאה כאן היא 7 שורות, ממוינות עם Cruises PR של Maya Bar בראש (1124.6).</>}
 />
+
+עוברים על איך Sheets מעריך את שילוב ה-WHERE + ORDER BY סעיף אחר סעיף. זה המודל המנטלי שמגן עליכם כש-QUERY רב-סעיפי מחזיר את הדבר הלא נכון.
+
+<StepThrough
+  frames={[
+    {
+      caption: <>מתחילים מהטווח הגולמי <code>A1:F13</code>. QUERY רואה 12 שורות נתונים פלוס כותרת אחת.</>,
+      body: (
+        <MiniGrid
+          data={CAMPAIGNS}
+          caption="הקלט המלא. SELECT יפעל על זה."
+        />
+      ),
+    },
+    {
+      caption: <><code>WHERE F &gt; 400</code> שומר שורות שבהן Revenue גדול מ-400. שבע שורות שורדות (השאר נושרות).</>,
+      body: (
+        <MiniGrid
+          data={CAMPAIGNS}
+          highlight={["F2", "F4", "F6", "F8", "F9", "F11", "F13"]}
+          caption="שורות עם F > 400 שורדות. שורת הכותרת נשמרת בראש התוצאה."
+        />
+      ),
+    },
+    {
+      caption: <><code>ORDER BY F DESC</code> ממיין את השורות הנותרות לפי Revenue יורד. בראש התוצאה עכשיו Cruises PR של Maya Bar ב-1124.6.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["Date", "Buyer", "Vertical", "Platform", "Spend", "Revenue"],
+            ["2026-05-02", "Maya Bar", "Cruises PR", "Outbrain", 512.00, 1124.60],
+            ["5/10/2026", "Ben Nahum", "Reverse Mortgage PR", "Google", 478.30, 982.70],
+            ["2026-05-04", "Ben Nahum", "Dental Implants PR", "Google", 605.10, 588.40],
+            ["2026-05-01", "Yoav Cohen", "Car Deals PR", "Taboola", 342.18, 487.30],
+            ["2026-05-07", "Maya Bar", "Pet Insurance PR", "MediaGo", 224.60, 461.20],
+            ["2026-05-06", "Dina Dayan", "Senior Living PR", "Google", 296.40, 412.15],
+            ["2026-05-03", "Roni Levi", "Online MBA PR", "Facebook", 432.70, 380.20],
+          ]}
+          caption="אותן 7 שורות, ממוינות לפי Revenue יורד."
+        />
+      ),
+    },
+    {
+      caption: <><code>SELECT B, C, F</code> בוחר שלוש עמודות מהשורות הממוינות. Date / Platform / Spend נופלים; Buyer / Vertical / Revenue נשארים.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["Buyer", "Vertical", "Revenue"],
+            ["Maya Bar", "Cruises PR", 1124.60],
+            ["Ben Nahum", "Reverse Mortgage PR", 982.70],
+            ["Ben Nahum", "Dental Implants PR", 588.40],
+            ["Yoav Cohen", "Car Deals PR", 487.30],
+            ["Maya Bar", "Pet Insurance PR", 461.20],
+            ["Dina Dayan", "Senior Living PR", 412.15],
+            ["Roni Levi", "Online MBA PR", 380.20],
+          ]}
+          highlightTone="success"
+          highlight={["A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3", "C3", "A4", "B4", "C4", "A5", "B5", "C5", "A6", "B6", "C6", "A7", "B7", "C7", "A8", "B8", "C8"]}
+          caption="התוצאה הנשפכת. זה מה שנוחת ביעד החל מ-H1."
+        />
+      ),
+    },
+  ]}
+/>
+
+סדר הסעיפים במחרוזת קבוע: <code>SELECT</code> → <code>WHERE</code> → <code>GROUP BY</code> → <code>ORDER BY</code> → <code>LIMIT</code>. סדר ההערכה שונה. WHERE מסנן קודם, אז GROUP BY עושה אגרגציה, אז ORDER BY ממיין, אז SELECT בוחר עמודות, ולבסוף LIMIT חותך. ידיעת סדר ההערכה היא איך מנבאים את התוצאה.
 
 ## ORDER BY ו-LIMIT
 

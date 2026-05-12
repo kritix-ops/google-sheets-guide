@@ -149,7 +149,7 @@ The discipline that follows is paste-as-values: run `=AI(...)` in H2:H61, inspec
 
 ## Cost and quotas
 
-Every `=AI()` call and every side-panel prompt is billable per your Workspace plan. There is no "free tier" inside the Sheets product; the billing model is the same as Gemini in the rest of Workspace. Some Workspace plans include promotional access windows with higher per-user quotas during the Gemini-in-Sheets rollout. Verify with your admin which tier your team is on and what limits apply; the gating shifts as features GA.
+Every `=AI()` call and every side-panel prompt counts against your Workspace plan's Gemini usage. There is no per-call fee inside the Sheets product itself; usage is gated by per-user quotas on eligible plans (Business Standard/Plus, Enterprise Standard/Plus, Google AI Pro/Ultra, AI Expanded/Ultra Access). As of May 2026, those plans include promotional higher per-user limits through **July 15, 2026**, after which the standard plan caps apply. Verify with your admin which tier your team is on and what limits apply; the gating shifts when the promotional window closes.
 
 The trap to watch for: dragging an `=AI()` formula down a column of 5,000 or 50,000 rows. That's 5,000 or 50,000 paid calls, and each one is slow (seconds, not milliseconds), so the recalc plus the bill stack up fast. The cap on multi-cell runs is 350 cells per generate, but you can repeat the run, which compounds the cost. Use AI sparingly on large sheets. Use formulas where you can. Lesson 5.6 builds out the full decision framework.
 

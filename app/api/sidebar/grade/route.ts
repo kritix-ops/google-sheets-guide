@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { verifyAttemptToken } from "@/lib/auth/sidebar-token";
 import { getAssignment } from "@/lib/content/registry";
 import { db, schema } from "@/lib/db";
 import { getGoogleClientsForUser } from "@/lib/google/client";
@@ -11,21 +12,42 @@ import { gradeAttempt } from "@/lib/grading";
 // the Apps Script sandbox iframe is on `googleusercontent.com` and our
 // SameSite=lax session cookie does not flow into it.
 //
-// Trust model: localhost-only, single-user. Authorization is via attemptId →
-// the attempt row carries the userId, and we load that user's Google
-// credentials from the DB. If we ever leave localhost, swap this for a
-// signed token passed in the iframe URL at provisioning time. See
-// _plans/2026-05-10-option-b-sidebar.md open-question 1.
+// Authorization: HMAC-signed attempt token minted at provision time. The
+// token carries the attemptId; we verify the signature and expiry before
+// touching the DB. Without a valid token, the caller can't enumerate
+// integer attemptIds to trigger paid Sheets + Anthropic API calls on a
+// victim's behalf.
+
+// Minimum seconds between two grade requests for the same attempt. The
+// judge call is paid (Anthropic API) and the sheet read is paid (Google
+// quota); a tighter floor protects both. Sourced from the latest grade
+// row's timestamp so the check survives process restarts.
+const GRADE_COOLDOWN_MS = 3_000;
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as {
     assignmentId?: string;
     attemptId?: number;
+    attemptToken?: string;
   } | null;
-  if (!body?.assignmentId || !body.attemptId) {
+  if (!body?.assignmentId || !body.attemptId || !body.attemptToken) {
     return NextResponse.json(
-      { error: "assignmentId and attemptId are required" },
+      { error: "assignmentId, attemptId, and attemptToken are required" },
       { status: 400 },
+    );
+  }
+
+  const verified = verifyAttemptToken(body.attemptToken);
+  if (!verified.ok) {
+    return NextResponse.json(
+      { error: `attempt token ${verified.reason}` },
+      { status: 401 },
+    );
+  }
+  if (verified.attemptId !== body.attemptId) {
+    return NextResponse.json(
+      { error: "attempt token does not match attemptId" },
+      { status: 401 },
     );
   }
 
@@ -51,6 +73,26 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "attempt does not match this assignment" },
       { status: 400 },
+    );
+  }
+
+  // Cooldown: refuse if a grade landed for this attempt in the last
+  // GRADE_COOLDOWN_MS. Cheap query and survives restarts.
+  const [latest] = await db
+    .select({ gradedAt: schema.grades.gradedAt })
+    .from(schema.grades)
+    .where(eq(schema.grades.attemptId, attempt.id))
+    .orderBy(desc(schema.grades.gradedAt))
+    .limit(1);
+  if (latest && Date.now() - latest.gradedAt.getTime() < GRADE_COOLDOWN_MS) {
+    const retryMs =
+      GRADE_COOLDOWN_MS - (Date.now() - latest.gradedAt.getTime());
+    return NextResponse.json(
+      { error: "rate limited; please wait a moment and try again" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(retryMs / 1000)) },
+      },
     );
   }
 

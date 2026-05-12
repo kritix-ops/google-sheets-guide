@@ -30,15 +30,24 @@ export class PublishConfigError extends Error {
 
 function loadConfig(): RepoConfig {
   const token = process.env.GITHUB_PAT;
+  const owner = process.env.GITHUB_REPO_OWNER;
+  const repo = process.env.GITHUB_REPO_NAME;
+  // Branch has a defensible fallback because every git project has a "main"
+  // and the branch ref is verified by the optimistic-lock anyway. Owner and
+  // repo, on the other hand, are identity — a wrong default means writes
+  // can silently land in someone else's repo. Refuse to publish if either
+  // is missing.
+  const branch = process.env.GITHUB_REPO_BRANCH ?? "main";
   if (!token) {
     throw new PublishConfigError("GITHUB_PAT env var is not set");
   }
-  return {
-    owner: process.env.GITHUB_REPO_OWNER ?? "kritix-ops",
-    repo: process.env.GITHUB_REPO_NAME ?? "google-sheets-guide",
-    branch: process.env.GITHUB_REPO_BRANCH ?? "main",
-    token,
-  };
+  if (!owner) {
+    throw new PublishConfigError("GITHUB_REPO_OWNER env var is not set");
+  }
+  if (!repo) {
+    throw new PublishConfigError("GITHUB_REPO_NAME env var is not set");
+  }
+  return { owner, repo, branch, token };
 }
 
 function authHeaders(token: string): Record<string, string> {

@@ -15,6 +15,12 @@ import { publishFile, type PublishResult } from "@/lib/github/publish";
 
 const LANGS: LessonLang[] = ["en", "he"];
 
+// Cap on draft content size. SQLite text columns accept up to ~2GB by
+// default; capping per-row at 256KB protects against a hostile or
+// accidental large paste filling the DB. Every lesson in the current
+// codebase fits well under this with room for growth.
+const MAX_DRAFT_CONTENT_BYTES = 256 * 1024;
+
 function parseLang(raw: FormDataEntryValue | null): LessonLang | null {
   if (typeof raw !== "string") return null;
   return LANGS.includes(raw as LessonLang) ? (raw as LessonLang) : null;
@@ -40,6 +46,11 @@ export async function saveDraft(formData: FormData): Promise<void> {
   if (!track || !slug) throw new Error("Missing lesson identifier");
   if (!lang) throw new Error("Invalid language");
   if (typeof content !== "string") throw new Error("Invalid content");
+  if (Buffer.byteLength(content, "utf-8") > MAX_DRAFT_CONTENT_BYTES) {
+    throw new Error(
+      `Draft is too large (max ${MAX_DRAFT_CONTENT_BYTES} bytes). Split the lesson or trim repeated sections.`,
+    );
+  }
   assertValidLesson(track, slug);
 
   // Upsert: at most one active draft per (track, slug, lang, author).

@@ -4,6 +4,8 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `ARRAYFORMULA` was introduced in lesson 2 as the Sheets workaround for Excel's auto-spilling. This lesson goes deep on when to reach for it, when not to, and how to use it without bringing your sheet to its knees on big data. In adtech work, ARRAYFORMULA is how you keep computed columns (profit, ROI, EPC, normalized names) maintainable across a dataset that grows every day: one formula at the top, no fill-down required.
 
+The team's most painful ARRAYFORMULA bug shows up when the source range is an `IMPORTRANGE`. Imported data has no fixed row count — the source workbook can gain a row at any moment and the spill silently grows. An `ARRAYFORMULA(IMPORTRANGE(...) * 2)` over a half-million-row import melts the workbook the moment the source crosses the cell limit. Lesson 1.27 covers the `IMPORTRANGE` side; here, when we use range references like `B2:B`, picture an imported range underneath that could expand without warning. The bounded-range patterns later in this lesson are the protection.
+
 <FunctionRef name="ARRAYFORMULA" />
 
 ## What it does and why you need it

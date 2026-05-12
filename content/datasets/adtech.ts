@@ -475,6 +475,11 @@ export const MESSY_CAMPAIGNS: SheetData = [
 // Lookup tables (the kind the team builds with IMPORTRANGE in real life)
 // ---------------------------------------------------------------------------
 
+// Covers every vertical that appears in CAMPAIGNS and CAMPAIGNS_LARGE so a
+// learner doing VLOOKUP / XLOOKUP / INDEX-MATCH against this table sees the
+// happy path. Lessons that teach the not-found case use MESSY_CAMPAIGNS
+// (which intentionally contains a typo'd "Senior Living P") rather than
+// holes in this table. CPCs are plausible adtech ranges, not real bids.
 export const VERTICALS_LOOKUP: SheetData = [
   ["Vertical", "Category", "Avg CPC"],
   ["Car Deals PR", "Autos & Vehicles", 0.38],
@@ -487,6 +492,15 @@ export const VERTICALS_LOOKUP: SheetData = [
   ["Senior Living PR", "People & Society", 1.42],
   ["Pet Insurance PR", "Finance", 0.94],
   ["Cleaning Services PR", "Home & Garden", 0.42],
+  ["Roofing Services PR", "Home & Garden", 0.78],
+  ["Reverse Mortgage PR", "Finance", 2.4],
+  ["Tires PR", "Autos & Vehicles", 0.32],
+  ["SUV Deals PR", "Autos & Vehicles", 0.55],
+  ["Stair Lift PR", "Computers & Electronics", 1.65],
+  ["Credit Cards PR", "Finance", 1.85],
+  ["Apartments For Rent PR", "Real Estate", 0.88],
+  ["Cataract Surgery PR", "Health", 2.1],
+  ["Locksmith PR", "Home & Garden", 0.65],
 ];
 
 export const BUYERS_LOOKUP: SheetData = [

@@ -6,6 +6,8 @@ Every spreadsheet is built from sheets, and each sheet is a grid of cells. A cel
 
 This first lesson is about the layer underneath every formula: how cell addresses work, what happens when a reference is copied across cells, and the four locking forms (`B5`, `$B5`, `B$5`, `$B$5`) that decide whether a reference walks with you or stays anchored. Get this right and every later lesson reads cleanly. Get this wrong and the whole formulas track is a struggle, because every multi-cell formula in the rest of Track 1 leans on these rules.
 
+A note for the team's real workbooks: most data isn't local. Campaign logs live in one workbook, per-platform pulls in another, dashboards in a third — all stitched together with `IMPORTRANGE` (lesson 1.27, Track 4). When that imported range expands by a row or two upstream, *every* fixed-address reference downstream can drift to the wrong cell. The address rules in this lesson are the foundation that protects you when the data underneath those addresses moves.
+
 <MiniGrid
   data={CAMPAIGNS.map((row, r) =>
     r === 0 ? [...row, "Profit"] : [...row, `=F${r + 1}-E${r + 1}`]

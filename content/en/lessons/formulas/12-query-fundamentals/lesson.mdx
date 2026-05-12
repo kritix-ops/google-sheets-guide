@@ -22,6 +22,25 @@ The query string is a single quoted string. Column references use letters: `A`, 
 
 `SELECT *` returns all columns. `SELECT A, B, F` returns specific columns in that order. `SELECT F-E` returns a computed column.
 
+Start with a four-row toy so the SELECT syntax sinks in before we hit the real campaign log.
+
+<RefDemo
+  data={[
+    ["Buyer", "Revenue"],
+    ["Yoav", 487.30],
+    ["Dina", 198.40],
+    ["Maya", 1124.60],
+    ["Eitan", 245.80],
+  ]}
+  formula='=QUERY(A1:B5, "SELECT A", 1)'
+  formulaCell="D1"
+  fillTo="D1"
+  expectedFills={['=QUERY(A1:B5, "SELECT A", 1)']}
+  caption="One column projected. Edit the SELECT to A, B and watch the result widen."
+/>
+
+Now the same idea on the team's actual campaign log:
+
 <MiniGrid
   data={CAMPAIGNS}
   caption="The campaign log. We'll query against the full A2:F13 range."
@@ -56,6 +75,72 @@ Combine conditions with `AND` and `OR`: `WHERE B = 'Yoav Cohen' AND F > 400`.
   hint={<>WHERE comes before ORDER BY in the string. Numeric comparisons don't need quotes around the number.</>}
   answer={<>The combined query: <code>SELECT B, C, F WHERE F {">"} 400 ORDER BY F DESC</code>. WHERE filters rows; ORDER BY sorts the remaining rows; SELECT projects which columns to show. The order of clauses in the string matches SQL: SELECT → WHERE → ORDER BY → LIMIT. (You can't reorder them: it's strict.) The result here is 7 rows, sorted with Maya Bar's Cruises PR at the top (1124.6).</>}
 />
+
+Walk through how Sheets evaluates the WHERE + ORDER BY combination one clause at a time. This is the mental model that protects you when a multi-clause QUERY returns the wrong thing.
+
+<StepThrough
+  frames={[
+    {
+      caption: <>Start with the raw range <code>A1:F13</code>. QUERY sees 12 data rows plus one header.</>,
+      body: (
+        <MiniGrid
+          data={CAMPAIGNS}
+          caption="The full input. SELECT will operate on this."
+        />
+      ),
+    },
+    {
+      caption: <><code>WHERE F &gt; 400</code> keeps rows whose Revenue is greater than 400. Seven rows survive (the others are dropped).</>,
+      body: (
+        <MiniGrid
+          data={CAMPAIGNS}
+          highlight={["F2", "F4", "F6", "F8", "F9", "F11", "F13"]}
+          caption="Rows with F > 400 survive. Header row is preserved on top of the result."
+        />
+      ),
+    },
+    {
+      caption: <><code>ORDER BY F DESC</code> sorts the surviving rows by Revenue descending. The top of the result is now Maya Bar's Cruises PR at 1124.6.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["Date", "Buyer", "Vertical", "Platform", "Spend", "Revenue"],
+            ["2026-05-02", "Maya Bar", "Cruises PR", "Outbrain", 512.00, 1124.60],
+            ["5/10/2026", "Ben Nahum", "Reverse Mortgage PR", "Google", 478.30, 982.70],
+            ["2026-05-04", "Ben Nahum", "Dental Implants PR", "Google", 605.10, 588.40],
+            ["2026-05-01", "Yoav Cohen", "Car Deals PR", "Taboola", 342.18, 487.30],
+            ["2026-05-07", "Maya Bar", "Pet Insurance PR", "MediaGo", 224.60, 461.20],
+            ["2026-05-06", "Dina Dayan", "Senior Living PR", "Google", 296.40, 412.15],
+            ["2026-05-03", "Roni Levi", "Online MBA PR", "Facebook", 432.70, 380.20],
+          ]}
+          caption="Same 7 rows, sorted by Revenue descending."
+        />
+      ),
+    },
+    {
+      caption: <><code>SELECT B, C, F</code> projects three columns out of the sorted rows. Date / Platform / Spend drop; Buyer / Vertical / Revenue stay.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["Buyer", "Vertical", "Revenue"],
+            ["Maya Bar", "Cruises PR", 1124.60],
+            ["Ben Nahum", "Reverse Mortgage PR", 982.70],
+            ["Ben Nahum", "Dental Implants PR", 588.40],
+            ["Yoav Cohen", "Car Deals PR", 487.30],
+            ["Maya Bar", "Pet Insurance PR", 461.20],
+            ["Dina Dayan", "Senior Living PR", 412.15],
+            ["Roni Levi", "Online MBA PR", 380.20],
+          ]}
+          highlightTone="success"
+          highlight={["A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3", "C3", "A4", "B4", "C4", "A5", "B5", "C5", "A6", "B6", "C6", "A7", "B7", "C7", "A8", "B8", "C8"]}
+          caption="The spilled result. This is what lands in your destination starting at H1."
+        />
+      ),
+    },
+  ]}
+/>
+
+The order of clauses in the string is fixed: <code>SELECT</code> → <code>WHERE</code> → <code>GROUP BY</code> → <code>ORDER BY</code> → <code>LIMIT</code>. The evaluation order is different: WHERE filters first, then GROUP BY aggregates, then ORDER BY sorts, then SELECT projects, then LIMIT trims. Knowing the eval order is how you predict the result.
 
 ## ORDER BY and LIMIT
 

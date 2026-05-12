@@ -89,6 +89,10 @@ export async function provisionLessonSidebar(args: {
   script: script_v1.Script;
   sheetId: string;
   attemptId: number;
+  // HMAC-signed token that authorizes future grade calls for this attempt.
+  // The iframe carries it; the grade endpoint validates it. See
+  // lib/auth/sidebar-token.ts.
+  attemptToken: string;
   lessonAssignmentId: string;
   locale: string;
   baseUrl: string;
@@ -102,6 +106,7 @@ export async function provisionLessonSidebar(args: {
     script,
     sheetId,
     attemptId,
+    attemptToken,
     lessonAssignmentId,
     locale,
     baseUrl,
@@ -121,7 +126,8 @@ export async function provisionLessonSidebar(args: {
 
   const iframeUrl =
     `${baseUrl}/${locale}/sidebar/${lessonAssignmentId}` +
-    `?attemptId=${attemptId}`;
+    `?attemptId=${attemptId}` +
+    `&t=${encodeURIComponent(attemptToken)}`;
 
   const reservedNames = new Set(["Code", "Sidebar", "appsscript"]);
   const seedFiles = (seedScript ?? []).filter(

@@ -2,11 +2,13 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { signAttemptToken } from "@/lib/auth/sidebar-token";
 import { getAssignment } from "@/lib/content/registry";
 import { db, schema } from "@/lib/db";
 import { getGoogleClientsForUser } from "@/lib/google/client";
 import { provisionAssignmentSheet } from "@/lib/google/drive";
 import { provisionLessonSidebar } from "@/lib/google/script";
+import { DEFAULT_LOCALE, LOCALES } from "@/lib/i18n/routing";
 
 export async function POST(
   req: Request,
@@ -29,7 +31,10 @@ export async function POST(
 
   const url = new URL(req.url);
   const baseUrl = `${url.protocol}//${url.host}`;
-  const locale = url.searchParams.get("locale") ?? "en";
+  const rawLocale = url.searchParams.get("locale");
+  const locale: string = (LOCALES as readonly string[]).includes(rawLocale ?? "")
+    ? (rawLocale as string)
+    : DEFAULT_LOCALE;
 
   const clients = await getGoogleClientsForUser(userId);
   const provisioned = await provisionAssignmentSheet({
@@ -48,6 +53,12 @@ export async function POST(
     })
     .returning();
 
+  // Mint the HMAC-signed token that authorizes grade calls from the
+  // sidebar iframe. The token carries the attemptId; the grade endpoint
+  // validates it without needing a session cookie (which the cross-site
+  // iframe can't carry).
+  const attemptToken = signAttemptToken(attempt.id);
+
   // Provision the in-sheet sidebar. If this fails, the sheet is still
   // usable via the web-app fallback (Open your sheet / Grade my work).
   let sidebarScriptId: string | null = null;
@@ -57,6 +68,7 @@ export async function POST(
       script: clients.script,
       sheetId: provisioned.sheetId,
       attemptId: attempt.id,
+      attemptToken,
       lessonAssignmentId: assignment.id,
       locale,
       baseUrl,

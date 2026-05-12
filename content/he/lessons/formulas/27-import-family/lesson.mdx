@@ -34,9 +34,102 @@
 
 התוצאה נשפכת כמערך דו-ממדי שמתחיל בתא של הנוסחה. עם `A:F`, מקבלים את כל השורות בעמודות האלו מגיליון המקור.
 
+הנה איך נראית השפיכה. דמיינו ש-workbook המקור משמאל מחזיק `Campaigns!A1:C4` קטן. מקלידים את הנוסחה ב-`A1` של היעד, ו-Sheets ממלא את `A1:C4` ביעד באותם הערכים:
+
+<MiniGrid
+  data={[
+    ["Date", "Buyer", "Profit"],
+    ["2026-05-01", "Yoav Cohen", 145.12],
+    ["2026-05-01", "Dina Dayan", -17.10],
+    ["2026-05-02", "Maya Bar", 612.60],
+  ]}
+  caption="ה-workbook מקור, טאב 'Campaigns'."
+/>
+
+<MiniGrid
+  data={[
+    ["Date", "Buyer", "Profit"],
+    ["2026-05-01", "Yoav Cohen", 145.12],
+    ["2026-05-01", "Dina Dayan", -17.10],
+    ["2026-05-02", "Maya Bar", 612.60],
+  ]}
+  highlight={["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4"]}
+  highlightTone="success"
+  caption="ה-workbook יעד. A1 מחזיק =IMPORTRANGE(...,'Campaigns!A1:C4'); A1:C4 נשפכים משם."
+/>
+
+נוסחה אחת מחזיקה בבעלות על כל הבלוק הנשפך. נסו להקליד ל-`B2` ביעד ו-Sheets יסרב. התאים שייכים לשפיכה, לא לכם.
+
 ## זרימת ה-auth (איפה זה תמיד נשבר)
 
 בפעם הראשונה שמשתמשים ב-IMPORTRANGE שמצביע למקור חדש, הנוסחה מחזירה `#REF!` עם ההודעה **"You need to connect these sheets."** לוחצים על התא, לוחצים **Allow access**, ו-Sheets יוצר קשר אמון חד-כיווני מהמקור ליעד.
+
+עוברים על זה פעם אחת כדי לזהות את השלבים:
+
+<StepThrough
+  frames={[
+    {
+      caption: <>אתם מקלידים <code>=IMPORTRANGE("...", "Campaigns!A:C")</code> ל-<code>A1</code> ולוחצים Enter. התא מציג <code>#REF!</code>.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["#REF!", "", ""],
+            ["", "", ""],
+            ["", "", ""],
+          ]}
+          highlight={["A1"]}
+          highlightTone="warning"
+          caption="פעם ראשונה מול מקור חדש. Sheets צריך את האישור שלכם."
+        />
+      ),
+    },
+    {
+      caption: <>מעבירים את העכבר על התא. ה-tooltip אומר <strong>"You need to connect these sheets."</strong> עם כפתור <strong>Allow access</strong>.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["#REF!", "", ""],
+            ["", "", ""],
+            ["", "", ""],
+          ]}
+          highlight={["A1"]}
+          highlightTone="warning"
+          caption="לוחצים על התא כדי לראות את ההתראה. צריך גישת עריכה לשני הגיליונות כדי לאשר."
+        />
+      ),
+    },
+    {
+      caption: <>לוחצים <strong>Allow access</strong>. Sheets רושם את קשר האמון <em>לזוג מקור-יעד</em> הזה (לא פר-משתמש).</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["Loading…", "", ""],
+            ["", "", ""],
+            ["", "", ""],
+          ]}
+          highlight={["A1"]}
+          caption="אמון הוקם. השליפה מתחילה."
+        />
+      ),
+    },
+    {
+      caption: <>הנתונים נשפכים ל-<code>A1:C4</code>. מכאן ואילך, היעד הזה יכול לקרוא מהמקור הזה בלי בקשת אישור חוזרת.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["Date", "Buyer", "Profit"],
+            ["2026-05-01", "Yoav Cohen", 145.12],
+            ["2026-05-01", "Dina Dayan", -17.10],
+            ["2026-05-02", "Maya Bar", 612.60],
+          ]}
+          highlight={["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4"]}
+          highlightTone="success"
+          caption="Auth ניתן. הנתונים נשפכו. אם הגישה תבוטל אחר כך, הנוסחה תחזור לשלב 1."
+        />
+      ),
+    },
+  ]}
+/>
 
 פרטים קריטיים על ה-auth:
 
@@ -72,6 +165,16 @@
 
 ה-`data` הוא ה-IMPORTRANGE; `total` ו-`count` שניהם מפנים אליו. בלי LET, ה-IMPORTRANGE היה רץ פעמיים.
 
+<QuickCheck
+  question="ל-dashboard יש 50 תאים, כל אחד עם IMPORTRANGE משלו שמושך ערך בודד מאותו workbook מקור. ה-dashboard לוקח 40 שניות לטעון בפתיחה קרה. איזה שינוי ישפיע הכי הרבה?"
+  options={[
+    { id: "a", label: "מעבירים את ה-dashboard לחיבור Wi-Fi מהיר יותר.", correct: false, explanation: "ה-latency נשלט על ידי השליפה והחישוב מחדש של Sheets, לא הרשת המקומית של המשתמש. Wi-Fi מהיר יותר חוסך מילישניות, לא שניות." },
+    { id: "b", label: "מחליפים את 50 התאים של IMPORTRANGE ב-IMPORTRANGE אחד שמושך את כל הבלוק, ואז מפנים מהבלוק הזה ל-50 התאים.", correct: true, explanation: "נכון. round-trip אחד מול 50. ה-dashboard עובר מ-50 בקשות קרות לאחת. זה הניצחון הכי גדול ל-dashboards איטיים של IMPORTRANGE." },
+    { id: "c", label: "עוטפים כל IMPORTRANGE ב-IFERROR.", correct: false, explanation: "IFERROR תופס שגיאות אבל לא משנה את מספר הקריאות לרשת. ה-dashboard עדיין ישלם 50 round-trips." },
+    { id: "d", label: "משתמשים ב-INDIRECT כדי לבנות את ה-URL דינמית.", correct: false, explanation: "INDIRECT היא תנודתית ותגרום ל-IMPORTRANGE להיירות מחדש בכל recalc. זה הופך את זה לאיטי יותר, לא מהיר יותר." },
+  ]}
+/>
+
 ## מלכודת הביצועים הכי גדולה
 
 הדפוס למטה הוא זה שהצוות איבד עליו הכי הרבה ימים. שתי הנוסחאות מחזירות את אותו revenue ממוצע. אחת מהן עובדת על dashboard של 50 שורות. השנייה מתיכה את ה-workbook.
@@ -106,6 +209,16 @@ IMPORTRANGE שומרת תוצאות ב-cache כדי להימנע משליפה מ
 **כדי לאלץ refresh:** מבצעים עריכת no-op במקור (מקלידים ערך, undo). Sheets דוחף שוב לכל המנויים. או ביעד, עורכים ומחזירים את נוסחת ה-IMPORTRANGE.
 
 הטיקטים של "ה-dashboard לא נכון" של הצוות הם 80% בעיות cache ישן. בונים הרגל של force-refresh לפני ציטוט מספרים בפגישה.
+
+<QuickCheck
+  question="חבר צוות מדווח: 'ה-dashboard של ה-IMPORTRANGE שלי מציג את המספרים של אתמול למרות שהמקור עודכן הבוקר.' אימתם שלמקור יש את הנתונים החדשים. נוסחת ה-dashboard לא השתנתה. מה הכי סביר שקורה, ומה הפתרון הכי מהיר?"
+  options={[
+    { id: "a", label: "ה-auth שבור. לוחצים 'Allow access' בתא הנוסחה כדי לחדש את החיבור.", correct: false, explanation: "בעיות auth מציגות #REF!, לא ערכים ישנים. ה-dashboard קורא מה-cache, לא נכשל על הרשאות." },
+    { id: "b", label: "Cache ישן. מאלצים refresh על ידי עריכה של נוסחת ה-IMPORTRANGE וביטולה, או על ידי עריכת no-op במקור.", correct: true, explanation: "נכון. IMPORTRANGE שומרת תוצאות ב-cache; ה-cache מתבטל בשינוי אמיתי במקור או בעריכה-וביטול ידניים. הפתרון הכי מהיר ביעד הוא לערוך מעט את הנוסחה, ללחוץ Enter, ואז undo." },
+    { id: "c", label: "Sheets מגבילה את קצב הבקשות ל-workbook המקור. מחכים שעה ומנסים שוב.", correct: false, explanation: "אין הגבלת קצב פר-מקור שגלויה לנוסחאות באופן הזה. ה-cache הוא המנגנון, לא מגבלת קצב." },
+    { id: "d", label: "סוג הנתונים במקור השתנה. עוטפים את ה-IMPORTRANGE ב-VALUE() כדי להמיר.", correct: false, explanation: "המרת סוגים לא מרעננת cache ישן. הערכים שמוצגים פשוט יותר ישנים מהמקור." },
+  ]}
+/>
 
 ## דפוסים הגנתיים
 

@@ -34,9 +34,102 @@ Two arguments, both strings:
 
 The result spills as a 2D array starting at the formula cell. With `A:F`, you get all rows in those columns from the source sheet.
 
+Here is what the spill looks like. Imagine the source workbook on the left holds a tiny `Campaigns!A1:C4`. You type the formula into `A1` of the destination, and Sheets fills `A1:C4` of the destination with the same values:
+
+<MiniGrid
+  data={[
+    ["Date", "Buyer", "Profit"],
+    ["2026-05-01", "Yoav Cohen", 145.12],
+    ["2026-05-01", "Dina Dayan", -17.10],
+    ["2026-05-02", "Maya Bar", 612.60],
+  ]}
+  caption="Source workbook, tab 'Campaigns'."
+/>
+
+<MiniGrid
+  data={[
+    ["Date", "Buyer", "Profit"],
+    ["2026-05-01", "Yoav Cohen", 145.12],
+    ["2026-05-01", "Dina Dayan", -17.10],
+    ["2026-05-02", "Maya Bar", 612.60],
+  ]}
+  highlight={["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4"]}
+  highlightTone="success"
+  caption="Destination workbook. A1 holds =IMPORTRANGE(...,'Campaigns!A1:C4'); A1:C4 spill from there."
+/>
+
+The single formula owns the whole spilled block. Try to type into `B2` of the destination and Sheets refuses — the cells are owned by the spill, not by you.
+
 ## The auth flow (where it always breaks)
 
 The first time you use IMPORTRANGE pointing at a new source, the formula returns `#REF!` with the message **"You need to connect these sheets."** You click the cell, click **Allow access**, and Sheets establishes a one-way trust relationship from the source to the destination.
+
+Walk through it once so you recognize what each step looks like:
+
+<StepThrough
+  frames={[
+    {
+      caption: <>You type <code>=IMPORTRANGE("...", "Campaigns!A:C")</code> into <code>A1</code> and press Enter. The cell shows <code>#REF!</code>.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["#REF!", "", ""],
+            ["", "", ""],
+            ["", "", ""],
+          ]}
+          highlight={["A1"]}
+          highlightTone="warning"
+          caption="First time pointing at a new source — Sheets needs your permission."
+        />
+      ),
+    },
+    {
+      caption: <>Hover the cell. The tooltip says <strong>"You need to connect these sheets."</strong> with an <strong>Allow access</strong> button.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["#REF!", "", ""],
+            ["", "", ""],
+            ["", "", ""],
+          ]}
+          highlight={["A1"]}
+          highlightTone="warning"
+          caption="Click the cell to see the prompt. You must have edit access on both sheets to authorize."
+        />
+      ),
+    },
+    {
+      caption: <>You click <strong>Allow access</strong>. Sheets records a trust relationship for this <em>source-destination pair</em> (not per-user).</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["Loading…", "", ""],
+            ["", "", ""],
+            ["", "", ""],
+          ]}
+          highlight={["A1"]}
+          caption="Trust established. The fetch starts."
+        />
+      ),
+    },
+    {
+      caption: <>The data spills into <code>A1:C4</code>. From now on, this destination can read from this source without re-prompting.</>,
+      body: (
+        <MiniGrid
+          data={[
+            ["Date", "Buyer", "Profit"],
+            ["2026-05-01", "Yoav Cohen", 145.12],
+            ["2026-05-01", "Dina Dayan", -17.10],
+            ["2026-05-02", "Maya Bar", 612.60],
+          ]}
+          highlight={["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4"]}
+          highlightTone="success"
+          caption="Auth granted. Data spilled. If access is revoked later, the formula reverts to step 1."
+        />
+      ),
+    },
+  ]}
+/>
 
 Critical details about the auth:
 
@@ -72,6 +165,16 @@ Patterns that do scale:
 
 The `data` is the IMPORTRANGE; `total` and `count` both reference it. Without LET, you would run the IMPORTRANGE twice.
 
+<QuickCheck
+  question="A dashboard has 50 cells, each with its own IMPORTRANGE pulling a single value from the same source workbook. The dashboard takes 40 seconds to load on a cold open. Which change has the largest impact?"
+  options={[
+    { id: "a", label: "Move the dashboard to a faster Wi-Fi connection.", correct: false, explanation: "Latency is dominated by Sheets' fetch and recalc, not the user's local network. Faster Wi-Fi shaves milliseconds, not seconds." },
+    { id: "b", label: "Replace the 50 IMPORTRANGE cells with one IMPORTRANGE pulling the whole block, then reference that block from the 50 cells.", correct: true, explanation: "Correct. One round-trip vs 50. The dashboard goes from 50 cold requests to one. This is the single biggest win for slow IMPORTRANGE dashboards." },
+    { id: "c", label: "Wrap each IMPORTRANGE in IFERROR.", correct: false, explanation: "IFERROR catches errors but does not change the number of network calls. The dashboard would still pay 50 round-trips." },
+    { id: "d", label: "Use INDIRECT to build the URL dynamically.", correct: false, explanation: "INDIRECT is volatile and would make IMPORTRANGE re-fire on every recalc. This makes it slower, not faster." },
+  ]}
+/>
+
 ## The single biggest performance trap
 
 The pattern below is the one the team has lost the most days to. Both formulas return the same average revenue. One of them works on a 50-row dashboard. The other one melts the workbook.
@@ -106,6 +209,16 @@ IMPORTRANGE caches results to avoid re-fetching constantly. The cache invalidate
 **To force-refresh:** make a no-op edit to the source (type a value, undo). Sheets re-pushes to all subscribers. Or in the destination, edit and revert the IMPORTRANGE formula.
 
 The team's "the dashboard is wrong" tickets are 80% stale-cache issues. Build a habit of force-refreshing before quoting numbers in a meeting.
+
+<QuickCheck
+  question="A teammate reports: 'My IMPORTRANGE dashboard shows yesterday's numbers even though the source was updated this morning.' You verified the source has the new data. The dashboard formula is unchanged. What is most likely happening, and what is the fastest fix?"
+  options={[
+    { id: "a", label: "The auth is broken. Click 'Allow access' on the formula cell to re-establish the connection.", correct: false, explanation: "Auth issues show #REF!, not stale values. The dashboard is reading the cache, not erroring on permissions." },
+    { id: "b", label: "Stale cache. Force a refresh by editing the IMPORTRANGE formula and reverting it, or by making a no-op edit in the source.", correct: true, explanation: "Correct. IMPORTRANGE caches results; the cache invalidates on a real source change or a manual edit-and-revert. The fastest fix in the destination is to edit the formula slightly, press Enter, then undo." },
+    { id: "c", label: "Sheets is rate-limiting the source workbook. Wait an hour and try again.", correct: false, explanation: "There is no per-source rate limit visible to formulas like this. The cache is the mechanism, not a rate limiter." },
+    { id: "d", label: "The source data type changed. Wrap the IMPORTRANGE in VALUE() to convert.", correct: false, explanation: "Type coercion does not refresh stale cache. The values shown are simply older than the source." },
+  ]}
+/>
 
 ## Defensive patterns
 
