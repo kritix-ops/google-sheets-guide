@@ -135,6 +135,30 @@ For this lesson, the bound project already has four files when you open it:
 
 The `Lesson.gs` file is yours to edit on every lesson in Track 3. Lessons 1 to 17 will each seed a different stub here.
 
+<QuickCheck
+  question="Your team has three workbooks that all need the same date-parsing helpers. Where should the helpers live?"
+  options={[
+    {
+      id: "a",
+      label: "Copy them into each workbook's bound script",
+      correct: false,
+      explanation: "Three copies drift the moment one buyer fixes a bug only in their copy. A week later the three workbooks parse the same date differently, and you spend an afternoon reconciling reports.",
+    },
+    {
+      id: "b",
+      label: "A standalone Apps Script project, imported as a library into each bound script (covered in lesson 12)",
+      correct: true,
+      explanation: "Standalone projects exist exactly for this. One source of truth, three bound scripts that import it, every bugfix lands in one place. The cost is the library setup; the benefit is no drift.",
+    },
+    {
+      id: "c",
+      label: "In one workbook's bound script; the other two reach across with cross-document calls",
+      correct: false,
+      explanation: "A bound script can't be called from another workbook's bound script directly. Cross-document logic has to come from a standalone project (as a library) or from a deployed web app (lesson 13).",
+    },
+  ]}
+/>
+
 ## Saving, running, and deploying
 
 Editing a file is auto-saved into the editor's local draft, but it is not committed to the project until you press **Save project** (Ctrl/Cmd+S, or the floppy-disk icon). After save:

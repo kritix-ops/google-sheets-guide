@@ -135,6 +135,30 @@ Apps Script יכול לזהות את ה-scopes שפרויקט צריך על יד
 
 הקובץ `Lesson.gs` שלכם לעריכה בכל שיעור ב-Track 3. שיעורים 1 עד 17 ישתלו ב-stub שונה כאן.
 
+<QuickCheck
+  question="לצוות יש שלושה workbooks שכולם צריכים את אותם עוזרי ניתוח-תאריך. איפה צריכים העוזרים לחיות?"
+  options={[
+    {
+      id: "a",
+      label: "להעתיק אותם לתוך ה-bound script של כל workbook",
+      correct: false,
+      explanation: "שלושה עותקים נסחפים ברגע ש-buyer אחד מתקן באג רק בעותק שלו. שבוע אחר כך שלושת ה-workbooks מנתחים את אותו תאריך אחרת, ואתם מבלים אחר צהריים בהשוואת דוחות.",
+    },
+    {
+      id: "b",
+      label: "פרויקט Apps Script standalone, מיובא כ-library לכל bound script (מכוסה בשיעור 12)",
+      correct: true,
+      explanation: "פרויקטים standalone קיימים בדיוק לזה. מקור אמת אחד, שלושה bound scripts שמייבאים אותו, כל תיקון באג נוחת במקום אחד. העלות היא הגדרת ה-library; התועלת היא בלי סחף.",
+    },
+    {
+      id: "c",
+      label: "ב-bound script של workbook אחד; שני האחרים שולחים קריאות חוצות-מסמכים",
+      correct: false,
+      explanation: "Bound script לא יכול להיקרא מ-bound script של workbook אחר ישירות. לוגיקה חוצת-מסמכים חייבת להגיע מפרויקט standalone (כ-library) או מ-web app שנפרס (שיעור 13).",
+    },
+  ]}
+/>
+
 ## שמירה, הרצה ופריסה
 
 עריכת קובץ נשמרת אוטומטית ל-draft המקומי של העורך, אבל היא לא מתחייבת לפרויקט עד שלוחצים **Save project** (Ctrl/Cmd+S, או אייקון הדיסקט). אחרי שמירה:
