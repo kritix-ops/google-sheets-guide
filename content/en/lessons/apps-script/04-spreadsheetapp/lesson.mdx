@@ -272,7 +272,7 @@ The same shape shows up in:
 - **The "copy from staging to production" macro** that the buyer presses on Mondays after reviewing the weekend's data.
 - **The vertical-normalizer batch job** that reads every campaign name, trims whitespace, fixes casing, ensures the ` PR` suffix, and writes the cleaned values back.
 - **The end-of-month archiver** that copies the current month's Aggregator tab into a date-stamped backup sheet.
-- **The IMPORTRANGE-replacement migration**, where a workbook with a slow `IMPORTRANGE` from a 100k-row source switches to a daily Apps Script pull: one `getValues` from the source, one `setValues` to the local mirror, and the dashboard reads from local for the rest of the day.
+- **The `IMPORTRANGE`-replacement migration** (lesson 1.27 covers the live alternative the team is moving away from), where a workbook with a slow `IMPORTRANGE` from a 100k-row source switches to a daily Apps Script pull: one `getValues` from the source, one `setValues` to the local mirror, and the dashboard reads from local for the rest of the day.
 
 ## Pro pitfalls
 
