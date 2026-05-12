@@ -28,7 +28,7 @@ export async function TopBar() {
   const adminEnabled = roleAtLeast(role, "editor");
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/80 px-6 backdrop-blur">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background px-6">
       <Link
         href="/"
         className="flex items-center gap-2 text-sm font-semibold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded-sm"
