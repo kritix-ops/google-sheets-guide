@@ -2,9 +2,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # LAMBDA: define your own functions inside a formula
 
-`LAMBDA` lets you define a function inline. It takes one or more parameter names and a body that uses them, and returns a callable function. Once you have a LAMBDA, you either invoke it immediately, pass it to a helper like `MAP`/`REDUCE` (next lesson), or store it as a **named function** for team-wide reuse (lesson 21).
+`LAMBDA` lets you define a function inline, right inside a cell. You pass it a list of parameter names and a body that uses them, and it gives you back a callable function. By itself a `LAMBDA` does not produce a value: it produces a *function*. You then either invoke it immediately, pass it to a helper like `MAP` or `REDUCE` (lesson 1.19), or save it as a **named function** for team-wide reuse (lesson 1.21).
 
-LAMBDA is the foundation for everything in modern Sheets formula work. You can rebuild SUMIF, write per-row calculators, define team-specific KPIs, and avoid copy-pasting hairy formulas across 400 cells.
+LAMBDA is the foundation for everything in modern Sheets formula work. Once it clicks, you stop copy-pasting the same calculation across 400 cells and you stop nesting six layers of IF/SUMIFS to express "for each row, do this." Instead you write the calculator once, give it a name, and reuse it. For an adtech team that already has dozens of bespoke KPIs (ROI, ROAS, effective CPC, fee-adjusted profit), LAMBDA is the upgrade that lets every dashboard pull from a single source of truth instead of a slightly-different copy in every tab.
 
 ## The syntax
 
@@ -12,40 +12,43 @@ LAMBDA is the foundation for everything in modern Sheets formula work. You can r
 LAMBDA(param1, param2, ..., body)
 ```
 
-The parameters come first, then the body that uses them. Parameter names are local: they only exist inside the body.
+Parameters first, body last. Parameter names are local to the body and they shadow any same-name named range while the body runs. The body is **one expression** (no semicolons, no statements). If you need intermediate values, nest a `LET` inside the body.
 
 <FunctionRef name="LAMBDA" />
 
-```
-=LAMBDA(spend, revenue, (revenue - spend) / spend)
-```
+A LAMBDA on its own produces a function, not a value. Put a bare `=LAMBDA(s, r, (r-s)/s)` in a cell and Sheets shows `#CALC!` because there is nothing to display. The function exists; you just have not called it.
 
-That's it. But notice: nothing is being calculated here. A bare LAMBDA returns a function, not a value. If you put it in a cell, Sheets shows `#CALC!` because the formula has no return value to display.
+### Worked example 1: toy data
 
-## Calling a LAMBDA
+Inline invocation. Define a `LAMBDA` and immediately call it by appending `(arg1, arg2)` after the closing paren. The result is a regular value.
 
-To get a value, you have to **invoke** it. The simplest invocation is right inline: wrap the parameters in another set of parens after the LAMBDA:
+<RefDemo
+  data={[["Spend", "Revenue"], [100, 250]]}
+  formula="=LAMBDA(s, r, (r-s)/s)(A2, B2)"
+  formulaCell="D2"
+  fillTo="D2"
+  expectedFills={["=LAMBDA(s, r, (r-s)/s)(A2, B2)"]}
+  caption="The LAMBDA defines an ROI calculator (r-s)/s. The (A2, B2) at the end invokes it with the values from row 2. Result: (250-100)/100 = 1.5."
+/>
 
-```
-=LAMBDA(spend, revenue, (revenue - spend) / spend)(100, 250)
-```
+For one-off math, this is more verbose than just writing `=(B2-A2)/A2`. The win comes the moment you want to use the same calculator twice, give it a name, or apply it across a whole column.
 
-This returns `1.5`. The `(100, 250)` at the end passes `spend=100` and `revenue=250` into the body.
+### Worked example 2: real adtech data
 
-This pattern alone is rarely useful: you could just write `=(250-100)/100` and skip the LAMBDA. Where LAMBDA pays off is when the body is reused across many inputs, or when you give the function a name with LET or as a named function.
+The team's ROI calculator on the campaign log. Inline LAMBDA invocation against `Spend` and `Revenue` for a single campaign row.
 
 <TryIt
-  data={[["Spend", "Revenue", "ROI"], [100, 250, ""]]}
-  inputCell="C2"
-  expectedFormula="=LAMBDA(s,r,(r-s)/s)(A2,B2)"
-  task={<>Compute ROI in <code>C2</code> using a LAMBDA. Define <code>=LAMBDA(s, r, (r-s)/s)</code> and invoke it with <code>A2</code> and <code>B2</code>.</>}
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=LAMBDA(s,r,(r-s)/s)(E2,F2)"
+  task={<>Compute ROI in <code>H2</code> for the first campaign using an inline LAMBDA. Define <code>LAMBDA(s, r, (r-s)/s)</code> and invoke it with <code>E2</code> (spend) and <code>F2</code> (revenue).</>}
   hint={<>The pattern is <code>LAMBDA(params, body)(args)</code>. The parens after the LAMBDA call it.</>}
-  answer={<>For one-off math, this is more verbose than just <code>=(B2-A2)/A2</code>. The value of LAMBDA shows up when you want to: (1) name the function and reuse it (with LET), (2) pass it to MAP/REDUCE for whole-column work, or (3) save it as a named function for the whole team. We're starting small here so the syntax sinks in.</>}
+  answer={<>The result for row 2 is (487.30 - 342.18) / 342.18 ≈ 0.424, meaning the campaign returned 42% above cost. Inline LAMBDA on one row is verbose; you would normally just write <code>=(F2-E2)/E2</code>. The value of LAMBDA shows up the moment you (1) name it with LET so you can reuse it, (2) pass it to MAP/REDUCE for whole-column work, or (3) save it as a named function for the team (lesson 1.21).</>}
 />
 
 ## LAMBDA + LET: name the function
 
-`LET` lets you name a value or function inside a formula. Combine it with LAMBDA to define a calculator once and reuse it across multiple inputs in the same cell:
+`LET` lets you name a value or function inside a formula. Combined with `LAMBDA`, you define a calculator once and reuse it across multiple inputs in the same cell:
 
 ```
 =LET(
@@ -54,43 +57,112 @@ This pattern alone is rarely useful: you could just write `=(250-100)/100` and s
 )
 ```
 
-`roi` is now a function inside the LET. You can call it as many times as you want. The result here is `1.5 + 2 = 3.5`.
+`roi` is now a callable function inside the `LET`. Three calls in, the LAMBDA-with-LET form is shorter than the inline version, and the calculator is defined in exactly one place: change the body once, every invocation updates.
 
-In adtech, this is how you build per-formula calculators: define `cpc`, `cpm`, `roas` inside one LET, then chain them.
+This is the canonical pattern for per-formula KPI calculators. Define `cpc`, `cpm`, `roas` once inside one `LET`, then chain them however the cell needs.
 
 <TryIt
-  data={[["Spend A", "Revenue A", "Spend B", "Revenue B", "Total ROI"], [100, 250, 200, 600, ""]]}
-  inputCell="E2"
-  expectedFormula="=LET(roi,LAMBDA(s,r,(r-s)/s),roi(A2,B2)+roi(C2,D2))"
-  task={<>Compute the sum of ROI from two campaigns in <code>E2</code>. Use LET to define <code>roi</code> as a LAMBDA, then call <code>roi</code> twice and add the results.</>}
-  hint={<>Pattern: <code>LET(name, LAMBDA(...), expression_using_name)</code>. The expression is where you call <code>roi(...)</code>.</>}
-  answer={<>The combined result is 1.5 + 2.0 = 3.5. Alternatively you could write <code>=(B2-A2)/A2+(D2-C2)/C2</code> directly, but the LAMBDA-with-LET form scales: change the ROI definition once (e.g., add a fee adjustment) and every invocation updates. Three calls in, the LAMBDA form is shorter than the inline version.</>}
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=LET(roi,LAMBDA(s,r,(r-s)/s),roi(E2,F2)+roi(E3,F3))"
+  task={<>In <code>H2</code>, compute the sum of ROI for the first two campaigns (rows 2 and 3). Define <code>roi</code> as a LAMBDA inside <code>LET</code>, then call it twice and add the results.</>}
+  hint={<>Pattern: <code>LET(name, LAMBDA(...), expression_using_name)</code>. The expression is where you call <code>roi(E2, F2)</code> and <code>roi(E3, F3)</code> and add them.</>}
+  answer={<>The combined result is roughly 0.424 + 0.575 = 0.999 (Yoav's used-cars campaign and Sarah's lingerie campaign). Alternatively you could write <code>=(F2-E2)/E2+(F3-E3)/E3</code> directly, but the LAMBDA-with-LET form scales: change the ROI definition once (add a fee adjustment, say) and every invocation in the formula updates. Three calls in, the LAMBDA form is also shorter.</>}
 />
 
-## Why bother for adtech?
+### Combined example: LAMBDA + MAP for whole-column calculation
+
+The pattern that LAMBDA really exists for. `MAP` (lesson 1.19) applies a LAMBDA to every cell of a range and spills the result. The combination replaces every "copy this formula down 1000 rows" workflow.
+
+```
+=MAP(E2:E13, F2:F13, LAMBDA(s, r, (r-s)/s))
+```
+
+`MAP` calls the LAMBDA once per row, passing it `(s, r)` from the paired columns, and spills the ROI for every campaign from one cell. No fill-down. No risk of forgetting a row. Adding rows to the source extends the output automatically when paired with open-ended ranges.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=MAP(E2:E13,F2:F13,LAMBDA(s,r,(r-s)/s))"
+  task={<>Build an ROI column for every campaign in one formula. Put the formula in <code>H2</code> so it spills into <code>H2:H13</code>. Pair <code>MAP</code> with a LAMBDA that takes spend and revenue.</>}
+  hint={<>MAP signature: <code>MAP(array1, array2, ..., lambda)</code>. The lambda gets one parameter per array. With two arrays you get two params.</>}
+  answer={<>MAP calls the LAMBDA twelve times (once per row), passing the row's spend and revenue, and spills the twelve results. Adding row 14 to the campaign log extends the output if you switch <code>E2:E13</code>/<code>F2:F13</code> to open-ended <code>E2:E</code>/<code>F2:F</code> ranges (and wrap with IFERROR for the empty-row guard from lesson 1.10). Lesson 1.19 covers MAP, REDUCE, SCAN, BYROW, BYCOL in depth.</>}
+/>
+
+## Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=LAMBDA(s, r, (r-s)/s)</code></pre>
+    <p className="mt-2 text-sm"><strong>Bare LAMBDA, no invocation.</strong> Returns a function, not a value. Sheets shows <code>#CALC!</code> in the cell because there is nothing to render. The LAMBDA was defined but never called.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=LAMBDA(s, r, (r-s)/s)(100, 250)</code></pre>
+    <p className="mt-2 text-sm"><strong>Inline invocation appended.</strong> The trailing <code>(100, 250)</code> calls the LAMBDA with those arguments. Result: 1.5. Bare LAMBDAs only make sense when you pass them to a helper like MAP/REDUCE or store them in a name.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=LAMBDA(x, y = x * 2; y + 1)(5)</code></pre>
+    <p className="mt-2 text-sm"><strong>Multi-statement body.</strong> The LAMBDA body is one expression, not a sequence. Sheets parses the formula as broken: <code>y = x * 2</code> looks like an assignment, semicolons are not statement separators in formulas, and the whole thing errors.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=LAMBDA(x, LET(y, x * 2, y + 1))(5)</code></pre>
+    <p className="mt-2 text-sm"><strong>LET for intermediate values inside the body.</strong> When you need a temp variable, nest a <code>LET</code> inside the LAMBDA body. <code>LET</code> binds <code>y</code> to <code>x*2</code>, then evaluates <code>y+1</code>. Result for x=5: 11. Lesson 1.20 covers LET in depth.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question={"You define =LET(margin, LAMBDA(s, r, (r-s)/r), result, margin(SUM(E2:E13), SUM(F2:F13)), result) in one cell. A teammate asks why you didn't just write =(SUM(F2:F13)-SUM(E2:E13))/SUM(F2:F13). What's the actual upside of the LAMBDA version?"}
+  options={[
+    {
+      id: "a",
+      label: "The LAMBDA version is faster because Sheets caches the function.",
+      correct: false,
+      explanation: "There is no caching benefit. Both versions evaluate the SUMs once.",
+    },
+    {
+      id: "b",
+      label: "The LAMBDA centralizes the margin formula. Change the definition once (add a fee adjustment, say) and every call inside the LET updates. Without LAMBDA, you'd hunt every cell that computes margin.",
+      correct: true,
+      explanation: "The win is maintainability, not performance. Once you have three or more cells computing the same KPI, the LAMBDA form pays off, and saving the LAMBDA as a named function (lesson 1.21) extends the same win to the whole workbook.",
+    },
+    {
+      id: "c",
+      label: "The LAMBDA version handles empty ranges; the inline version errors.",
+      correct: false,
+      explanation: "Empty-range behavior is identical between the two. Neither has a built-in guard; you would add IFERROR either way.",
+    },
+  ]}
+/>
+
+## Why bother for adtech
 
 Three real wins:
 
-1. **Single-formula calculators.** Instead of one cell with `=B2*0.95` and another with `=B2-fee`, define a LAMBDA in LET that handles the calculation in one place. Edit once, every dependent expression updates.
-2. **Pass-around for MAP/REDUCE.** The next lesson (MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY) is built on LAMBDA. `=MAP(A2:A100, LAMBDA(x, x*1.1))` applies a 10% markup to every value in a single formula: no fill-down required, no risk of forgetting a row.
-3. **Named functions.** Lesson 21 covers turning LAMBDAs into reusable named functions: `=ROI(spend, revenue)` becomes a real function in the team's sheet, with documentation and parameter validation. Once defined, every dashboard uses it consistently.
-
-## Pitfalls
-
-- **A bare LAMBDA in a cell shows `#CALC!`.** It's a function, not a value. You must invoke it (`(args)`) or pass it to a helper that calls it.
-- **Parameters shadow named ranges.** If you have a named range called `spend` and write `LAMBDA(spend, spend*2)`, the parameter wins inside the body. Usually fine, occasionally surprising.
-- **No closures over named ranges from outside.** Inside a LAMBDA body, you can reference cells (`A2`, `B5:B10`) and built-in functions, but you can't reference variables from a surrounding LET unless you explicitly pass them in. Keep LAMBDAs closed over their parameters only.
-- **Recursive LAMBDA is supported but limited.** You can call a named function from inside its own body (lesson 21), but recursion depth is capped: Sheets stops at a few hundred levels to prevent runaway formulas.
-- **The body is one expression.** No semicolons, no statements. If you need intermediate values, nest a LET *inside* the body: `LAMBDA(x, LET(y, x*2, y+1))`.
-- **Anonymous LAMBDAs are hard to debug.** A 200-character LAMBDA inside MAP is unreadable. Promote it to a named function (lesson 21) the moment it stops fitting on one line.
+1. **Single-formula calculators.** Instead of one cell with `=B2*0.95` and another with `=B2-fee`, define a LAMBDA in `LET` that handles the calculation in one place. Edit once, every dependent expression updates.
+2. **Pass-around for `MAP`/`REDUCE`.** Lesson 1.19 (`MAP`, `REDUCE`, `SCAN`, `BYROW`, `BYCOL`, `MAKEARRAY`) is built on LAMBDA. `=MAP(A2:A100, LAMBDA(x, x*1.1))` applies a 10% markup to every value in a single formula: no fill-down, no missed rows.
+3. **Named functions.** Lesson 1.21 turns LAMBDAs into reusable named functions: `=ROI(spend, revenue)` becomes a real callable in the team's workbook with documentation and parameter validation. Every dashboard then uses the same definition.
 
 ## Used in the wild
 
-- **One-shot calculators in dashboards.** `=LET(roi, LAMBDA(s,r,(r-s)/s), roi(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue])))` computes overall ROI in a single cell.
-- **Parameterized lookups.** Define `LAMBDA(buyer, vertical, SUMIFS(...))` inside a LET, then call it with different buyer/vertical pairs to build a small inline summary.
-- **Building blocks for MAP/REDUCE.** Almost every real use of MAP and REDUCE (next lesson) takes a LAMBDA as its function argument.
-- **Named functions** (lesson 21): the team defines `ROI(spend, revenue)`, `ROAS(spend, revenue)`, `EFFECTIVE_CPC(spend, clicks)` once and uses them everywhere. The body is a LAMBDA.
+- **One-shot KPI calculators in dashboards.** `=LET(roi, LAMBDA(s,r,(r-s)/s), roi(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue])))` computes overall ROI in a single cell.
+- **Parameterized inline lookups.** Define `LAMBDA(buyer, vertical, SUMIFS(...))` inside a `LET`, then call it with different buyer/vertical pairs to build a small inline summary table.
+- **Building blocks for `MAP`/`REDUCE`.** Almost every real use of `MAP` and `REDUCE` (lesson 1.19) takes a LAMBDA as the function argument.
+- **Named functions** (lesson 1.21): the team defines `ROI(spend, revenue)`, `ROAS(spend, revenue)`, `EFFECTIVE_CPC(spend, clicks)` once and uses them everywhere. The body is always a LAMBDA.
+- **Composable LET chains.** `=LET(roi, LAMBDA(s,r,(r-s)/s), fee_adjusted, LAMBDA(s,r,roi(s+s*0.05, r)), fee_adjusted(SUM(...), SUM(...)))`: a LAMBDA built on top of another LAMBDA inside one LET. Hard to read at first; powerful once you have lived with it.
+
+## Pro pitfalls
+
+- **A bare LAMBDA in a cell shows `#CALC!`.** It is a function, not a value. Either invoke it with `(args)` or pass it to a helper that calls it.
+- **The body is one expression.** No semicolons, no statements. If you need intermediate values, nest a `LET` inside the body: `LAMBDA(x, LET(y, x*2, y+1))`.
+- **Parameter names shadow named ranges inside the body.** If you have a named range called `spend` and write `LAMBDA(spend, spend*2)`, the parameter wins inside the body. Usually fine, occasionally surprising.
+- **No closures over outside `LET` variables.** Inside a LAMBDA body you can reference cells (`A2`, `B5:B10`) and built-in functions, but you cannot reference variables from a surrounding LET unless you explicitly pass them in as parameters. Keep LAMBDAs closed over their parameters only.
+- **Recursive LAMBDA is supported but capped.** You can call a named function from inside its own body (lesson 1.21), but recursion depth is limited to a few hundred levels to prevent runaway formulas.
+- **Anonymous LAMBDAs inside `MAP` get unreadable fast.** A 200-character LAMBDA inside `MAP` is unreadable. Promote it to a named function (lesson 1.21) the moment it stops fitting comfortably on one line.
+- **LAMBDA bodies do not have access to volatile spreadsheet state in a special way.** `NOW()` inside a LAMBDA still recalculates on every change, like everywhere else. Lesson 1.11 covers volatility.
 
 ## Now do it for real
 
-Click **Start lesson** to provision a sheet with sample campaign numbers. You'll write three LAMBDAs of increasing complexity: an inline-invoked ROI calculator, a LET-named calculator called twice, and a multi-parameter calculator combining spend, revenue, and a fee adjustment.
+Click **Start lesson** to provision a sheet with sample campaign numbers. You will write three LAMBDAs of increasing complexity: an inline-invoked ROI calculator, a `LET`-named calculator called against two rows of data, and a `MAP`-driven LAMBDA that builds an ROI column across the whole log from a single formula.

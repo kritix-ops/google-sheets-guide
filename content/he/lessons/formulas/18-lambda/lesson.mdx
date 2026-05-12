@@ -2,9 +2,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # LAMBDA: הגדרת פונקציות משלכם בתוך נוסחה
 
-`LAMBDA` מאפשר להגדיר פונקציה inline. הוא מקבל שם של parameter אחד או יותר וגוף שמשתמש בהם, ומחזיר פונקציה שאפשר לקרוא לה. ברגע שיש LAMBDA, או שמפעילים אותו מיד, או שמעבירים אותו ל-helper כמו `MAP` או `REDUCE` (השיעור הבא), או שומרים אותו כ-**named function** לשימוש חוזר ברמת הצוות (שיעור 21).
+`LAMBDA` מאפשר להגדיר פונקציה inline, ממש בתוך תא. מעבירים לו רשימה של שמות parameter וגוף שמשתמש בהם, ומקבלים חזרה פונקציה ניתנת לקריאה. בפני עצמו `LAMBDA` לא מפיק ערך: הוא מפיק *פונקציה*. אז או שמפעילים אותו מיד, מעבירים אותו ל-helper כמו `MAP` או `REDUCE` (שיעור 1.19), או שומרים אותו כ-**named function** לשימוש חוזר ברמת הצוות (שיעור 1.21).
 
-LAMBDA הוא היסוד לכל עבודת הנוסחאות המודרנית ב-Sheets. אפשר לבנות מחדש את SUMIF, לכתוב מחשבונים פר שורה, להגדיר KPI ייעודיים לצוות, ולהימנע מהעתקה והדבקה של נוסחאות מסובכות לאורך 400 תאים.
+LAMBDA הוא היסוד לכל עבודת הנוסחאות המודרנית ב-Sheets. ברגע שזה נתפס, מפסיקים להעתיק-להדביק את אותו חישוב לאורך 400 תאים ומפסיקים לקנן שש שכבות של IF/SUMIFS כדי לבטא "לכל שורה, עשה את זה". במקום זה כותבים את המחשבון פעם אחת, נותנים לו שם, ומשתמשים בו שוב. לצוות אדטק שכבר יש לו עשרות KPIs מותאמים (ROI, ROAS, effective CPC, רווח מותאם עמלה), LAMBDA הוא השדרוג שמאפשר לכל דאשבורד למשוך ממקור אמת יחיד במקום מעותק שונה מעט בכל לשונית.
 
 ## התחביר
 
@@ -12,40 +12,43 @@ LAMBDA הוא היסוד לכל עבודת הנוסחאות המודרנית ב-
 LAMBDA(param1, param2, ..., body)
 ```
 
-ה-parameters מופיעים קודם, ואז הגוף שמשתמש בהם. שמות ה-parameters הם מקומיים, הם קיימים רק בתוך הגוף.
+Parameters קודם, גוף אחרון. שמות ה-parameters לוקאליים לגוף, והם מאפילים על כל named range עם שם זהה כל עוד הגוף רץ. הגוף הוא **ביטוי אחד** (אין נקודות-פסיק, אין statements). אם צריך ערכי ביניים, מקננים `LET` בתוך הגוף.
 
 <FunctionRef name="LAMBDA" />
 
-```
-=LAMBDA(spend, revenue, (revenue - spend) / spend)
-```
+LAMBDA בפני עצמו מפיק פונקציה, לא ערך. שימו `=LAMBDA(s, r, (r-s)/s)` חשוף בתא ו-Sheets מציג `#CALC!` כי אין מה להציג. הפונקציה קיימת; פשוט לא קראתם לה.
 
-זה הכל. אבל שימו לב: שום דבר לא מחושב פה. LAMBDA חשוף מחזיר פונקציה, לא ערך. אם מכניסים אותו לתא, Sheets מציג `#CALC!` כי לנוסחה אין ערך החזרה להציג.
+### דוגמה 1: נתוני צעצוע
 
-## קריאה ל-LAMBDA
+הפעלה inline. הגדירו `LAMBDA` ומיד קראו לו על ידי הוספת `(arg1, arg2)` אחרי הסוגריים הסוגרים. התוצאה היא ערך רגיל.
 
-כדי לקבל ערך, צריך **להפעיל** אותו. ההפעלה הפשוטה ביותר היא inline, עוטפים את ה-parameters בסוגריים נוספים אחרי ה-LAMBDA:
-
-```
-=LAMBDA(spend, revenue, (revenue - spend) / spend)(100, 250)
-```
-
-הנוסחה הזו מחזירה `1.5`. ה-`(100, 250)` בסוף מעביר `spend=100` ו-`revenue=250` לתוך הגוף.
-
-הדפוס הזה לבדו רק לעיתים נדירות שימושי. אפשר פשוט לכתוב `=(250-100)/100` ולוותר על ה-LAMBDA. LAMBDA משתלם כשהגוף משמש לקלטים רבים, או כשנותנים לפונקציה שם עם LET או כ-named function.
-
-<TryIt
-  data={[["Spend", "Revenue", "ROI"], [100, 250, ""]]}
-  inputCell="C2"
-  expectedFormula="=LAMBDA(s,r,(r-s)/s)(A2,B2)"
-  task={<>חשבו ROI ב-<code>C2</code> באמצעות LAMBDA. הגדירו <code>=LAMBDA(s, r, (r-s)/s)</code> והפעילו אותו עם <code>A2</code> ו-<code>B2</code>.</>}
-  hint={<>הדפוס הוא <code>LAMBDA(params, body)(args)</code>. הסוגריים אחרי ה-LAMBDA קוראים לו.</>}
-  answer={<>לחישוב חד פעמי, זה מסורבל יותר מ-<code>=(B2-A2)/A2</code>. הערך של LAMBDA מתגלה כשרוצים: (1) לתת לפונקציה שם ולעשות בה שימוש חוזר (עם LET), (2) להעביר אותה ל-MAP או REDUCE לעבודה על עמודה שלמה, או (3) לשמור אותה כ-named function לכל הצוות. אנחנו מתחילים בקטן פה כדי שהתחביר יחלחל.</>}
+<RefDemo
+  data={[["Spend", "Revenue"], [100, 250]]}
+  formula="=LAMBDA(s, r, (r-s)/s)(A2, B2)"
+  formulaCell="D2"
+  fillTo="D2"
+  expectedFills={["=LAMBDA(s, r, (r-s)/s)(A2, B2)"]}
+  caption="ה-LAMBDA מגדיר מחשבון ROI: (r-s)/s. ה-(A2, B2) בסוף מפעיל אותו עם הערכים משורה 2. תוצאה: (250-100)/100 = 1.5."
 />
 
-## LAMBDA + LET: שם לפונקציה
+לחישוב חד-פעמי, זה ארוך יותר מסתם לכתוב `=(B2-A2)/A2`. הניצחון מגיע ברגע שרוצים להשתמש באותו מחשבון פעמיים, לתת לו שם, או להחיל אותו על עמודה שלמה.
 
-`LET` מאפשר לתת שם לערך או לפונקציה בתוך נוסחה. בשילוב עם LAMBDA, מגדירים מחשבון פעם אחת ומשתמשים בו לכמה קלטים באותו תא:
+### דוגמה 2: נתוני אדטק אמיתיים
+
+מחשבון ה-ROI של הצוות על לוג הקמפיינים. הפעלת LAMBDA inline מול `Spend` ו-`Revenue` של שורת קמפיין יחידה.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=LAMBDA(s,r,(r-s)/s)(E2,F2)"
+  task={<>חשבו ROI ב-<code>H2</code> לקמפיין הראשון באמצעות LAMBDA inline. הגדירו <code>LAMBDA(s, r, (r-s)/s)</code> והפעילו אותו עם <code>E2</code> (spend) ו-<code>F2</code> (revenue).</>}
+  hint={<>התבנית היא <code>LAMBDA(params, body)(args)</code>. הסוגריים אחרי ה-LAMBDA קוראים לו.</>}
+  answer={<>התוצאה לשורה 2 היא (487.30 - 342.18) / 342.18 ≈ 0.424, כלומר הקמפיין החזיר 42% מעל העלות. LAMBDA inline על שורה אחת ארוך; היו פשוט כותבים <code>=(F2-E2)/E2</code>. הערך של LAMBDA מופיע ברגע ש: (1) נותנים לו שם עם LET כדי להשתמש בו שוב, (2) מעבירים אותו ל-MAP/REDUCE לעבודת עמודה שלמה, או (3) שומרים אותו כ-named function לצוות (שיעור 1.21).</>}
+/>
+
+## LAMBDA + LET: לתת שם לפונקציה
+
+`LET` מאפשר לתת שם לערך או לפונקציה בתוך נוסחה. בשילוב עם `LAMBDA`, מגדירים מחשבון פעם אחת ומשתמשים בו על פני קלטים מרובים באותו תא:
 
 ```
 =LET(
@@ -54,43 +57,112 @@ LAMBDA(param1, param2, ..., body)
 )
 ```
 
-`roi` הוא עכשיו פונקציה בתוך ה-LET. אפשר לקרוא לה כמה פעמים שרוצים. התוצאה פה היא `1.5 + 2 = 3.5`.
+`roi` היא עכשיו פונקציה ניתנת לקריאה בתוך ה-`LET`. שלוש קריאות פנימה, צורת ה-LAMBDA-עם-LET קצרה יותר מהצורה ה-inline, והמחשבון מוגדר במקום אחד בדיוק: שנו את הגוף פעם אחת, כל קריאה מתעדכנת.
 
-באדטק, ככה בונים מחשבונים פר נוסחה: מגדירים `cpc`, `cpm`, `roas` בתוך LET אחד, ואז משרשרים אותם.
+זאת התבנית הקנונית למחשבוני KPI פר-נוסחה. הגדירו `cpc`, `cpm`, `roas` פעם אחת בתוך `LET` אחד, אז שרשרו אותם איך שהתא צריך.
 
 <TryIt
-  data={[["Spend A", "Revenue A", "Spend B", "Revenue B", "Total ROI"], [100, 250, 200, 600, ""]]}
-  inputCell="E2"
-  expectedFormula="=LET(roi,LAMBDA(s,r,(r-s)/s),roi(A2,B2)+roi(C2,D2))"
-  task={<>חשבו את סכום ה-ROI משני קמפיינים ב-<code>E2</code>. השתמשו ב-LET כדי להגדיר <code>roi</code> כ-LAMBDA, אז קראו ל-<code>roi</code> פעמיים והוסיפו את התוצאות.</>}
-  hint={<>דפוס: <code>LET(name, LAMBDA(...), expression_using_name)</code>. הביטוי הוא המקום שבו קוראים ל-<code>roi(...)</code>.</>}
-  answer={<>התוצאה המשולבת היא 1.5 + 2.0 = 3.5. לחלופין אפשר לכתוב <code>=(B2-A2)/A2+(D2-C2)/C2</code> ישירות, אבל הצורה של LAMBDA-עם-LET מתרחבת היטב: משנים את ההגדרה של ROI פעם אחת (למשל, מוסיפים התאמה של עמלה) וכל ההפעלות מתעדכנות. כבר בשלוש קריאות, הצורה של LAMBDA קצרה יותר מהגרסה ה-inline.</>}
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=LET(roi,LAMBDA(s,r,(r-s)/s),roi(E2,F2)+roi(E3,F3))"
+  task={<>ב-<code>H2</code>, חשבו את סכום ה-ROI לשני הקמפיינים הראשונים (שורות 2 ו-3). הגדירו <code>roi</code> כ-LAMBDA בתוך <code>LET</code>, אז קראו לו פעמיים והוסיפו את התוצאות.</>}
+  hint={<>תבנית: <code>LET(name, LAMBDA(...), expression_using_name)</code>. הביטוי הוא איפה שקוראים ל-<code>roi(E2, F2)</code> ו-<code>roi(E3, F3)</code> ומחברים.</>}
+  answer={<>התוצאה המשולבת היא בערך 0.424 + 0.575 = 0.999 (הקמפיין used-cars של Yoav והקמפיין lingerie של Sarah). לחילופין הייתם יכולים לכתוב <code>=(F2-E2)/E2+(F3-E3)/E3</code> ישירות, אבל צורת LAMBDA-עם-LET סקיילבילית: שנו את הגדרת ה-ROI פעם אחת (תוסיפו התאמת עמלה, נגיד) וכל קריאה בנוסחה מתעדכנת. שלוש קריאות פנימה, צורת ה-LAMBDA גם קצרה יותר.</>}
 />
 
-## למה זה שווה את הטרחה באדטק?
+### דוגמה משולבת: LAMBDA + MAP לחישוב עמודה שלמה
 
-שלושה רווחים אמיתיים:
+התבנית ש-LAMBDA באמת קיים בשבילה. `MAP` (שיעור 1.19) מחיל LAMBDA על כל תא בטווח ועושה spill לתוצאה. השילוב מחליף כל זרימת עבודה של "תעתיק את הנוסחה הזו ל-1000 שורות למטה".
 
-1. **מחשבונים בנוסחה אחת.** במקום תא אחד עם `=B2*0.95` ועוד אחד עם `=B2-fee`, מגדירים LAMBDA בתוך LET שמטפל בחישוב במקום אחד. עורכים פעם אחת, כל ביטוי תלוי מתעדכן.
-2. **העברה ל-MAP/REDUCE.** השיעור הבא (MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY) בנוי על LAMBDA. `=MAP(A2:A100, LAMBDA(x, x*1.1))` מחיל markup של 10% על כל ערך בנוסחה אחת. בלי גרירה למטה, בלי סיכון לשכוח שורה.
-3. **Named functions.** שיעור 21 מכסה הפיכת LAMBDAs ל-named functions לשימוש חוזר: `=ROI(spend, revenue)` הופך לפונקציה אמיתית בגיליון של הצוות, עם תיעוד ואימות parameters. אחרי שמגדירים פעם אחת, כל dashboard משתמש בה באופן עקבי.
+```
+=MAP(E2:E13, F2:F13, LAMBDA(s, r, (r-s)/s))
+```
 
-## מלכודות
+`MAP` קורא ל-LAMBDA פעם אחת לכל שורה, מעביר לו `(s, r)` מהעמודות המקבילות, ועושה spill ל-ROI לכל קמפיין מתא אחד. ללא fill-down. ללא סכנה לשכוח שורה. הוספת שורות למקור מרחיבה את הפלט אוטומטית כשמשלבים עם טווחים פתוחים.
 
-- **LAMBDA חשוף בתא מציג `#CALC!`.** זו פונקציה, לא ערך. חייבים להפעיל אותה (`(args)`) או להעביר אותה ל-helper שקורא לה.
-- **Parameters מסתירים named ranges.** אם יש named range בשם `spend` וכותבים `LAMBDA(spend, spend*2)`, ה-parameter מנצח בתוך הגוף. בדרך כלל בסדר, מדי פעם מפתיע.
-- **אין closures על named ranges מבחוץ.** בתוך גוף LAMBDA, אפשר להפנות לתאים (`A2`, `B5:B10`) ולפונקציות מובנות, אבל אי אפשר להפנות למשתנים מ-LET חיצוני אלא אם מעבירים אותם במפורש. כדאי להשאיר LAMBDAs סגורים על ה-parameters שלהם בלבד.
-- **רקורסיה ב-LAMBDA נתמכת אבל מוגבלת.** אפשר לקרוא ל-named function מתוך הגוף שלה עצמה (שיעור 21), אבל עומק הרקורסיה מוגבל. Sheets עוצר אחרי כמה מאות רמות כדי למנוע נוסחאות מתפרצות.
-- **הגוף הוא ביטוי אחד.** אין נקודה-פסיק, אין statements. אם צריך ערכי ביניים, מקננים LET *בתוך* הגוף: `LAMBDA(x, LET(y, x*2, y+1))`.
-- **LAMBDAs אנונימיים קשים ל-debug.** LAMBDA של 200 תווים בתוך MAP הוא לא קריא. מקדמים אותו ל-named function (שיעור 21) ברגע שהוא מפסיק להיכנס בשורה אחת.
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=MAP(E2:E13,F2:F13,LAMBDA(s,r,(r-s)/s))"
+  task={<>בנו עמודת ROI לכל קמפיין בנוסחה אחת. שימו את הנוסחה ב-<code>H2</code> כדי שתעשה spill ל-<code>H2:H13</code>. שלבו <code>MAP</code> עם LAMBDA שמקבל spend ו-revenue.</>}
+  hint={<>חתימת MAP: <code>MAP(array1, array2, ..., lambda)</code>. ה-lambda מקבל parameter אחד לכל array. עם שני arrays יש שני params.</>}
+  answer={<>MAP קורא ל-LAMBDA שתים-עשרה פעמים (פעם לכל שורה), מעביר את ה-spend וה-revenue של השורה, ועושה spill לשתים-עשרה התוצאות. הוספת שורה 14 ללוג הקמפיינים מרחיבה את הפלט אם תחליפו <code>E2:E13</code>/<code>F2:F13</code> בטווחים פתוחים <code>E2:E</code>/<code>F2:F</code> (ותעטפו ב-IFERROR למגן השורה הריקה משיעור 1.10). שיעור 1.19 מכסה את MAP, REDUCE, SCAN, BYROW, BYCOL לעומק.</>}
+/>
+
+## מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=LAMBDA(s, r, (r-s)/s)</code></pre>
+    <p className="mt-2 text-sm"><strong>LAMBDA חשוף, בלי הפעלה.</strong> מחזיר פונקציה, לא ערך. Sheets מציג <code>#CALC!</code> בתא כי אין מה לרנדר. ה-LAMBDA הוגדר אבל אף פעם לא נקרא.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=LAMBDA(s, r, (r-s)/s)(100, 250)</code></pre>
+    <p className="mt-2 text-sm"><strong>הפעלה inline בסוף.</strong> ה-<code>(100, 250)</code> הסופי קורא ל-LAMBDA עם הארגומנטים האלה. תוצאה: 1.5. LAMBDA חשוף הגיוני רק כשמעבירים אותו ל-helper כמו MAP/REDUCE או מאחסנים אותו בשם.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>=LAMBDA(x, y = x * 2; y + 1)(5)</code></pre>
+    <p className="mt-2 text-sm"><strong>גוף עם מספר statements.</strong> גוף ה-LAMBDA הוא ביטוי אחד, לא רצף. Sheets מנתח את הנוסחה כשבורה: <code>y = x * 2</code> נראה כמו השמה, נקודות-פסיק אינן מפרידי statements בנוסחאות, וכל הדבר שוגה.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>=LAMBDA(x, LET(y, x * 2, y + 1))(5)</code></pre>
+    <p className="mt-2 text-sm"><strong>LET לערכי ביניים בתוך הגוף.</strong> כשצריך משתנה temp, מקננים <code>LET</code> בתוך גוף ה-LAMBDA. <code>LET</code> קושר <code>y</code> ל-<code>x*2</code>, אז מעריך <code>y+1</code>. תוצאה ל-x=5: 11. שיעור 1.20 מכסה את LET לעומק.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question={"אתם מגדירים =LET(margin, LAMBDA(s, r, (r-s)/r), result, margin(SUM(E2:E13), SUM(F2:F13)), result) בתא אחד. חבר צוות שואל למה לא פשוט כתבתם =(SUM(F2:F13)-SUM(E2:E13))/SUM(F2:F13). מה היתרון האמיתי של גרסת ה-LAMBDA?"}
+  options={[
+    {
+      id: "a",
+      label: "גרסת ה-LAMBDA מהירה יותר כי Sheets שומר את הפונקציה במטמון.",
+      correct: false,
+      explanation: "אין יתרון של caching. שתי הגרסאות מעריכות את ה-SUMs פעם אחת.",
+    },
+    {
+      id: "b",
+      label: "ה-LAMBDA ממרכז את נוסחת ה-margin. שנו את ההגדרה פעם אחת (תוסיפו התאמת עמלה, נגיד) וכל קריאה בתוך ה-LET מתעדכנת. בלי LAMBDA, היו צריכים לצוד כל תא שמחשב margin.",
+      correct: true,
+      explanation: "הניצחון הוא תחזוקתיות, לא ביצועים. ברגע שיש שלושה תאים או יותר שמחשבים את אותו KPI, צורת ה-LAMBDA משתלמת, ושמירה של ה-LAMBDA כ-named function (שיעור 1.21) מרחיבה את אותו ניצחון לכל החוברת.",
+    },
+    {
+      id: "c",
+      label: "גרסת ה-LAMBDA מטפלת בטווחים ריקים; הגרסה ה-inline שוגה.",
+      correct: false,
+      explanation: "התנהגות טווחים ריקים זהה בין השתיים. לאף אחת אין מגן מובנה; הייתם מוסיפים IFERROR בכל מקרה.",
+    },
+  ]}
+/>
+
+## למה לטרוח באדטק
+
+שלושה ניצחונות אמיתיים:
+
+1. **מחשבונים חד-נוסחתיים.** במקום תא אחד עם `=B2*0.95` ועוד אחד עם `=B2-fee`, הגדירו LAMBDA ב-`LET` שמטפל בחישוב במקום אחד. ערכו פעם אחת, כל ביטוי תלוי מתעדכן.
+2. **העברה ל-`MAP`/`REDUCE`.** שיעור 1.19 (`MAP`, `REDUCE`, `SCAN`, `BYROW`, `BYCOL`, `MAKEARRAY`) בנוי על LAMBDA. `=MAP(A2:A100, LAMBDA(x, x*1.1))` מחיל markup של 10% על כל ערך בנוסחה אחת: בלי fill-down, בלי שורות שכוחות.
+3. **Named functions.** שיעור 1.21 הופך LAMBDAs ל-named functions לשימוש חוזר: `=ROI(spend, revenue)` הופך לקריאות אמיתית בחוברת של הצוות עם תיעוד ואימות parameters. אז כל דאשבורד משתמש באותה הגדרה.
 
 ## נפוץ בשטח
 
-- **מחשבונים חד פעמיים ב-dashboards.** `=LET(roi, LAMBDA(s,r,(r-s)/s), roi(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue])))` מחשב ROI כללי בתא יחיד.
-- **Lookups עם parameters.** מגדירים `LAMBDA(buyer, vertical, SUMIFS(...))` בתוך LET, ואז קוראים לזה עם זוגות שונים של buyer/vertical כדי לבנות סיכום inline קצר.
-- **אבני בניין ל-MAP/REDUCE.** כמעט כל שימוש אמיתי ב-MAP וב-REDUCE (שיעור הבא) מקבל LAMBDA כארגומנט הפונקציה.
-- **Named functions** (שיעור 21). הצוות מגדיר את `ROI(spend, revenue)`, `ROAS(spend, revenue)`, `EFFECTIVE_CPC(spend, clicks)` פעם אחת ומשתמש בהם בכל מקום. הגוף הוא LAMBDA.
+- **מחשבוני KPI חד-פעמיים בדאשבורדים.** `=LET(roi, LAMBDA(s,r,(r-s)/s), roi(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue])))` מחשב ROI כולל בתא אחד.
+- **lookup-ים inline פרמטריים.** הגדירו `LAMBDA(buyer, vertical, SUMIFS(...))` בתוך `LET`, אז קראו לו עם זוגות buyer/vertical שונים כדי לבנות טבלת סיכום inline קטנה.
+- **אבני בניין ל-`MAP`/`REDUCE`.** כמעט כל שימוש אמיתי ב-`MAP` ו-`REDUCE` (שיעור 1.19) מקבל LAMBDA כארגומנט הפונקציה.
+- **Named functions** (שיעור 1.21): הצוות מגדיר `ROI(spend, revenue)`, `ROAS(spend, revenue)`, `EFFECTIVE_CPC(spend, clicks)` פעם אחת ומשתמש בהם בכל מקום. הגוף תמיד LAMBDA.
+- **שרשראות LET הניתנות להרכבה.** `=LET(roi, LAMBDA(s,r,(r-s)/s), fee_adjusted, LAMBDA(s,r,roi(s+s*0.05, r)), fee_adjusted(SUM(...), SUM(...)))`: LAMBDA שנבנה על LAMBDA אחר בתוך LET אחד. קשה לקרוא בהתחלה; חזק ברגע שחיים איתו.
+
+## מלכודות מקצועיות
+
+- **LAMBDA חשוף בתא מציג `#CALC!`.** הוא פונקציה, לא ערך. או הפעילו אותו עם `(args)` או העבירו אותו ל-helper שקורא לו.
+- **הגוף הוא ביטוי אחד.** אין נקודות-פסיק, אין statements. אם צריך ערכי ביניים, מקננים `LET` בתוך הגוף: `LAMBDA(x, LET(y, x*2, y+1))`.
+- **שמות parameter מאפילים על named ranges בתוך הגוף.** אם יש לכם named range בשם `spend` וכותבים `LAMBDA(spend, spend*2)`, ה-parameter מנצח בתוך הגוף. בדרך כלל בסדר, מדי פעם מפתיע.
+- **אין closures על משתני LET חיצוניים.** בתוך גוף LAMBDA אפשר להפנות לתאים (`A2`, `B5:B10`) ולפונקציות מובנות, אבל אי אפשר להפנות למשתנים מ-LET חיצוני אלא אם מעבירים אותם כ-parameters במפורש. שמרו על LAMBDAs סגורים על ה-parameters שלהם בלבד.
+- **LAMBDA רקורסיבי נתמך אך מוגבל.** אפשר לקרוא ל-named function מתוך הגוף שלה (שיעור 1.21), אבל עומק הרקורסיה מוגבל לכמה מאות רמות כדי למנוע נוסחאות בורחות.
+- **LAMBDAs אנונימיים בתוך `MAP` הופכים בלתי קריאים מהר.** LAMBDA של 200 תווים בתוך `MAP` בלתי קריא. קדמו אותו ל-named function (שיעור 1.21) ברגע שהוא מפסיק להתאים בנוחות לשורה אחת.
+- **גופי LAMBDA אינם נגישים למצב גיליון תנודתי בדרך מיוחדת.** `NOW()` בתוך LAMBDA עדיין מחושב מחדש בכל שינוי, כמו בכל מקום אחר. שיעור 1.11 מכסה תנודתיות.
 
 ## עכשיו לעבודה אמיתית
 
-לחצו על **Start lesson** כדי לטעון גיליון עם נתוני קמפיין לדוגמה. תכתבו שלושה LAMBDAs במורכבות עולה: מחשבון ROI שמופעל inline, מחשבון בעל שם דרך LET שנקרא פעמיים, ומחשבון רב-parameters שמשלב spend, revenue, והתאמה של עמלה.
+לחצו על **Start lesson** כדי להעלות גיליון עם מספרי קמפיין לדוגמה. תכתבו שלושה LAMBDAs במורכבות עולה: מחשבון ROI שמופעל inline, מחשבון בעל-שם של `LET` שנקרא מול שתי שורות נתונים, ו-LAMBDA מבוסס-`MAP` שבונה עמודת ROI על פני כל הלוג מנוסחה אחת.
