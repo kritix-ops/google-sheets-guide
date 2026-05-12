@@ -62,7 +62,7 @@ Two operational consequences:
 1. **Summaries of large sheets are approximations.** "Which buyer spent the most last month" can be wrong if the relevant rows weren't in the sample.
 2. **Counts and totals from prose prompts are unreliable.** Use `SUM`, `COUNTIF`, or `QUERY` for numbers. Use AI prompts for qualitative work like classification and summary.
 
-The fix in practice: pre-aggregate. Run a `QUERY` that rolls the 50,000 rows up to one-per-buyer or one-per-day, put the result on a tab, and prompt Gemini on the rolled-up tab. The same prompt gets a much more accurate answer when the data actually fits.
+The fix in practice: pre-aggregate. Run a `QUERY` (lesson 1.12) that rolls the 50,000 rows up to one-per-buyer or one-per-day, put the result on a tab, and prompt Gemini on the rolled-up tab. The same prompt gets a much more accurate answer when the data actually fits.
 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
