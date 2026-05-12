@@ -4,13 +4,13 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 macro ב-Google Sheets היא פשוט function רגילה ב-Apps Script ש**רשומה במניפסט** כך שהיא צצה תחת Tools then Macros עם קיצור מקלדת אופציונלי. אין שום קסם ב-function עצמה; היא משתמשת באותן קריאות `SpreadsheetApp` ו-`Range` משני השיעורים הקודמים. החלק החדש הוא הרישום: זה מה שהופך את ה-function לנגישה מתפריט Tools במקום רק מ-Run dropdown של עורך Apps Script.
 
-מאקרו הוא איך שצוות הופך פעולות ידניות של one-shot לחוזרות: פורמט ל-tab של החודש החדש, ארכוב נתונים של חודש שעבר, סימון אצווה של קמפיינים כמתים. ה-buyer שצריך את הפעולה לא צריך לדעת כלום Apps Script; הוא בוחר את המאקרו מהתפריט וזה רץ. ה-recorder גם מאפשר ל-non-programmer לתפוס workflow שהוא עשה ידנית ולנגן אותו, מה ששימושי אבל לא איך שמאקרו של production נראים אחרי שהצוות התיישב.
+מאקרו הם איך שצוות הופך פעולות ידניות של one-shot לחוזרות: פורמט ל-tab של החודש החדש, ארכוב נתונים של חודש שעבר, סימון של אצווה של קמפיינים כמתים. ה-buyer שצריך את הפעולה לא צריך לדעת בכלל Apps Script; הוא בוחר את המאקרו מהתפריט וזה רץ. ה-recorder גם מאפשר ל-non-programmer ללכוד workflow שהוא עשה ידנית ולנגן אותו שוב, מה ששימושי אבל לא איך שמאקרו של production נראים אחרי שהצוות מתייצב.
 
 ## מוקלט מול כתוב ביד
 
-ל-Sheets יש תכונת Record Macro (Extensions then Macros then Record macro). הזרימה היא בדיוק איך שזה נשמע: מתחילים להקליט, עושים רצף של עריכות ב-UI, מפסיקים להקליט, ו-Sheets כותב את ה-function של Apps Script שמשחזר את העריכות האלה. זה נראה אטרקטיבי (אין קוד לכתוב) ואז קוראים מה זה הפיק.
+ל-Sheets יש תכונת Record Macro (Extensions then Macros then Record macro). הזרימה היא בדיוק איך שזה נשמע: מתחילים להקליט, עושים רצף של עריכות ב-UI, מפסיקים להקליט, ו-Sheets כותב את ה-function של Apps Script שמשחזרת את העריכות האלה. זה נראה אטרקטיבי (אין קוד לכתוב) ואז קוראים מה הוא הפיק.
 
-> **איפה ה-recorder גר ב-2026.** פותחים את תפריט Sheets **Extensions then Macros then Record macro**. סרגל footer קטן מופיע בתחתית ה-workbook ("Recording new macro..."), עם toggle של **Absolute** מול **Relative references** וכפתור **Save**. לוחצים סביב ה-sheet כרגיל: כל שינוי בחירה, כל עריכת תא, כל שינוי פורמט נכתב ל-bound Apps Script project. לוחצים **Save** ו-Sheets מקפיץ dialog "Save new macro" שמבקש `menuName` וקיצור מקלדת `Ctrl+Alt+Shift+1..9` (אופציונלי). ה-dialog הזה הוא אותו רישום ב-`appsscript.json` שמכוסה למטה, רק עם עטיפת UI. ה-function המוקלטת נוחתת בקובץ `macros.gs` בתוך ה-bound script.
+> **איפה ה-recorder נמצא ב-2026.** פותחים את תפריט Sheets **Extensions then Macros then Record macro**. סרגל footer קטן מופיע בתחתית ה-workbook ("Recording new macro..."), עם toggle של **Absolute** מול **Relative references** וכפתור **Save**. לוחצים סביב ה-sheet כרגיל: כל שינוי בחירה, כל עריכת תא, כל שינוי פורמט נכתב ל-bound Apps Script project. לוחצים **Save** ו-Sheets מקפיץ dialog "Save new macro" שמבקש `menuName` וקיצור מקלדת `Ctrl+Alt+Shift+1..9` (אופציונלי). ה-dialog הזה הוא אותו רישום ב-`appsscript.json` שמכוסה למטה, רק עם עטיפת UI. ה-function המוקלטת נוחתת בקובץ `macros.gs` בתוך ה-bound script.
 
 הנה מה שהוא הפיק:
 
@@ -24,10 +24,10 @@ function MyMacro() {
 
 שתי בעיות:
 
-1. **זה משתמש ב-`getCurrentCell()` וב-`getActiveRangeList()`.** אלה קוראים את התא שעליו המשתמש במקרה נמצא כשהמאקרו רץ. המאקרו שעבד מצוין כשהקלטתם אותו על F2 עכשיו מפרמט את התא הלא נכון כשחבר צוות מריץ אותו מ-D17.
+1. **זה משתמש ב-`getCurrentCell()` וב-`getActiveRangeList()`.** אלה קוראים את התא שהמשתמש במקרה נמצא עליו כשהמאקרו רץ. המאקרו שעבד מצוין כשהקלטתם אותו על F2 עכשיו מפרמט את התא הלא נכון כשחבר צוות מריץ אותו מ-D17.
 2. **אין error handling, אין logging, אין constants.** אם משהו נשבר ב-runtime (ה-sheet שונה שם, ה-range נמחק), המאקרו נכשל בשקט או עם הודעה לא מועילה.
 
-מאקרו מוקלט הוא נקודת התחלה, לא יעד. המאקרו האמיתי של הצוות נכתב ביד. הם נראים כמו הדוגמאות של שיעור 4 / שיעור 5: `getSheetByName` מפורש, ranges A1 מפורשים, מבנה מכוון.
+מאקרו מוקלט הוא נקודת התחלה, לא יעד. המאקרו האמיתיים של הצוות נכתבים ביד. הם נראים כמו הדוגמאות של שיעור 4 / שיעור 5: `getSheetByName` מפורש, ranges A1 מפורשים, מבנה מכוון.
 
 <Compare>
   <ComparePanel label="מוקלט (שביר)" tone="negative">
@@ -36,7 +36,7 @@ function MyMacro() {
   ss.getCurrentCell().setNumberFormat('$#,##0.00');
   ss.getActiveRangeList().setFontWeight('bold');
 }`}</code></pre>
-    <p className="mt-2 text-sm">מכוון לכל מה שמסומן. חבר צוות מריץ מ-D17, D17 מקבל פורמט. הכוונה המקורית (פורמט F2:F61 ב-tab Campaigns) נעלמה.</p>
+    <p className="mt-2 text-sm">מכוון לכל מה שמסומן. חבר צוות מריץ מ-D17, D17 מקבל פורמט. הכוונה המקורית (פורמט ל-F2:F61 ב-tab Campaigns) נעלמה.</p>
   </ComparePanel>
   <ComparePanel label="כתוב ביד (עמיד)" tone="positive">
     <pre className="font-mono text-xs"><code>{`function formatNewMonth() {
@@ -47,7 +47,7 @@ function MyMacro() {
   sheet.getRange("G2:G61").setNumberFormat("$#,##0.00");
   sheet.setFrozenRows(1);
 }`}</code></pre>
-    <p className="mt-2 text-sm">מכוון לתאים בעלי שם על sheet בעל שם. רץ אותו דבר בלי קשר לאן המשתמש, או מי. שורד את הרפלקס של "שינוי שם של עמודה" של הצוות.</p>
+    <p className="mt-2 text-sm">מכוון לתאים מזוהים בשם על sheet מזוהה בשם. רץ אותו דבר בלי קשר לאן המשתמש נמצא, או מי הוא. שורד את הרפלקס של "שינוי שם של עמודה" של הצוות.</p>
   </ComparePanel>
 </Compare>
 
@@ -55,7 +55,7 @@ function MyMacro() {
 
 ## רישום המאקרו
 
-function מופיעה תחת Tools then Macros רק ברגע שהיא מופיעה ברשימת `sheets.macros` של ה-manifest `appsscript.json` של הפרויקט:
+function מופיעה תחת Tools then Macros רק אם היא מופיעה ברשימת `sheets.macros` של ה-manifest `appsscript.json` של הפרויקט:
 
 ```json
 {
@@ -77,18 +77,18 @@ function מופיעה תחת Tools then Macros רק ברגע שהיא מופיע
 | שדה | מה זה עושה |
 |---|---|
 | `menuName` | התווית שהמשתמש רואה תחת Tools then Macros. משאירים אותה ספציפית. "Format" לבדה דו-משמעית ליד מאקרו אחרים. |
-| `functionName` | ה-JS function שהמאקרו הזה מריץ. חייב להתאים להצהרת ה-function בדיוק (case-sensitive). |
+| `functionName` | ה-JS function שהמאקרו הזה מריץ. חייב להתאים בדיוק להצהרת ה-function (case-sensitive). |
 | `defaultShortcut` | אופציונלי. שילוב המקלדת שמפעיל את המאקרו. Sheets מקצה `Ctrl+Alt+Shift+1` עד `Ctrl+Alt+Shift+9` למאקרו של משתמש. |
 
-אפשר לערוך את ה-manifest ידנית, אבל המסלול הידידותי יותר הוא **Extensions then Macros then Manage macros then Add new macro**. הוא פותח dialog קטן שבו בוחרים את ה-function והתווית, ו-Sheets כותב לכם את רשומת ה-manifest.
+אפשר לערוך את ה-manifest ידנית, אבל המסלול הידידותי יותר הוא **Extensions then Macros then Manage macros then Add new macro**. הוא פותח dialog קטן שבו בוחרים את ה-function ואת התווית, ו-Sheets כותב לכם את רשומת ה-manifest.
 
 ## במה מאקרו שונים מפריטי תפריט
 
-`addReportsMenu` של שיעור 5 בנה תפריט מותאם בסרגל הכלים של ה-spreadsheet. מאקרו דומה אבל גר במשטח אחר:
+`addReportsMenu` של שיעור 5 בנה תפריט מותאם בסרגל הכלים של ה-spreadsheet. מאקרו דומה אבל חי במשטח אחר:
 
 | | פריט תפריט (שיעור 5) | מאקרו |
 |---|---|---|
-| איפה הוא גר | תפריט מותאם של סרגל הכלים (Reports, Buyer tools, וכו') | תפריט המשנה Tools then Macros |
+| איפה הוא חי | תפריט מותאם של סרגל הכלים (Reports, Buyer tools, וכו') | תפריט המשנה Tools then Macros |
 | איך הוא רשום | `createMenu().addItem(...)` נקרא מ-`onOpen` | רשומה ב-`sheets.macros` של `appsscript.json` |
 | קיצור מקלדת | אין כברירת מחדל | אופציונלי `Ctrl+Alt+Shift+1..9` |
 | נראה למשתמשים אחרים | כן, בכל פתיחה | כן, בכל פתיחה |
@@ -98,18 +98,18 @@ function מופיעה תחת Tools then Macros רק ברגע שהיא מופיע
 
 ## שיתוף מאקרו
 
-המאקרו הוא function ב-bound Apps Script project. כל מי שיש לו גישת עריכה ל-spreadsheet יש לו את המאקרו זמין; הוא לא צריך להתקין כלום, והוא לא צריך גישה לעורך Apps Script אלא אם הוא רוצה לשנות את ה-function. בפעם הראשונה שמישהו מריץ אותה הוא מקבל OAuth consent prompt; אחרי זה זה פשוט עובד.
+המאקרו הוא function ב-bound Apps Script project. לכל מי שיש גישת עריכה ל-spreadsheet יש את המאקרו זמין; הוא לא צריך להתקין כלום, והוא לא צריך גישה לעורך Apps Script אלא אם הוא רוצה לשנות את ה-function. בפעם הראשונה שמישהו מריץ אותו הוא מקבל OAuth consent prompt; אחרי זה זה פשוט עובד.
 
-ה-catch בשיתוף: **קיצור המקלדת הוא פר-משתמש, פר-spreadsheet.** ה-buyer שפתח את ה-spreadsheet בפעם הראשונה צריך ללכת ל-Tools then Macros then Manage macros ולהקצות קיצור משלו. ברירת המחדל ב-manifest היא מה שכל משתמש חדש מתחיל ממנה, אבל הוא יכול לעקוף אותה מקומית.
+ה-catch בשיתוף: **קיצור המקלדת הוא פר-משתמש, פר-spreadsheet.** ה-buyer שפותח את ה-spreadsheet בפעם הראשונה צריך ללכת ל-Tools then Macros then Manage macros ולהקצות קיצור משלו. ברירת המחדל ב-manifest היא מה שכל משתמש חדש מתחיל ממנה, אבל הוא יכול לעקוף אותה מקומית.
 
-## כתיבות Apps Script אינן ניתנות לביטול
+## כתיבות של Apps Script אינן ניתנות לביטול
 
-זו ההפתעה הכי כואבת בכל מאקרו. **Ctrl+Z לא מבטל את מה שמאקרו עשתה.** כתיבות Apps Script עוברות במסלול API שונה מעריכות משתמש, וערימת ה-undo היא לעריכות משתמש בלבד. מאקרו שדורסת 500 שורות עם נתונים לא נכונים משאירה את ה-buyer בלי דרך חזרה חוץ משחזור מהיסטוריית הגרסאות (Track 4 שיעור 10 מלווה את תהליך השחזור מקצה לקצה).
+זו ההפתעה הכי כואבת בכל מאקרו. **Ctrl+Z לא מבטל את מה שמאקרו עשה.** כתיבות של Apps Script עוברות במסלול API שונה מעריכות של משתמש, וערימת ה-undo היא לעריכות משתמש בלבד. מאקרו שדורס 500 שורות עם נתונים לא נכונים משאיר את ה-buyer בלי דרך חזרה חוץ משחזור מהיסטוריית הגרסאות (Track 4 שיעור 10 מלווה את תהליך השחזור מקצה לקצה).
 
 שתי השלכות על איך כותבים מאקרו:
 
 1. **מאשרים לפני כל שינוי הרסני.** gate של `ui.alert("This will overwrite the Aggregator tab. Continue?", ui.ButtonSet.YES_NO)` לפני `setValues` שדורס 500 שורות הוא חובה, לא אופציה.
-2. **Snapshot לפני שינוי.** מאקרו שמשנה שורות במקום יכולה להתחיל בהעתקת ה-range המקורי ל-tab "Backup" מוסתר. ביטוח זול.
+2. **Snapshot לפני שינוי.** מאקרו שמשנה שורות במקום יכול להתחיל בהעתקת ה-range המקורי ל-tab "Backup" מוסתר. ביטוח זול.
 
 <StepThrough
   frames={[
@@ -117,7 +117,7 @@ function מופיעה תחת Tools then Macros רק ברגע שהיא מופיע
       caption: "שלב 1: כותבים את ה-function ב-Code.gs",
       body: (
         <>
-          Apps Script פשוט:{" "}
+          Apps Script רגיל:{" "}
           <code>function formatNewMonth() {`{...}`}</code>. שומרים את הפרויקט.
           ה-function ניתנת לקריאה מ-Run dropdown מיד, אבל היא עדיין לא מאקרו.
         </>
@@ -138,7 +138,7 @@ function מופיעה תחת Tools then Macros רק ברגע שהיא מופיע
       body: (
         <>
           בפעם הבאה שה-workbook נטען מחדש, Tools then Macros מציג את המאקרו
-          החדש לפי <code>menuName</code> שלו. לחיצה עליה מריצה את
+          החדש לפי ה-<code>menuName</code> שלו. לחיצה עליו מריצה את
           <code>functionName</code> מרשומת ה-manifest.
         </>
       ),
@@ -149,7 +149,7 @@ function מופיעה תחת Tools then Macros רק ברגע שהיא מופיע
         <>
           ה-<code>defaultShortcut</code> הוא מה שכל משתמש חדש רואה. ה-buyer
           יכול לעקוף אותו מקומית דרך Tools then Macros then Manage macros.
-          שני buyers יכולים שיהיו להם קיצורים שונים לאותו מאקרו.
+          לשני buyers יכולים להיות קיצורים שונים לאותו מאקרו.
         </>
       ),
     },
@@ -157,13 +157,13 @@ function מופיעה תחת Tools then Macros רק ברגע שהיא מופיע
 />
 
 <QuickCheck
-  question="חבר צוות מריץ את המאקרו 'Format new month' שלכם מתא D17 במקום F2. העמודה הלא נכונה מקבלת פורמט. השתמשתם ב-macro recorder של Sheets כדי לכתוב אותה. מה התיקון?"
+  question="חבר צוות מריץ את המאקרו 'Format new month' שלכם מתא D17 במקום מ-F2. העמודה הלא נכונה מקבלת פורמט. השתמשתם ב-macro recorder של Sheets כדי לכתוב אותו. מה התיקון?"
   options={[
     {
       id: "a",
       label: "להוסיף ui.alert בתחילת המאקרו שמבקש מהמשתמש לאשר את התא היעד.",
       correct: false,
-      explanation: "אישור עוזר, אבל סיבת השורש היא שהמאקרו משתמשת ב-getCurrentCell() במקום ב-range מפורש. התיקון הנכון הוא להפוך את היעד למפורש בקוד.",
+      explanation: "אישור עוזר, אבל סיבת השורש היא שהמאקרו משתמש ב-getCurrentCell() במקום ב-range מפורש. התיקון הנכון הוא להפוך את היעד למפורש בקוד.",
     },
     {
       id: "b",
@@ -189,17 +189,17 @@ function מופיעה תחת Tools then Macros רק ברגע שהיא מופיע
 
 הקובץ ההתחלתי `Lesson.gs` מצהיר על `function formatSpendColumn()` עם TODO. שלושה צעדים:
 
-1. מקבלים את ה-sheet של Campaigns דרך `SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns")`.
-2. מיישמים את פורמט המטבע ל-F2:F61: `sheet.getRange("F2:F61").setNumberFormat("$#,##0.00")`. ה-pattern משתמש ב-`#` לספרות אופציונליות, `0` לספרות חובה, הפסיק לקיבוץ אלפים, הנקודה ו-`00` לדיוק שני מקומות עשרוניים, ו-`$` לסמל המטבע המילולי.
-3. מקפיאים את שורת הכותרת: `sheet.setFrozenRows(1)`. עכשיו שורה 1 נשארת נראית בזמן גלילה, חיוני כשה-sheet גדל מעבר למסך אחד.
+1. משיגים את ה-sheet של Campaigns דרך `SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns")`.
+2. מיישמים את פורמט המטבע ל-F2:F61: `sheet.getRange("F2:F61").setNumberFormat("$#,##0.00")`. ה-pattern משתמש ב-`#` לספרות אופציונליות, `0` לספרות חובה, הפסיק לקיבוץ אלפים, הנקודה ו-`00` לדיוק של שני מקומות עשרוניים, ו-`$` לסמל המטבע המילולי.
+3. מקפיאים את שורת הכותרת: `sheet.setFrozenRows(1)`. עכשיו שורה 1 נשארת גלויה בזמן גלילה, חיוני כשה-sheet גדל מעבר למסך אחד.
 
-מריצים את ה-function פעם אחת מ-Run dropdown של עורך Apps Script. F2:F61 מציגים כ-`$412.50`, `$285.30`, וכו'. שורה 1 נשארת מוצמדת כשגוללים.
+מריצים את ה-function פעם אחת מ-Run dropdown של עורך Apps Script. F2:F61 מציגים `$412.50`, `$285.30`, וכו'. שורה 1 נשארת מוצמדת כשגוללים.
 
 ב-workbook אמיתי הייתם אז רושמים את זה כמאקרו דרך Extensions then Macros then Manage macros כך שיופיע תחת Tools then Macros עם קיצור.
 
 ## נפוץ בשטח
 
-המאקרו "Format new month" של הצוות הוא המקרה הקנוני. בתחילת כל חודש מוסיפים tab חדש עם אותה צורת עמודה כמו של החודש הקודם. המאקרו מיישם:
+המאקרו "Format new month" של הצוות הוא המקרה הקנוני. בתחילת כל חודש מוסיפים tab חדש עם אותו מבנה עמודות כמו של החודש הקודם. המאקרו מיישם:
 
 | עמודה | פורמט |
 |---|---|
@@ -212,18 +212,18 @@ function מופיעה תחת Tools then Macros רק ברגע שהיא מופיע
 
 מאקרו אחרים ב-workbooks של הצוות:
 
-- **"Archive month"** מעתיק את ה-tab של Aggregator הנוכחי ל-sheet גיבוי מתויג בתאריך ומנקה את המקור.
+- **"Archive month"** מעתיק את ה-tab של Aggregator הנוכחי ל-sheet גיבוי שמתויג בתאריך ומנקה את המקור.
 - **"Mark dead campaigns"** מציב את ה-kill switch על כל שורה שבה ROI ירד מתחת ל-0.5 שלושה ימים רצופים.
 - **"Recompute ROI column"** מריץ recalc מכוון של עמודה H (ROI) כשהעמודה נערכה ביד וצריך recalc טרי.
-- **"Snap aggregator to staging"** מעתיק את ה-tab של Aggregator ל-tab Staging כדי שה-buyer יסקור לפני הכתיבה ל-production. רצף מאקרו של שני צעדים (snap, review, commit) הוא רשת הביטחון של הצוות לפעולות batch הרסניות.
+- **"Snap aggregator to staging"** מעתיק את ה-tab של Aggregator ל-tab של Staging כדי שה-buyer יסקור לפני הכתיבה ל-production. רצף מאקרו של שני שלבים (snap, review, commit) הוא רשת הביטחון של הצוות לפעולות batch הרסניות.
 
 ## מלכודות מקצועיות
 
-- **מאקרו מוקלטים שמשתמשים ב-`getCurrentCell()`.** הם מפרמטים את התא שהמשתמש במקרה נמצא עליו. מחליפים את `spreadsheet.getCurrentCell()` ב-`sheet.getRange("F2:F61")` (או כל מה שהמאקרו באמת אמורה לכוון אליו) ברגע שהמאקרו מוקלטת.
-- **מאקרו שמקודדים A1 references שנשברים כשמוסיפים עמודות.** מאקרו שמכוונת ל-`F2:F61` תמשיך לכוון ל-F2:F61 גם אחרי שהצוות מוסיף עמודת "Country" בין E ל-F, ועכשיו המאקרו מפרמטת את העמודה הלא נכונה. או שמשתמשים בשם העמודה במקום (מחפשים אותה לפי טקסט כותרת) או משתמשים ב-named ranges שזזות עם הוספות.
-- **מאקרו שלא ניתנות לביטול נקי.** כתיבות Apps Script אינן ב-stack של ה-undo. מאקרו שדורסת את ה-range הלא נכון משאירה את המשתמש בלי מוצא חוץ מ-File then Version history. שמים gate על מאקרו הרסניות עם `ui.alert(..., ui.ButtonSet.YES_NO)`.
-- **מאקרו שלוקחות יותר מ-30 שניות.** simple triggers (כולל מאקרו שמופעלות מתפריט Tools) יש להן timeout רך של 30 שניות בחלק מההקשרים ו-timeout קשה של 6 דקות באחרים. מאקרו שמתבצעת לולאה תא-תא על 50,000 שורות תפגע במגבלה. batch reads עם `getValues()` ו-batch writes עם `setValues()` (ה-pattern של שיעור 4) שומרים את רוב המאקרו בקלות מתחת לשנייה.
-- **`menuName` ו-`functionName` שמתפצלים זה מזה.** ה-`functionName` ברשומת ה-manifest ושם ה-JS function בפועל מותאמים לפי מחרוזת. שינוי שם של ה-JS function בלי לעדכן את ה-manifest משאיר את Tools then Macros מציג את השם הישן אבל מצביע ללא כלום; לחיצה ושום דבר לא קורה.
-- **קיצור מקלדת שמתנגש עם קיצור דפדפן.** `Ctrl+Alt+Shift+1` ברובו בטוח אבל Sheets מציגה לפעמים קיצורים פנימיים חדשים. אם קיצור מאקרו מפסיק לעבוד, בודקים Tools then Macros then Manage macros כדי לאשר שהוא עדיין ממופה, ובוחרים שילוב אחר אם צריך.
-- **מאקרו שנוגעות ב-workbooks אחרים.** מאקרו שנקראת מ-Tools רצה עם ה-scope של auth של ה-workbook, שכברירת מחדל הוא `spreadsheets.currentonly`. ניסיון לעשות `SpreadsheetApp.openById(...)` של קובץ אחר ממאקרו ייכשל עד שמרחיבים את ה-scope ב-manifest. או מרחיבים את ה-scope בכוונה או מעבירים את העבודה בין workbooks ל-trigger מבוסס-זמן שיש לו scope משלו (רחב יותר).
-- **מאקרו שתלויות ב-active sheet.** מאקרו שקוראת ל-`getActiveSheet().getRange(...)` תשתמש ב-tab שהמשתמש במקרה מסתכל עליו. תמיד משתמשים ב-`getSheetByName("Campaigns")` גם אם המשתמש "תמיד" מריץ את המאקרו מה-tab של Campaigns; ביום שהוא ירוץ אותה מ-"Drafts" המאקרו תפרמט בשקט את ה-tab הלא נכון.
+- **מאקרו מוקלטים שמשתמשים ב-`getCurrentCell()`.** הם מפרמטים את התא שהמשתמש במקרה נמצא עליו. מחליפים את `spreadsheet.getCurrentCell()` ב-`sheet.getRange("F2:F61")` (או כל מה שהמאקרו באמת אמור לכוון אליו) ברגע שהמאקרו הוקלט.
+- **מאקרו שמקודדים A1 references שנשברים כשמוסיפים עמודות.** מאקרו שמכוון ל-`F2:F61` ימשיך לכוון ל-F2:F61 גם אחרי שהצוות מוסיף עמודת "Country" בין E ל-F, ועכשיו המאקרו מפרמט את העמודה הלא נכונה. או שמשתמשים בשם העמודה במקום (מחפשים אותה לפי טקסט כותרת) או משתמשים ב-named ranges שזזים עם הוספות.
+- **מאקרו שלא ניתנים לביטול נקי.** כתיבות של Apps Script אינן ב-stack של ה-undo. מאקרו שדורס את ה-range הלא נכון משאיר את המשתמש בלי מוצא חוץ מ-File then Version history. שמים gate על מאקרו הרסניים עם `ui.alert(..., ui.ButtonSet.YES_NO)`.
+- **מאקרו שלוקחים יותר מ-30 שניות.** ל-simple triggers (כולל מאקרו שמופעלים מתפריט Tools) יש timeout רך של 30 שניות בחלק מההקשרים ו-timeout קשה של 6 דקות באחרים. מאקרו שעובר בלולאה תא-תא על 50,000 שורות יפגע במגבלה. batch reads עם `getValues()` ו-batch writes עם `setValues()` (ה-pattern של שיעור 4) שומרים את רוב המאקרו בקלות מתחת לשנייה.
+- **`menuName` ו-`functionName` שמתפצלים זה מזה.** ה-`functionName` ברשומת ה-manifest ושם ה-JS function בפועל מותאמים לפי מחרוזת. שינוי שם של ה-JS function בלי לעדכן את ה-manifest משאיר את Tools then Macros מציג את השם הישן אבל מצביע על כלום; לחיצה ושום דבר לא קורה.
+- **קיצור מקלדת שמתנגש עם קיצור של דפדפן.** `Ctrl+Alt+Shift+1` ברובו בטוח אבל Sheets מציגה מדי פעם קיצורים פנימיים חדשים. אם קיצור של מאקרו מפסיק לעבוד, בודקים ב-Tools then Macros then Manage macros שהוא עדיין ממופה, ובוחרים שילוב אחר אם צריך.
+- **מאקרו שנוגעים ב-workbooks אחרים.** מאקרו שנקרא מ-Tools רץ עם ה-scope של auth של ה-workbook, שכברירת מחדל הוא `spreadsheets.currentonly`. ניסיון לעשות `SpreadsheetApp.openById(...)` של קובץ אחר ממאקרו ייכשל עד שמרחיבים את ה-scope ב-manifest. או מרחיבים את ה-scope בכוונה או מעבירים את העבודה שבין workbooks ל-trigger מבוסס-זמן שיש לו scope משלו (רחב יותר).
+- **מאקרו שתלויים ב-active sheet.** מאקרו שקורא ל-`getActiveSheet().getRange(...)` ישתמש ב-tab שהמשתמש במקרה מסתכל עליו. תמיד משתמשים ב-`getSheetByName("Campaigns")` גם אם המשתמש "תמיד" מריץ את המאקרו מה-tab של Campaigns; ביום שהוא יריץ אותו מ-"Drafts" המאקרו יפרמט בשקט את ה-tab הלא נכון.

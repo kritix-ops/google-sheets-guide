@@ -4,7 +4,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 שיעור 3 הראה איך custom function קוראת את הארגומנטים שלה מתא. זה המסלול הזול והמהיר: ה-function לא יודעת כלום על שאר ה-workbook ולא יכולה לכתוב חזרה. ברגע שצריכים לעדכן תאים, להעתיק ערכים בין tabs, או לעבור על גיליון שלם, יוצאים מה-sandbox של custom function ועוברים לעבוד ישירות מול **`SpreadsheetApp`**. זה השירות ששאר Track 3 נשען עליו עבור menus, macros ו-triggers, אז הצורה של ה-API שלו ומודל הביצועים שלו חשובים.
 
-המודל המנטלי: `SpreadsheetApp` הוא עץ של שלושה סוגי objects. אתם הולכים למטה מה-spreadsheet (הקובץ), ל-sheet (tab אחד), לטווח (מלבן של תאים). כל method שאתם קוראים שולח בקשה לשרתי Google, אז ההרגלים מודעי-העלות שאתם בונים בשיעור הזה ניתנים להרחבה כל הדרך ל-playbook של ה-batching בשיעור 16. ה-trigger הלילי של 50,000 שורות וה-auto-fill של on-edit על 5 תאים נכתבים באותה צורה: לנווט לטווח הנכון, לקרוא או לכתוב פעם אחת.
+המודל המנטלי: `SpreadsheetApp` הוא עץ של שלושה סוגי objects. יורדים מה-spreadsheet (הקובץ), ל-sheet (tab אחד), לטווח (מלבן של תאים). כל method שאתם קוראים שולח בקשה לשרתי Google, אז ההרגלים מודעי-העלות שאתם בונים בשיעור הזה רלוונטיים כל הדרך עד ל-playbook של ה-batching בשיעור 16. ה-trigger הלילי של 50,000 שורות וה-auto-fill של on-edit על 5 תאים נכתבים באותה צורה: מנווטים לטווח הנכון, קוראים או כותבים פעם אחת.
 
 ## ההיררכיה של שלושת ה-objects
 
@@ -19,11 +19,11 @@ const values = range.getValues();                      // מערך דו-ממדי
 
 | Object | מה הוא מייצג | מה עושים איתו |
 |---|---|---|
-| `Spreadsheet` | כל הקובץ (זה עם URL ב-Drive). | מציגים sheets, מוסיפים sheet, מגדירים את שם ה-spreadsheet. |
+| `Spreadsheet` | כל הקובץ (זה שיש לו URL ב-Drive). | מציגים sheets, מוסיפים sheet, מגדירים את שם ה-spreadsheet. |
 | `Sheet` | tab אחד בקובץ. | מקבלים את כמות השורות, freeze rows, קובעים את ה-active sheet, מקבלים range מה-tab הזה. |
 | `Range` | מלבן של תאים ב-sheet. | קוראים או כותבים ערכים, קובעים פורמט מספרי, מיישמים conditional formatting, מנקים תוכן. |
 
-לערבב ביניהם זו הטעות הראשונה של מתחילים. `sheet.setValue(...)` לא קיים; רק ל-`Range` יש `setValue`. `range.getSheetByName(...)` גם לא קיים; `getSheetByName` שייך ל-`Spreadsheet`. הודעת השגיאה ("TypeError: sheet.setValue is not a function") מצביעה על ה-object הלא נכון, לא על הלוגיקה הלא נכונה.
+לערבב ביניהם זו הטעות הראשונה של מתחילים. `sheet.setValue(...)` לא קיים; רק ל-`Range` יש `setValue`. `range.getSheetByName(...)` גם לא קיים; `getSheetByName` שייך ל-`Spreadsheet`. הודעת השגיאה ("TypeError: sheet.setValue is not a function") מצביעה על ה-object הלא נכון, לא על הלוגיקה השגויה.
 
 <Compare>
   <ComparePanel label="object לא נכון" tone="negative">
@@ -50,14 +50,14 @@ cell.setValue(12345);            // כותב
 const back = cell.getValue();    // קורא, מחזיר 12345
 ```
 
-שתי עובדות שעוקצות מאוחר יותר:
+שתי עובדות שיעקצו אתכם בהמשך:
 
 1. **כל קריאת method הולכת לשרתי Google.** Apps Script לא רץ מקומית ליד ה-spreadsheet שלכם. ה-script חי על תשתית של Google, ה-spreadsheet חי על תשתית של Google, וכל `getValue` / `setValue` הוא קריאת רשת ביניהם. פר-תא על מאה תאים זה מאה round-trips. על אלף זה freeze מורגש.
-2. **`getValue()` מחזיר מה שיש בתא.** מספרים חוזרים כמספרי JS, מחרוזות כמחרוזות, תאריכים כ-`Date` objects, booleans כ-booleans, תאים ריקים כמחרוזת ריקה. האחרון זה ההפתעה: תא ריק הוא `""`, לא `null` או `undefined`.
+2. **`getValue()` מחזיר את מה שיש בתא.** מספרים חוזרים כמספרי JS, מחרוזות כמחרוזות, תאריכים כ-`Date` objects, booleans כ-booleans, תאים ריקים כמחרוזת ריקה. האחרון זה ההפתעה: תא ריק הוא `""`, לא `null` או `undefined`.
 
-## ה-batch reads ו-writes
+## batch reads ו-writes
 
-הדרך הנכונה לקרוא או לכתוב יותר מתא אחד בזמן היא לקבל **`Range`** שמכסה את כולם ולהשתמש בצורות הרבים:
+הדרך הנכונה לקרוא או לכתוב יותר מתא אחד בבת אחת היא להשיג **`Range`** שמכסה את כולם ולהשתמש בצורות הרבים:
 
 ```js
 const range  = sheet.getRange("F2:F61");      // 60 תאים, עמודה F
@@ -71,16 +71,16 @@ for (const row of values) total += row[0];
 sheet.getRange("J1").setValue(total);          // round-trip אחד
 ```
 
-זהו. שני round-trips לעשות את העבודה של 120 (`getValue` × 60 קריאות + `setValue` × 60 כתיבות אם הייתם כותבים את זה בצורה הנאיבית). על sheet עם 50,000 שורות ההבדל הוא script שמסיים תוך שלוש שניות מול timeout בשש דקות.
+זהו. שני round-trips לעשות את העבודה של 120 (`getValue` × 60 קריאות + `setValue` × 60 כתיבות אם הייתם כותבים את זה בצורה הנאיבית). על sheet עם 50,000 שורות, ההבדל הוא script שמסיים תוך שלוש שניות מול timeout בשש דקות.
 
 <StepThrough
   frames={[
     {
-      caption: "שלב 1: לקבל Range על 60 התאים",
+      caption: "שלב 1: משיגים Range על 60 התאים",
       body: (
         <>
           <code>sheet.getRange("F2:F61")</code> מחזיר handle של Range. אין
-          קריאת רשת עדיין: ה-handle הוא רק reference A1 ארוז ל-JS object.
+          קריאת רשת עדיין: ה-handle הוא רק reference מסוג A1 ארוז ל-JS object.
         </>
       ),
     },
@@ -99,7 +99,7 @@ sheet.getRange("J1").setValue(total);          // round-trip אחד
       body: (
         <>
           הלולאה <code>for ... of</code> רצה בתהליך V8 של ה-script שלכם על
-          תשתית של Google. אין רשת כאן, רק חשבון JS. אפילו על 50,000 שורות
+          תשתית של Google. אין רשת כאן, רק חישובי JS. אפילו על 50,000 שורות
           זה אלפית שנייה.
         </>
       ),
@@ -109,14 +109,14 @@ sheet.getRange("J1").setValue(total);          // round-trip אחד
       body: (
         <>
           <code>setValue</code> אחד ל-J1. עוד round-trip אחד. סך הכל שתי
-          קריאות רשת לכל העבודה, בלי קשר לכמות שורות הקלט.
+          קריאות רשת לכל העבודה, בלי קשר לכמות שורות בקלט.
         </>
       ),
     },
   ]}
 />
 
-הצורה של `getValues()` היא ה-catch שאף אחד לא מזהיר עליו: **תמיד מערך דו-ממדי, אפילו לעמודה אחת או שורה אחת.** קריאה של עמודה אחת מחזירה `[[v1], [v2], [v3], ...]`. קריאה של שורה אחת מחזירה `[[v1, v2, v3, ...]]`. קריאה של תא יחיד דרך `getRange("J1").getValues()` מחזירה `[[v]]`. הצורה עקבית כך שאותה לולאה עובדת בכל מקרה, אבל בפעם הראשונה שתנסו לסכום `range.getValues()` ישירות עם `.reduce((a, b) => a + b, 0)` תקבלו בלגן של string-concatenation כי כל `b` הוא בעצמו מערך.
+הצורה של `getValues()` היא המלכודת שאף אחד לא מזהיר עליה: **תמיד מערך דו-ממדי, אפילו עבור עמודה אחת או שורה אחת.** קריאה של עמודה אחת מחזירה `[[v1], [v2], [v3], ...]`. קריאה של שורה אחת מחזירה `[[v1, v2, v3, ...]]`. קריאה של תא יחיד דרך `getRange("J1").getValues()` מחזירה `[[v]]`. הצורה עקבית כך שאותה לולאה עובדת בכל מקרה, אבל בפעם הראשונה שתנסו לסכום `range.getValues()` ישירות עם `.reduce((a, b) => a + b, 0)` תקבלו בלגן של string-concatenation כי כל `b` הוא בעצמו מערך.
 
 <Compare>
   <ComparePanel label="צורה לא נכונה: reduce על 2D" tone="negative">
@@ -142,7 +142,7 @@ sheet.getRange("F2:F61");        // צורת A1
 sheet.getRange(2, 6, 60, 1);     // (startRow, startCol, numRows, numCols)
 ```
 
-שניהם מתייחסים לאותה חתיכה של 60 תאים בעמודה. **הצורה של המספרים השלמים היא 1-indexed.** `getRange(2, 6, ...)` מתחיל בשורה 2, עמודה 6 (F). המוסכמה של 1-indexed תואמת לאותיות העמודה בכתובות התאים (A = 1, B = 2, ...) אבל היא לא מסכימה עם שאר JavaScript, שבו מערכים הם 0-indexed. טעות נפוצה היא לכתוב `sheet.getRange(0, 0, ...)` ולקבל exception על range לא חוקי.
+שניהם מתייחסים לאותה חתיכה של 60 תאים בעמודה. **הצורה של המספרים השלמים היא 1-indexed.** `getRange(2, 6, ...)` מתחיל בשורה 2, עמודה 6 (F). המוסכמה של 1-indexed תואמת לאותיות העמודה בכתובות התאים (A = 1, B = 2, ...) אבל היא לא תואמת לשאר JavaScript, שבו מערכים הם 0-indexed. טעות נפוצה היא לכתוב `sheet.getRange(0, 0, ...)` ולקבל exception על range לא חוקי.
 
 הצורה של ארבעת המספרים השלמים משתלמת כשמחשבים את הגבולות באופן דינמי:
 
@@ -152,13 +152,13 @@ const lastCol = sheet.getLastColumn();          // העמודה האחרונה �
 const all = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
 ```
 
-זה קורא כל תא מאוכלס חוץ מה-header ב-round-trip אחד. ה-function של האגרגטור הלילי של הצוות היא בדיוק הצורה הזו: `getValues()` אחד פר-tab מקור, מנרמלים ומחברים בזיכרון JavaScript, `setValues()` אחד ל-tab הפלט.
+זה קורא כל תא מאוכלס חוץ מה-header ב-round-trip אחד. ה-function של האגרגטור הלילי של הצוות היא בדיוק בצורה הזו: `getValues()` אחד פר-tab מקור, מנרמלים ומחברים בזיכרון JavaScript, `setValues()` אחד ל-tab הפלט.
 
 ## `getLastRow`, `getLastColumn`, ומלכודת השורות הריקות הנגררות
 
 `getLastRow()` מחזיר את מספר השורה של התא האחרון שיש בו תוכן כלשהו. המלכודת: "יש בו תוכן" דביק. אם אי פעם הקלדתם משהו לשורה 5000 ומחקתם, ה-sheet זוכר, ו-`getLastRow()` יכול להחזיר 5000 גם כשהנתונים הנראים מסתיימים בשורה 200.
 
-שתי דרכים שזה עוקץ:
+שתי דרכים שבהן זה עוקץ:
 
 ```js
 // אתם מצפים ל-60 שורות נתונים אבל ה-sheet "זוכר" שורה 5000 ישנה:
@@ -170,9 +170,9 @@ const values = range.getValues();
 התיקון הוא אחד מהשניים:
 
 1. **קוראים את עמודת הנתונים האמיתית כדי למצוא את השורה האחרונה האמיתית שלה** (למשל, סורקים את עמודה A לתא הלא-ריק האחרון), או
-2. **מקצצים שורות ghost על ידי בחירתן, click ימני ואז Delete rows.** זה באמת מסיר אותן מספירת השורות של ה-sheet, לא רק מנקה אותן.
+2. **מקצצים שורות ghost על ידי בחירה שלהן, קליק ימני ואז Delete rows.** זה באמת מסיר אותן מספירת השורות של ה-sheet, לא רק מנקה אותן.
 
-ב-workbook מרובה-sheets שמושך נתונים דרך `IMPORTRANGE` מ-workbook שותף, `getLastRow` ב-sheet היבוא יכול להחזיר יותר ממה ש-IMPORTRANGE הפיק אם ה-sheet היעד היה גדול יותר בעבר. תמיד מאמתים מול עמודת הנתונים שאתם באמת מעוניינים בה, לא מול `getLastRow()` לבד.
+ב-workbook מרובה-sheets שמושך נתונים דרך `IMPORTRANGE` מ-workbook שותף, `getLastRow` ב-sheet המייבא יכול להחזיר יותר ממה ש-IMPORTRANGE הפיק אם ה-sheet היעד היה גדול יותר בעבר. תמיד מאמתים מול עמודת הנתונים שאתם באמת מעוניינים בה, לא מול `getLastRow()` לבד.
 
 <QuickCheck
   question="אתם כותבים `const total = sheet.getRange('F2:F61').getValues().reduce((a, b) => a + b, 0);` ו-total יוצא מחרוזת ארוכה שמתחילה ב-'0412.5...'. מה קורה?"
@@ -181,17 +181,17 @@ const values = range.getValues();
       id: "a",
       label: "התאים מכילים טקסט, לא מספרים. אכפו המרה עם parseFloat.",
       correct: false,
-      explanation: "התאים מכילים מספרים, אבל getValues מחזיר מערך דו-ממדי. כל b ב-reduce הוא בעצמו מערך של איבר אחד, ו-0 + [412.5] מומר למחרוזת.",
+      explanation: "התאים מכילים מספרים, אבל getValues מחזיר מערך דו-ממדי. כל b ב-reduce הוא בעצמו מערך של איבר אחד, ו-0 + [412.5] נכפה למחרוזת.",
     },
     {
       id: "b",
-      label: "getValues מחזיר מערך דו-ממדי. כל b הוא מערך שורה; אתם צריכים b[0] כדי לקבל את המספר האמיתי.",
+      label: "getValues מחזיר מערך דו-ממדי. כל b הוא מערך של שורה; אתם צריכים b[0] כדי לקבל את המספר האמיתי.",
       correct: true,
-      explanation: "נכון. אפילו קריאה של עמודה אחת מעוצבת כ-[[v], [v], [v], ...]. השתמשו ב-reduce עם (a, b) => a + b[0] או flatten את המערך קודם.",
+      explanation: "נכון. אפילו קריאה של עמודה אחת חוזרת בצורה [[v], [v], [v], ...]. השתמשו ב-reduce עם (a, b) => a + b[0] או עשו flatten למערך קודם.",
     },
     {
       id: "c",
-      label: "reduce דורש סוג התחלתי מפורש. ה-accumulator ההתחלתי הריק היה כופה concatenation.",
+      label: "reduce דורש סוג התחלתי מפורש. accumulator התחלתי ריק היה כופה concatenation.",
       correct: false,
       explanation: "הערך ההתחלתי כאן הוא 0 (מספר). ה-string-coercion קורה כי כל b הוא מערך, לא כי הערך ההתחלתי לא נכון.",
     },
@@ -200,7 +200,7 @@ const values = range.getValues();
 
 ## function שנייה מעובדת: לתייג שורות עם המייל של העורך
 
-צורה שונה מהדוגמה של סכימת ה-spend: לכתוב עמודת ערכים שמחושבת מעמודה אחרת, פלוס ערך runtime (המייל של המשתמש הפעיל). זה אותו pattern שה-trigger של on-edit של הצוות משתמש בו כדי לחתום את העורך של כל שורת קמפיין חדשה, רק ארוז כ-one-shot ידני כאן.
+צורה שונה מהדוגמה של סכימת ה-spend: לכתוב עמודת ערכים שמחושבת מעמודה אחרת, פלוס ערך runtime (המייל של המשתמש הפעיל). זה אותו pattern שה-trigger של on-edit של הצוות משתמש בו כדי לחתום את העורך של כל שורת קמפיין חדשה, רק ארוז כפעולה ידנית של one-shot כאן.
 
 ```js
 function tagEditorOnEachRow() {
@@ -220,10 +220,10 @@ function tagEditorOnEachRow() {
 
 | חלק | מה זה עושה |
 |---|---|
-| `Session.getActiveUser().getEmail()` | קורא את המייל של משתמש ה-runtime. ב-custom function זה היה ריק (cell-context auth צר מדי); מ-handler של menu או trigger זה מחזיר את הכתובת. |
-| שומר `lastRow < 2` | מונע `getRange(2, 2, -1, 1)`, שזורק. תמיד בודקים לפני חישוב מימדי range מספירת שורות. |
+| `Session.getActiveUser().getEmail()` | קורא את המייל של המשתמש שמריץ. ב-custom function זה היה ריק (cell-context auth צר מדי); מ-handler של menu או trigger זה מחזיר את הכתובת. |
+| הבדיקה `lastRow < 2` | מונעת `getRange(2, 2, -1, 1)`, שזורק. תמיד בודקים לפני חישוב מימדי range מספירת שורות. |
 | `.map(row => [row[0] ? row[0] : editor])` | map על המערך הדו-ממדי ומפיק מערך דו-ממדי באותה צורה. כתיבה לתא יחיד דורשת `[value]`, לא `value`. |
-| `setValues(tags)` עם צורה תואמת | Range הוא `lastRow - 1` שורות × עמודה 1; `tags` תואם את הצורה הזו. צורות שלא תואמות זורקות "The number of rows in the data does not match the number of rows in the range". |
+| `setValues(tags)` עם צורה תואמת | Range הוא `lastRow - 1` שורות × עמודה אחת; `tags` תואם את הצורה הזו. צורות שלא תואמות זורקות "The number of rows in the data does not match the number of rows in the range". |
 
 ה-function הזו עובדת רק כשקוראים לה מ-menu item או מ-trigger, לא מתא. מתא, `Session.getActiveUser()` מחזיר משתמש ריק ו-`setValues` אסור. שיעור 5 מכסה menus, שיעור 7 מכסה triggers.
 
@@ -231,16 +231,16 @@ function tagEditorOnEachRow() {
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 8)}
-  caption="לוג ה-Campaigns תופס A1:G61. Spend בעמודה F. המשימה שלכם: לקרוא את כל 60 ערכי ה-spend ב-round-trip אחד, לסכום אותם ב-JavaScript, ולכתוב את הסכום ל-J1."
+  caption="לוג ה-Campaigns תופס A1:G61. Spend נמצא בעמודה F. המשימה שלכם: לקרוא את כל 60 ערכי ה-spend ב-round-trip אחד, לסכום אותם ב-JavaScript, ולכתוב את הסכום ל-J1."
 />
 
 הקובץ ההתחלתי `Lesson.gs` מצהיר על `function recomputeSpend()` עם TODO ריק. שלושה צעדים:
 
-1. מקבלים את ה-sheet של Campaigns דרך `SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns")`.
+1. משיגים את ה-sheet של Campaigns דרך `SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns")`.
 2. קוראים את F2:F61 בקריאה אחת: `const values = sheet.getRange("F2:F61").getValues();`. זוכרים את הצורה של המערך הדו-ממדי: כל entry הוא בעצמו מערך של איבר אחד.
 3. מסכמים את המספרים וכותבים את הסכום ל-J1: `sheet.getRange("J1").setValue(total);`.
 
-זו לא custom function. custom functions לא יכולות לכתוב חזרה ל-sheet (שיעור 3 כיסה למה). `recomputeSpend` רץ מ-Run dropdown של עורך Apps Script, או מ-menu item שאתם מחברים בשיעור 5, או מ-trigger מבוסס-זמן שאתם מקימים בשיעור 7. לעת עתה: פותחים Apps Script, מדביקים את ה-body, לוחצים Run, ו-J1 צריך להציג את הסכום.
+זו לא custom function. custom functions לא יכולות לכתוב חזרה ל-sheet (שיעור 3 כיסה למה). `recomputeSpend` רץ מ-Run dropdown של עורך Apps Script, או מ-menu item שאתם מחברים בשיעור 5, או מ-trigger מבוסס-זמן שאתם מקימים בשיעור 7. לעת עתה: פותחים Apps Script, מדביקים את ה-body, לוחצים Run, ו-J1 אמור להציג את הסכום.
 
 ## נפוץ בשטח
 
@@ -263,22 +263,22 @@ function aggregateNightly() {
 }
 ```
 
-ארבע קריאות `getValues()` (אחת פר-מקור) פלוס קריאת `setValues()` אחת סך הכל. חמישה round-trips, בלי קשר לאם המקורות יש להם 100 או 100,000 שורות יחד. גרסה של זה שנכתבה תא-תא הייתה עושה timeout ברגע שהנתונים חצו בערך 20,000 שורות.
+ארבע קריאות `getValues()` (אחת פר-מקור) פלוס קריאת `setValues()` אחת סך הכל. חמישה round-trips, בלי קשר לכמה שורות יש למקורות יחד, 100 או 100,000. גרסה של זה שנכתבה תא-תא הייתה עושה timeout ברגע שהנתונים חצו בערך 20,000 שורות.
 
 אותה צורה מופיעה ב:
 
 - **המאקרו "copy from staging to production"** שה-buyer לוחץ עליו בימי שני אחרי סקירת נתוני סוף השבוע.
-- **משרת ה-batch של מנרמל ה-verticals** שקוראת כל שם קמפיין, מקצצת whitespace, מתקנת casing, מבטיחה את הסיומת ` PR`, וכותבת את הערכים הנקיים בחזרה.
-- **הארכיון של סוף החודש** שמעתיק את ה-tab של Aggregator של החודש הנוכחי ל-sheet גיבוי מתויג בתאריך.
+- **ה-batch job של מנרמל ה-verticals** שקורא כל שם קמפיין, מקצץ whitespace, מתקן casing, מוודא את הסיומת ` PR`, וכותב את הערכים הנקיים בחזרה.
+- **הארכוב של סוף החודש** שמעתיק את ה-tab של Aggregator של החודש הנוכחי ל-sheet גיבוי שמתויג בתאריך.
 - **מיגרציית ה-`IMPORTRANGE`-replacement** (שיעור 1.27 מכסה את החלופה החיה שהצוות עובר ממנה), כש-workbook עם `IMPORTRANGE` איטי ממקור של 100k שורות עובר ל-pull יומי של Apps Script: `getValues` אחד מהמקור, `setValues` אחד למראה המקומית, וה-dashboard קורא מהמקומית לשאר היום.
 
 ## מלכודות מקצועיות
 
 - **`getValues` מחזיר `Date` objects לתאי תאריך, לא מחרוזות.** אם אז עושים `setValues` של אותו מערך חזרה ל-sheet אחר וה-format של תא היעד הוא "טקסט רגיל", התאריך מגיע בצורת ה-`toString()` של JS Date (`"Tue May 11 2026 00:00:00 GMT+0300"`), לא ה-`2026-05-11` המקורי. מפרמטים את עמודת היעד כתאריך קודם, או ממירים עם `Utilities.formatDate(...)` לפני הכתיבה.
-- **off-by-one עם `getLastRow`.** רוצים את כל שורות הנתונים חוץ מה-header זה `getRange(2, 1, lastRow - 1, lastCol)`. ה-`- 1` הוא כאב הראש. שוכחים אותו והשורה האחרונה נכללת פעמיים עם שורה ריקה בתחתית הפלט שלכם.
-- **`setValue` עם מערך מציב בשקט את צורת המחרוזת של המערך בתא אחד.** תא בסוף קורא `"412.5,285.3,612"`. ה-method שרציתם היה `setValues` (רבים), והצורה של המערך חייבת להתאים למימדי ה-range.
-- **`setValues` שנכשל עם "The number of rows in the data does not match".** הצורה של המערך הדו-ממדי והצורה של ה-range לא מסכימים. כותבים את המימדים הצפויים של ה-range בהערה ליד הקריאה (`// expects 60x1`); ה-bug מופיע מהר יותר.
-- **`SpreadsheetApp.getActive()` מחזיר `null` בתוך custom function.** custom functions רצות ב-auth context מקוצץ שלא יש לו גישה ל-spreadsheet הפעיל לכתיבה. ה-exception שאתם רואים מטעה; התיקון הוא להעביר את הקוד ל-function רגילה שנקראת מ-menu או trigger.
-- **שורות מקור של `IMPORTRANGE` שמשתנות תחת ה-script שלכם.** אם ה-script קורא את `Aggregator!A2:H` והתוכן של אותו sheet מגיע מ-`IMPORTRANGE`, ספירת השורות יכולה לזוז בין הרגע שאתם קוראים `getLastRow()` לרגע שאתם קוראים `getValues()`. לקריאות קריטיות, לוקחים snapshot אחד של `getValues()` בראש ה-function ועובדים מה-snapshot.
-- **שורות ghost נסתרות מעריכות עבר שמנפחות את `getLastRow`.** שורה 5000 שפעם היה לה תוכן (מאז נמחק) שומרת את `getLastRow` להחזיר 5000. או מוחקים את השורות באמת (click ימני → Delete rows) או סורקים עמודת נתונים ספציפית לגבול האמיתי.
-- **References בין tabs ששוברות בשינוי שם.** `ss.getSheetByName("Taboola raw")` מחזיר `null` אם ה-tab שונה ל-`"Taboola"`. תמיד בודקים את ההחזרה ל-null לפני שקוראים methods נוספים עליה; אחרת השורה הבאה זורקת "Cannot read property 'getRange' of null".
+- **off-by-one עם `getLastRow`.** רוצים את כל שורות הנתונים חוץ מה-header? זה `getRange(2, 1, lastRow - 1, lastCol)`. ה-`- 1` הוא כאב הראש. שוכחים אותו והשורה האחרונה נכללת פעמיים עם שורה ריקה בתחתית הפלט שלכם.
+- **`setValue` עם מערך מציב בשקט את צורת המחרוזת של המערך בתא אחד.** תא בסוף קורא `"412.5,285.3,612"`. ה-method שרציתם הוא `setValues` (רבים), והצורה של המערך חייבת להתאים למימדי ה-range.
+- **`setValues` שנכשל עם "The number of rows in the data does not match".** הצורה של המערך הדו-ממדי והצורה של ה-range לא תואמות. כותבים את המימדים הצפויים של ה-range בהערה ליד הקריאה (`// expects 60x1`); ה-bug מתגלה מהר יותר.
+- **`SpreadsheetApp.getActive()` מחזיר `null` בתוך custom function.** custom functions רצות ב-auth context מצומצם שאין לו גישה ל-spreadsheet הפעיל לכתיבה. ה-exception שאתם רואים מטעה; התיקון הוא להעביר את הקוד ל-function רגילה שנקראת מ-menu או trigger.
+- **שורות מקור של `IMPORTRANGE` שמשתנות מתחת ל-script שלכם.** אם ה-script קורא את `Aggregator!A2:H` והתוכן של אותו sheet מגיע מ-`IMPORTRANGE`, ספירת השורות יכולה לזוז בין הרגע שאתם קוראים `getLastRow()` לרגע שאתם קוראים `getValues()`. לקריאות קריטיות, לוקחים snapshot אחד של `getValues()` בראש ה-function ועובדים מה-snapshot.
+- **שורות ghost נסתרות מעריכות עבר שמנפחות את `getLastRow`.** שורה 5000 שפעם היה לה תוכן (שמאז נמחק) שומרת את `getLastRow` להחזיר 5000. או מוחקים את השורות באמת (קליק ימני → Delete rows) או סורקים עמודת נתונים ספציפית לגבול האמיתי.
+- **References בין tabs שנשברות בשינוי שם.** `ss.getSheetByName("Taboola raw")` מחזיר `null` אם ה-tab שונה ל-`"Taboola"`. תמיד בודקים את ההחזרה מול null לפני שקוראים methods נוספים עליה; אחרת השורה הבאה זורקת "Cannot read property 'getRange' of null".

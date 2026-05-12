@@ -18,7 +18,7 @@ dashboard עובד בדרך כלל מכיל שורה אחת לכל media buyer, 
 
 סוג chart ברירת מחדל הוא `line`. גובה השורה שולט בפיקסלים אנכיים; רוחב העמודה שולט בפיקסלים אופקיים. זו כל הנוסחה. הבחירות המעניינות חיות בארגומנט השני: אובייקט האפשרויות.
 
-<RefDemo
+<TryIt
   data={[
     ["Day", "Revenue"],
     ["Mon", 412],
@@ -29,9 +29,10 @@ dashboard עובד בדרך כלל מכיל שורה אחת לכל media buyer, 
     ["Sat", 540],
     ["Sun", 510],
   ]}
-  formulaCell="D2"
-  initialFormula="=SUM(B2:B8)"
-  hint="נסו =AVERAGE(B2:B8) או =MAX(B2:B8) כדי לראות איך אותו טווח עונה על שאלות שונות. SPARKLINE עצמו לא מתרנדר ב-sandbox, אבל הנתונים כאן הם מה שתא sparkline היה מצייר."
+  inputCell="D2"
+  expectedFormula="=SUM(B2:B8)"
+  task={<>חשבו את סך ההכנסות השבועי עם <code>=SUM(B2:B8)</code>. אחר כך נסו <code>=AVERAGE(B2:B8)</code> או <code>=MAX(B2:B8)</code> כדי לראות איך אותו טווח עונה על שאלות שונות. SPARKLINE עצמו לא מתרנדר ב-sandbox, אבל הנתונים כאן הם מה שתא sparkline היה מצייר.</>}
+  hint={<>sparkline מקבל את אותו טווח ש-<code>SUM</code> או <code>AVERAGE</code> היו מאגדים, והופך אותו לגרף זעיר במקום למספר בודד.</>}
 />
 
 ## ארבעת סוגי ה-chart
@@ -54,7 +55,7 @@ dashboard עובד בדרך כלל מכיל שורה אחת לכל media buyer, 
 
 ## אובייקט האפשרויות
 
-האפשרויות מועברות כמערך דו-עמודתי. בתוך הסוגריים המסולסלים, מפרידים זוגות ב-`;` (מפריד שורה) ואת שם האפשרות מערכה ב-`,` (מפריד עמודה).
+האפשרויות מועברות כמערך דו-עמודתי. בתוך הסוגריים המסולסלים, מפרידים זוגות ב-`;` (מפריד שורה) ואת שם האפשרות מהערך ב-`,` (מפריד עמודה).
 
 ```
 =SPARKLINE(B2:B8, {
@@ -88,7 +89,7 @@ dashboard עובד בדרך כלל מכיל שורה אחת לכל media buyer, 
 | Maya Bar | $3,820 | (sparkline של B3:H3) |
 | Ben Nahum | $5,640 | (sparkline של B4:H4) |
 
-הנוסחה בעמודת המגמה, בהנחה שה-revenue היומי של כל media buyer נמצא בשורה ברוחב 7 עמודות:
+הנוסחה בעמודת המגמה, בהנחה שה-revenue היומי של כל media buyer נמצא בשורה של 7 עמודות:
 
 ```
 =SPARKLINE(B2:H2, {"charttype","line"; "color","#4285F4"; "linewidth",2})
@@ -103,12 +104,12 @@ dashboard עובד בדרך כלל מכיל שורה אחת לכל media buyer, 
   expectedFormula='=SPARKLINE(B2:H2)'
   task={<>הוסיפו sparkline ב-<code>I2</code> שמראה את מגמת ה-revenue של 7 הימים של Yoav Cohen (תאים <code>B2:H2</code>). השתמשו ב-line chart של ברירת המחדל.</>}
   hint={<><code>SPARKLINE(range)</code>. הטווח הוא 7 הערכים היומיים.</>}
-  answer={<>ה-sparkline של ברירת המחדל הוא קו דק. עם אפשרויות אפשר לצבוע אותו, להגדיר גבולות, ולשנות ל-columns/bars/winloss. הרווח הגדול הוא לא ה-chart עצמו אלא פריסת השורה: 50 media buyers × 7 ימים × mini-chart אחד = dashboard במסך אחד. בהשוואה לאובייקט chart נפרד לכל media buyer, sparklines דחוסים בסדר גודל.</>}
+  answer={<>ה-sparkline של ברירת המחדל הוא קו דק. עם אפשרויות אפשר לצבוע אותו, להגדיר גבולות, ולשנות ל-columns/bars/winloss. הרווח הגדול הוא לא ה-chart עצמו אלא פריסת השורה: 50 media buyers × 7 ימים × mini-chart אחד = dashboard במסך אחד. בהשוואה לאובייקט chart נפרד לכל media buyer, sparklines צפופים בסדר גודל.</>}
 />
 
 ## Win/loss לעקביות ROI
 
-sparkline של winloss מצייר סרגל קטן מעל (חיובי) או מתחת (שלילי) לקו הבסיס לכל ערך. הגודל מתעלמים ממנו. רק הכיוון חשוב.
+sparkline של winloss מצייר סרגל קטן מעל (חיובי) או מתחת (שלילי) לקו הבסיס לכל ערך. מתעלמים מהגודל. רק הכיוון חשוב.
 
 ```
 =SPARKLINE(B2:H2, {"charttype","winloss"; "color1","green"; "color2","red"; "negcolor","red"})
@@ -124,7 +125,7 @@ sparkline של winloss מצייר סרגל קטן מעל (חיובי) או מת�
   <ComparePanel label="שבור: פסיק במקום נקודה-פסיק" tone="negative">
     <pre className="font-mono text-xs"><code>{`=SPARKLINE(B2:H2,
   {"charttype","line", "color","blue"})`}</code></pre>
-    <p className="mt-2 text-sm">בתוך מערך האפשרויות, <code>,</code> הוא מפריד העמודה (בין שם האפשרות לערך) ו-<code>;</code> הוא מפריד השורה (בין זוגות). שימוש בפסיק בין זוגות מקפל הכל לשורה אחת, וזה לא צורת אפשרויות חוקית. התוצאה היא parse error.</p>
+    <p className="mt-2 text-sm">בתוך מערך האפשרויות, <code>,</code> הוא מפריד העמודה (בין שם האפשרות לערך) ו-<code>;</code> הוא מפריד השורה (בין זוגות). שימוש בפסיק בין זוגות מקפל הכל לשורה אחת, וזה מבנה אפשרויות לא חוקי. התוצאה היא parse error.</p>
   </ComparePanel>
   <ComparePanel label="עובד: נקודה-פסיק בין זוגות" tone="positive">
     <pre className="font-mono text-xs"><code>{`=SPARKLINE(B2:H2,
@@ -136,12 +137,12 @@ sparkline של winloss מצייר סרגל קטן מעל (חיובי) או מת�
 <Compare>
   <ComparePanel label="שבור: #N/A בטווח הנתונים" tone="negative">
     <pre className="font-mono text-xs"><code>{`=SPARKLINE(VLOOKUP_RESULTS)`}</code></pre>
-    <p className="mt-2 text-sm">אם אפילו תא אחד בטווח הוא <code>#N/A</code> (מ-lookup שבור למעלה), כל ה-sparkline מחזיר <code>#N/A</code>. ה-chart לא מצויר כלל. נפוץ כשטווח הנתונים נשען על lookup שעוד לא נפתר.</p>
+    <p className="mt-2 text-sm">אם אפילו תא אחד בטווח הוא <code>#N/A</code> (מ-lookup שבור במעלה הזרם), כל ה-sparkline מחזיר <code>#N/A</code>. ה-chart לא מצויר כלל. נפוץ כשטווח הנתונים נשען על lookup שעוד לא נפתר.</p>
   </ComparePanel>
   <ComparePanel label="עובד: עוטפים ב-IFERROR" tone="positive">
     <pre className="font-mono text-xs"><code>{`=SPARKLINE(
   ARRAYFORMULA(IFERROR(VLOOKUP_RESULTS, 0)))`}</code></pre>
-    <p className="mt-2 text-sm">כופים ערכים חסרים ל-0 (או ל-sentinel כמו NA() שה-SPARKLINE ידלג עליו) לפני שה-chart רואה אותם. משיעור 1.9 על טיפול בשגיאות.</p>
+    <p className="mt-2 text-sm">ממירים ערכים חסרים ל-0 (או ל-sentinel כמו NA() שה-SPARKLINE ידלג עליו) לפני שה-chart רואה אותם. משיעור 1.9 על טיפול בשגיאות.</p>
   </ComparePanel>
 </Compare>
 
@@ -167,14 +168,14 @@ sparkline של ערכים 95-100 נראה זהה לאחד של 5-100 כי ציר
 
 ## מלכודות מקצועיות
 
-- **קוריוזים ב-render בייצוא.** Sparklines מתרנדרים בגריד החי אבל לפעמים נעלמים מהדפסת PDF או מ-screenshots דרך ה-Sheets API. בודקים את מסלול הייצוא *לפני* שמסתמכים על dashboards עתירי sparkline לדוחות לבעלי עניין.
+- **מוזרויות ב-render בייצוא.** Sparklines מתרנדרים בגריד החי אבל לפעמים נעלמים מהדפסת PDF או מ-screenshots דרך ה-Sheets API. בודקים את מסלול הייצוא *לפני* שמסתמכים על dashboards עתירי sparkline לדוחות לבעלי עניין.
 - **מערך האפשרויות משתמש ב-`;` בין זוגות וב-`,` בתוך כל זוג.** החלפה ביניהם שוברת את הנוסחה עם parse error מבלבל. הדפוס הוא: `name, value; name, value; name, value`.
 - **ערכים לא מספריים מרעילים את ה-chart.** `#N/A` מ-lookup שבור, `"#REF!"` מטווח שנמחק, או מחרוזת טקסט בטווח מספרי יכשילו את כל ה-sparkline. עוטפים נתונים upstream ב-`IFERROR` (שיעור 9) או ב-`IFNA` לפני העברה.
 - **שמות צבעים לא עקביים.** `"blue"` עובד, `"navy blue"` לא. קודי hex (`"#4285F4"`) בטוחים יותר ועקביים בצוות.
 - **ציר Y מוגדר כברירת מחדל לטווח הנתונים.** שני sparklines עם ערכים מוחלטים שונים מאוד יכולים להיראות זהים בלי `ymin`/`ymax` נעולים. להשוואה הוגנת בין שורות, מגדירים את הגבולות במפורש.
-- **בלי נתונים דו-ממדיים.** טווח הנתונים חייב להיות שורה או עמודה בודדת. כמה סדרות ב-sparkline אחד לא נתמך. אם צריך את זה, משתמשים באובייקט chart אמיתי.
+- **ללא תמיכה בנתונים דו-ממדיים.** טווח הנתונים חייב להיות שורה או עמודה בודדת. כמה סדרות ב-sparkline אחד אינן נתמכות. אם צריך את זה, משתמשים באובייקט chart אמיתי.
 - **Conditional formatting לא מתפשט.** Sparklines מתרנדרים מטווח הנתונים, לא מעיצוב התא. "צבע אדום מתחת לסף" צריך להיות מחושב באובייקט האפשרויות, לא ב-CF rule של התא.
-- **מקורות נתונים נדיפים.** אם ה-sparkline שואב מ-`IMPORTRANGE` (שיעור 1.27) שמתעכב, ה-chart יתעכב איתו. מצב refresh הוא בעיית המקור upstream; ה-sparkline פשוט מצייר מה שיש.
+- **מקורות נתונים תנודתיים.** אם ה-sparkline שואב מ-`IMPORTRANGE` (שיעור 1.27) שמתעכב, ה-chart יתעכב איתו. מצב refresh הוא בעיית המקור במעלה הזרם; ה-sparkline פשוט מצייר מה שיש.
 
 ## נפוץ בשטח
 

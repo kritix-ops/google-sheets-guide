@@ -90,7 +90,7 @@ Pivot editor settings:
 | Values | Revenue (SUM) | Same shape. |
 | Values | Calculated field | Formula: `=('Revenue' - 'Spend') / 'Spend'`. Names the value `ROI`. |
 
-The calculated field is the part that catches everyone the first time. ROI cannot be computed as an average of per-row ROIs; that would over-weight tiny campaigns. The calculated field uses the summed totals as inputs, so the buyer-vertical ROI cell shows `(SUM(Revenue) - SUM(Spend)) / SUM(Spend)` — the right ROI for the group.
+The calculated field is the part that catches everyone the first time. ROI cannot be computed as an average of per-row ROIs; that would over-weight tiny campaigns. The calculated field uses the summed totals as inputs, so the buyer-vertical ROI cell shows `(SUM(Revenue) - SUM(Spend)) / SUM(Spend)`, the right ROI for the group.
 
 The color scale is what makes the pivot useful at a glance. Format → Conditional formatting → Color scale on the ROI column. Set the mid-point as a number, value `1.0` (break-even). Below the mid-point is unprofitable, above is profitable. Track 2 lesson 6 covered the rule shape; this is the same rule applied to the most consequential column in the workbook.
 
@@ -123,18 +123,18 @@ N2: =SUMIFS(G2:G62, A2:A62, ">="&TODAY()-7)
 N3: =N2/N1 - 1
 ```
 
-`SUMIFS` filters by date range; the criterion `">="&TODAY()-7` includes everything in the last 7 days. Live dashboards do use `TODAY()`, despite the volatility warning from Track 1 lesson 8 — the scorecard is the one place where the cost is worth it because the answer literally has to be "this week." If the workbook gets slow as data piles up, the fix is to bound the range tighter (`F2:F62` here instead of `F:F`), not to drop the date filter.
+`SUMIFS` filters by date range; the criterion `">="&TODAY()-7` includes everything in the last 7 days. Live dashboards do use `TODAY()`, despite the volatility warning from Track 1 lesson 8; the scorecard is the one place where the cost is worth it because the answer literally has to be "this week." If the workbook gets slow as data piles up, the fix is to bound the range tighter (`F2:F62` here instead of `F:F`), not to drop the date filter.
 
 For the daily trend chart: select `A2:A62` and `F2:F62` and `G2:G62`, Insert → Chart, type Line. Two series (Spend, Revenue), one x-axis (Date). Track 2 lesson 10 covered axis customization; for a dashboard, set the chart title to "This week vs last week" and pin the chart to a fixed position next to the scorecard tiles so the eye can compare numbers and trend in one glance.
 
 <QuickCheck
-  question="The scorecard at N3 reads `=N2/N1 - 1` and shows 0.18. Maya opens the workbook Monday at 09:00 and the cell still says 0.18 — but the IMPORTRANGE at L1 is showing #REF!. What's actually wrong?"
+  question="The scorecard at N3 reads `=N2/N1 - 1` and shows 0.18. Maya opens the workbook Monday at 09:00 and the cell still says 0.18, but the IMPORTRANGE at L1 is showing #REF!. What's actually wrong?"
   options={[
     {
       id: "a",
       label: <>Nothing is wrong; the scorecard reads from the Dashboard tab, not from L1.</>,
       correct: false,
-      explanation: "The Dashboard tab IS where the data flows in via L1. If L1 is broken, the per-row data is stale. The scorecard might read 0.18 because the dashboard rows still hold last week's pulled values — but those values are no longer being refreshed. The audit trail and trigger flow exist precisely to catch this.",
+      explanation: "The Dashboard tab IS where the data flows in via L1. If L1 is broken, the per-row data is stale. The scorecard might read 0.18 because the dashboard rows still hold last week's pulled values, but those values are no longer being refreshed. The audit trail and trigger flow exist precisely to catch this.",
     },
     {
       id: "b",
@@ -146,7 +146,7 @@ For the daily trend chart: select `A2:A62` and `F2:F62` and `G2:G62`, Insert →
       id: "c",
       label: <>Everything is fine because Sheets caches IMPORTRANGE values until they refresh.</>,
       correct: false,
-      explanation: "Sheets does cache IMPORTRANGE between refreshes, but #REF! is not 'caching' — it is 'the link broke and has not been re-authorized'. The cached values are still the last successful pull; new rows the source added since are missing.",
+      explanation: "Sheets does cache IMPORTRANGE between refreshes, but #REF! is not 'caching'; it is 'the link broke and has not been re-authorized'. The cached values are still the last successful pull; new rows the source added since are missing.",
     },
   ]}
 />
@@ -386,7 +386,7 @@ A dashboard you can build also tells you which lesson teaches the fix when somet
       id: "b",
       label: <>Re-run the QUERY at J1. Track 1 lesson 13 covered QUERY.</>,
       correct: false,
-      explanation: "Re-running the QUERY tells you what the dashboard reads NOW, not what it read at the time of the standup. The audit trail is the only way to answer 'what did the workbook say on Monday at 09:00?' — that's why the trail exists.",
+      explanation: "Re-running the QUERY tells you what the dashboard reads NOW, not what it read at the time of the standup. The audit trail is the only way to answer 'what did the workbook say on Monday at 09:00?'; that's why the trail exists.",
     },
     {
       id: "c",

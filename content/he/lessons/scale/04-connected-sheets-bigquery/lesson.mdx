@@ -2,7 +2,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Connected Sheets ו-BigQuery
 
-כשהנתונים גדלים מעבר למה ש-Sheet יחיד יכול להחזיק (או למה ש-`IMPORTRANGE` יכול לתפור ביחד, מכוסה בשיעורים 1.27 ו-4.3), השלב הבא הוא BigQuery. Connected Sheets הוא הגשר: הוא מאפשר להצביע עם Google Sheets על טבלת BigQuery ולמשוך לתוך גיליון extract בר-רענון. קוראים מה-extract עם נוסחאות, charts ו-pivot tables רגילים. לא כותבים SQL אלא אם רוצים.
+כשהנתונים גדלים מעבר למה ש-Sheet יחיד יכול להחזיק (או למה ש-`IMPORTRANGE` יכול לתפור יחד, מכוסה בשיעורים 1.27 ו-4.3), השלב הבא הוא BigQuery. Connected Sheets הוא הגשר: הוא מאפשר להפנות את Google Sheets לטבלת BigQuery ולמשוך לתוך גיליון extract בר-רענון. קוראים מה-extract עם נוסחאות, charts ו-pivot tables רגילים. לא כותבים SQL אלא אם רוצים.
 
 זו הארכיטקטורה ש-workbooks הכבדים יותר של הצוות עברו אליה במהלך 2025 ו-2026. שני דברים שצריך לדעת מראש: Connected Sheets ל-BigQuery דורש Enterprise Standard / Plus / Essentials / Essentials Plus, או Education Standard / Plus. כדאי לאמת את מהדורת ה-Workspace של הצוות מול ה-admin לפני שמתכננים workbook שלם סביב זה; הגדרות הזמינות זזות בין עדכוני Workspace. וכל רענון מריץ query של BigQuery שמחויב מהפרויקט. לשניהם השלכות עלות שתרצו לתכנן סביבן.
 
@@ -10,17 +10,17 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 extract של Connected Sheets הוא סוג מיוחד של טאב. שלוש תכונות להבין:
 
-1. **הנתונים לקריאה בלבד ברמת השורה.** אפשר לערוך תאים (Sheets לא יעצור) אבל הרענון הבא מוחק את העריכות. מתייחסים לטאב ה-extract כ-`Raw -` עם אכיפה: עבודה נגזרת חיה על טאב Dashboard נפרד ש*קורא מ-*ה-extract.
+1. **הנתונים לקריאה בלבד ברמת השורה.** אפשר לערוך תאים (Sheets לא יעצור אתכם) אבל הרענון הבא מוחק את העריכות. מתייחסים לטאב ה-extract כ-`Raw -` עם אכיפה: עבודה נגזרת חיה על טאב Dashboard נפרד ש*קורא מ-*ה-extract.
 2. **רענון לפי דרישה או מתוזמן.** לוחצים Refresh ב-UI של ה-connector, או קובעים תזמון יומי / שעתי. הנתונים לא חיים; הם מה שהרענון האחרון משך.
-3. **ה-connector יודע את המקור שלו.** הטאב נושא מטא-דאטה על פרויקט BigQuery, dataset, טבלה והעמודות שנבחרו. אם ה-schema במעלה הזרם משתנה (עמודה נמחקת, סוג שונה), ה-connector או נכשל בעת הרענון הבא או מייצר nulls בשקט. שניהם בולטים; אף אחד לא מתוקן אוטומטית.
+3. **ה-connector יודע את המקור שלו.** הטאב נושא מטא-דאטה על פרויקט BigQuery, dataset, טבלה והעמודות שנבחרו. אם ה-schema במעלה הזרם משתנה (עמודה נמחקת, סוג שונה), ה-connector או נכשל ברענון הבא או מייצר nulls בשקט. שתי האפשרויות בולטות; אף אחת לא מתוקנת אוטומטית.
 
 ## הגדרה
 
-ב-Sheets menu: `Data > Data connectors > Connect to BigQuery`. Sheets מבקש פרויקט GCP, אז dataset, אז טבלה. או שמושכים את כל הטבלה (מתאים לטבלאות dimension קטנות) או כותבים query (המהלך הנכון ל-fact tables גדולות). התוצאה נוחתת על טאב חדש שאתם בוחרים את שמו.
+בתפריט של Sheets: `Data > Data connectors > Connect to BigQuery`. Sheets מבקש פרויקט GCP, אחר כך dataset, אחר כך טבלה. או שמושכים את כל הטבלה (מתאים לטבלאות dimension קטנות) או שכותבים query (המהלך הנכון ל-fact tables גדולות). התוצאה נוחתת על טאב חדש שאתם בוחרים את שמו.
 
 שני כללי עיצוב משתלמים:
 
-- **מסננים ב-connector, לא ב-dashboard.** extract של `SELECT * FROM campaigns_fact` שמביא 50M שורות ל-Sheets זה בזבזני ו(תלוי בכמות) עלול לא להיכנס בכלל. extract של `SELECT date, buyer, vertical, platform, spend, revenue FROM campaigns_fact WHERE date >= CURRENT_DATE - 30` הוא מה שבאמת רוצים. הסינון רץ ב-BigQuery, איפה שזה זול.
+- **מסננים ב-connector, לא ב-dashboard.** extract של `SELECT * FROM campaigns_fact` שמביא 50M שורות ל-Sheets הוא בזבזני ו(תלוי בכמות) עלול לא להיכנס בכלל. extract של `SELECT date, buyer, vertical, platform, spend, revenue FROM campaigns_fact WHERE date >= CURRENT_DATE - 30` הוא מה שבאמת רוצים. הסינון רץ ב-BigQuery, איפה שזה זול.
 - **מתזמנים את הרענון לפי הרעננות שצריך.** דיווח יומי? רענון יומי ב-06:00. ניטור attribution שעתי? רענון שעתי. כל אחד מהם הוא query שמחויב.
 
 <Compare>
@@ -28,14 +28,14 @@ extract של Connected Sheets הוא סוג מיוחד של טאב. שלוש ת�
     <pre className="font-mono text-xs"><code>{`-- Connector query
 SELECT *
 FROM \`adtech.campaigns_fact\``}</code></pre>
-    <p className="mt-2 text-sm">מושך כל שורה, כל עמודה. בטבלת fact של 50M שורות זה סורק מאות GB לרענון ועלול לא להיכנס ל-extract בכלל. עלויות מצטברות מהר ב-schedule יומי.</p>
+    <p className="mt-2 text-sm">מושך כל שורה, כל עמודה. בטבלת fact של 50M שורות זה סורק מאות GB בכל רענון ועלול לא להיכנס ל-extract בכלל. עלויות מצטברות מהר ב-schedule יומי.</p>
   </ComparePanel>
   <ComparePanel label="רזה: מסונן, מוקרן" tone="positive">
     <pre className="font-mono text-xs"><code>{`-- Connector query
 SELECT date, buyer, vertical, platform, spend, revenue
 FROM \`adtech.campaigns_fact\`
 WHERE date >= CURRENT_DATE() - 30`}</code></pre>
-    <p className="mt-2 text-sm">שש עמודות, 30 ימים אחרונים. אם טבלת המקור מחולקת ל-partitions לפי <code>date</code>, BigQuery מקצץ את הסריקה ל-month אחד של partitions. עלות לרענון יורדת פי 12-20 לעומת הגרסה הלא מסוננת.</p>
+    <p className="mt-2 text-sm">שש עמודות, 30 הימים האחרונים. אם טבלת המקור מחולקת ל-partitions לפי <code>date</code>, BigQuery מקצץ את הסריקה לחודש אחד של partitions. עלות לרענון יורדת פי 12-20 לעומת הגרסה הלא מסוננת.</p>
   </ComparePanel>
 </Compare>
 
@@ -44,13 +44,13 @@ WHERE date >= CURRENT_DATE() - 30`}</code></pre>
 BigQuery מחייב לפי נתונים שנסרקו לכל query (תמחור on-demand הוא בערך $6.25 ל-TiB שנסרק ב-2026, אבל בודקים את התעריף הנוכחי לפני התחייבות; reservations של slot ב-flat-rate הם מודל אחר). רענון של extract של Connected Sheets הוא query אחד. שני דפוסים שעולים כסף אמיתי:
 
 - **רענון של טבלה של 200GB כל חמש עשרה דקות.** זה 200GB × 96 רענונים ביום × 30 יום ≈ 576TB לחודש. ב-$6.25/TiB זה $3,600. ל-dashboard בודד.
-- **שכחה ש-`SELECT *` סורק כל עמודה.** משיכה של חמש עשרה עמודות כשצריך רק חמש מכפילה פי ארבע את עלות הסריקה. מציינים עמודות מפורשות.
+- **שוכחים ש-`SELECT *` סורק כל עמודה.** משיכה של חמש עשרה עמודות כשצריך רק חמש מכפילה פי ארבע את עלות הסריקה. מציינים עמודות במפורש.
 
-ההפחתות: partitioning של טבלת BigQuery (כך ש-`WHERE date >= ...` סורק רק partitions עדכניים), בחירה רק של העמודות שצריך, תזמון רענונים לקצב שהעסק באמת צריך, לא למקסימום האפשרי. ל-exploration לא מתוזמן, לוחצים Refresh ידנית במקום להשאיר schedule שעתי דולק.
+ההפחתות: partitioning של טבלת BigQuery (כך ש-`WHERE date >= ...` סורק רק partitions עדכניים), בחירה רק של העמודות שצריך, תזמון רענונים לקצב שהעסק באמת צריך, לא למקסימום האפשרי. ל-exploration אד-הוקי, לוחצים Refresh ידנית במקום להשאיר schedule שעתי דולק.
 
 ## עבודה עם ה-extract
 
-ברגע שהנתונים נוחתים, עובדים עליהם כמו על כל טווח אחר. נוסחאות מפנות לפי שם הטאב:
+ברגע שהנתונים נוחתים, עובדים איתם כמו על כל טווח אחר. נוסחאות מפנות לפי שם הטאב:
 
 ```
 =SUM(Campaigns_BQ!F2:F61)
@@ -58,7 +58,7 @@ BigQuery מחייב לפי נתונים שנסרקו לכל query (תמחור on
 =AVERAGEIF(Campaigns_BQ!C2:C61, "Hearing Aids PR", Campaigns_BQ!F2:F61)
 ```
 
-Pivots, charts ו-`QUERY` כולם עובדים נגד טווח ה-extract. שימו לב שה-references חסומים; אותם כללים מהשיעורים הקודמים חלים.
+Pivots, charts ו-`QUERY` כולם עובדים מול טווח ה-extract. שימו לב שה-references חסומים; אותם כללים מהשיעורים הקודמים חלים.
 
 ### דוגמה מעובדת: extract קטן בצורה אמיתית
 
@@ -67,7 +67,7 @@ Pivots, charts ו-`QUERY` כולם עובדים נגד טווח ה-extract. שי
   caption="ה-extract של Campaigns_BQ: 60 שורות × 7 עמודות נוחתות על טאב ה-connector. מכאן, נוסחאות סיכום בטאב Dashboard מפנות ל-`Campaigns_BQ!A1:G61` כאילו הוא טווח מקומי."
 />
 
-נוסחת dashboard עובדת שחיה על טאב `Dashboard` נפרד וקוראת מה-extract הזה:
+נוסחת dashboard עובדת שיושבת על טאב `Dashboard` נפרד וקוראת מה-extract הזה:
 
 ```
 =SUMIFS(
@@ -77,11 +77,11 @@ Pivots, charts ו-`QUERY` כולם עובדים נגד טווח ה-extract. שי
 )
 ```
 
-הצורה זהה ל-`SUMIFS` מקומי. ההבדל היחיד הוא prefix של שם הטאב על כל טווח. ה-grader על fixture של טאב יחיד מקבל את שתי הצורות (עם ובלי prefix); קוד production משתמש ב-prefix.
+הצורה זהה ל-`SUMIFS` מקומי. ההבדל היחיד הוא prefix של שם הטאב לפני כל טווח. ה-grader על fixture של טאב יחיד מקבל את שתי הצורות (עם ובלי prefix); קוד production משתמש ב-prefix.
 
 ## תכונת ה-forecasting של 2026
 
-עדכון Workspace של פברואר 2026 הוסיף forecasting של BigQuery ML + TimesFM ישירות בתוך Connected Sheets: מצביעים על time series שחולץ, לוחצים Forecast, ו-Sheets קורא ל-TimesFM ב-BigQuery לייצר תחזית. בלי SQL. זה שימושי ל-forecasting של spend / revenue על datasets ה-timeseries שהצוות בונה. מבחינת עלות, כל תחזית היא job של BigQuery ML, אז זה מחויב; היתרון הוא בלי תשתית forecasting נפרדת. שיעור 4.5 מכסה את זה בפירוט.
+עדכון Workspace של פברואר 2026 הוסיף forecasting של BigQuery ML + TimesFM ישירות בתוך Connected Sheets: מפנים ל-time series שחולץ, לוחצים Forecast, ו-Sheets קורא ל-TimesFM ב-BigQuery כדי לייצר תחזית. בלי SQL. זה שימושי ל-forecasting של spend / revenue על datasets ה-timeseries שהצוות בונה. מבחינת עלות, כל תחזית היא job של BigQuery ML, אז זה מחויב; היתרון הוא שאין תשתית forecasting נפרדת. שיעור 4.5 מכסה את זה בפירוט.
 
 <QuickCheck
   question="Dashboard לילי מרענן טבלת fact של 200GB מחולקת ל-partitions ב-02:00 UTC. ה-query הוא `SELECT date, buyer, spend FROM campaigns_fact WHERE date = CURRENT_DATE() - 1`. בערך כמה נתונים זה סורק לכל רענון?"
@@ -90,19 +90,19 @@ Pivots, charts ו-`QUERY` כולם עובדים נגד טווח ה-extract. שי
       id: "a",
       label: <>בערך 200GB (כל הטבלה).</>,
       correct: false,
-      explanation: "אם הטבלה מחולקת ל-partitions לפי `date` וה-WHERE מסנן לפי `date`, BigQuery מקצץ ל-partition בודד. 200GB זה הסריקה לא מסוננת; partition pruning זה כל הפואנטה של ה-partition.",
+      explanation: "אם הטבלה מחולקת ל-partitions לפי `date` וה-WHERE מסנן לפי `date`, BigQuery מקצץ ל-partition בודד. 200GB זו הסריקה הלא מסוננת; partition pruning זו כל הפואנטה של ה-partition.",
     },
     {
       id: "b",
       label: <>בערך 600MB (יום אחד, שלוש עמודות מתוך חמש עשרה).</>,
       correct: true,
-      explanation: "partition pruning חותך את הסריקה ל-~1/30 מהנתונים (200GB / 30 ≈ 6.7GB ליום), ו-column projection חותך עוד ל-~3/15 = ~1.3GB אם העמודות שוות בגודלן. workloads אמיתיים רואים סריקות בטווח מאות-MB לצורה הזו. partitioning ועוד projection זה ניצחון העלות.",
+      explanation: "partition pruning חותך את הסריקה ל-~1/30 מהנתונים (200GB / 30 ≈ 6.7GB ליום), ו-column projection חותך עוד ל-~3/15 = ~1.3GB אם העמודות שוות בגודלן. workloads אמיתיים רואים סריקות בטווח מאות-MB לצורה הזו. partitioning ועוד projection זה הניצחון מבחינת עלות.",
     },
     {
       id: "c",
       label: <>200GB ברענון הראשון, אחר כך 0 כי התוצאה ב-cache.</>,
       correct: false,
-      explanation: "BigQuery באמת שומר תוצאות query ב-cache ל-24 שעות, אבל CURRENT_DATE() טרי מבטל את ה-cache ביום הבא. ועלות הסריקה נגבית על ה-query הראשון של כל יום חדש בכל מקרה.",
+      explanation: "BigQuery באמת שומר תוצאות query ב-cache ל-24 שעות, אבל CURRENT_DATE() חדש מבטל את ה-cache ביום הבא. ועלות הסריקה נגבית על ה-query הראשון של כל יום חדש בכל מקרה.",
     },
   ]}
 />
@@ -111,14 +111,14 @@ Pivots, charts ו-`QUERY` כולם עובדים נגד טווח ה-extract. שי
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="טאב ה-Campaigns_BQ מדמה extract של Connected Sheets. 60 שורות קמפיין, schema A:G כמו בשיעור."
+  caption="טאב ה-Campaigns_BQ מדמה extract של Connected Sheets. 60 שורות קמפיין, schema A:G כמו שהוצג בשיעור."
 />
 
-יש ללחוץ על **Start lesson** כדי להעלות טאב Campaigns_BQ זרוע בלוג הקמפיינים. ב-production הטאב הזה היה extract של Connected Sheets, מרוענן לילית מטבלת BigQuery `campaigns_fact` של הצוות. ממלאים את בלוק הסיכום בעמודה J:
+יש ללחוץ על **Start lesson** כדי להעלות טאב Campaigns_BQ זרוע בלוג הקמפיינים. ב-production הטאב הזה היה extract של Connected Sheets, שמרוענן לילית מטבלת BigQuery `campaigns_fact` של הצוות. ממלאים את בלוק הסיכום בעמודה J:
 
 - **J1**: סה"כ Spend ב-extract.
 - **J2**: ספירת שורות Taboola (משתמשים ב-`COUNTIF`).
-- **J3**: סוג ה-connector (המחרוזת המילולית `BigQuery` כדי שמי שמבקר את ה-workbook יוכל לדעת מאיפה הנתונים הגיעו).
+- **J3**: סוג ה-connector (המחרוזת המילולית `BigQuery` כדי שמי שעובר על ה-workbook יוכל לדעת מאיפה הנתונים הגיעו).
 
 השיעור משתמש בטאב יחיד גם ל-extract וגם לתאי הסיכום. בהגדרת Connected Sheets אמיתית הנוסחאות היו עוטפות את ה-references ב-`Campaigns_BQ!`. ה-grader מקבל את שתי הצורות; העיקרון אותו דבר.
 
@@ -126,18 +126,18 @@ Pivots, charts ו-`QUERY` כולם עובדים נגד טווח ה-extract. שי
 
 הדוח הלילי של הצוות "7 ימים אחרונים, כל הפלטפורמות" רץ כ-Connected Sheets extract מ-BigQuery:
 
-- ה-extract מושך `SELECT date, buyer, vertical, platform, country, spend, revenue FROM campaigns_fact WHERE date BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1`. בערך 1800 שורות למשיכה בשבוע טיפוסי.
+- ה-extract מושך `SELECT date, buyer, vertical, platform, country, spend, revenue FROM campaigns_fact WHERE date BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1`. בערך 1800 שורות בכל משיכה בשבוע טיפוסי.
 - תזמון הרענון הוא יומי ב-04:00 UTC, כך שכשהצוות מתחיל את היום בתל אביב (07:00 מקומי) הנתונים טריים.
 - טאבי ה-dashboard מפנים ל-extract דרך prefix של `Campaigns_BQ!`. Sum, average, ROI, pivot לפי buyer. בלי SQL בשום מקום בשכבת ה-dashboard.
 - עלות: בערך $0.10 לרענון × 30 = ~$3/חודש לדוח הספציפי הזה. דוחות אחרים באותו workbook מביאים את הסך ל-~$40/חודש, הרבה פחות ממה שהתפירה המקבילה מבוססת IMPORTRANGE הייתה עולה בזמן אנושי.
 
 ## מלכודות מקצועיות
 
-- **שכחה לרענן.** schedule של "יומי 04:00" אומר שמספרים של אתמול מיושנים ב-28 שעות כשמישהו מסתכל על ה-dashboard ב-08:00 ביום אחרי. אם הצוות עושה optimization חי, מתזמנים שעתי. אם זו סקירת יום שני של השבוע שעבר, יומי בסדר.
+- **שכחה לרענן.** schedule של "יומי 04:00" אומר שהמספרים של אתמול מיושנים ב-28 שעות כשמישהו מסתכל על ה-dashboard ב-08:00 ביום אחרי. אם הצוות עושה optimization חי, מתזמנים שעתי. אם זו סקירת יום שני של השבוע שעבר, יומי בסדר.
 - **`SELECT *` על טבלת fact של 50M שורות.** כל רענון הוא סריקת טבלה מלאה. מציינים עמודות, מסננים לפי תאריך, ועושים partition לטבלת המקור לפי תאריך כך ש-`WHERE date >= ...` הוא partition prune.
-- **ה-connector נשבר כש-schema של BigQuery משתנה.** שינוי שם של עמודה, שינוי סוג, או הסרת עמודה מעבירים את ה-extract למצב כשל. הרענון הבא נכשל עם שגיאה. רושמים את עצמם ל-audit logs של BigQuery לטבלאות שה-Connected Sheets שלכם תלויות בהן, או מקבלים ששינויי schema דורשים reconnect של 5 דקות.
+- **ה-connector נשבר כש-schema של BigQuery משתנה.** שינוי שם של עמודה, שינוי סוג, או הסרת עמודה מעבירים את ה-extract למצב כשל. הרענון הבא נכשל עם שגיאה. נרשמים ל-audit logs של BigQuery לטבלאות שה-Connected Sheets שלכם תלויות בהן, או מקבלים ששינויי schema דורשים reconnect של 5 דקות.
 - **ה-extract ניתן לעריכה.** Sheets לא יעצור משתמש מלהקליד בתא extract. הרענון הבא מוחק את העריכה. מאמנים את הצוות: עבודה נגזרת הולכת לטאב Dashboard. ה-extract הוא אזור `Raw -`.
-- **`File > Stats` לא משקף עלות Connected Sheets במלואה.** הוא מציג ספירת תאים וזמן recalc, לא עלות סריקת BigQuery. בודקים ב-billing console של BigQuery למספרים האמיתיים.
-- **רענון מתוזמן ב-workbook שאף אחד כבר לא מחזיק בו.** כשהאדם שהגדיר את ה-connector עוזב, ה-schedule ממשיך לרוץ. עורכים audit ל-schedules של Connected Sheets רבעוני.
+- **`File > Stats` לא משקף את עלות Connected Sheets במלואה.** הוא מציג ספירת תאים וזמן recalc, לא עלות סריקת BigQuery. בודקים ב-billing console של BigQuery לקבלת המספרים האמיתיים.
+- **רענון מתוזמן ב-workbook שאף אחד כבר לא בעלים שלו.** כשהאדם שהגדיר את ה-connector עוזב, ה-schedule ממשיך לרוץ. עורכים audit ל-schedules של Connected Sheets בכל רבעון.
 
-שיעור 4.5 בונה על היסוד הזה ומראה את זרימת ה-forecasting החדשה בלחיצה אחת בתוך Connected Sheets (TimesFM דרך BigQuery ML), עם אותה משמעת עלות המוחלת גם על ML inference.
+שיעור 4.5 בונה על היסוד הזה ומראה את זרימת ה-forecasting החדשה בלחיצה אחת בתוך Connected Sheets (TimesFM דרך BigQuery ML), עם אותה משמעת עלות שמוחלת גם על ML inference.

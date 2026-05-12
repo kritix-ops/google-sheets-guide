@@ -8,7 +8,7 @@ A workbook that obeys this rule reads like a small app. New rows arrive and the 
 
 ## The single source of truth
 
-A spreadsheet should have one block of cells that is the canonical raw data, and nothing should mutate it except the upstream pipeline (manual entry, IMPORTRANGE, an Apps Script pull). Everything else, the totals, ratios, dashboards, alerts, lives elsewhere and reads from the raw block.
+A spreadsheet should have one block of cells that is the canonical raw data, and nothing should mutate it except the upstream pipeline (manual entry, IMPORTRANGE, an Apps Script pull). Everything else (the totals, ratios, dashboards, alerts) lives elsewhere and reads from the raw block.
 
 The team's actual workbook pattern looks like this in the wild:
 
@@ -190,4 +190,4 @@ In the team's actual workbooks:
 - **The Total row that breaks `SUMIFS`.** Recurring sin. Once you remove it, downstream formulas just work.
 - **Aggregating with `SUM(F:F)` instead of `SUM(F2:F61)`.** Full-column references look future-proof but force Sheets to walk every empty cell on every recalc. On a 50,000-row workbook this turns into seconds of lag per edit.
 - **Naming a tab after a date** (`2026-Q2`). When the quarter rolls over, every formula that references `'2026-Q2'!B2` breaks until somebody renames it. Use stable names (`Raw - Taboola`) and let the date live inside a column.
-- **Hidden rows masquerading as deleted data.** Filter views are safe, but manually-hidden rows still get summed by `SUM` and counted by `COUNTA`. Pivot tables also include them. If a row should be excluded, it should be either filtered or moved to an `Archived` tab.
+- **Hidden rows masquerading as deleted data.** Filter views are safe, but manually hidden rows still get summed by `SUM` and counted by `COUNTA`. Pivot tables also include them. If a row should be excluded, either filter it out or move it to an `Archived` tab.

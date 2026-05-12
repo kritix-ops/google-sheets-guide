@@ -2,16 +2,16 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Sidebars ו-modal dialogs (HtmlService)
 
-Custom functions חיות בתאים. Triggers יורים על events. **Sidebars** ו-**modal dialogs** הם משטח ה-UI השלישי: פאנלים מלאים של HTML מעוגנים ל-workbook, מתארחים על ידי Apps Script דרך ה-API של `HtmlService`. הם מאפשרים לבנות forms, אשפים רב-שלביים, dashboards, וזרימות אישור שחיות לצד הרשת ולא בתוכה.
+Custom functions חיות בתאים. Triggers מופעלים על events. **Sidebars** ו-**modal dialogs** הם משטח ה-UI השלישי: פאנלים מלאים של HTML שמעוגנים ל-workbook, מתארחים על ידי Apps Script דרך ה-API של `HtmlService`. הם מאפשרים לבנות forms, אשפים רב-שלביים, dashboards וזרימות אישור שחיות לצד הרשת ולא בתוכה.
 
-השיעור הזה מכסה שלושה דברים: שלוש הדרכים לרנדר HTML בתוך Sheets (sidebar, modal, modeless), איך לבנות `HtmlOutput` מקובץ או ממחרוזת, ומודל ה-sandbox שמגביל מה ה-HTML שלכם יכול לעשות. בפעם הראשונה שאתם בונים sidebar אתם מגלים את חוקי ה-iframe (אין נתיבים יחסיים, CSP דביק, אין גישה ישירה לתאים) ומבזבזים שעה. השיעור הזה מעלה את החוקים האלה מראש.
+השיעור הזה מכסה שלושה דברים: שלוש הדרכים לרנדר HTML בתוך Sheets (sidebar, modal, modeless), איך לבנות `HtmlOutput` מקובץ או ממחרוזת, ומודל ה-sandbox שמגביל מה ה-HTML שלכם יכול לעשות. בפעם הראשונה שאתם בונים sidebar אתם מגלים את חוקי ה-iframe (אין נתיבים יחסיים, CSP מחמיר, אין גישה ישירה לתאים) ומבזבזים שעה. השיעור הזה מעלה את החוקים האלה מראש.
 
 שלוש צורות שאותו פלט HtmlService יכול לקבל:
 
 | Method | מה הוא מפיק |
 |---|---|
-| `showSidebar(html)` | פאנל מתמיד ברוחב 300px מעוגן בצד ימין של הרשת. המשתמש יכול להמשיך לערוך את ה-sheet בזמן שה-sidebar פתוח. |
-| `showModalDialog(html, title)` | חלון צף מרוכז. חוסם את שאר ה-sheet עד שסוגרים אותו. משתמשים ב-confirms ו-inputs של one-step. |
+| `showSidebar(html)` | פאנל מתמשך ברוחב 300px שמעוגן בצד ימין של הרשת. המשתמש יכול להמשיך לערוך את ה-sheet בזמן שה-sidebar פתוח. |
+| `showModalDialog(html, title)` | חלון צף מרוכז. חוסם את שאר ה-sheet עד שסוגרים אותו. משתמשים בו ל-confirms ו-inputs של one-step. |
 | `showModelessDialog(html, title)` | חלון צף מרוכז שלא חוסם את ה-sheet. פחות נפוץ; שימושי ל-inspectors שמתעדכנים בזמן שהמשתמש זז. |
 
 כל השלושה נקראים על `SpreadsheetApp.getUi()`. כל השלושה מקבלים `HtmlOutput` שנבנה על ידי `HtmlService`.
@@ -29,7 +29,7 @@ const html = HtmlService.createHtmlOutputFromFile("Reports");
 const html = HtmlService.createHtmlOutput("<h2>Report</h2><p>...</p>");
 ```
 
-הארגומנט ל-`createHtmlOutputFromFile` הוא **שם הקובץ כפי שמוצג בעורך Apps Script**, לא שם הקובץ בדיסק. העורך שומר קבצי HTML עם סיומת `.html` אוטומטית; אתם מפנים אליהם בלעדיה. `"Reports"` בקוד, `Reports.html` בבוחר הקבצים.
+הארגומנט ל-`createHtmlOutputFromFile` הוא **שם הקובץ כפי שהוא מוצג בעורך Apps Script**, לא שם הקובץ בדיסק. העורך שומר קבצי HTML עם סיומת `.html` אוטומטית; אתם מפנים אליהם בלעדיה. `"Reports"` בקוד, `Reports.html` בבוחר הקבצים.
 
 ואז משרשרים על הפלט כדי להגדיר את ה-title וה-dimensions:
 
@@ -40,21 +40,21 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
   .setHeight(400); // dialogs בלבד
 ```
 
-`setTitle` היא התווית הנראית בראש ה-sidebar או dialog. דילוג עליה והפאנל עדיין עובד, אבל הכותרת נקראת ריקה.
+`setTitle` היא התווית הגלויה בראש ה-sidebar או dialog. אם מדלגים עליה הפאנל עדיין עובד, אבל הכותרת תהיה ריקה.
 
 ## הערה על ה-sidebar של הקורס הזה
 
-ה-Apps Script project של הקורס הזה כבר כולל קובץ HTML שמור בשם `Sidebar`: זה ה-shell שמארח את ה-companion בתוך ה-sheet שאתם קוראים עכשיו. אתם לא יכולים להשתמש ב-`"Sidebar"` כשם קובץ לעבודה שלכם בשיעור הזה: ה-provisioner ישחרר בשקט כל seed file עם השם הזה, ו-`createHtmlOutputFromFile("Sidebar")` היה מכוון ל-shell של הקורס, לא לקוד שלכם. הקטע המעשי משתמש ב-**`"Reports"`** במקום. מחוץ לקורס הזה, ב-workbook שלכם, אתם יכולים לתת לקובץ HTML שלכם איזה שם שאתם רוצים.
+ה-Apps Script project של הקורס הזה כבר כולל קובץ HTML שמור בשם `Sidebar`: זה ה-shell שמארח את ה-companion בתוך ה-sheet שאתם קוראים בו עכשיו. אתם לא יכולים להשתמש ב-`"Sidebar"` כשם קובץ לעבודה שלכם בשיעור הזה: ה-provisioner ישמיט בשקט כל seed file עם השם הזה, ו-`createHtmlOutputFromFile("Sidebar")` היה מכוון ל-shell של הקורס, לא לקוד שלכם. הקטע המעשי משתמש ב-**`"Reports"`** במקום. מחוץ לקורס הזה, ב-workbook שלכם, אתם יכולים לתת לקובץ HTML שלכם איזה שם שתרצו.
 
 ## ה-sandbox
 
-ה-HTML שאתם טוענים רץ בתוך **iframe** מוגש מ-`googleusercontent.com`, לא מ-domain ה-workbook שלכם. יש לזה כמה השלכות ששווה לדעת לפני שכותבים sidebar מורכב:
+ה-HTML שאתם טוענים רץ בתוך **iframe** שמוגש מ-`googleusercontent.com`, לא מה-domain של ה-workbook שלכם. יש לזה כמה השלכות ששווה לדעת לפני שכותבים sidebar מורכב:
 
-- **`<base target="_top">` שייך לכל `<head>`.** בלעדיו, לינקים בתוך ה-sidebar נפתחים בתוך ה-iframe (ושוברים, כי ה-iframe מבודד). איתו, הם נפתחים ב-tab של ה-parent. כל template של HtmlService ש-Google שולחת מתחיל עם ה-tag הזה.
+- **`<base target="_top">` שייך לכל `<head>`.** בלעדיו, לינקים בתוך ה-sidebar נפתחים בתוך ה-iframe (ונשברים, כי ה-iframe מבודד). איתו, הם נפתחים ב-tab של ה-parent. כל template של HtmlService ש-Google שולחת מתחיל עם ה-tag הזה.
 - **אין גישה ישירה ל-spreadsheet מתוך ה-HTML.** ה-HTML לא יכול לקרוא או לכתוב תאים, לא יכול לקרוא ל-`SpreadsheetApp`. כדי לעשות את הדברים האלה, ה-JS בצד הלקוח קורא חזרה ל-server של Apps Script דרך `google.script.run`.
-- **`position: fixed` ו-`position: sticky` לא עובדים** כמו שאתם מצפים בתוך ה-sandbox. הם מתנהגים כמו static positioning. אם אתם רוצים footer דביק, משתמשים ב-`position: absolute` בתוך container relatively-positioned שממלא את גובה ה-iframe.
-- **משאבים חיצוניים כפופים ל-Content Security Policy של ה-iframe.** אתם יכולים לקשר ל-CDN של stylesheet או font ממארח CSP-allowed (Google Fonts עובד; CDNs שרירותיים אולי לא). `<style>` inline ו-`<script>` inline עובדים בסדר.
-- **URLs יחסיים לשרת שלכם לא נפתרים.** ה-origin של ה-iframe הוא של Google, לא שלכם. תמונות, fonts, ו-scripts שאתם "מארחים" עובדים רק אם הם מוגשים מ-URL מוחלט https.
+- **`position: fixed` ו-`position: sticky` לא עובדים** כמו שאתם מצפים בתוך ה-sandbox. הם מתנהגים כמו static positioning. אם אתם רוצים footer דביק, משתמשים ב-`position: absolute` בתוך container עם relatively-positioned שממלא את גובה ה-iframe.
+- **משאבים חיצוניים כפופים ל-Content Security Policy של ה-iframe.** אתם יכולים לקשר ל-stylesheet או font ב-CDN ממארח שמורשה ב-CSP (Google Fonts עובד; CDNs שרירותיים אולי לא). `<style>` inline ו-`<script>` inline עובדים בסדר.
+- **URLs יחסיים לשרת שלכם לא נפתרים.** ה-origin של ה-iframe הוא של Google, לא שלכם. תמונות, fonts ו-scripts שאתם "מארחים" עובדים רק אם הם מוגשים מ-URL מוחלט של https.
 
 <Compare>
   <ComparePanel label="לא נכון: נתיב יחסי, ללא base target" tone="negative">
@@ -65,7 +65,7 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
   <a href="/help">Help</a>
   <img src="logo.png">
 </body>`}</code></pre>
-    <p className="mt-2 text-sm">styles.css לא נפתר (יחסי ל-origin googleusercontent.com, לא שלכם). הלינק Help מנסה לנווט בתוך ה-iframe המבודד ושובר. logo.png לא נטען.</p>
+    <p className="mt-2 text-sm">styles.css לא נפתר (יחסי ל-origin googleusercontent.com, לא שלכם). הלינק Help מנסה לנווט בתוך ה-iframe המבודד ונשבר. logo.png לא נטען.</p>
   </ComparePanel>
   <ComparePanel label="נכון: סגנונות inline, base target, URLs מוחלטים" tone="positive">
     <pre className="font-mono text-xs"><code>{`<head>
@@ -99,7 +99,7 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
 </script>
 ```
 
-`getTodaysSpend` היא function שמוצהרת ברמת ה-top של כל קובץ `.gs` בפרויקט. Apps Script מגשר על הקריאה מעבר לגבול ה-sandbox. אנחנו מזכירים את זה כאן כי רוב ה-sidebars שאינם טריוויאליים צריכים את זה; Track מאוחר יותר מכסה את מחזור החיים המלא של client-server.
+`getTodaysSpend` היא function שמוצהרת ברמת ה-top של אחד מקבצי ה-`.gs` בפרויקט. Apps Script מגשר על הקריאה מעבר לגבול ה-sandbox. אנחנו מזכירים את זה כאן כי רוב ה-sidebars שאינם טריוויאליים צריכים את זה; Track מאוחר יותר מכסה את מחזור החיים המלא של client-server.
 
 <StepThrough
   frames={[
@@ -107,7 +107,7 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
       caption: "שלב 1: פריט תפריט מפעיל showSidebar",
       body: (
         <>
-          המשתמש לוחץ Reports then Show sidebar. ה-menu handler מריץ{" "}
+          המשתמש לוחץ על Reports then Show sidebar. ה-menu handler מריץ{" "}
           <code>showReportsSidebar()</code> שקורא ל-{" "}
           <code>SpreadsheetApp.getUi().showSidebar(html)</code>.
         </>
@@ -118,7 +118,7 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
       body: (
         <>
           ה-runtime מגיש את ה-HTML מ-<code>googleusercontent.com</code>.
-          ה-iframe sandboxed: אין גישה למסמך parent, CSP מוגבל, אין
+          ה-iframe הוא sandboxed: אין גישה למסמך ה-parent, CSP מוגבל, אין
           localStorage ל-parent. ה-sidebar מופיע בצד ימין.
         </>
       ),
@@ -129,8 +129,8 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
         <>
           קוד בתוך ה-iframe מפעיל{" "}
           <code>google.script.run.getTodaysSpend()</code>. זו RPC חוצת-origin:
-          הקריאה נוסעת דרך התשתית של Google, ה-function בצד השרת רצה ב-auth
-          context של ה-script שלכם, ערך ההחזרה נשלח בחזרה.
+          הקריאה עוברת דרך התשתית של Google, ה-function בצד השרת רצה ב-auth
+          context של ה-script שלכם, וערך ההחזרה נשלח בחזרה.
         </>
       ),
     },
@@ -149,7 +149,7 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
 
 ## מתי לפנות לאיזו צורה
 
-- **Sidebar**: זרימות רב-שלביות, UI מתמיד שהמשתמש רוצה לשמור פתוח בזמן עבודה ברשת. ה-"Campaign builder" של הצוות הוא sidebar: שדות form מלווים את ה-buyer דרך מתן שם לקמפיין חדש, בחירת vertical מהרשימה הקנונית, בחירת פלטפורמה, יצירת מחרוזת שם הקמפיין. הוא נשאר פתוח בין עריכות sheet.
+- **Sidebar**: זרימות רב-שלביות, UI מתמשך שהמשתמש רוצה לשמור פתוח בזמן עבודה ברשת. ה-"Campaign builder" של הצוות הוא sidebar: שדות form מלווים את ה-buyer דרך מתן שם לקמפיין חדש, בחירת vertical מהרשימה הקנונית, בחירת פלטפורמה, יצירת מחרוזת שם הקמפיין. הוא נשאר פתוח בין עריכות של ה-sheet.
 - **Modal dialog**: confirms של one-shot ו-inputs של one-step. "Bulk-archive 47 paused campaigns? [Cancel] [Archive]." הטבע החוסם הוא ה-feature: הוא מונע מהמשתמש ללחוץ במקום אחר באמצע אישור.
 - **Modeless dialog**: נדיר. פאנלי inspector שמתעדכנים על בחירה הם השימוש העיקרי. בפועל, sidebars מטפלים ברוב אותן עבודות בצורה אלגנטית יותר.
 
@@ -164,9 +164,9 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
     },
     {
       id: "b",
-      label: "ה-iframe של ה-sidebar מוגש מ-googleusercontent.com. נתיב יחסי נפתר ל-googleusercontent.com/logo.png, שלא קיים. השתמשו ב-URL מוחלט https.",
+      label: "ה-iframe של ה-sidebar מוגש מ-googleusercontent.com. נתיב יחסי נפתר ל-googleusercontent.com/logo.png, שלא קיים. השתמשו ב-URL מוחלט של https.",
       correct: true,
-      explanation: "נכון. ה-origin של ה-iframe הוא של Google. URLs יחסיים נפתרים ל-domain של Google, לא לאתר הצוות שלכם. תמיד משתמשים ב-URLs מוחלטים https עבור משאבים חיצוניים.",
+      explanation: "נכון. ה-origin של ה-iframe הוא של Google. URLs יחסיים נפתרים ל-domain של Google, לא לאתר הצוות שלכם. תמיד משתמשים ב-URLs מוחלטים של https עבור משאבים חיצוניים.",
     },
     {
       id: "c",
@@ -181,18 +181,18 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="לוג ה-Campaigns תופס A1:G61. הקטע המעשי עדיין לא קורא מהרשת; הוא מתמקד ב-scaffolding של UI. תוסיפו חיווט server-to-client בשיעור מאוחר יותר."
+  caption="לוג ה-Campaigns תופס A1:G61. הקטע המעשי עדיין לא קורא מהרשת; הוא מתמקד ב-scaffolding של ה-UI. תוסיפו חיווט server-to-client בשיעור מאוחר יותר."
 />
 
-ה-starter project יש שני קבצים לעריכה:
+ב-starter project יש שני קבצים לעריכה:
 
-1. **`Lesson.gs`**: מצהיר על `showReportsSidebar()` עם body ריק. ממלאים אותו כך שיעשה:
-   - בונה `HtmlOutput` מקובץ ה-HTML `Reports` של הפרויקט באמצעות `HtmlService.createHtmlOutputFromFile("Reports")`.
-   - מגדיר את ה-title של הפאנל ל-`"Reports"` עם `.setTitle("Reports")`.
-   - פותח אותו עם `SpreadsheetApp.getUi().showSidebar(html)`.
-2. **`Reports.html`**: כרגע stub עם פסקת placeholder. מחליפים את ה-stub במarkup אמיתי: כותרת (`<h2>Spend report`), פסקה שמזכירה מה הפאנל מציג. שומרים את ה-`<base target="_top">` ב-head.
+1. **`Lesson.gs`**: מצהיר על `showReportsSidebar()` עם body ריק. ממלאים אותו כך ש:
+   - יבנה `HtmlOutput` מקובץ ה-HTML `Reports` של הפרויקט באמצעות `HtmlService.createHtmlOutputFromFile("Reports")`.
+   - יגדיר את ה-title של הפאנל ל-`"Reports"` עם `.setTitle("Reports")`.
+   - יפתח אותו עם `SpreadsheetApp.getUi().showSidebar(html)`.
+2. **`Reports.html`**: כרגע stub עם פסקת placeholder. מחליפים את ה-stub ב-markup אמיתי: כותרת (`<h2>Spend report`), פסקה שמזכירה מה הפאנל מציג. שומרים את ה-`<base target="_top">` ב-head.
 
-שומרים את הפרויקט. עוברים חזרה ל-sheet. מהעורך Apps Script, מריצים `showReportsSidebar` פעם אחת. הריצה הראשונה מבקשת auth על UI scope; מקבלים אותו. אחרי זה, ה-sidebar נפתח מיד בכל ריצה.
+שומרים את הפרויקט. עוברים חזרה ל-sheet. מהעורך של Apps Script, מריצים `showReportsSidebar` פעם אחת. הריצה הראשונה מבקשת auth על UI scope; מאשרים אותו. אחרי זה, ה-sidebar נפתח מיד בכל ריצה.
 
 ה-grader בודק: ה-function קיימת, ה-body של ה-function משתמש ב-HtmlService נכון עם שם הקובץ `"Reports"`, קובץ ה-HTML של Reports קיים עם body אמיתי וכותרת, והקובץ מפנה ל-`"Reports"` (לא לשם ה-shell השמור `"Sidebar"`) ב-`createHtmlOutputFromFile`.
 
@@ -200,18 +200,18 @@ const html = HtmlService.createHtmlOutputFromFile("Reports")
 
 שני patterns מהצוות:
 
-- **Campaign builder sidebar.** form רב-שלבי: בוחרים את ה-buyer, בוחרים את ה-vertical מרשימת PR הקנונית, בוחרים את הפלטפורמה, בוחרים את המדינה, בוחרים את סוג הקמפיין (`permax`, `rsoc`, `s1d`, `tc`). ב-submit, ה-sidebar קורא ל-server function שבונה את מחרוזת שם הקמפיין מהחלקים ומוסיף שורה חדשה ללוג הקמפיינים. ה-form המלא חי ב-`Sidebar.html` (ב-workbook שלהם, לא של הקורס הזה: הם לא משתפים את השם השמור) וההוספה של שורה בצד השרת היא ב-`Code.gs`.
-- **Bulk-archive confirm dialog.** כשה-buyer בוחר 50+ שורות ולוחץ "Archive selected", modal dialog נפתח עם ספירת השורות, טווח התאריכים, וה-spend הכולל המכוסה. שני כפתורים: Cancel ו-Archive. התנהגות חוסמת קריטית כאן: בחירת השורות שורדת את ה-modal, כך שהמשתמש לא יכול לאבד את ההקשר באמצע אישור.
+- **Campaign builder sidebar.** form רב-שלבי: בוחרים את ה-buyer, בוחרים את ה-vertical מרשימת PR הקנונית, בוחרים את הפלטפורמה, בוחרים את המדינה, בוחרים את סוג הקמפיין (`permax`, `rsoc`, `s1d`, `tc`). ב-submit, ה-sidebar קורא ל-server function שבונה את מחרוזת שם הקמפיין מהחלקים ומוסיף שורה חדשה ללוג הקמפיינים. ה-form המלא חי ב-`Sidebar.html` (ב-workbook שלהם, לא של הקורס הזה: הם לא משתפים את השם השמור) וההוספה של השורה בצד השרת היא ב-`Code.gs`.
+- **Bulk-archive confirm dialog.** כשה-buyer בוחר 50+ שורות ולוחץ "Archive selected", modal dialog נפתח עם ספירת השורות, טווח התאריכים, וה-spend הכולל שמכוסה. שני כפתורים: Cancel ו-Archive. ההתנהגות החוסמת קריטית כאן: בחירת השורות שורדת את ה-modal, כך שהמשתמש לא יכול לאבד את ההקשר באמצע אישור.
 
 ## מלכודות מקצועיות
 
 - **ה-tab של ה-sidebar לא שורד reload.** מרעננים את ה-workbook וה-sidebar נסגר בשקט. אם יש לכם רשומת "Show sidebar" בתפריט מותאם, המשתמש פשוט לוחץ שוב. לא שמים state קריטי ב-sidebar: שומרים אותו בתאים או ב-`PropertiesService` (שיעור 15) של ה-script כך ש-reload לא יאבד אותו.
-- **modal dialogs חוסמים את כל ה-sheet.** אין עריכה, אין גלילה, אין לחיצה במקום אחר עד שהמשתמש סוגר את ה-dialog. משתמשים בהם במשורה: הם שוברים זרימה אם משתמשים בהם בכל דבר מעבר ל-confirm של one-step.
-- **`setTitle` על sidebar היא הכותרת הנראית בראש הפאנל.** אם מגדירים אותה למחרוזת ריקה, הכותרת ריקה אבל לפאנל עדיין יש top bar.
+- **modal dialogs חוסמים את כל ה-sheet.** אין עריכה, אין גלילה, אין לחיצה במקום אחר עד שהמשתמש סוגר את ה-dialog. משתמשים בהם במשורה: הם שוברים את הזרימה אם משתמשים בהם בכל דבר מעבר ל-confirm של one-step.
+- **`setTitle` על sidebar היא הכותרת הגלויה בראש הפאנל.** אם מגדירים אותה למחרוזת ריקה, הכותרת ריקה אבל לפאנל עדיין יש top bar.
 - **שם הקובץ של HTML רגיש לרישיות.** `createHtmlOutputFromFile("reports")` לא מוצא את `Reports.html`. בוחר הקבצים של העורך מציג את הרישיות הקנונית.
-- **נתיבים יחסיים לא עובדים לתמונות ו-fonts.** ה-iframe מוגש מ-`googleusercontent.com`, לא מ-domain ה-workbook שלכם. משתמשים ב-URLs מוחלטים https למארח שאתם שולטים בו.
-- **`position: fixed` מתעלמים ממנו בשקט בתוך ה-iframe.** footers דביקים ו-toolbars צריכים markup שונה: בדרך כלל flex container עם `flex-direction: column` ו-footer שלוקח את הגובה הטבעי שלו בתחתית.
-- **scripts חיצוניים פוגעים בקיר ה-CSP.** `<script src="https://some-cdn/jquery.js">` יכול להיטען (Google Fonts מורשה; חלק מה-CDNs לא): זה תלוי ב-allowlist של Google, שמשתנה. ה-pattern החזק: inline את ה-JS שאתם צריכים, או לוקחים אותו לתוך בלוק ה-`<script>` של קובץ ה-HTML.
+- **נתיבים יחסיים לא עובדים לתמונות ו-fonts.** ה-iframe מוגש מ-`googleusercontent.com`, לא מה-domain של ה-workbook שלכם. משתמשים ב-URLs מוחלטים של https למארח שאתם שולטים בו.
+- **`position: fixed` נעקף בשקט בתוך ה-iframe.** footers דביקים ו-toolbars צריכים markup שונה: בדרך כלל flex container עם `flex-direction: column` ו-footer שלוקח את הגובה הטבעי שלו בתחתית.
+- **scripts חיצוניים נתקלים בקיר ה-CSP.** `<script src="https://some-cdn/jquery.js">` עשוי להיטען (Google Fonts מורשה; חלק מה-CDNs לא): זה תלוי ב-allowlist של Google, שמשתנה. ה-pattern החזק: עושים inline ל-JS שאתם צריכים, או לוקחים אותו לתוך בלוק ה-`<script>` של קובץ ה-HTML.
 - **ל-Sidebar HTML אין גישה לתאים.** אתם לא יכולים לכתוב `document.getElementById("a1").innerText = spreadsheet.getRange("A1").getValue()`. קריאות וכתיבות עוברות דרך `google.script.run` מהלקוח חזרה ל-`.gs` function. ה-sandbox הוא הקיר.
-- **שם הקובץ השמור `"Sidebar"` בקורס הזה.** אם תשימו `"Sidebar"` ב-`createHtmlOutputFromFile(...)`, או תקבלו את ה-shell של הקורס (לא את הקוד שלכם) או שגיאת "file not found" אם ה-shell לא מקושר. הקטע המעשי משתמש ב-`"Reports"` כדי להימנע מההתנגשות.
-- **`google.script.run` exceptions בצד השרת הופכים לכשלים שקטים בצד הלקוח.** תמיד מצמידים `.withSuccessHandler(fn)` עם `.withFailureHandler(err => console.error(err))` כך שהלקוח ידע כשה-function בצד השרת זורקת.
+- **שם הקובץ השמור `"Sidebar"` בקורס הזה.** אם תשימו `"Sidebar"` ב-`createHtmlOutputFromFile(...)`, או שתקבלו את ה-shell של הקורס (לא את הקוד שלכם) או שגיאת "file not found" אם ה-shell לא מקושר. הקטע המעשי משתמש ב-`"Reports"` כדי להימנע מההתנגשות.
+- **`google.script.run` exceptions בצד השרת הופכים לכשלים שקטים בצד הלקוח.** תמיד מצמידים `.withSuccessHandler(fn)` עם `.withFailureHandler(err => console.error(err))` כך שהלקוח ידע כשה-function בצד השרת זורקת שגיאה.

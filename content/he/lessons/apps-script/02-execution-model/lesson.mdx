@@ -1,8 +1,8 @@
 # מודל ההרצה: V8, שירותים, מכסות, scopes
 
-Apps Script נראה כמו JavaScript ורובו גם כן. מה ששונה זה סביבת ה-runtime: המנוע שמריץ את הקוד, הספריות שהוא חושף, המגבלות שהוא אוכף, ומערכת ההרשאות ששומרת על הכל. תקבלו תחושה לזה בשיעור 2 ושאר ה-Track יפסיק להפתיע אתכם.
+Apps Script נראה כמו JavaScript ורובו גם כן. מה ששונה זו סביבת ה-runtime: המנוע שמריץ את הקוד, הספריות שהוא חושף, המגבלות שהוא אוכף, ומערכת ההרשאות שמשמשת שומר לכל זה. תרגישו את זה בשיעור 2 ושאר ה-Track יפסיק להפתיע אתכם.
 
-המודל המנטלי שכדאי להחזיק בראש מההתחלה: כשאתם לוחצים Run בעורך, הקוד לא מתבצע בדפדפן שלכם. הוא נשלח ל-data center של Google, מתבצע שם על ידי runtime של Apps Script, והתוצאה נשלחת בחזרה. כל קריאה לשירות Sheets, Drive, Gmail, או כל שירות Workspace אחר היא קפיצה נוספת ברשת **בתוך** ה-data center הזה, אבל עדיין קפיצה. שתי ההשלכות (latency ומכסה) מעצבות את הדרך שבה כל function ריאליסטית של Apps Script נכתבת. שיעור 16 מבוסס על זה עם ה-playbook המלא של batching; השיעור הזה הוא על למה batching חשוב מלכתחילה.
+המודל המנטלי שכדאי להחזיק בראש מההתחלה: כשאתם לוחצים Run בעורך, הקוד לא רץ בדפדפן שלכם. הוא נשלח ל-data center של Google, מתבצע שם על ידי ה-runtime של Apps Script, והתוצאה חוזרת אליכם. כל קריאה לשירות Sheets, Drive, Gmail או כל שירות Workspace אחר היא קפיצת רשת נוספת **בתוך** ה-data center הזה, אבל עדיין קפיצה. שתי ההשלכות (latency ומכסה) מעצבות את הדרך שבה כל function ריאליסטית של Apps Script נכתבת. שיעור 16 מתבסס על זה עם ה-playbook המלא של batching; השיעור הזה הוא על למה batching חשוב מלכתחילה.
 
 ## V8 הוא ה-runtime (Rhino כבר לא קיים)
 
@@ -10,10 +10,10 @@ Apps Script רץ על שני מנועים לאורך חייו:
 
 | Runtime | תקופה | מה מקבלים |
 |---|---|---|
-| Rhino | 2009-2026 | ניב ישן של ECMAScript 5.x. בלי `let`/`const`, בלי arrow functions, בלי template literals, בלי destructuring, בלי `async`/`await`. הוכרז כ-deprecated ב-20 בפברואר 2025; **scripts על Rhino הפסיקו לרוץ ב-31 בינואר 2026** ([מדריך migration](https://developers.google.com/apps-script/guides/v8-runtime/migration)). |
+| Rhino | 2009-2026 | דיאלקט ישן של ECMAScript 5.x. בלי `let`/`const`, בלי arrow functions, בלי template literals, בלי destructuring, בלי `async`/`await`. הוכרז כ-deprecated ב-20 בפברואר 2025; **scripts על Rhino הפסיקו לרוץ ב-31 בינואר 2026** ([מדריך migration](https://developers.google.com/apps-script/guides/v8-runtime/migration)). |
 | V8 | 2020-היום | אותו מנוע שמריץ את Chrome. ECMAScript מודרני עם כל מה ששאר ה-ecosystem של JavaScript מניח. ה-runtime היחיד שנשאר. |
 
-השדה `runtimeVersion` ב-manifest מציג `"V8"` בכל פרויקט חי. **V8 הוא הבחירה היחידה, נקודה.** אם תפתחו workbook ישן שב-manifest שלו עדיין כתוב `"DEPRECATED_ES5"`, ה-triggers האלה לא יורים יותר החל מ-31 בינואר 2026: העורך מקבל את הערך אבל ה-runtime מסרב להריץ. המעבר הוא עריכה אחת ב-manifest (`"runtimeVersion": "V8"`) ובדיקה: אי-התאימות הנדירה היא סביב binding של `this` בתוך callbacks וכמה סמלים גלובליים מורשתיים ש-Rhino חשף (`importPackage`, וכו').
+השדה `runtimeVersion` ב-manifest מציג `"V8"` בכל פרויקט חי. **V8 הוא הבחירה היחידה, נקודה.** אם תפתחו workbook ישן שב-manifest שלו עדיין כתוב `"DEPRECATED_ES5"`, ה-triggers האלה כבר לא יורים מאז 31 בינואר 2026: העורך מקבל את הערך אבל ה-runtime מסרב להריץ. המעבר הוא עריכה אחת ב-manifest (`"runtimeVersion": "V8"`) ובדיקה: אי-התאימות הנדירה היא סביב binding של `this` בתוך callbacks וכמה סמלים גלובליים מורשת ש-Rhino חשף (`importPackage` וכו').
 
 בפועל, V8 אומר שאתם כותבים Apps Script באותו JavaScript שאתם כותבים בכל מקום אחר:
 
@@ -25,7 +25,7 @@ function summarize(campaign) {
 }
 ```
 
-מצאי קטן אבל שימושי של מה ש-V8 פותח שב-Rhino לא היה:
+רשימה קצרה אבל שימושית של מה ש-V8 פותח ושב-Rhino לא היה:
 
 | תכונת V8 | חלופת Rhino |
 |---|---|
@@ -41,29 +41,29 @@ function summarize(campaign) {
 | Nullish coalescing `x ?? y` | `(x === null \|\| x === undefined) ? y : x` |
 | `async/await` | שרשרות callback |
 
-הקטע המעשי של השיעור הזה מאלץ אתכם להשתמש ב-template literal מפורש: זו תכונת syntax מודרני שהכי סביר שתעקוץ אתכם אם תירשו פרויקט מעידן Rhino שב-manifest שלו עדיין כתוב `DEPRECATED_ES5` (ה-triggers האלה כבר לא רצים אחרי 31 בינואר 2026, אבל הערך ב-manifest נשאר ומועתק).
+הקטע המעשי של השיעור הזה מאלץ אתכם להשתמש ב-template literal מפורש: זו תכונת ה-syntax המודרני שהכי סביר שתעקוץ אתכם אם תירשו פרויקט מעידן Rhino שב-manifest שלו עדיין כתוב `DEPRECATED_ES5` (ה-triggers האלה כבר לא רצים אחרי 31 בינואר 2026, אבל הערך ב-manifest נשאר ומועתק הלאה).
 
 ## שירותים
 
 הספרייה הסטנדרטית של Apps Script מאורגנת ל-**שירותים**: top-level objects שמפעילים עליהם methods. אלה שב-workbook אדטק טיפוסי משתמשים בהם:
 
-| שירות | בשביל מה |
+| שירות | למה משמש |
 |---|---|
-| `SpreadsheetApp` | קריאה וכתיבה של תאים, טווחים, sheets. השירות הכי נוגעים בו. שיעור 4 מכסה לעומק. |
-| `DriveApp` | רישום, יצירה, הזזה, שיתוף קבצים. הדרך למצוא sheets ל-IMPORTRANGE. שיעור 10 מכסה. |
-| `UrlFetchApp` | HTTP יוצא. ככה pulls לילים של Taboola/Outbrain קורים (החלופה מצד ה-script לזרימה החיה של `IMPORTRANGE` משיעור 1.27). שיעור 11 מכסה. |
+| `SpreadsheetApp` | קריאה וכתיבה של תאים, טווחים, sheets. השירות שהכי נוגעים בו. שיעור 4 מכסה לעומק. |
+| `DriveApp` | רישום, יצירה, הזזה, שיתוף קבצים. הדרך למצוא sheets לעשות עליהם IMPORTRANGE. שיעור 10 מכסה. |
+| `UrlFetchApp` | HTTP יוצא. ככה ה-pulls הליליים של Taboola/Outbrain קורים (החלופה מצד ה-script לזרימה החיה של `IMPORTRANGE` משיעור 1.27). שיעור 11 מכסה. |
 | `MailApp` / `GmailApp` | שליחת מייל. ה-mailer של "spend exceeded budget". שיעור 10. |
 | `CalendarApp` | קריאה וכתיבה של events ביומן. פחות נפוץ באדטק. שיעור 10. |
 | `ScriptApp` | ניהול triggers, deployments, ה-metadata של ה-script עצמו. שיעור 8. |
 | `Session` | המשתמש הפעיל. `Session.getActiveUser().getEmail()` מחזיר מי מריץ. |
-| `Utilities` | פורמט תאריכים, base64, טיפול ב-blob, sleep. עוזרים שלא מתאימים בשום מקום אחר. |
+| `Utilities` | פורמט תאריכים, base64, טיפול ב-blob, sleep. helpers שלא מתאימים בשום מקום אחר. |
 | `CacheService` / `PropertiesService` | אחסון key/value פר-script. Cache קצר-מועד; Properties קבוע. שיעור 15. |
-| `LockService` | mutex כשני ריצות trigger יכולות להתחרות. חובה למשרות batch לילים. |
+| `LockService` | mutex כששתי ריצות trigger יכולות להתחרות. חובה ל-batch jobs ליליים. |
 | `HtmlService` | רנדור של sidebar ו-dialog. שיעור 9. |
 | `ContentService` | תגובות plain-text ו-JSON מ-web apps. שיעור 13. |
 | `UserService` | deprecated. לא להשתמש. |
 
-יש עוד (ה-"Advanced services" שאתם מפעילים ב-Resources מאפשרים לקרוא ל-Sheets API ברמה נמוכה יותר, ל-BigQuery API, ל-Admin SDK; שיעור 17 מכסה את Sheets advanced service בפירוט). עבור 90% של קוד workbook אתם חיים בטבלה שלמעלה.
+יש עוד (ה-"Advanced services" שאתם מפעילים ב-Resources מאפשרים לקרוא ל-Sheets API ברמה נמוכה יותר, ל-BigQuery API, ל-Admin SDK; שיעור 17 מכסה את Sheets advanced service בפירוט). עבור 90% של קוד workbook אתם חיים בתוך הטבלה שלמעלה.
 
 קריאה לשירות היא שרשרת methods:
 
@@ -78,7 +78,7 @@ const data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
 
 ### עלות ה-round-trip, באופן מוחשי
 
-דוגמת צעצוע ללמה זה חשוב. הדרך הנאיבית להעתיק עמודה F לעמודה J:
+דוגמת צעצוע שמראה למה זה חשוב. הדרך הנאיבית להעתיק עמודה F לעמודה J:
 
 <Compare>
   <ComparePanel label="פר-תא: ~6 שניות על 100 שורות" tone="negative">
@@ -86,18 +86,18 @@ const data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
   const v = sheet.getRange(r, 6).getValue();
   sheet.getRange(r, 10).setValue(v);
 }`}</code></pre>
-    <p className="mt-2 text-sm">100 קריאות + 100 כתיבות = 200 round-trips. על 5,000 שורות: 10,000 round-trips, כ-5 דקות, לרוב timeout ב-cap הצרכני של 6 דקות.</p>
+    <p className="mt-2 text-sm">100 קריאות + 100 כתיבות = 200 round-trips. על 5,000 שורות: 10,000 round-trips, בערך 5 דקות, לרוב timeout ב-cap של 6 דקות לביצוע.</p>
   </ComparePanel>
   <ComparePanel label="Batched: ~50 ms על 100 שורות" tone="positive">
     <pre className="font-mono text-xs"><code>{`const vals = sheet.getRange("F2:F101").getValues();
 sheet.getRange("J2:J101").setValues(vals);`}</code></pre>
-    <p className="mt-2 text-sm">שני round-trips בלי קשר לכמות השורות. על 5,000 שורות: עדיין שני round-trips, מסיים בכמה שניות. שיעור 16 מכסה את חוקי הצורה.</p>
+    <p className="mt-2 text-sm">שני round-trips בלי קשר לכמות השורות. על 5,000 שורות: עדיין שני round-trips, מסיים בכמה שניות. שיעור 16 מכסה את חוקי הצורות.</p>
   </ComparePanel>
 </Compare>
 
 ## מכסות
 
-Apps Script אוכף שלושה סוגי מגבלות:
+Apps Script אוכף שלושה סוגים של מגבלות:
 
 **timeout פר-execution.** ריצה אחת של script לא יכולה להימשך לנצח:
 
@@ -106,7 +106,7 @@ Apps Script אוכף שלושה סוגי מגבלות:
 | Consumer (gmail.com) | 6 דקות |
 | Workspace | 6 דקות |
 
-שכבת ה-30 דקות הישנה של Workspace, שמופיעה במדריכים ישנים, פוטרה; דף ה-quotas הנוכחי של Google מציג 6 דקות לכל ריצה לשני סוגי החשבונות. script שמגיע לזה נהרג באמצע כתיבה. התיקון הוא לשבור משרות ארוכות לחתיכות ולהפעיל מחדש דרך `ScriptApp.newTrigger(...).timeBased().at(...)` (מכוסה בשיעור 8): המתכון לעיבוד 200,000 שורות קמפיין הוא חתיכה של 20,000 שורות על trigger שמחמש את עצמו מחדש, כך שכל ריצה נשארת מתחת לתקרת 6 הדקות.
+שכבת 30 הדקות הישנה של Workspace, שמופיעה במדריכים ישנים, הוצאה משימוש; דף ה-quotas הנוכחי של Google מציג 6 דקות לכל ריצה בשני סוגי החשבונות. script שמגיע לתקרה הזו נהרג באמצע כתיבה. התיקון הוא לשבור עבודות ארוכות לחתיכות ולהפעיל מחדש דרך `ScriptApp.newTrigger(...).timeBased().at(...)` (מכוסה בשיעור 8): המתכון לעיבוד 200,000 שורות קמפיין הוא חתיכה של 20,000 שורות על trigger שמחמש את עצמו מחדש, כך שכל ריצה נשארת מתחת לתקרת 6 הדקות.
 
 **מכסות יומיות פר-שירות.** לכל שירות יש cap יומי משלו. אלה שהכי כואבות:
 
@@ -117,12 +117,12 @@ Apps Script אוכף שלושה סוגי מגבלות:
 | זמן ריצה כולל של trigger | 90 דקות/יום | 6 שעות/יום |
 | קריאות Sheets API מ-custom functions | 30,000/יום | 30,000/יום (אותו דבר) |
 
-המספרים זזים עם הזמן; הנוכחיים נמצאים ב-`developers.google.com/apps-script/guides/services/quotas`. שני pattern רלוונטיים:
+המספרים משתנים עם הזמן; הנוכחיים נמצאים ב-`developers.google.com/apps-script/guides/services/quotas`. שני patterns רלוונטיים:
 
-- **trigger לילי אחד שעושה 20,000 קריאות UrlFetchApp רווה את המכסה החינמית.** אם אתם צריכים יותר, מקבילים בין כמה projects של Apps Script (לכל אחד יש דלי מכסה משלו) או עוברים לחשבון Workspace בתשלום.
-- **המגבלה של MailApp של 100/יום היא פר-script, לא פר-משתמש.** script יחיד ששולח לכל חבר צוות יומית על הקמפיינים שלהם רווה מהר. משתמשים ב-`GmailApp.sendEmail` (1,500/יום בחינם, 10,000 ב-Workspace) ל-mailing בנפח גבוה יותר.
+- **trigger לילי אחד שעושה 20,000 קריאות UrlFetchApp מרוקן את המכסה החינמית.** אם אתם צריכים יותר, מקבילים בין כמה projects של Apps Script (לכל אחד יש דלי מכסה משלו) או עוברים לחשבון Workspace בתשלום.
+- **המגבלה של MailApp של 100/יום היא פר-script, לא פר-משתמש.** script יחיד ששולח לכל חבר צוות מייל יומי על הקמפיינים שלו מתרוקן מהר. משתמשים ב-`GmailApp.sendEmail` (1,500/יום בחינם, 10,000 ב-Workspace) ל-mailing בנפח גבוה יותר.
 
-**מגבלות קצב פר-דקה.** ל-`UrlFetchApp` יש מגבלת קריאות יומית מתועדת (20,000/יום ב-consumer, 100,000/יום ב-Workspace) אבל אין מגבלת קצב פר-דקה מתועדת. דיווחי קהילה מצביעים על throttle רך סביב כמה מאות לדקה בעומס מתמשך; כדאי להתייחס לקצב מעל ~300/דקה כסיכון ולהעדיף `fetchAll` עם payloads ב-batch. נוגעים ב-throttle ומקבלים exception `Service invoked too many times in a short time`. החוכמה של Apps Script היא `Utilities.sleep(100)` בין קריאות ב-batch: ביטוח זול.
+**מגבלות קצב פר-דקה.** ל-`UrlFetchApp` יש מגבלת קריאות יומית מתועדת (20,000/יום ב-consumer, 100,000/יום ב-Workspace) אבל אין מגבלת קצב פר-דקה מתועדת. דיווחים מהקהילה מצביעים על throttle רך סביב כמה מאות לדקה בעומס מתמשך; כדאי להתייחס לקצב מעל ~300/דקה כסיכון ולהעדיף `fetchAll` עם payloads ב-batch. נתקעים ב-throttle ומקבלים exception של `Service invoked too many times in a short time`. החוכמה של Apps Script היא `Utilities.sleep(100)` בין קריאות ב-batch: ביטוח זול.
 
 <StepThrough
   frames={[
@@ -130,7 +130,7 @@ Apps Script אוכף שלושה סוגי מגבלות:
       caption: "שלב 1: ה-trigger נורה",
       body: (
         <>
-          ב-02:00 ה-trigger מבוסס הזמן קורא ל-{" "}
+          ב-02:00 ה-trigger מבוסס-הזמן קורא ל-{" "}
           <code>nightlyTaboolaPull()</code>. הטיימר של 6 דקות מתחיל.
         </>
       ),
@@ -139,7 +139,7 @@ Apps Script אוכף שלושה סוגי מגבלות:
       caption: "שלב 2: 1,200 קריאות UrlFetchApp בלולאה הדוקה",
       body: (
         <>
-          ה-handler פוגע ב-endpoint של דוחות Taboola פעם אחת לקמפיין: ~1,200
+          ה-handler פונה ל-endpoint של דוחות Taboola פעם אחת לקמפיין: ~1,200
           קריאות. ה-cap היומי (20,000 ב-consumer / 100,000 ב-Workspace) רחוק,
           אבל throttle רך פר-דקה נכנס ברגע שהקצב נשאר גבוה לאורך זמן. Apps
           Script מתחיל לחסום קריאות לחלונות קצרים; ה-handler עדיין מסיים, אבל
@@ -153,7 +153,7 @@ Apps Script אוכף שלושה סוגי מגבלות:
         <>
           <code>setValue</code> פר-תא על 1,200 שורות × 7 עמודות = 8,400 round-trips.
           ב-~50 ms כל אחד, זה 7 דקות. הטיימר של 6 דקות נורה, Apps Script הורג את הריצה,
-          השורות שכתבתם נשארות, השאר לא.
+          השורות שכבר כתבתם נשארות, השאר לא.
         </>
       ),
     },
@@ -161,9 +161,9 @@ Apps Script אוכף שלושה סוגי מגבלות:
       caption: "שלב 4: התיקון",
       body: (
         <>
-          <code>UrlFetchApp.fetchAll</code> ל-1,200 הקריאות (מקביל; 30 שניות).
+          <code>UrlFetchApp.fetchAll</code> ל-1,200 הקריאות (במקביל; 30 שניות).
           <code>setValues</code> אחד עם המערך המלא 1,200 × 7 לכתיבות (round-trip אחד;
-          200 ms). סך הכל: פחות מדקה. אותה לוגיקה, פי 10 מהר יותר, בלי סיכון timeout.
+          200 ms). סך הכל: פחות מדקה. אותה לוגיקה, פי 10 מהר יותר, בלי סיכון של timeout.
         </>
       ),
     },
@@ -172,7 +172,7 @@ Apps Script אוכף שלושה סוגי מגבלות:
 
 ## OAuth scopes
 
-לכל קריאת שירות נדרשת הענקת הרשאה. ה-manifest מצהיר על scopes במפורש:
+כל קריאת שירות דורשת הענקת הרשאה. ה-manifest מצהיר על scopes במפורש:
 
 ```json
 "oauthScopes": [
@@ -182,13 +182,13 @@ Apps Script אוכף שלושה סוגי מגבלות:
 ]
 ```
 
-| Scope | מה זה פותח |
+| Scope | מה הוא פותח |
 |---|---|
-| `spreadsheets.currentonly` | קריאה/כתיבה רק ב-spreadsheet הפעיל. ה-scope הצר השימושי. |
-| `spreadsheets` | קריאה/כתיבה בכל spreadsheet שהמשתמש יכול לגשת. |
+| `spreadsheets.currentonly` | קריאה/כתיבה רק ב-spreadsheet הפעיל. ה-scope הצר השימושי ביותר. |
+| `spreadsheets` | קריאה/כתיבה בכל spreadsheet שלמשתמש יש גישה אליו. |
 | `drive.file` | קריאה/כתיבה של קבצים שה-app הזה יצר או שהמשתמש פתח איתו במפורש. |
 | `drive` | גישה מלאה ל-Drive. ה-scope הכי מפחיד לבקש. |
-| `script.container.ui` | הצגת sidebars, dialogs, custom menus. |
+| `script.container.ui` | הצגה של sidebars, dialogs, custom menus. |
 | `script.external_request` | קריאה ל-`UrlFetchApp`. |
 | `script.send_mail` | קריאה ל-`MailApp.sendEmail`. רק שליחה, אין גישה ל-inbox. |
 | `gmail.modify` | קריאה ל-`GmailApp.*`. כולל קריאה ושינוי של threads. |
@@ -196,12 +196,12 @@ Apps Script אוכף שלושה סוגי מגבלות:
 | `userinfo.email` | קריאת המייל של המשתמש הפעיל. |
 | `script.scriptapp` | רישום ומחיקה של triggers (שיעור 8). |
 
-**תמיד מעדיפים scopes צרים.** script bound שרק צריך את ה-workbook הפעיל צריך להשתמש ב-`spreadsheets.currentonly`, אף פעם לא ב-`spreadsheets`. שתי סיבות:
+**תמיד מעדיפים scopes צרים.** script bound שצריך רק את ה-workbook הפעיל צריך להשתמש ב-`spreadsheets.currentonly`, אף פעם לא ב-`spreadsheets`. שתי סיבות:
 
 1. **ה-auth prompt נראה פחות מפחיד.** משתמשים נוטשים scripts שמבקשים "Manage your spreadsheets in Drive" כש-"Manage just this spreadsheet" זה מה שהם באמת עושים.
-2. **הנזק אם ה-script נפרץ מוגבל.** script עם scope `drive` שנפרץ יכול לחלץ כל קובץ. script עם `drive.file` יכול לגעת רק בקבצים שהוא יצר.
+2. **הנזק אם ה-script נפרץ מוגבל.** script עם scope של `drive` שנפרץ יכול לחלץ כל קובץ. script עם `drive.file` יכול לגעת רק בקבצים שהוא יצר.
 
-בהרצה הראשונה, המשתמש רואה מסך consent שמפרט כל scope. הוא מקבל או מסרב. מוסיפים קריאת שירות חדשה מאוחר יותר? Apps Script מרחיב אוטומטית את רשימת ה-scopes, ההרצה הבאה תבקש שוב. זה מעצבן את המשתמש אבל זה איך שחוזה ההרשאות נשאר מפורש.
+בהרצה הראשונה, המשתמש רואה מסך consent שמפרט כל scope. הוא מאשר או מסרב. מוסיפים קריאת שירות חדשה אחר כך? Apps Script מרחיב אוטומטית את רשימת ה-scopes, ההרצה הבאה תבקש שוב. זה מעצבן את המשתמש אבל ככה חוזה ההרשאות נשאר מפורש.
 
 <Compare>
   <ComparePanel label="Overscoped (שבור)" tone="negative">
@@ -210,7 +210,7 @@ Apps Script אוכף שלושה סוגי מגבלות:
   "https://www.googleapis.com/auth/drive",
   "https://www.googleapis.com/auth/gmail.modify"
 ]`}</code></pre>
-    <p className="mt-2 text-sm">script שרק קורא את ה-workbook הפעיל ושולח מייל יוצא אחד מבקש כל spreadsheet שאתם יכולים לגשת, את כל Drive, ו-Gmail מלא. משתמשים נוטשים את מסך ה-consent.</p>
+    <p className="mt-2 text-sm">script שרק קורא את ה-workbook הפעיל ושולח מייל יוצא אחד מבקש כל spreadsheet שיש לכם גישה אליו, את כל Drive, ו-Gmail מלא. משתמשים נוטשים את מסך ה-consent.</p>
   </ComparePanel>
   <ComparePanel label="least privilege (עובד)" tone="positive">
     <pre className="font-mono text-xs"><code>{`"oauthScopes": [
@@ -222,13 +222,13 @@ Apps Script אוכף שלושה סוגי מגבלות:
 </Compare>
 
 <QuickCheck
-  question="אתם מתכננים pull לילי של UrlFetchApp על חשבון consumer gmail.com. ה-pull יפגע ב-endpoint אחד לכל שורת קמפיין. מהי תקרת הקריאות היומית המתועדת שאתם חייבים להישאר מתחתיה, ומהי אותה תקרה בחשבון Workspace?"
+  question="אתם מתכננים pull לילי של UrlFetchApp על חשבון consumer gmail.com. ה-pull יפנה ל-endpoint אחד לכל שורת קמפיין. מהי תקרת הקריאות היומית המתועדת שאתם חייבים להישאר מתחתיה, ומהי אותה תקרה בחשבון Workspace?"
   options={[
     {
       id: "a",
       label: "20,000/יום ב-consumer, 100,000/יום ב-Workspace.",
       correct: true,
-      explanation: "אלה המספרים ש-Google מפרסמת בדף ה-quotas של Apps Script. אין throttle פר-דקה מתועד; דיווחי קהילה מצביעים על מגבלה רכה סביב כמה מאות לדקה בעומס מתמשך, וזה דאגה נפרדת מה-cap היומי.",
+      explanation: "אלה המספרים ש-Google מפרסמת בדף ה-quotas של Apps Script. אין throttle פר-דקה מתועד; דיווחים מהקהילה מצביעים על מגבלה רכה סביב כמה מאות לדקה בעומס מתמשך, וזו דאגה נפרדת מה-cap היומי.",
     },
     {
       id: "b",
@@ -249,26 +249,26 @@ Apps Script אוכף שלושה סוגי מגבלות:
 
 ל-project המקושר של השיעור הזה יש קובץ `Lesson.gs` עם stub של `quotaSummary(perDay, perMinute)`. שתי משימות:
 
-1. עורכים את ה-body כדי להחזיר את ה-template literal `` `${perDay} per day, ${perMinute} per minute` ``. Template literals הם V8-only: זה ה-hook של השיעור.
-2. בתא **A1**, קוראים ל-`=quotaSummary(20000, 300)`. המספר הראשון הוא המכסה היומית המתועדת של UrlFetchApp בחשבון consumer; השני הוא יעד הקצב פר-דקה הבטוח שהצוות מתכנן סביבו pulls לילים (Google לא מפרסמת מספר פר-דקה, אז הצוות מתייחס ל-~300/דקה כתקרה ומשתמש ב-`fetchAll` מעבר לזה).
+1. עורכים את ה-body כך שיחזיר את ה-template literal `` `${perDay} per day, ${perMinute} per minute` ``. Template literals הם V8-only: זה ה-hook של השיעור.
+2. בתא **A1**, קוראים ל-`=quotaSummary(20000, 300)`. המספר הראשון הוא המכסה היומית המתועדת של UrlFetchApp בחשבון consumer; השני הוא יעד הקצב הבטוח לדקה שהצוות מתכנן סביבו pulls ליליים (Google לא מפרסמת מספר פר-דקה, אז הצוות מתייחס ל-~300/דקה כתקרה ומשתמש ב-`fetchAll` מעבר לזה).
 
 ## נפוץ בשטח
 
 projects אמיתיים של Apps Script ב-workbooks של הצוות:
 
-- **`appsscript.json` נושא 4-6 scopes מקסימום.** כל יותר זה או overscoping או עושים יותר מדי דברים ב-project אחד: מפצלים ל-script פר-עניין.
+- **`appsscript.json` נושא 4-6 scopes מקסימום.** יותר מזה זה או overscoping או עשיית יותר מדי דברים ב-project אחד: מפצלים ל-script פר-עניין.
 - **`Utilities.sleep(100)` בין כל `UrlFetchApp.fetch`.** חגורה ושלייקעס נגד ה-throttle פר-דקה.
-- **mailer של סיכום לילי שמפוצל לשתי functions.** אחד שאילתה את ה-workbook לנתונים; השני מפרמט ושולח. המכסה ל-`MailApp.sendEmail` נבדקת בתחילת ה-function השני: אם מומצה, לוג ל-Aggregator ודולגים על mailing לליל הזה.
-- **ניקוי Drive יומי שמשתמש ב-`DriveApp.searchFiles` פעם אחת ומעבד את התוצאה בזיכרון.** הגרסה הנאיבית הייתה קוראת ל-`getFileById` פר-שורה של גיליון רשימת מועמדים; גרסת הצוות קוראת את כל המועמדים בשאילתה אחת ומחברת אותם מול הגיליון ב-JavaScript. חוסך כ-200 round-trips פר-ריצה.
-- **`UrlFetchApp.fetchAll` לכל pull שפוגע ביותר מקומץ endpoints.** שיעור 11 מכסה את הצורה; ה-punchline הוא ש-fetchAll מריץ requests במקביל מקריאת Apps Script אחת, מה שגם חוסך מכסה וגם מסיים פי 5 עד פי 10 מהר יותר מ-loop טורי.
+- **mailer של סיכום לילי שמפוצל לשתי functions.** אחת שולפת את הנתונים מה-workbook; השנייה מפרמטת ושולחת. המכסה ל-`MailApp.sendEmail` נבדקת בתחילת ה-function השנייה: אם נגמרה, רושמים log ל-Aggregator ומדלגים על ה-mailing ללילה הזה.
+- **ניקוי Drive יומי שמשתמש ב-`DriveApp.searchFiles` פעם אחת ומעבד את התוצאה בזיכרון.** הגרסה הנאיבית הייתה קוראת ל-`getFileById` פר-שורה של גיליון רשימת מועמדים; גרסת הצוות קוראת את כל המועמדים בשאילתה אחת ומחברת אותם מול הגיליון ב-JavaScript. חוסך כ-200 round-trips לכל ריצה.
+- **`UrlFetchApp.fetchAll` לכל pull שפונה ליותר מקומץ endpoints.** שיעור 11 מכסה את הצורה; השורה התחתונה היא ש-fetchAll מריץ requests במקביל מקריאת Apps Script אחת, מה שגם חוסך מכסה וגם מסיים פי 5 עד פי 10 מהר יותר מ-loop טורי.
 
 ## מלכודות מקצועיות
 
-- **"ה-script שלי רץ אתמול אבל היום מבקש הרשאה שוב."** הוספתם קריאת שירות חדשה שצריכה scope חדש. Apps Script הרחיב אוטומטית את סט ה-scopes; ההרצה הבאה תבקש שוב. התיקון הוא או להצהיר על scopes במפורש ב-manifest (כך שתוספות מכוונות) או להזהיר את הצוות לפני כל rollout שיראו prompt טרי אחד.
-- **ה-timeout של 6 דקות שמתחבא מאחורי triggers.** trigger לילי שמצליח חודשים על נתונים קטנים מתחיל בשקט להיכשל ביום שהנתונים גדלים מעבר למגבלה. רושמים את זמן ההתחלה בראש כל function ארוכה ואת זמן הסיום בתחתית; כשהפער מתקרב ל-5 דקות, אתם יודעים לעשות refactor.
+- **"ה-script שלי רץ אתמול אבל היום מבקש הרשאה שוב."** הוספתם קריאת שירות חדשה שצריכה scope חדש. Apps Script הרחיב אוטומטית את סט ה-scopes; ההרצה הבאה תבקש שוב. התיקון הוא או להצהיר על scopes במפורש ב-manifest (כך שתוספות נעשות בכוונה) או להזהיר את הצוות לפני כל rollout שיראו prompt חדש אחד.
+- **ה-timeout של 6 דקות שמתחבא מאחורי triggers.** trigger לילי שמצליח חודשים על נתונים קטנים מתחיל בשקט להיכשל ביום שהנתונים גדלים מעבר למגבלה. רושמים את זמן ההתחלה בראש כל function ארוכה ואת זמן הסיום בתחתית; כשהפער מתקרב ל-5 דקות, אתם יודעים שצריך לעשות refactor.
 - **`UrlFetchApp.fetch` שמחזיר את אותה תגובה פעמיים.** ה-cache לקריאות `muteHttpExceptions: false` אגרסיבי. מעבירים `muteHttpExceptions: true` וקוראים את קוד התגובה בעצמכם, או מצמידים פרמטר cache-busting ל-URL.
-- **custom function שצורכת מכסת UrlFetchApp.** שיעור 3 מכסה caching מצד התא; הנה הצד של המכסה. כל tuple ארגומנטים שונה ל-`=fetchSomething(x, y)` הוא קריאה אחת. spreadsheet עם 50,000 תאים שקורא ל-custom function מבוססת `UrlFetchApp` ירווה את המכסה היומית בפתיחה אחת.
-- **triggers מרובים מתחרים על אותם נתונים.** trigger A לליל ראשון רץ שוב כי הריצה הקודמת קרסה; ריצה ידנית B נורית ביום שני בבוקר ל-backfill. שניהם כותבים ל-Aggregator במקביל. השתמשו ב-`LockService.getScriptLock().tryLock(30 * 1000)` בראש כל trigger שמשנה state משותף.
-- **Timeout פר-execution שמתערב עם `fetchAll`.** batch של `fetchAll` של 100 requests חוסם על האיטי ביותר. אם endpoint אחד עובר דקה רעה, כל ה-batch מחכה. מפצלים ל-batches פר-שירות; כך שירות איטי אחד לא חוסם מהירים.
-- **קוד בסגנון Rhino שנדבק בטעות ל-project V8.** חבר צוות מדביק תשובה מ-Stack Overflow מ-2014 עם `var` ו-`Array.prototype.forEach.call(...)`. עכשיו כש-Rhino עצמו פוטר ב-31 בינואר 2026, הקטעים האלה עדיין רצים תחת V8, אבל מתנהגים מוזר סביב `this` binding ומפריעים ל-patterns שניתן לחפש ששאר ה-codebase משתמש בהם. סטנדרטיזציה על `const`/`let`, callbacks של arrow, ו-array methods מודרניות.
-- **התרחבות scope אוטומטית כשובר שקט.** הוספת `GmailApp.search` ל-script שהיה מורשה בעבר רק ל-`spreadsheets.currentonly` לא זורקת; היא מרחיבה את סט ה-scopes וההרצה הבאה מציגה auth prompt חדש. חבר הצוות שמריץ אותו לפני שמייל ה-rollout מגיע רואה prompt לא מוסבר ונעשה עצבני.
+- **custom function שצורכת מכסת UrlFetchApp.** שיעור 3 מכסה caching מצד התא; הנה הצד של המכסה. כל tuple ארגומנטים שונה ל-`=fetchSomething(x, y)` הוא קריאה אחת. spreadsheet עם 50,000 תאים שקוראים ל-custom function מבוססת `UrlFetchApp` ירוקן את המכסה היומית בפתיחה אחת.
+- **triggers מרובים שמתחרים על אותם נתונים.** trigger A של יום ראשון בלילה רץ שוב כי הריצה הקודמת קרסה; ריצה ידנית B נורית ביום שני בבוקר ל-backfill. שניהם כותבים ל-Aggregator במקביל. השתמשו ב-`LockService.getScriptLock().tryLock(30 * 1000)` בראש כל trigger שמשנה state משותף.
+- **Timeout פר-execution שמתנגש עם `fetchAll`.** batch של `fetchAll` של 100 requests חוסם על האיטי ביותר. אם endpoint אחד עובר דקה רעה, כל ה-batch מחכה. מפצלים ל-batches פר-שירות; כך שירות איטי אחד לא חוסם מהירים.
+- **קוד בסגנון Rhino שנדבק בטעות ל-project של V8.** חבר צוות מדביק תשובה מ-Stack Overflow מ-2014 עם `var` ו-`Array.prototype.forEach.call(...)`. עכשיו כש-Rhino עצמו הוצא משימוש ב-31 בינואר 2026, הקטעים האלה עדיין רצים תחת V8, אבל מתנהגים מוזר סביב `this` binding ומפריעים ל-patterns שניתן לחפש שאר ה-codebase משתמש בהם. עוברים לסטנדרט של `const`/`let`, callbacks של arrow, ו-array methods מודרניות.
+- **התרחבות scope אוטומטית בתור שובר שקט.** הוספת `GmailApp.search` ל-script שהיה מורשה בעבר רק ל-`spreadsheets.currentonly` לא זורקת; היא מרחיבה את סט ה-scopes וההרצה הבאה מציגה auth prompt חדש. חבר הצוות שמריץ אותו לפני שמייל ה-rollout מגיע רואה prompt לא מוסבר ונלחץ.

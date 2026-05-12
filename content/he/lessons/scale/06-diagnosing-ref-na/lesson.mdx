@@ -2,20 +2,20 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # אבחון `#REF!` ו-`#N/A`
 
-שתי השגיאות נראות דומות ב-dashboard: תא אדום במקום שהיה בו מספר. הן באגים שונים, וטיפול בהן באותו אופן זו הדרך הכי מהירה להסוות בעיות אמיתיות. `#REF!` אומר שה-reference נשבר, הנוסחה מצביעה על תאים שלא קיימים יותר. `#N/A` אומר ש-lookup רץ נקי אבל לא מצא התאמה. אחת היא בעיה מבנית, השנייה היא שאלת נתונים. לתיקונים אין שום קשר אחד לשני.
+שתי השגיאות נראות דומות ב-dashboard: תא אדום במקום שהיה בו מספר. הן באגים שונים, והטיפול בהן באותו אופן הוא הדרך הכי מהירה להסוות בעיות אמיתיות. `#REF!` אומר שה-reference נשבר, הנוסחה מצביעה על תאים שלא קיימים יותר. `#N/A` אומר ש-lookup רץ נקי אבל לא מצא התאמה. אחת היא בעיה מבנית, השנייה היא שאלת נתונים. לתיקונים אין שום קשר אחד לשני.
 
-השיעור הזה הוא הכיול: איך לדעת איזו שגיאה יש, איזה wrapper תופס את זו שרוצים בלי לבלוע את זו שלא, ולמה הכלל הקבוע של הצוות הוא `IFNA` על פני `IFERROR` ב-lookups של production. שיעור 1.9 הציג את wrappers טיפול-השגיאות כפונקציות; השיעור הזה עוסק ביישום שלהם נכון תחת לחץ.
+השיעור הזה הוא הכיול: איך לדעת איזו שגיאה יש, איזה wrapper תופס את זו שרוצים בלי לבלוע את זו שלא, ולמה הכלל הקבוע של הצוות הוא `IFNA` על פני `IFERROR` ב-lookups של production. שיעור 1.9 הציג את ה-wrappers לטיפול בשגיאות כפונקציות; השיעור הזה עוסק ביישום שלהם נכון תחת לחץ.
 
 ## #REF! אומר "התא שהצבעתי עליו נעלם"
 
 המנוע של Sheets מעלה `#REF!` בכל פעם שנוסחה מפנה לתא, טווח, עמודה או גיליון שלא קיימים. הסיבות הנפוצות:
 
-- **עמודה או שורה נמחקה מתחת לנוסחה.** כתבת `=SUM(D2:D100)`, מישהו מחק את עמודה D, והתא עכשיו קורא `=SUM(#REF!:D99)`. ה-token `#REF!` הוא הדרך של המנוע להגיד "ה-argument הזה בעבר".
+- **עמודה או שורה נמחקה מתחת לנוסחה.** כתבתם `=SUM(D2:D100)`, מישהו מחק את עמודה D, והתא עכשיו קורא `=SUM(#REF!:D99)`. ה-token `#REF!` הוא הדרך של המנוע להגיד "ה-argument הזה בזמן עבר".
 - **copy-paste נחת במקום שבו ה-relative reference יצא מהרשת.** הדבקת `=A1` ל-A1 של טאב אחר שבו אין שורה למעלה הופכת ל-`#REF!`.
 - **גיליון נמחק או שונה לו השם.** `=Roster!A2` הופך ל-`=#REF!!A2` ברגע שטאב Roster נעלם.
 - **מקור של `IMPORTRANGE` נמחק, נזרק לפח או נשללה לו ההרשאה.** התא מציג `#REF!` עם "An array result was not expanded because it would overwrite data" או "Did not find value" ב-tooltip; טקסט הנוסחה עצמו בסדר אבל המקור נעלם. (זרימת האבחון המלאה למקרה הזה בשיעור 4.8.)
 
-התיקון תמיד באותה צורה: בונים מחדש את ה-reference. אין עקיפת `IFERROR` שעוזרת. עטיפת reference שבור ב-`IFERROR("source unavailable")` מסתירה את התסמין ומבטיחה שלא תשימו לב כשאותו דבר יקרה לעמודה הבאה. `#REF!` הוא מבני; הוא דורש תיקון מבני.
+התיקון תמיד באותה צורה: בונים מחדש את ה-reference. אין עקיפה עם `IFERROR` שעוזרת. עטיפת reference שבור ב-`IFERROR("source unavailable")` מסתירה את התסמין ומבטיחה שלא תשימו לב כשאותו דבר יקרה לעמודה הבאה. `#REF!` הוא מבני; הוא דורש תיקון מבני.
 
 <QuickCheck
   question={"נוסחת `SUMIFS` קוראת `=SUMIFS(#REF!:F100, B2:B100, \"Yoav Cohen\")`. אתמול היא החזירה מספר; היום היא מחזירה `#REF!`. מה הסיבה הסבירה ביותר והתיקון הנכון?"}
@@ -24,19 +24,19 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
       id: "a",
       label: <>media buyer בשם "Yoav Cohen" כבר לא קיים בעמודה B. עוטפים ב-`IFNA`.</>,
       correct: false,
-      explanation: "התאמה חסרה מחזירה `#N/A`, לא `#REF!`. ה-token `#REF!` בתוך טקסט הנוסחה עצמו אומר ש-reference הושמד, לא ש-lookup פספס. `IFNA` בלאו הכי לא היה נורה כאן.",
+      explanation: "התאמה חסרה מחזירה `#N/A`, לא `#REF!`. ה-token `#REF!` בתוך טקסט הנוסחה עצמו אומר ש-reference נהרס, לא ש-lookup פספס. `IFNA` ממילא לא היה נורה כאן.",
     },
     {
       id: "b",
       label: <>העמודה שהייתה ה-sum_range נמחקה. בונים מחדש את ה-reference כך שיצביע על העמודה הנכונה.</>,
       correct: true,
-      explanation: "ה-token `#REF!` המילולי בתוך הנוסחה הוא הדרך של המנוע להגיד \"ה-argument הזה הצביע פעם על מקום שנעלם\". עטיפה לא מחזירה את העמודה. התיקון מבני: מוצאים את העמודה שאמורה להחזיק את הערכים, מקלידים את ה-reference שלה בחזרה.",
+      explanation: "ה-token `#REF!` המילולי בתוך הנוסחה הוא הדרך של המנוע להגיד \"ה-argument הזה הצביע פעם על מקום שנעלם\". עטיפה לא מחזירה את העמודה. התיקון הוא מבני: מוצאים את העמודה שאמורה להחזיק את הערכים ומקלידים את ה-reference שלה בחזרה.",
     },
     {
       id: "c",
       label: <>מדליקים Iterative calculation תחת Settings.</>,
       correct: false,
-      explanation: "Iterative calc אין לו שום קשר ל-references שבורים. זו הגדרה ל-cyclic formulas והכלי השגוי כאן.",
+      explanation: "ל-Iterative calc אין שום קשר ל-references שבורים. זו הגדרה ל-cyclic formulas והיא הכלי הלא נכון כאן.",
     },
   ]}
 />
@@ -45,8 +45,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 `#N/A` מועלה על ידי פונקציות lookup כשאין התאמה. `VLOOKUP("MissingBuyer", B:C, 2, FALSE)` רץ נקי, הולך על העמודה, לא מוצא כלום, ומחזיר `#N/A`. הנוסחה תקינה. הנתונים לא מכילים את מה שביקשתם. התיקון הוא אחד משלושה:
 
-1. **מחליטים ש"אין התאמה" זו תוצאה נורמלית ומציגים תווית.** המקרה הנפוץ. עוטפים ב-`IFNA` עם fallback קריא: `=IFNA(VLOOKUP(...), "not found")`. משתמשים ב-`IFNA` ספציפית, לא ב-`IFERROR`, כי `IFNA` תופס רק `#N/A` ונותן לכל שגיאה אחרת (`#REF!`, `#VALUE!`, `#DIV/0!`) להופיע. `IFERROR` תופס הכל ונכון בערך ב-10% מהמקרים.
-2. **מתקנים את הנתונים.** אם "MissingBuyer" אמור להיות ב-roster, הבאג במעלה הזרם. עטיפת התסמין מסתירה את העבודה.
+1. **מחליטים ש"אין התאמה" זו תוצאה נורמלית ומציגים תווית.** המקרה הנפוץ. עוטפים ב-`IFNA` עם fallback קריא: `=IFNA(VLOOKUP(...), "not found")`. משתמשים ב-`IFNA` ספציפית, לא ב-`IFERROR`, כי `IFNA` תופס רק `#N/A` ונותן לכל שגיאה אחרת (`#REF!`, `#VALUE!`, `#DIV/0!`) לצוף. `IFERROR` תופס הכל ונכון בערך ב-10% מהמקרים.
+2. **מתקנים את הנתונים.** אם "MissingBuyer" אמור להיות ב-roster, הבאג הוא במעלה הזרם. עטיפת התסמין מסתירה את העבודה.
 3. **עוברים ל-`XLOOKUP` עם fallback inline.** `XLOOKUP(search, range, return, "not found")`. ה-argument הרביעי הוא הצורה הכי נקייה של fallback בשפה: הוא יושב בתוך הקריאה, ומי שקורא את הנוסחה רואה גם את ה-lookup וגם את ה-handler של הכשל במקום אחד.
 
 <FunctionRef name="IFNA" />
@@ -65,7 +65,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 השורה השלישית נדירה ולרוב סימן שהנוסחה צריכה להיות `LET`.
 
-הסיבה שזה משנה: `IFERROR` הוא הפטיש הגדול יותר. בשימוש בכל מקום הוא בולע בשקט `#REF!` (הבאג המבני שהיית צריך לתקן), `#DIV/0!` (הבאג האריתמטי שהיית צריך לשים לב אליו), ו-`#VALUE!` (אי-התאמת הטיפוסים שהיית צריך לנקות). dashboard עטוף ב-`IFERROR(..., "")` הוא dashboard בלי שגיאות וסיכוי של 30% להיות שגוי.
+הסיבה שזה משנה: `IFERROR` הוא הפטיש הגדול יותר. בשימוש בכל מקום הוא בולע בשקט `#REF!` (הבאג המבני שהייתם צריכים לתקן), `#DIV/0!` (הבאג האריתמטי שהייתם צריכים לשים לב אליו), ו-`#VALUE!` (אי-התאמת הטיפוסים שהייתם צריכים לנקות). dashboard עטוף ב-`IFERROR(..., "")` הוא dashboard בלי שגיאות עם סיכוי של 30% להיות שגוי.
 
 <Compare>
   <ComparePanel label="IFERROR בכל מקום" tone="negative">
@@ -74,7 +74,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
   </ComparePanel>
   <ComparePanel label="IFNA, שגיאות צפות" tone="positive">
     <pre className="font-mono text-xs"><code>{`=IFNA(VLOOKUP(B2, Roster!A:F, 5, FALSE), "not in roster")`}</code></pre>
-    <p className="mt-2 text-sm">תופס רק <code>#N/A</code> (ה-buyer לא ב-roster). <code>#REF!</code> מטאב Roster שנמחק עדיין צף והופך את התא לאדום, כדי שמישהו יתקן את הבעיה האמיתית.</p>
+    <p className="mt-2 text-sm">תופס רק <code>#N/A</code> (ה-buyer לא ב-roster). <code>#REF!</code> מטאב Roster שנמחק עדיין צף והופך את התא לאדום, ככה שמישהו יתקן את הבעיה האמיתית.</p>
   </ComparePanel>
 </Compare>
 
@@ -88,7 +88,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
   IF(spend = 0, 0, VLOOKUP(B2, Roster!A:F, 5, FALSE) / spend),
   "not in roster"
 )`}</code></pre>
-    <p className="mt-2 text-sm">שני מצבי כשל, שני handlers. <code>IF</code> מטפל ב-zero-divide; <code>IFNA</code> מטפל בפספוס ה-lookup. <code>#REF!</code> מטאב שנמחק עדיין צף. זו צורת ה-production.</p>
+    <p className="mt-2 text-sm">שני מצבי כשל, שני handlers. <code>IF</code> מטפל ב-zero-divide; <code>IFNA</code> מטפל בפספוס של ה-lookup. <code>#REF!</code> מטאב שנמחק עדיין צף. זו הצורה ל-production.</p>
   </ComparePanel>
 </Compare>
 
@@ -98,11 +98,11 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 `XLOOKUP` נוסף ל-Sheets במיוחד כדי לאחד את האקוסיסטם של ה-lookup ולהכניס את מקרה "אין התאמה" לתוך הקריאה. בהשוואה ל-`VLOOKUP`:
 
-- ה-fallback הוא ה-argument הרביעי, לא wrapper חיצוני. הנוסחה נקראת מלמעלה למטה: חיפוש זה, בעמודה הזו, מחזיר את העמודה הזו, אחרת התווית הזו.
+- ה-fallback הוא ה-argument הרביעי, לא wrapper חיצוני. הנוסחה נקראת מלמעלה למטה: חפש את זה, בעמודה הזו, החזר את העמודה הזו, אחרת התווית הזו.
 - עמודת ההחזרה לא חייבת להיות מימין לעמודת החיפוש.
 - טווח שיוצא מלמטה לא משחית בשקט ל-`#REF!` כמו ה-argument של מספר עמודה ב-`VLOOKUP` כשמוחקים עמודה.
 
-איפה `XLOOKUP` לא עוזר: אם טבלת ה-lookup מגיעה דרך `IMPORTRANGE` מ-workbook שטאב Roster שלו שונה לו השם, התא עדיין מציג `#REF!`. זה מבני, לא lookup-shaped, ושום fallback בתוך הקריאה לא יתפוס אותו. שיעור 4.8 מכסה את האבחון הזה.
+איפה `XLOOKUP` לא עוזר: אם טבלת ה-lookup מגיעה דרך `IMPORTRANGE` מ-workbook שטאב Roster שלו שונה לו השם, התא עדיין מציג `#REF!`. זה מבני, לא בצורה של lookup, ושום fallback בתוך הקריאה לא יתפוס אותו. שיעור 4.8 מכסה את האבחון הזה.
 
 <QuickCheck
   question="תא ב-dashboard מציג `#REF!`. ה-formula bar קורא `=IFNA(VLOOKUP(B2, ImportedRoster!A:F, 5, FALSE), 0)`. טאב ImportedRoster כן קיים. מה קורה?"
@@ -117,13 +117,13 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
       id: "b",
       label: <>עמודה או גיליון שמופנים על ידי הנוסחה נעלמו. IFNA לא תופס #REF!.</>,
       correct: true,
-      explanation: "IFNA תופס רק #N/A. ה-#REF! מבני, סביר עמודה שנמחקה בתוך טאב המקור או IMPORTRANGE שבור במעלה הזרם. התא עושה את עבודתו על ידי הצפת השבר המבני; התיקון במעלה הזרם.",
+      explanation: "IFNA תופס רק #N/A. ה-#REF! הוא מבני, סביר שזו עמודה שנמחקה בתוך טאב המקור או IMPORTRANGE שבור במעלה הזרם. התא עושה את עבודתו בכך שהוא מציף את השבר המבני; התיקון הוא במעלה הזרם.",
     },
     {
       id: "c",
       label: <>תא B2 ריק; צריך לעטוף גם את זה.</>,
       correct: false,
-      explanation: "B2 ריק היה גורם ל-VLOOKUP לחפש מחרוזת ריקה. זה היה מחזיר או התאמה (לא סביר) או #N/A (ש-IFNA היה תופס). #REF! זה כשל אחר.",
+      explanation: "B2 ריק היה גורם ל-VLOOKUP לחפש מחרוזת ריקה. זה היה מחזיר או התאמה (לא סביר) או #N/A (ש-IFNA היה תופס). #REF! הוא כשל אחר.",
     },
   ]}
 />
@@ -138,21 +138,21 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 יש ללחוץ על **Start lesson** כדי להעלות טאב Campaigns עם שני תאים שבורים מראש:
 
 - **J1** מתפענח ל-`#REF!`. הנוסחה הצביעה על עמודה שנמחקה. מחליפים ב-`SUM` עובד של עמודת ה-Spend.
-- **J2** מתפענח ל-`#N/A`. הנוסחה היא `=VLOOKUP("MissingBuyer", B:C, 2, FALSE)`. אין buyer בשם "MissingBuyer" בלוג; ה-lookup רץ נקי ומחזיר `#N/A`. עוטפים ב-`IFNA` (או `IFERROR`) עם fallback קריא כמו `"not found"`.
+- **J2** מתפענח ל-`#N/A`. הנוסחה היא `=VLOOKUP("MissingBuyer", B:C, 2, FALSE)`. אין buyer בשם "MissingBuyer" בלוג; ה-lookup רץ נקי ומחזיר `#N/A`. עוטפים ב-`IFNA` (או ב-`IFERROR`) עם fallback קריא כמו `"not found"`.
 - **J3** ריק. כותבים `XLOOKUP` הגנתי ל-"Yoav Cohen" מול עמודת ה-Buyer (`B2:B61`) שמחזיר Spend (`F2:F61`), עם מחרוזת fallback inline ב-argument הרביעי.
 
-שני סוגי שגיאה, שלושה תיקונים שונים. השיעור הוא לא ה-syntax; השיעור הוא התאמת התיקון לבאג.
+שני סוגי שגיאה, שלושה תיקונים שונים. השיעור הוא לא ה-syntax; השיעור הוא התאמה של התיקון לבאג.
 
 ## נפוץ בשטח
 
-- **מפל ה-#REF! של dropdown ה-buyer.** לפני חודשיים מישהו מחק את טאב ה-Roster ב-spreadsheet הראשי. כל נוסחה בשלושה dashboards שהפנתה ל-`Roster!A:A` הופכה ל-`#REF!`. התיקון היה בניית ה-roster הקנוני מחדש על טאב חדש, ואז הפניית כל קריאות ה-`IMPORTRANGE` במורד הזרם. הפיתוי לעטוף כל תא שבור ב-`IFERROR("unknown")` היה משאיר את ה-dashboards ירוקים ואת פירוט buyer-vertical ריק בשקט.
-- **`IFNA` על כל lookup של production.** הכלל הקבוע של הצוות ב-dashboard buyer-vertical: כל `VLOOKUP` או `XLOOKUP` שמושך שם חי בתוך `IFNA` עם מחרוזת מפורשת. buyers חדשים מופיעים בלי entry בטבלת ה-lookup של ה-roster; ה-fallback מסמן אותם בשם כך ש-ה-roster מתעדכן, לא נספג בשקט.
-- **ציד שגיאות ברמת התא עם עמודות `=ISERROR(...)`.** כש-dashboard מאדמדם, מעבר ה-audit הראשון הוא עמודת עזר על כל עמודת נוסחה: `=ARRAYFORMULA(ISERROR(C2:C61))`. תאי ה-TRUE הם ה-leak. משם קוראים את הנוסחה באחד מהתאים האלה ומחליטים #REF! מול #N/A מול משהו אחר.
+- **מפל ה-#REF! של dropdown ה-buyer.** לפני חודשיים מישהו מחק את טאב ה-Roster ב-spreadsheet הראשי. כל נוסחה בשלושה dashboards שהפנתה ל-`Roster!A:A` הפכה ל-`#REF!`. התיקון היה בניית ה-roster הקנוני מחדש על טאב חדש, ואז הפניית כל קריאות ה-`IMPORTRANGE` במורד הזרם מחדש. הפיתוי לעטוף כל תא שבור ב-`IFERROR("unknown")` היה משאיר את ה-dashboards ירוקים ואת פירוט buyer-vertical ריק בשקט.
+- **`IFNA` על כל lookup של production.** הכלל הקבוע של הצוות ב-dashboard buyer-vertical: כל `VLOOKUP` או `XLOOKUP` שמושך שם חי בתוך `IFNA` עם מחרוזת מפורשת. buyers חדשים מופיעים בלי entry בטבלת ה-lookup של ה-roster; ה-fallback מסמן אותם בשם כך שה-roster מתעדכן, לא נספג בשקט.
+- **ציד שגיאות ברמת התא עם עמודות `=ISERROR(...)`.** כש-dashboard מאדים, מעבר ה-audit הראשון הוא עמודת עזר על כל עמודת נוסחה: `=ARRAYFORMULA(ISERROR(C2:C61))`. תאי ה-TRUE הם הדליפה. משם קוראים את הנוסחה באחד מהתאים האלה ומחליטים #REF! מול #N/A מול משהו אחר.
 
 ## מלכודות מקצועיות
 
-- **`IFERROR` בכל מקום.** המקור היחיד הגדול ביותר של באגי dashboard שקטים. `IFERROR` בולע כל סוג שגיאה; ה-dashboard מתחיל ירוק; המתמטיקה שגויה. מושיטים יד ל-`IFNA` קודם; ל-`IFERROR` רק כשהוכח שאין מצב כשל אחר שהתא יכול לזרוק.
+- **`IFERROR` בכל מקום.** המקור היחיד הגדול ביותר של באגי dashboard שקטים. `IFERROR` בולע כל סוג שגיאה; ה-dashboard נראה ירוק; המתמטיקה שגויה. מושיטים יד ל-`IFNA` קודם; ל-`IFERROR` רק כשהוכח שאין מצב כשל אחר שהתא יכול לזרוק.
 - **`IFNA` על נוסחה שיכולה גם לזרוק `#DIV/0!`.** צורה נפוצה: `IFNA(ROI/spend, 0)`. ה-`#DIV/0!` מיום spend אפס עדיין צף; `IFNA` לא תופס אותו. או שמשתמשים ב-`IFERROR` במודעות, או שמגנים על ה-divide עם `IF(spend=0, 0, ROI/spend)`.
 - **עטיפת `#REF!` במקום לתקן.** מפתה כי זה גורם לאדום להיעלם. חודשים אחר כך מישהו אחר פותח את ה-workbook, רואה ירוק, וסומך על מספרים שלא היו נכונים מאז שהעמודה נמחקה.
-- **`XLOOKUP` fallbacks מצוברים.** `XLOOKUP(name, B:B, F:F, XLOOKUP(name, B2:B2, F2:F2, XLOOKUP(...)))`. חמש רמות עומק בדרך כלל אומר שאחת מהפנימיות תמיד יורה בשקט והחיצוניות הן קישוט. `LET` עם בדיקת `ISNA` מפורשת נקרא יותר טוב ומציף את נתיב ה-fallback בפועל.
-- **טבלת lookup מיובאת שהופכת ל-`#REF!` בן לילה.** ה-fallback ב-`XLOOKUP` שלך לא עוזר אם כל טווח ההחזרה הוא `#REF!`. הודעת השגיאה בתא תגיד `#REF!`, לא `#N/A`, וה-`IFNA` שלך לא בולע כלום. זו אחת הסיבות ששיעור 4.7 על cycles ושיעור 4.8 על IMPORTRANGE.
+- **`XLOOKUP` fallbacks מקוננים.** `XLOOKUP(name, B:B, F:F, XLOOKUP(name, B2:B2, F2:F2, XLOOKUP(...)))`. חמש רמות עומק בדרך כלל אומרות שאחת מהפנימיות תמיד יורה בשקט והחיצוניות הן קישוט. `LET` עם בדיקת `ISNA` מפורשת נקרא יותר טוב ומציף את נתיב ה-fallback בפועל.
+- **טבלת lookup מיובאת שהופכת ל-`#REF!` בן לילה.** ה-fallback ב-`XLOOKUP` שלכם לא עוזר אם כל טווח ההחזרה הוא `#REF!`. הודעת השגיאה בתא תגיד `#REF!`, לא `#N/A`, וה-`IFNA` שלכם לא בולע כלום. זו אחת הסיבות ששיעור 4.7 על cycles ושיעור 4.8 על IMPORTRANGE.

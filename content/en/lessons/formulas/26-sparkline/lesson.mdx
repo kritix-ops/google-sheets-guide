@@ -18,7 +18,7 @@ The simplest call passes a single range of numbers:
 
 Default chart type is `line`. Row height controls vertical pixels; column width controls horizontal pixels. That is the whole formula. The interesting choices live in the second argument: the options object.
 
-<RefDemo
+<TryIt
   data={[
     ["Day", "Revenue"],
     ["Mon", 412],
@@ -29,9 +29,10 @@ Default chart type is `line`. Row height controls vertical pixels; column width 
     ["Sat", 540],
     ["Sun", 510],
   ]}
-  formulaCell="D2"
-  initialFormula="=SUM(B2:B8)"
-  hint="Try =AVERAGE(B2:B8) or =MAX(B2:B8) to see how the same range answers different questions. SPARKLINE itself doesn't render in the sandbox, but the data here is what a sparkline cell would visualize."
+  inputCell="D2"
+  expectedFormula="=SUM(B2:B8)"
+  task={<>Compute weekly total revenue with <code>=SUM(B2:B8)</code>. Then try <code>=AVERAGE(B2:B8)</code> or <code>=MAX(B2:B8)</code> to see how the same range answers different questions. SPARKLINE itself does not render in the sandbox, but the data here is what a sparkline cell would visualize.</>}
+  hint={<>A sparkline takes the same range that <code>SUM</code> or <code>AVERAGE</code> would aggregate, and turns it into a tiny chart instead of a single number.</>}
 />
 
 ## The four chart types

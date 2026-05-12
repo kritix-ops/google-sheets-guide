@@ -1,14 +1,14 @@
 import { CAMPAIGNS } from "@/content/datasets/adtech";
 
-# QUERY לעומק: GROUP BY, PIVOT, LABEL, וקפריזת ה-Col1
+# QUERY לעומק: GROUP BY, PIVOT, LABEL והמוזרות של Col1
 
-שיעור 12 כיסה את היסודות של QUERY: SELECT, WHERE, ORDER BY, LIMIT. השיעור הזה נכנס לעומק עם הסעיפים שהופכים את QUERY מ"מסנן SQL" ל"כלי האגרגציה החזק ביותר ב-Sheets". `GROUP BY`, `PIVOT`, `LABEL`, פלוס המלכודות שתופסות כל אנליסט אדטק בסופו של דבר.
+שיעור 12 כיסה את היסודות של QUERY: SELECT, WHERE, ORDER BY, LIMIT. השיעור הזה נכנס לעומק עם הסעיפים שהופכים את QUERY מ"מסנן SQL" ל"כלי האגרגציה החזק ביותר ב-Sheets": `GROUP BY`, `PIVOT`, `LABEL`, ובנוסף המלכודות שתופסות כל אנליסט אדטק בסופו של דבר.
 
 <FunctionRef name="QUERY" />
 
 ## GROUP BY: אגרגציה לפי קטגוריה
 
-`GROUP BY` מקבץ שורות לקבוצות. בשילוב עם פונקציות אגרגציה (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`), הוא מייצר טבלאות סיכום.
+`GROUP BY` מקבץ שורות לקבוצות. בשילוב עם פונקציות אגרגציה (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`) הוא מייצר טבלאות סיכום.
 
 ```
 =QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B", 1)
@@ -26,19 +26,19 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   inputCell="H1"
   expectedFormula='=QUERY(A1:F13,"SELECT B, SUM(F) GROUP BY B ORDER BY SUM(F) DESC",1)'
   task={<>בנו סיכום revenue לכל media buyer, ממוין לפי revenue יורד. השתמשו ב-GROUP BY ו-SUM, ואז מיינו.</>}
-  hint={<>SELECT מפרט מה להשליך (B ו-SUM(F)). GROUP BY אומר ל-QUERY איך לקבץ לסלים. ORDER BY יכול להפנות ל-SUM(F) ישירות.</>}
-  answer={<>פונקציית האגרגציה SUM(F) מקבצת את כל השורות התואמות. GROUP BY B אומר "תקבץ שורות שחולקות את אותו ערך בעמודה B". ORDER BY SUM(F) DESC ממיין את הסיכום המתקבל לפי סך ה-revenue, הגדול ביותר ראשון. לתוצאה יש שורה אחת לכל media buyer פלוס כותרת. הכותרת של עמודת SUM היא "sum revenue" (אותיות קטנות) כברירת מחדל. השתמשו ב-LABEL כדי לשנות שם.</>}
+  hint={<>SELECT מפרט מה להציג (B ו-SUM(F)). GROUP BY אומר ל-QUERY איך לקבץ. ORDER BY יכול להפנות ל-SUM(F) ישירות.</>}
+  answer={<>פונקציית האגרגציה SUM(F) מאחדת את כל השורות התואמות. GROUP BY B אומר "תקבץ שורות שחולקות את אותו ערך בעמודה B". ORDER BY SUM(F) DESC ממיין את הסיכום המתקבל לפי סך ה-revenue, הגדול ביותר ראשון. בתוצאה יש שורה אחת לכל media buyer ובנוסף כותרת. הכותרת של עמודת SUM היא "sum revenue" (אותיות קטנות) כברירת מחדל. השתמשו ב-LABEL כדי לשנות אותה.</>}
 />
 
 ## LABEL: שינוי שם של עמודות כותרת
 
-עמודות אגרגציה מקבלות שם אוטומטי `sum revenue`, `count vertical` וכו'. כדי לשנות שם, מוסיפים סעיף `LABEL` בסוף:
+עמודות אגרגציה מקבלות שם אוטומטי `sum revenue`, `count vertical` וכו'. כדי לשנות את השם, מוסיפים סעיף `LABEL` בסוף:
 
 ```
 =QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B LABEL SUM(F) 'Total Revenue'", 1)
 ```
 
-`LABEL aggregate 'New Name'` עובד לכל עמודה, מאוגרגת או לא.
+`LABEL aggregate 'New Name'` עובד עבור כל עמודה, מאוגרגת או לא.
 
 ## PIVOT: סיבוב לסיכום דו-ממדי
 
@@ -56,12 +56,12 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula='=QUERY(A1:F13,"SELECT B, SUM(F) GROUP BY B PIVOT D",1)'
   task={<>בנו pivot של media buyer-מול-פלטפורמה שמראה סך revenue. השורות הן media buyers, העמודות הן פלטפורמות.</>}
   hint={<>GROUP BY B (שורות), PIVOT D (עמודות), SUM(F) (ערכי תא).</>}
-  answer={<>PIVOT מסובב את עמודת ה-pivot לכותרות לרוחב התוצאה. תאים ריקים (היכן ש-media buyer לא הריץ על אותה פלטפורמה) חוזרים ריקים. סדר הפלטפורמות בתוצאה הוא לפי אלפבית כברירת מחדל. שולטים בו דרך תת-queries או עיבוד-לאחר אם צריך. PIVOT עם QUERY מהיר יותר ודינמי יותר מתכונת ה-Pivot table המובנית לחישובים חד-פעמיים.</>}
+  answer={<>PIVOT מסובב את עמודת ה-pivot לכותרות לרוחב התוצאה. תאים ריקים (היכן ש-media buyer לא הריץ על אותה פלטפורמה) חוזרים ריקים. סדר הפלטפורמות בתוצאה הוא לפי אלפבית כברירת מחדל. אפשר לשלוט בו דרך תת-queries או עיבוד נוסף בהמשך אם צריך. PIVOT עם QUERY מהיר יותר ודינמי יותר מתכונת ה-Pivot table המובנית לחישובים חד-פעמיים.</>}
 />
 
-## הקפריזה של Col1
+## המוזרות של Col1
 
-כשמעבירים טווח *בלי* שורת כותרת ל-QUERY (או מעבירים `0` כארגומנט הכותרות), העמודות נקראות `Col1`, `Col2` וכו'. לא `A`, `B`, `C`. קל לפספס; מייצר שגיאות מבלבלות.
+כשמעבירים טווח *בלי* שורת כותרת ל-QUERY (או מעבירים `0` כארגומנט הכותרות), העמודות נקראות `Col1`, `Col2` וכו', ולא `A`, `B`, `C`. קל לפספס; מייצר שגיאות מבלבלות.
 
 ```
 =QUERY(A2:F13, "SELECT Col2, SUM(Col6) GROUP BY Col2", 0)
@@ -74,33 +74,33 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT A, B, SUM(F) GROUP BY B", 1)`}</code></pre>
-    <p className="mt-2 text-sm">SELECT מפנה לעמודה A אבל GROUP BY מקבץ רק לפי B. QUERY שוגה: כל עמודה לא-מאוגרגת ב-SELECT חייבת להופיע ב-GROUP BY.</p>
+    <p className="mt-2 text-sm">SELECT מפנה לעמודה A אבל GROUP BY מקבץ רק לפי B. QUERY מחזירה שגיאה: כל עמודה לא-מאוגרגת ב-SELECT חייבת להופיע ב-GROUP BY.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, SUM(F) GROUP BY B", 1)`}</code></pre>
-    <p className="mt-2 text-sm">הורידו את ה-A החשוף מ-SELECT או הוסיפו אותו ל-GROUP BY (מה שמקבץ לפי buyer+תאריך). הכלל "כל עמודה לא-מאוגרגת חייבת להיות גם מקובצת" הוא שגיאת QUERY הכי מסומנת בפרודקשן.</p>
+    <p className="mt-2 text-sm">הורידו את ה-A החשוף מ-SELECT או הוסיפו אותו ל-GROUP BY (מה שמקבץ לפי buyer+תאריך). הכלל "כל עמודה לא-מאוגרגת חייבת להיות גם מקובצת" הוא שגיאת QUERY הכי נפוצה בפרודקשן.</p>
   </ComparePanel>
 </Compare>
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT *, SUM(F) GROUP BY B", 1)`}</code></pre>
-    <p className="mt-2 text-sm"><code>SELECT *</code> לא ניתן לשילוב עם GROUP BY. QUERY צריך את רשימת העמודות המפורשת כדי לדעת אילו עמודות מקובצות ואילו מאוגרגות.</p>
+    <p className="mt-2 text-sm">אי אפשר לשלב <code>SELECT *</code> עם GROUP BY. QUERY צריכה את רשימת העמודות המפורשת כדי לדעת אילו עמודות מקובצות ואילו מאוגרגות.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, SUM(F), AVG(F) GROUP BY B", 1)`}</code></pre>
-    <p className="mt-2 text-sm">פרטו את העמודות שרוצים ואת האגרגציות שצריכים. SUM, AVG, COUNT, MIN, MAX כולם מורכבים ככה. הוסיפו סעיפי LABEL בסוף כדי לשנות שם של עמודות התוצאה שמקבלות שם אוטומטית.</p>
+    <p className="mt-2 text-sm">פרטו את העמודות שרוצים ואת האגרגציות שצריכים. SUM, AVG, COUNT, MIN, MAX כולם משתלבים ככה. הוסיפו סעיפי LABEL בסוף כדי לשנות את השם של עמודות התוצאה שמקבלות שם אוטומטית.</p>
   </ComparePanel>
 </Compare>
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT A, SUM(F) GROUP BY A", 1)`}</code></pre>
-    <p className="mt-2 text-sm">קיבוץ לפי תאריך מדויק. אם A מחזיק "2026-05-01" ו-"2026-05-02" בכל שורה, מקבלים שורה אחת ליום, לא לחודש. dashboards שאמורים לגלגל לחודש נשברים בשקט.</p>
+    <p className="mt-2 text-sm">קיבוץ לפי תאריך מדויק. אם A מכיל "2026-05-01" ו-"2026-05-02" בכל שורה, מקבלים שורה אחת ליום, לא לחודש. dashboards שאמורים לגלגל את הנתונים לחודש נשברים בשקט.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT YEAR(A), MONTH(A), SUM(F) GROUP BY YEAR(A), MONTH(A)", 1)`}</code></pre>
-    <p className="mt-2 text-sm">קיבוץ לפי חלקים שמחולצים. <code>YEAR(A), MONTH(A)</code> מקבץ תאריכים לזוגות שנה-חודש. QUERY תומך בפונקציות התאריך שמצופות (DAY, DAYOFWEEK, QUARTER, וכו').</p>
+    <p className="mt-2 text-sm">קיבוץ לפי חלקים שמחולצים. <code>YEAR(A), MONTH(A)</code> מקבץ תאריכים לזוגות שנה-חודש. QUERY תומכת בפונקציות התאריך הצפויות (DAY, DAYOFWEEK, QUARTER, וכו').</p>
   </ComparePanel>
 </Compare>
 
@@ -111,7 +111,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
       id: "a",
       label: "QUERY עושה pivot לכל ערך מובחן של העמודה שמעבירים. ככל הנראה לנתוני המקור יש טעויות הקלדה או וריאנטים של whitespace בשמות הפלטפורמה (Taboola, taboola, 'Taboola ').",
       correct: true,
-      explanation: "PIVOT יוצר עמודה אחת לכל ערך מובחן של עמודת ה-pivot. נתונים מלוכלכים מכפילים את העמודות. הריצו UNIQUE על עמודת המקור קודם כדי לאתר את הוריאנטים, אז נרמלו עם TRIM ו-SUBSTITUTE במעלה הזרם.",
+      explanation: "PIVOT יוצר עמודה אחת לכל ערך מובחן של עמודת ה-pivot. נתונים מלוכלכים מכפילים את העמודות. הריצו UNIQUE על עמודת המקור קודם כדי לאתר את הוריאנטים, ואז נרמלו עם TRIM ו-SUBSTITUTE כבר במקור.",
     },
     {
       id: "b",
@@ -121,24 +121,24 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
     },
     {
       id: "c",
-      label: "QUERY מוסיף עמודות padding כדי לעשות את התוצאה ריבועית.",
+      label: "QUERY מוסיפה עמודות padding כדי שהתוצאה תהיה ריבועית.",
       correct: false,
-      explanation: "QUERY לא מוסיף padding. העמודות באות מהנתונים.",
+      explanation: "QUERY לא מוסיפה padding. העמודות מגיעות מהנתונים.",
     },
   ]}
 />
 
 ## נפוץ בשטח
 
-- **ה-dashboard הראשי של הצוות.** QUERY יחיד עם GROUP BY media buyer, PIVOT פלטפורמה, SUM revenue ו-SUM spend. מייצר את המטריצה הקנונית של "מי עושה כסף איפה".
-- **דוחות ביצוע vertical.** GROUP BY vertical, SUM revenue, ORDER BY DESC. ה-verticals המובילים בביצועים ראשונים.
-- **סיכומי תקופה מוגבלי תאריכים.** GROUP BY media buyer עם WHERE date BETWEEN start AND end. מה כל media buyer עשה החודש לעומת החודש שעבר.
-- **ניתוח cohort.** GROUP BY launch_month (מחושב דרך TEXT(A, "yyyy-MM")) לשמירה חודש-מול-חודש.
+- **ה-dashboard הראשי של הצוות.** QUERY אחת עם GROUP BY media buyer, PIVOT פלטפורמה, SUM revenue ו-SUM spend. מייצרת את המטריצה הקנונית של "מי עושה כסף איפה".
+- **דוחות ביצועי vertical.** GROUP BY vertical, SUM revenue, ORDER BY DESC. ה-verticals המובילים בביצועים ראשונים.
+- **סיכומי תקופה מתוחמי תאריכים.** GROUP BY media buyer עם WHERE date BETWEEN start AND end. מה כל media buyer עשה החודש לעומת החודש שעבר.
+- **ניתוח cohort.** GROUP BY launch_month (מחושב דרך TEXT(A, "yyyy-MM")) לניתוח retention מחודש לחודש.
 
 ## מלכודות מקצועיות
 
-- **עמודת ה"label" לאגרגציה היא באותיות קטנות כברירת מחדל.** `SUM(F)` הופך לכותרת "sum revenue". השתמשו ב-LABEL כדי לשנות שם או ב-LABEL כדי לדכא עם מחרוזת ריקה `''`.
-- **GROUP BY דורש שכל עמודה לא-מאוגרגת ב-SELECT תהיה גם ב-GROUP BY.** `SELECT A, B, SUM(F) GROUP BY A` נותן שגיאה כי B לא מקובץ ולא מאוגרג. הוסיפו את B ל-GROUP BY או עטפו ב-MIN/MAX/וכו'.
+- **עמודת ה"label" לאגרגציה היא באותיות קטנות כברירת מחדל.** `SUM(F)` הופך לכותרת "sum revenue". השתמשו ב-LABEL כדי לשנות שם או כדי להסתיר עם מחרוזת ריקה `''`.
+- **GROUP BY דורש שכל עמודה לא-מאוגרגת ב-SELECT תהיה גם ב-GROUP BY.** `SELECT A, B, SUM(F) GROUP BY A` נותן שגיאה כי B לא מקובץ ולא מאוגרג. הוסיפו את B ל-GROUP BY או עטפו ב-MIN/MAX וכו'.
 - **PIVOT עם יותר מדי ערכים מובחנים מנפח את רוחב התוצאה.** PIVOT על עמודה עם 1000 ערכים ייחודיים מחזיר 1000 עמודות תוצאה. סננו קודם.
 - **Col1 מול A.** מעבירים `1` לארגומנט הכותרות כשהטווח כולל כותרות; `0` אחרת. בלבול בין השניים שובר את הפניות העמודה.
 - **הפניות עמודה ב-IMPORTRANGE.** נתוני IMPORTRANGE בתוך QUERY משתמשים ב-Col1, Col2 וכו' כברירת מחדל. עטפו את IMPORTRANGE ב-QUERY נוספת או השתמשו בארגומנט הכותרת הנכון.
@@ -146,4 +146,4 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## עכשיו לעבודה אמיתית
 
-לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. תכתבו שלוש QUERYs: סיכום revenue לכל media buyer, pivot של media buyer-מול-פלטפורמה, ודוח סיכומי vertical עם label עמודה מותאם.
+לחצו על **Start lesson** כדי לפתוח את לוג הקמפיינים. תכתבו שלוש QUERYs: סיכום revenue לכל media buyer, pivot של media buyer-מול-פלטפורמה, ודוח סיכומי vertical עם label עמודה מותאם.

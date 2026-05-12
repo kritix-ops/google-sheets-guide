@@ -1,12 +1,12 @@
 # ספריות ו-deployments ב-Apps Script: HEAD מול versioned, שיתוף בין פרויקטים
 
-עד עכשיו כל Apps Script project היה עצמאי. ה-custom function חי ב-bound script, התפריט חי ב-bound script, ה-trigger חי ב-bound script. זה תקין ל-workbook אחד. זה מתפרק ברגע שלשלושה workbooks יש לכל אחד עותק משלהם של `normalizeBuyer` ולאחד מהם יש גרסה מיושנת. **ספריות** הן הדרך של Apps Script לתת לכם לכתוב חתיכת קוד פעם אחת ולייבא אותה לכל מקום. בשילוב עם **deployments** (משטח ה-versioning), הן הדרך שבה הצוות שומר על מקור אמת יחיד ל-utilities משותפים על פני תריסר workbooks.
+עד עכשיו כל Apps Script project היה עצמאי. ה-custom function חי ב-bound script, התפריט חי ב-bound script, ה-trigger חי ב-bound script. זה תקין ל-workbook אחד. זה מתפרק ברגע שלשלושה workbooks יש לכל אחד עותק משלו של `normalizeBuyer` ולאחד מהם יש גרסה מיושנת. **ספריות** הן הדרך של Apps Script לאפשר לכם לכתוב חתיכת קוד פעם אחת ולייבא אותה לכל מקום. בשילוב עם **deployments** (משטח ה-versioning), הן הדרך שבה הצוות שומר על מקור אמת יחיד ל-utilities משותפים על פני תריסר workbooks.
 
-השיעור הזה מכסה ארבעה דברים: מה ספרייה היא בעצם (project Apps Script עצמאי עם scriptId ידוע), איך לייבא אחת (manifest + userSymbol), הטרייד-אוף של HEAD מול versioned (שאלת המשמעת המרכזית), וזרימת ה-deployment שמכת גרסאות. ה-`SheetsLib` של הצוות הוא הדוגמה הקנונית לכל אורך הדרך: ספרייה משותפת של מנרמלים ו-bucketers שכל workbook מייבא תחת `userSymbol: "Shared"`.
+השיעור הזה מכסה ארבעה דברים: מה ספרייה היא בעצם (Apps Script project עצמאי עם scriptId ידוע), איך לייבא אחת (manifest + userSymbol), הטרייד-אוף של HEAD מול versioned (שאלת המשמעת המרכזית), וזרימת ה-deployment שמייצרת גרסאות. ה-`SheetsLib` של הצוות הוא הדוגמה הקנונית לאורך כל הדרך: ספרייה משותפת של נרמולים ו-bucketers שכל workbook מייבא תחת `userSymbol: "Shared"`.
 
 ## מהי ספרייה בעצם
 
-ספרייה היא Apps Script project עצמאי: *לא* מקושר לאף spreadsheet: שה-functions שלו יכולים להיקרא על ידי projects אחרים. ה-project שמארח את ה-functions מזוהה על ידי **scriptId** (המחרוזת הארוכה ב-URL שלו). כל Apps Script project אחר יכול להצהיר על dependency על ה-scriptId הזה ב-manifest שלו, ומשם והלאה ה-functions של הספרייה הופכות נגישות תחת alias שנבחר.
+ספרייה היא Apps Script project עצמאי: *לא* מקושר לאף spreadsheet: שה-functions שלו יכולים להיקרא על ידי projects אחרים. ה-project שמארח את ה-functions מזוהה על ידי **scriptId** (המחרוזת הארוכה ב-URL שלו). כל Apps Script project אחר יכול להצהיר על dependency על ה-scriptId הזה ב-manifest שלו, ומאז ה-functions של הספרייה הופכות נגישות תחת alias שנבחר.
 
 באופן קונקרטי, בצד הספרייה:
 
@@ -55,8 +55,8 @@ function roiBucket(roi) {
 |---|---|
 | `userSymbol` | ה-alias המקומי שתשתמשו בו כדי לקרוא ל-functions. `"Shared"` אומר `Shared.normalizeBuyer(...)` במקור שלכם. חייב להיות JS identifier חוקי. |
 | `libraryId` | ה-scriptId של ה-project של הספרייה (המחרוזת הארוכה מה-URL שלה). |
-| `version` | מספר גרסה מקובע (`"1"`, `"2"`, `"3"`). Apps Script מקדם את זה כל פעם שמחבר הספרייה מפרסם deployment חדש. |
-| `developmentMode` | כש-`true`, כל קריאה פוגעת ב-HEAD של הספרייה (קוד אחרון לא שמור) במקום בגרסה המקובעת. שימושי בזמן פיתוח של הספרייה; מסוכן ב-production. |
+| `version` | מספר גרסה מקובע (`"1"`, `"2"`, `"3"`). הוא עולה כל פעם שמחבר הספרייה מפרסם deployment חדש. |
+| `developmentMode` | כש-`true`, כל קריאה פונה ל-HEAD של הספרייה (הקוד האחרון שלא נשמר) במקום לגרסה המקובעת. שימושי בזמן פיתוח של הספרייה; מסוכן ב-production. |
 
 המקור משתמש ב-symbol:
 
@@ -74,18 +74,18 @@ function tagRows() {
 }
 ```
 
-Apps Script פותר את `Shared.*` בזמן הרצה על ידי הבאת גרסת `"3"` שפורסמה של הספרייה (לפי ה-manifest) וקריאה אליה. בפעם הראשונה, הצרכן מתבקש לכל OAuth scopes שהספרייה צריכה: `Shared.normalizeBuyer` הוא JS טהור אז לא מוסיף אף אחד, אבל function של ספרייה ששולחת מייל או פוגעת ב-Drive תרחיב את רשימת ה-scopes של הצרכן בזמן ההתקנה.
+Apps Script פותר את `Shared.*` בזמן הרצה על ידי הבאת גרסה `"3"` שפורסמה של הספרייה (לפי ה-manifest) וקריאה אליה. בפעם הראשונה, הצרכן מתבקש לאשר כל OAuth scope שהספרייה צריכה: `Shared.normalizeBuyer` הוא JS טהור אז לא מוסיף אף אחד, אבל function של ספרייה ששולחת מייל או פונה ל-Drive תרחיב את רשימת ה-scopes של הצרכן בזמן ההתקנה.
 
 ## HEAD מול versioned (הטרייד-אוף המרכזי)
 
-לספריות Apps Script יש שתי דרכים לפתור לקוד אמיתי:
+לספריות Apps Script יש שתי דרכים להיפתר לקוד אמיתי:
 
 - **HEAD** (`developmentMode: true`): הצרכן תמיד מריץ את הקוד הלא-שמור הנוכחי של הספרייה. נוח בזמן שאתם מתקדמים, כי הצרכן קולט את העריכות שלכם ברגע שאתם שומרים את הספרייה.
-- **Versioned** (`developmentMode: false`, `version: "N"`): הצרכן מריץ את ה-snapshot שמחבר הספרייה פרסם כ-version N. מחבר הספרייה יכול להמשיך לערוך באופן חופשי; שום דבר שהצרכן מריץ לא משתנה עד שהצרכן מקדם את `version` ל-`"N+1"`.
+- **Versioned** (`developmentMode: false`, `version: "N"`): הצרכן מריץ את ה-snapshot שמחבר הספרייה פרסם כ-version N. מחבר הספרייה יכול להמשיך לערוך באופן חופשי; שום דבר שהצרכן מריץ לא משתנה עד שהצרכן מעלה את `version` ל-`"N+1"`.
 
-הכלל של הצוות: כל workbook של צוות מקבע גרסה. לכל ספרייה משותפת יש deployment לכל גרסה שעדיין בשימוש. קידום גרסה של ספרייה הוא פעולה מכוונת: מפרסמים deployment חדש, מחליטים אילו workbooks מקדמים קודם, ויכולים לחזור על ידי החלפת `version` של workbook חזרה.
+הכלל של הצוות: כל workbook של הצוות מקבע גרסה. לכל ספרייה משותפת יש deployment לכל גרסה שעדיין בשימוש. העלאת גרסה של ספרייה היא פעולה מכוונת: מפרסמים deployment חדש, מחליטים אילו workbooks עולים קודם, ויכולים לחזור אחורה על ידי החזרת `version` של workbook למספר הקודם.
 
-`developmentMode: true` קיים לבדיקה של מחבר הספרייה. זו **אף פעם לא ההגדרה הנכונה בצרכן production.** workbook ב-`developmentMode: true` re-fetches את ה-HEAD של הספרייה בכל קריאה, מה שמאיט משמעותית את ההרצה, ומחבר הספרייה יכול לשבור כל צרכן בשמירה אחת רעה.
+`developmentMode: true` קיים לבדיקה של מחבר הספרייה. זו **אף פעם לא ההגדרה הנכונה ב-consumer של production.** workbook ב-`developmentMode: true` מושך מחדש את ה-HEAD של הספרייה בכל קריאה, מה שמאיט משמעותית את ההרצה, ומחבר הספרייה יכול לשבור כל צרכן בשמירה אחת גרועה.
 
 <Compare>
   <ComparePanel label="לא נכון: HEAD ב-production" tone="negative">
@@ -95,7 +95,7 @@ Apps Script פותר את `Shared.*` בזמן הרצה על ידי הבאת גר
   "version": "3",
   "developmentMode": true
 }`}</code></pre>
-    <p className="mt-2 text-sm">כל קריאה re-fetches HEAD. איטי. מחבר הספרייה יכול לשבור כל צרכן על ידי שמירת refactor חצי-גמור. בסדר רק ל-workbook הבדיקה של המחבר.</p>
+    <p className="mt-2 text-sm">כל קריאה מושכת מחדש את ה-HEAD. איטי. מחבר הספרייה יכול לשבור כל צרכן על ידי שמירת refactor חצי-גמור. בסדר רק ל-workbook של הבדיקה של המחבר.</p>
   </ComparePanel>
   <ComparePanel label="נכון: גרסה מקובעת" tone="positive">
     <pre className="font-mono text-xs"><code>{`{
@@ -104,20 +104,20 @@ Apps Script פותר את `Shared.*` בזמן הרצה על ידי הבאת גר
   "version": "3",
   "developmentMode": false
 }`}</code></pre>
-    <p className="mt-2 text-sm">קפוא בגרסה 3 עד שמקדמים בכוונה ל-4. עריכות המחבר לא משפיעות עליכם. חוזרים על ידי הגדרת גרסה חזרה ל-"2".</p>
+    <p className="mt-2 text-sm">קפוא בגרסה 3 עד שמעלים בכוונה ל-4. העריכות של המחבר לא משפיעות עליכם. חוזרים אחורה על ידי החזרת הגרסה ל-"2".</p>
   </ComparePanel>
 </Compare>
 
 ## Deployments: פרסום snapshot
 
-deployment הוא איך שמכים גרסה. מתוך עורך Apps Script של הספרייה:
+deployment הוא איך שמייצרים גרסה. מתוך עורך Apps Script של הספרייה:
 
 1. Deploy then New deployment.
 2. Type: **Library**. (deployments של web app ו-Add-on הם קטגוריה שונה: שיעור 13 מכסה deployments של web app.)
-3. Description: כותבים מה השתנה מאז הגרסה הקודמת ("Added `roiBucket`. Renamed `normalize` to `normalizeBuyer`."). התיאור מופיע ב-dropdown של הגרסה לצרכנים.
-4. לוחצים Deploy. Apps Script מקצה גרסה שלמה ונועל את הקוד הנוכחי כתוכן של אותה גרסה.
+3. Description: כותבים מה השתנה מאז הגרסה הקודמת ("Added `roiBucket`. Renamed `normalize` to `normalizeBuyer`."). התיאור מופיע ב-dropdown של הגרסאות עבור הצרכנים.
+4. לוחצים Deploy. Apps Script מקצה מספר גרסה שלם ונועל את הקוד הנוכחי כתוכן של אותה גרסה.
 
-צרכנים שמעדכנים את `version` של ה-manifest שלהם למספר החדש קולטים את הקוד החדש. צרכנים בגרסאות ישנות יותר ממשיכים להריץ את הקוד הישן ללא שינוי. שתי הגרסאות קיימות כל זמן ש-project הספרייה קיים.
+צרכנים שמעדכנים את `version` ב-manifest שלהם למספר החדש קולטים את הקוד החדש. צרכנים בגרסאות ישנות יותר ממשיכים להריץ את הקוד הישן ללא שינוי. שתי הגרסאות קיימות כל זמן שה-project של הספרייה קיים.
 
 <StepThrough
   frames={[
@@ -125,7 +125,7 @@ deployment הוא איך שמכים גרסה. מתוך עורך Apps Script של
       caption: "שלב 1: עורכים את הספרייה, שומרים",
       body: (
         <>
-          אתם מוסיפים את <code>parseAdtechCampaignName</code> ל-project
+          אתם מוסיפים את <code>parseAdtechCampaignName</code> ל-project של
           SheetsLib. שומרים. ה-HEAD revision מכיל עכשיו את ה-function החדשה;
           אף צרכן לא רואה את זה עדיין כי כולם מקובעים לגרסה.
         </>
@@ -142,13 +142,13 @@ deployment הוא איך שמכים גרסה. מתוך עורך Apps Script של
       ),
     },
     {
-      caption: "שלב 3: צרכן מקדם את ה-manifest שלו",
+      caption: "שלב 3: צרכן מעלה את ה-manifest שלו",
       body: (
         <>
           הבעלים של workbook ה-Aggregator פותח את ה-manifest של ה-workbook
           הזה ומשנה <code>"version": "3"</code> ל-<code>"version": "4"</code>.
           שומרים. הקריאה הבאה ל-<code>Shared.parseAdtechCampaignName(...)</code>{" "}
-          פותרת לקוד של גרסה 4.
+          נפתרת לקוד של גרסה 4.
         </>
       ),
     },
@@ -156,8 +156,8 @@ deployment הוא איך שמכים גרסה. מתוך עורך Apps Script של
       caption: "שלב 4: מאחרים נשארים על 3",
       body: (
         <>
-          workbook אחר עדיין יש <code>"version": "3"</code>. הוא ממשיך
-          להריץ את הקוד הישן. שום דבר לא נשבר. הצוות מקדם את כולם ל-version
+          ל-workbook אחר עדיין יש <code>"version": "3"</code>. הוא ממשיך
+          להריץ את הקוד הישן. שום דבר לא נשבר. הצוות מעלה את כולם ל-version
           4 בקצב שלהם, אולי על פני שבוע.
         </>
       ),
@@ -167,36 +167,36 @@ deployment הוא איך שמכים גרסה. מתוך עורך Apps Script של
 
 ## מציאת scriptId של ספרייה
 
-ה-URL של הספרייה בעורך Apps Script נראה כמו `script.google.com/u/0/home/projects/1abc.../edit`. הקטע האמצעי הוא ה-scriptId. צרכנים של ספרייה מדביקים את ה-scriptId הזה לשדה `libraryId` של ה-manifest שלהם, או משתמשים ב-dialog Resources then Libraries של העורך (שכותב את אותו JSON בשבילכם).
+ה-URL של הספרייה בעורך Apps Script נראה כמו `script.google.com/u/0/home/projects/1abc.../edit`. הקטע האמצעי הוא ה-scriptId. צרכנים של ספרייה מדביקים את ה-scriptId הזה לשדה `libraryId` ב-manifest שלהם, או משתמשים ב-dialog Resources then Libraries של העורך (שכותב את אותו JSON בשבילכם).
 
 ## שיתוף הספרייה
 
-צרכן צריך לפחות גישת "Viewer" ל-project של Apps Script של הספרייה כדי לייבא אותה. מחבר הספרייה משתף את ה-project באותה דרך שהוא ישתף כל קובץ Drive (שיעור 2.12 מכסה את המשמעת של תפקידים ותפוגות שחלה גם כאן). לספריות צוות, ה-pattern הסטנדרטי הוא:
+צרכן צריך לפחות גישת "Viewer" ל-project של Apps Script של הספרייה כדי לייבא אותה. מחבר הספרייה משתף את ה-project באותה דרך שהוא היה משתף כל קובץ ב-Drive (שיעור 2.12 מכסה את המשמעת של תפקידים ותפוגות שחלה גם כאן). לספריות של הצוות, ה-pattern הסטנדרטי הוא:
 
 1. הבעלים של ה-project של הספרייה משתף אותה עם ה-Google Group של הצוות (`adtech@flexelent.com` או דומה).
 2. כל מי שבקבוצה יכול להוסיף את הספרייה ל-workbook שלו.
 3. בעלים ועורכים יכולים לפרסם גרסאות חדשות; viewers יכולים רק לצרוך.
 
 <QuickCheck
-  question="אתם שולחים גרסה חדשה של SheetsLib שמשנה שם של countryToRegion ל-countryToRegionV2. שלושה צרכן workbooks קוראים ל-Shared.countryToRegion(...). מה קורה?"
+  question="אתם שולחים גרסה חדשה של SheetsLib ששינתה את שם countryToRegion ל-countryToRegionV2. שלושה workbooks של צרכנים קוראים ל-Shared.countryToRegion(...). מה קורה?"
   options={[
     {
       id: "a",
-      label: "כל שלושת הצרכנים מתפרקים מיד כי שם ה-function השתנה.",
+      label: "כל שלושת הצרכנים נשברים מיד כי שם ה-function השתנה.",
       correct: false,
-      explanation: "צרכנים מקובעים לגרסה. שינוי השם משפיע עליהם רק כשהם מקדמים את ה-version של ה-manifest שלהם. לפני הקידום, הם עדיין פותרים לגרסה הישנה ול-function הישנה.",
+      explanation: "צרכנים מקובעים לגרסה. שינוי השם משפיע עליהם רק כשהם מעלים את ה-version ב-manifest שלהם. לפני ההעלאה, הם עדיין נפתרים לגרסה הישנה ול-function הישנה.",
     },
     {
       id: "b",
-      label: "שום דבר לא נשבר עד שכל צרכן מקדם את שדה ה-version שלו. אחרי שהם מקדמים, קריאות ל-countryToRegion במקור שלהם ייכשלו עד שהם יעדכנו גם את אתר הקריאה.",
+      label: "שום דבר לא נשבר עד שכל צרכן מעלה את שדה ה-version שלו. אחרי שהם מעלים, קריאות ל-countryToRegion במקור שלהם ייכשלו עד שהם יעדכנו גם את אתר הקריאה.",
       correct: true,
-      explanation: "נכון. הקיבוע של הגרסה מגן על צרכנים משינויים שהם לא ביקשו. הקידום הוא הפעולה המכוונת שמכניסה את הקוד החדש פנימה. המשמעת של הצוות: שומרים את השם הישן כ-alias דק לגרסה אחת, מוחקים אותו בגרסה N+2.",
+      explanation: "נכון. הקיבוע של הגרסה מגן על צרכנים משינויים שהם לא ביקשו. ההעלאה היא הפעולה המכוונת שמכניסה את הקוד החדש פנימה. המשמעת של הצוות: שומרים את השם הישן כ-alias דק לגרסה אחת, מוחקים אותו בגרסה N+2.",
     },
     {
       id: "c",
-      label: "Apps Script עושה rename אוטומטי לאתרי הקריאה במקור הצרכן.",
+      label: "Apps Script עושה rename אוטומטי לאתרי הקריאה במקור של הצרכן.",
       correct: false,
-      explanation: "אין rename אוטומטי. המקור של הצרכן לא משתנה על ידי deployment של ספרייה. הקיבוע של הגרסה אומר שזה ממשיך לפתור לשם הישן עד שה-manifest של הצרכן משתנה.",
+      explanation: "אין rename אוטומטי. המקור של הצרכן לא משתנה כתוצאה מ-deployment של ספרייה. הקיבוע של הגרסה אומר שזה ממשיך להיפתר לשם הישן עד שה-manifest של הצרכן משתנה.",
     },
   ]}
 />
@@ -229,27 +229,27 @@ deployment הוא איך שמכים גרסה. מתוך עורך Apps Script של
    ```
    מה שהקלדתם בשדה `userSymbol` של ה-manifest חייב להתאים ל-prefix במקור שלכם. אם השתמשתם ב-`"Utils"` ב-manifest, ה-body חייב לקרוא ל-`Utils.something(...)`.
 
-ה-grader עושה צילוב לשני הקבצים. עורכים אחד בלי השני וה-rules יגידו לכם בדיוק איזה צד לא בסדר.
+ה-grader עושה הצלבה בין שני הקבצים. עורכים אחד בלי השני וה-rules יגידו לכם בדיוק איזה צד לא בסדר.
 
 ## נפוץ בשטח
 
-הדוגמה הדגלית של הצוות היא **`SheetsLib`**: project Apps Script עצמאי בבעלות חשבון Google של ה-head buyer, משותף עם הקבוצה של הצוות. הוא מייצא:
+הדוגמה הדגלית של הצוות היא **`SheetsLib`**: Apps Script project עצמאי בבעלות חשבון Google של ה-head buyer, משותף עם הקבוצה של הצוות. הוא מייצא:
 
 - `normalizeBuyer(name)`: מסיר whitespace ומאחד casing.
 - `normalizeVertical(name)`: מבטיח את הסיומת ` PR`, מקצץ, מתקן casing.
-- `countryToRegion(iso2)`: `"DE"` ל-`"EU"`, `"US"` ל-`"NA"`, וכו'. טבלה של 200 שורות שחיה במקום אחד.
+- `countryToRegion(iso2)`: `"DE"` ל-`"EU"`, `"US"` ל-`"NA"`, וכו'. טבלה של 200 שורות שיושבת במקום אחד.
 - `roiBucket(roi)`: `"loss"`, `"flat"`, `"profitable"`, `"hero"`.
 - `parseAdtechCampaignName(name)`: מפצל את שמות הקמפיין המובנים של הצוות לחלקיהם הסמנטיים.
 
-כל workbook של הצוות: ה-Aggregator, ה-raws פר-פלטפורמה, ה-dashboards: מייבא את `SheetsLib` תחת `userSymbol: "Shared"`. כשרשימת המדינות צריכה לגדול (אזור חדש משיק), ה-head buyer עורך את `countryToRegion`, שולח גרסה חדשה (`"4"` ל-`"5"`), ועושה ping לצוות. כל בעלים של workbook מקדם את שדה `version` שלו בקצב שלו. ביום שישי כולם על גרסה 5; ה-rollout היה מסודר, כל צרכן רשם את הקידום, וחזרה אם משהו נשבר היא שינוי מספר אחד ב-manifest.
+כל workbook של הצוות: ה-Aggregator, ה-raws פר-פלטפורמה, ה-dashboards: מייבא את `SheetsLib` תחת `userSymbol: "Shared"`. כשרשימת המדינות צריכה לגדול (אזור חדש משיק), ה-head buyer עורך את `countryToRegion`, שולח גרסה חדשה (`"4"` ל-`"5"`), ועושה ping לצוות. כל בעלים של workbook מעלה את שדה ה-`version` שלו בקצב שלו. ביום שישי כולם על גרסה 5; ה-rollout היה מסודר, כל צרכן רשם את ההעלאה, וחזרה אחורה אם משהו נשבר היא שינוי של מספר אחד ב-manifest.
 
 ## מלכודות מקצועיות
 
-- **עריכת הספרייה לא מעדכנת את הצרכנים עד ששולחים deployment חדש.** ספריות Apps Script אינן חיות כברירת מחדל: הקיבוע של הגרסה מקפיא את הקוד. שינוי ב-`countryToRegion` בעורך הספרייה שלא נפרס בלתי-נראה לכל צרכן בגרסה מקובעת. Deploy then New deployment, בכל פעם.
-- **`developmentMode: true` ב-production.** זה עובד בהתחלה, ואז זה מפסיק. קריאות לוקחות יותר זמן באופן מורגש (הספרייה fetches HEAD בכל פעם), וברגע שמחבר הספרייה שומר refactor חצי-גמור, כל צרכן מתפרק. השתמשו ב-HEAD רק ב-workbook הבדיקה של מחבר הספרייה.
-- **תלויות מעגליות של ספריות.** Project A מייבא B, B מייבא A. Apps Script ייתן לכם לשמור את שני ה-manifests אבל הקריאה תיכשל ב-runtime עם שגיאת פתרון קריפטית. שומרים על גרף ה-dependency כעץ.
-- **הרחבת scope של ספרייה.** ייבוא של ספרייה שמשתמשת ב-`DriveApp` מוסיף את ה-scope של Drive להרשאה של *הפרויקט שלכם*. צרכנים רואים את זה במסך ה-consent כ-"ה-script הזה רוצה גישת Drive" גם אם הקוד שלהם לא נוגע ב-Drive. עורכים ביקורת על ה-scopes של הספרייה שלכם לפני שיתוף נרחב: ספרייה שעושה רק string manipulation לא צריכה לבקש scopes של Calendar או Gmail.
-- **שינוי שובר בספרייה יכול לשבור את כל הצרכנים בבת אחת.** אם כולם רצים HEAD או שמחבר הספרייה כופה עדכון של כל צרכן לגרסה החדשה, rename אחד של function מיוצאת מוריד את כל ה-workbooks של הצוות בו-זמנית. המשמעת היא: שולחים את ה-function החדשה תחת השם החדש, שומרים את השם הישן כ-alias דק לגרסה אחת, מוחקים את ה-alias בגרסה N+2. זו אותה משמעת שמחבר ספרייה מתרגל בכל package ecosystem.
+- **עריכת הספרייה לא מעדכנת את הצרכנים עד ששולחים deployment חדש.** ספריות Apps Script הן לא live כברירת מחדל: הקיבוע של הגרסה מקפיא את הקוד. שינוי ב-`countryToRegion` בעורך הספרייה שלא נפרס הוא בלתי-נראה לכל צרכן בגרסה מקובעת. Deploy then New deployment, בכל פעם.
+- **`developmentMode: true` ב-production.** זה עובד בהתחלה, ואז זה מפסיק. קריאות לוקחות יותר זמן באופן מורגש (הספרייה מושכת HEAD בכל פעם), וברגע שמחבר הספרייה שומר refactor חצי-גמור, כל צרכן נשבר. השתמשו ב-HEAD רק ב-workbook של הבדיקה של מחבר הספרייה.
+- **תלויות מעגליות של ספריות.** Project A מייבא את B, B מייבא את A. Apps Script ייתן לכם לשמור את שני ה-manifests אבל הקריאה תיכשל ב-runtime עם שגיאת פתרון קריפטית. שומרים על גרף ה-dependency כעץ.
+- **הרחבת scope של ספרייה.** ייבוא של ספרייה שמשתמשת ב-`DriveApp` מוסיף את ה-scope של Drive להרשאה של *ה-project שלכם*. צרכנים רואים את זה במסך ה-consent כ-"ה-script הזה רוצה גישת Drive" גם אם הקוד שלהם לא נוגע ב-Drive. עורכים ביקורת על ה-scopes של הספרייה שלכם לפני שיתוף נרחב: ספרייה שעושה רק string manipulation לא צריכה לבקש scopes של Calendar או Gmail.
+- **שינוי שובר בספרייה יכול לשבור את כל הצרכנים בבת אחת.** אם כולם רצים על HEAD או שמחבר הספרייה כופה עדכון של כל צרכן לגרסה החדשה, rename אחד של function מיוצאת מוריד את כל ה-workbooks של הצוות בו-זמנית. המשמעת היא: שולחים את ה-function החדשה תחת השם החדש, שומרים את השם הישן כ-alias דק לגרסה אחת, מוחקים את ה-alias בגרסה N+2. זו אותה משמעת שמחבר ספרייה מתרגל בכל package ecosystem.
 - **ה-`userSymbol` הוא בחירה של הצרכן, לא של מחבר הספרייה.** שני workbooks יכולים לייבא את אותה ספרייה תחת symbols שונים (`Shared` מול `Utils`). זה מותר אבל זה הופך snippets משותפים בין workbooks למבלבלים: בוחרים symbol אחד כצוות ומשתמשים בו בכל מקום.
-- **function של ספרייה שקוראת ל-`SpreadsheetApp.getActiveSpreadsheet()` מחזירה את ה-spreadsheet הפעיל של הצרכן, לא של הספרייה.** זה מה שאתם רוצים רוב הזמן, אבל בפעם הראשונה שאתם כותבים ספרייה אתם עשויים להניח שזה מחזיר "איפה שקוד הספרייה חי", שזה project עצמאי בלי spreadsheet פעיל. מעבירים IDs ו-ranges ל-functions של ספרייה במקום להסתמך על context של active-sheet.
-- **קנס ביצועים פר-קריאה לספרייה.** כל הפעלה של `Shared.normalizeBuyer(...)` חוצה גבול project; בסדר גודל של אלפיות שנייה פר-קריאה. בתוך לולאה הדוקה על 50,000 שורות זה 30+ שניות. ל-hot paths, משכפלים את ה-function הקטנה ל-project הצרכן ומסתמכים על הספרייה רק עבור המקור הקנוני.
+- **function של ספרייה שקוראת ל-`SpreadsheetApp.getActiveSpreadsheet()` מחזירה את ה-spreadsheet הפעיל של הצרכן, לא של הספרייה.** זה מה שאתם רוצים רוב הזמן, אבל בפעם הראשונה שאתם כותבים ספרייה אתם עשויים להניח שזה מחזיר "איפה שקוד הספרייה חי", שזה project עצמאי בלי spreadsheet פעיל. מעבירים IDs ו-ranges ל-functions של הספרייה במקום להסתמך על context של active-sheet.
+- **קנס ביצועים פר-קריאה לספרייה.** כל הפעלה של `Shared.normalizeBuyer(...)` חוצה גבול בין projects; בסדר גודל של אלפיות שנייה פר-קריאה. בתוך לולאה הדוקה על 50,000 שורות זה 30+ שניות. ל-hot paths, משכפלים את ה-function הקטנה ל-project של הצרכן ומסתמכים על הספרייה רק עבור המקור הקנוני.

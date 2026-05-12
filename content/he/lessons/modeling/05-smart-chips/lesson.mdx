@@ -2,13 +2,13 @@ import { BUYERS_DETAIL } from "@/content/datasets/adtech";
 
 # Drop-downs ו-smart chips: people, file, finance, date, place, YouTube, dropdown chips
 
-לסון 2.4 כיסה את חצי ה-dropdown של `Data → Data validation`: רשימות סגורות, טווחים, נוסחאות מותאמות. השיעור הזה הוא על החצי השני של סיפור הקלט המבוקר: **smart chips**, ההכנסות העשירות עם `@`-mention שמצמידות אדם, קובץ, מקום, ticker פיננסי, או תאריך calendar לתא יחיד. שם של buyer שמוקלד כטקסט הוא רק מחרוזת. אותו שם כ-person chip הוא לינק לפרופיל שלו, לאימייל שלו, לזמינות שלו: hover ורואים. התא עדיין נראה כתא אחד. מתחת, זה reference מובנה למשהו מחוץ ל-spreadsheet.
+שיעור 2.4 כיסה את החצי של ה-dropdown של `Data → Data validation`: רשימות סגורות, טווחים, נוסחאות מותאמות. השיעור הזה הוא על החצי השני של סיפור הקלט המבוקר: **smart chips**, ההכנסות העשירות עם `@`-mention שמצמידות אדם, קובץ, מקום, ticker פיננסי או תאריך calendar לתא יחיד. שם של buyer שמוקלד כטקסט הוא רק מחרוזת. אותו שם כ-person chip הוא לינק לפרופיל שלו, לאימייל שלו, לזמינות שלו: hover ורואים את הכל. התא עדיין נראה כתא אחד. מתחת, זה reference מובנה למשהו שחי מחוץ ל-spreadsheet.
 
-חשבו על chip בתור מצב הכוחות העל של התא. התצוגה עדיין זעירה, הסמנטיקה אינסופית עשירה יותר. הצוות משתמש ב-chips בכל מקום שבו פיסת נתונים מצביעה על משהו שחי במקום אחר: אדם ב-Slack, תיקייה ב-Drive, אירוע ב-calendar, ticker מניות של ספק. ה-chip הופך החלפת קונטקסט של 30 שניות (לפתוח Drive, לחפש, ללחוץ) ל-hover בלחיצה אחת.
+חשבו על chip בתור מצב הכוחות העל של התא. התצוגה עדיין זעירה, הסמנטיקה הרבה יותר עשירה. הצוות משתמש ב-chips בכל מקום שבו פיסת נתונים מצביעה על משהו שחי במקום אחר: אדם ב-Slack, תיקייה ב-Drive, אירוע ב-calendar, ticker מניות של ספק. ה-chip הופך החלפת קונטקסט של 30 שניות (לפתוח Drive, לחפש, ללחוץ) ל-hover בלחיצה אחת.
 
 ## סוגי ה-chips שתשתמשו בהם בפועל
 
-Sheets תומך ביותר סוגי chips מאלה, אבל בעבודת אדטק אותה חבילה קטנה ממשיכה להופיע:
+Sheets תומך ביותר סוגי chips מאלה, אבל בעבודת אדטק אותה חבילה קטנה חוזרת ומופיעה:
 
 | Chip | מה הוא מצמיד | קונטקסט אדטק |
 |---|---|---|
@@ -20,13 +20,13 @@ Sheets תומך ביותר סוגי chips מאלה, אבל בעבודת אדטק
 | YouTube video | URL של YouTube עם thumbnail ותצוגה מקדימה ב-hover | הצמדת URL לסקירת קריאייטיב לכל שורה; הצמדת walkthrough של "best practices" של הפלטפורמה ליד tab media-plan |
 | Dropdown | רשימת `Data validation` שמוצגת כ-pill בשורה (שיעור 2.4) | Vertical, country, platform, status, כל רשימה סגורה שבה סגנון ה-chip נקרא נקי יותר מחץ ה-dropdown |
 
-Person ו-File נושאים את רוב המשקל ב-workbooks אמיתיים. YouTube ו-Dropdown chips הם חדשים יותר (הצגת ה-pill של ה-dropdown יצאה ב-2024) ושווה להכיר אותם כי הם מחליפים דפוסים שהצוות נהג לטפל בהם דרך hyperlinks ותאי validation גלויים.
+Person ו-File נושאים את רוב המשקל ב-workbooks אמיתיים. YouTube ו-Dropdown chips הם חדשים יותר (הצגת ה-pill של ה-dropdown יצאה ב-2024) ושווה להכיר אותם כי הם מחליפים דפוסים שהצוות נהג לטפל בהם דרך hyperlinks ותאי validation רגילים.
 
 ### YouTube ו-Dropdown chips, יותר לעומק
 
-ה-**YouTube video chip** מוכנס באותה דרך כמו file chip: מקלידים `@` ומדביקים URL של YouTube (או מחפשים לפי כותרת סרטון) ובוחרים את התוצאה. ה-chip מוצג כ-pill קטן עם ה-thumbnail של הסרטון שנראה ב-hover, ולחיצה על ה-pill פותחת את הסרטון ב-side panel בלי לעזוב את ה-workbook. הצוות משתמש בו ב-tracker סקירת הקריאייטיב: תא `Creative URL` של כל שורה מחזיק YouTube chip שמצביע על נכס הוידאו שהפלטפורמה הגישה. סוקרים עושים hover כדי לראות את ה-thumbnail ולוחצים כדי לצפות, הכל בלי לקפוץ ל-tab חדש.
+ה-**YouTube video chip** מוכנס באותה דרך כמו file chip: מקלידים `@` ומדביקים URL של YouTube (או מחפשים לפי כותרת סרטון) ובוחרים את התוצאה. ה-chip מוצג כ-pill קטן עם ה-thumbnail של הסרטון שמופיע ב-hover, ולחיצה על ה-pill פותחת את הסרטון ב-side panel בלי לעזוב את ה-workbook. הצוות משתמש בו ב-tracker של סקירת קריאייטיב: תא `Creative URL` של כל שורה מחזיק YouTube chip שמצביע על נכס הווידאו שהפלטפורמה הגישה. סוקרים עושים hover כדי לראות את ה-thumbnail ולוחצים כדי לצפות, הכל בלי לקפוץ ל-tab חדש.
 
-ה-**Dropdown chip** הוא מה שקורה כשכלל `Data validation` מוגדר עם `Display style: chip` (אפשרות ההצגה משנת 2024 בדיאלוג ה-validation, מכוסה בשיעור 2.4). התא כבר לא מראה חץ dropdown בקצה הימני; במקום זאת הערך הנבחר מוצג כ-pill בשורה, לעיתים קרובות עם קוד צבע. פונקציונלית זו עדיין אותה רשימת validation, עם אותו Reject input ועם אותם ערכים תקפים. ויזואלית זה נקרא כמו תג status, ולכן הוא השתלט על validation רגיל ב-dashboards: עמודת `Status: Active`, `Status: Paused`, `Status: Archived` נקראת במבט אחד כשכל ערך הוא chip צבעוני משלו. הפניה חוצה לשיעור 2.4 לחצי ה-validation של ההגדרה; ה-chip הוא רק בחירת הצגה מעליו.
+ה-**Dropdown chip** הוא מה שקורה כשכלל `Data validation` מוגדר עם `Display style: chip` (אפשרות ההצגה משנת 2024 בדיאלוג ה-validation, מכוסה בשיעור 2.4). התא כבר לא מראה חץ dropdown בקצה הימני; במקום זאת הערך הנבחר מוצג כ-pill בשורה, לעיתים קרובות עם קוד צבע. פונקציונלית זו עדיין אותה רשימת validation, עם אותו Reject input ועם אותם ערכים חוקיים. ויזואלית זה נקרא כמו תג status, ולכן הוא השתלט על validation רגיל ב-dashboards: עמודת `Status: Active`, `Status: Paused`, `Status: Archived` נקראת במבט אחד כשכל ערך הוא chip צבעוני משלו. הפניה חוצה לשיעור 2.4 לחצי ה-validation של ההגדרה; ה-chip הוא רק בחירת הצגה מעליו.
 
 <QuickCheck
   question="ל-dashboard שלכם יש עמודת 'Owner' שצריכה לאפשר לכל חבר/ת צוות ping ל-buyer on-call מכל שורה. מה הולך בתא?"
@@ -35,19 +35,19 @@ Person ו-File נושאים את רוב המשקל ב-workbooks אמיתיים. 
       id: "a",
       label: "שם ה-buyer כטקסט רגיל",
       correct: false,
-      explanation: "טקסט רגיל לא עושה ping לאף אחד. הקורא צריך לחפש את השם, לפתוח Slack או email, להקליד את הכתובת, שלושה שלבים ש-person chip מקצר לאחד.",
+      explanation: "טקסט רגיל לא עושה ping לאף אחד. הקורא צריך לחפש את השם, לפתוח Slack או email ולהקליד את הכתובת - שלושה שלבים ש-person chip מקצר לאחד.",
     },
     {
       id: "b",
       label: "person chip מקושר לזהות ה-Workspace של ה-buyer",
       correct: true,
-      explanation: "Person chips נושאים את האימייל, הפרופיל, והזמינות של המשתמש. Hover מראה תצוגה מקדימה; קליק פותח chat או mail. זה מה שעושה עמודת Owner שימושית ב-11 בלילה.",
+      explanation: "Person chips נושאים את האימייל, הפרופיל והזמינות של המשתמש. Hover מראה תצוגה מקדימה; קליק פותח chat או mail. זה מה שהופך את עמודת Owner לשימושית ב-11 בלילה.",
     },
     {
       id: "c",
       label: "נוסחת HYPERLINK שמצביעה על URL האימייל של ה-buyer",
       correct: false,
-      explanation: "HYPERLINK ל-mailto פותח טיוטה. person chip עשיר יותר: הוא מראה זמינות, מסונכרן עם שינויים בזהות Workspace, ומשולב עם Calendar.",
+      explanation: "HYPERLINK ל-mailto פותח טיוטה. person chip עשיר יותר: הוא מראה זמינות, מסתנכרן עם שינויים בזהות Workspace, ומשולב עם Calendar.",
     },
   ]}
 />
@@ -56,14 +56,14 @@ Person ו-File נושאים את רוב המשקל ב-workbooks אמיתיים. 
 
 בתוך כל תא, מקלידים `@` ו-Sheets פותח chip-picker. ה-picker מסנן תוך כדי הקלדה:
 
-- `@yoav` מסנן לאנשים ששמם מתאים ל-`yoav`. בוחרים `Yoav Cohen` והתא מחזיק עכשיו person chip מקושר לזהות Workspace שלו.
+- `@yoav` מסנן לאנשים ששמם מתאים ל-`yoav`. בוחרים `Yoav Cohen` והתא מחזיק עכשיו person chip שמקושר לזהות Workspace שלו.
 - `@May 10` מסנן לתאריכים ומציע chip של "May 10, 2026".
 - `@AAPL` מסנן לפיננסים ומציע את chip ה-ticker של Apple.
 - `@Master campaign log` מסנן לקבצי Drive שמתאימים לכותרת הזו.
 
 ה-chip מוצג כ-pill קטן עם שם הישות ותצוגה מקדימה ב-hover. הטקסט הבסיסי של התא הוא רק `@`. טקסט התצוגה ויעד הקישור שניהם חיים ב-metadata של ה-chip, לא בערך התא.
 
-יש נתיב הכנסה שני שלוכד אנשים: מדביקים URL של Drive ישירות לתא. Sheets מציג prompt "Replace with a smart chip?". מאשרים ומקבלים file chip. מסלקים (או מדביקים בזמן ש-ה-prompt נכבה) ומקבלים מחרוזת hyperlink רגילה. שניהם ניתנים ללחיצה; רק אחד מהם ניתן לחיפוש ומובנה.
+יש נתיב הכנסה שני שלוכד אנשים: מדביקים URL של Drive ישירות לתא. Sheets מציג prompt "Replace with a smart chip?". מאשרים ומקבלים file chip. מבטלים (או מדביקים בזמן שה-prompt נכבה) ומקבלים מחרוזת hyperlink רגילה. שניהם ניתנים ללחיצה; רק אחד מהם ניתן לחיפוש ומובנה.
 
 <QuickCheck
   question="אתם מדביקים URL של תיקיית Drive לתא B5. Sheets מציג את ה-prompt 'Replace with a smart chip?'. אתם לוחצים Escape ברפלקס. מה יש ב-B5 עכשיו?"
@@ -72,17 +72,17 @@ Person ו-File נושאים את רוב המשקל ב-workbooks אמיתיים. 
       id: "a",
       label: "file chip שמצביע על התיקייה (Sheets יצר אחד בכל מקרה)",
       correct: false,
-      explanation: "סילוק ה-prompt הוא 'לא'. Sheets לא יוצר chip כשמסרבים. התא מחזיק מה שההדבקה הכניסה.",
+      explanation: "ביטול ה-prompt הוא 'לא'. Sheets לא יוצר chip כשמסרבים. התא מחזיק את מה שההדבקה הכניסה.",
     },
     {
       id: "b",
-      label: "hyperlink רגיל: ה-URL כטקסט, עם קו תחתון ניתן ללחיצה",
+      label: "hyperlink רגיל: ה-URL כטקסט, עם קו תחתון שניתן ללחיצה",
       correct: true,
-      explanation: "ההדבקה משאירה את ה-URL כטקסט. הקו התחתון של ה-hyperlink מגיע מזיהוי קישורים אוטומטי של Sheets על URLs. ניתן ללחיצה אבל אין לו metadata של chip, אז ה-API רואה תא טקסט רגיל. חצי מהעמודות עם chip-and-link מעורבבים אצל הצוות מגיעות מסילוק לא מכוון של ה-prompt הזה.",
+      explanation: "ההדבקה משאירה את ה-URL כטקסט. הקו התחתון של ה-hyperlink מגיע מזיהוי קישורים אוטומטי של Sheets על URLs. ניתן ללחיצה אבל אין לו metadata של chip, אז ה-API רואה תא טקסט רגיל. חצי מהעמודות המעורבבות של chip ולינק אצל הצוות מגיעות מביטול לא מכוון של ה-prompt הזה.",
     },
     {
       id: "c",
-      label: "תא ריק, כי Sheets מבטל את ההדבקה כשה-prompt מסולק",
+      label: "תא ריק, כי Sheets מבטל את ההדבקה כשה-prompt מבוטל",
       correct: false,
       explanation: "Sheets לעולם לא מבטל הדבקה בגלל chip prompt. ההדבקה קורית קודם; ה-chip prompt הוא הצעה משלימה.",
     },
@@ -91,7 +91,7 @@ Person ו-File נושאים את רוב המשקל ב-workbooks אמיתיים. 
 
 ## איך ה-API רואה chip
 
-כל chip הוא `ChipRun` שמוצמד לתא. run נושא `startIndex` (מיקום התו בתא שבו ה-chip יושב) פלוס payload `Chip` שהוא או person chip או rich-link chip:
+כל chip הוא `ChipRun` שמוצמד לתא. run נושא `startIndex` (מיקום התו בתא שבו ה-chip יושב) בתוספת payload `Chip` שהוא או person chip או rich-link chip:
 
 ```
 A1 = "@"           // ערך התא הוא רק ה-@ placeholder
@@ -102,7 +102,7 @@ chipRuns[0]:
       email: "yoav.cohen@flexelent.com"
 ```
 
-או ל-file chip:
+או עבור file chip:
 
 ```
 B2 = "@"
@@ -114,7 +114,7 @@ chipRuns[0]:
       mimeType: "application/vnd.google-apps.spreadsheet"
 ```
 
-`mimeType` הוא מה שאומר לכם את תת-הסוג של ה-chip: `application/vnd.google-apps.spreadsheet` ל-Sheet, `application/vnd.google-apps.document` ל-Doc, `application/vnd.google-apps.folder` לתיקיית Drive, וכן הלאה. Place chips, finance chips, ו-calendar chips יש להם ערכי `mimeType` ייעודיים משלהם, אבל משפחת ה-`vnd.google-apps.*` מכסה כל קובץ Drive שהצוות מקשר יומיומית.
+`mimeType` הוא מה שאומר לכם את תת-הסוג של ה-chip: `application/vnd.google-apps.spreadsheet` ל-Sheet, `application/vnd.google-apps.document` ל-Doc, `application/vnd.google-apps.folder` לתיקיית Drive, וכן הלאה. ל-place chips, finance chips ו-calendar chips יש ערכי `mimeType` ייעודיים משלהם, אבל משפחת ה-`vnd.google-apps.*` מכסה כל קובץ Drive שהצוות מקשר ביום-יום.
 
 <Compare>
   <ComparePanel label="שבור: חיפוש לפי טקסט chip" tone="negative">
@@ -124,7 +124,7 @@ chipRuns[0]:
 
 =FIND("Yoav", A2)      ➜ #VALUE!
 =REGEXMATCH(A2, "Yoav") ➜ FALSE`}</code></pre>
-    <p className="mt-2 text-sm">FIND ו-REGEXMATCH פועלים על טקסט התא. metadata של chip בלתי נראה להן. התא נראה ניתן לחיפוש אבל לא.</p>
+    <p className="mt-2 text-sm">FIND ו-REGEXMATCH פועלים על טקסט התא. metadata של chip בלתי נראית להן. התא נראה ניתן לחיפוש, אבל הוא לא.</p>
   </ComparePanel>
   <ComparePanel label="עובד: שמירת עמודת עזר טקסט" tone="positive">
     <pre className="font-mono text-xs"><code>{`עמודה A: person chip (תצוגה "Yoav Cohen")
@@ -134,7 +134,7 @@ chipRuns[0]:
 =COUNTIF(B:B, "Yoav*")  ➜ מדויק
 
 Charts מתויגים לפי A, חיפושים קוראים B.`}</code></pre>
-    <p className="mt-2 text-sm">כשצריכים גם chip ניתן ללחיצה וגם עמודה ניתנת לחיפוש, שומרים עמודת טקסט מקבילה. ה-chip הוא המשטח, העזר הוא הנתונים.</p>
+    <p className="mt-2 text-sm">כשצריך גם chip שניתן ללחיצה וגם עמודה שניתנת לחיפוש, שומרים עמודת טקסט מקבילה. ה-chip הוא המשטח, עמודת העזר היא הנתונים.</p>
   </ComparePanel>
 </Compare>
 
@@ -145,19 +145,19 @@ Charts מתויגים לפי A, חיפושים קוראים B.`}</code></pre>
       id: "a",
       label: "QUERY לא יכול להתמודד עם השוואות טקסט; צריך GROUP BY",
       correct: false,
-      explanation: "QUERY מתמודד בסדר עם השוואות טקסט. הבעיה היא מה ההשוואה קוראת.",
+      explanation: "QUERY מתמודד בסדר עם השוואות טקסט. הבעיה היא מה ההשוואה קוראת בפועל.",
     },
     {
       id: "b",
       label: "QUERY קורא את ערך הטקסט של התא (רק '@'), לא את שם התצוגה של ה-chip 'Yoav Cohen'",
       correct: true,
-      explanation: "metadata של chip בלתי נראה ל-QUERY. טקסט התא הוא ה-@ placeholder החשוף. שום שורה לא מתאימה ל-'Yoav Cohen' כי אין טקסט של תא שמכיל את המחרוזת הזו. מוסיפים עמודת עזר עם שמות buyer כטקסט רגיל לצורכי query.",
+      explanation: "metadata של chip בלתי נראית ל-QUERY. טקסט התא הוא ה-@ placeholder החשוף. שום שורה לא מתאימה ל-'Yoav Cohen' כי אין טקסט של תא שמכיל את המחרוזת הזו. מוסיפים עמודת עזר עם שמות buyer כטקסט רגיל לצורכי query.",
     },
     {
       id: "c",
       label: "QUERY דורש מעמודת המקור להיות מסוג נתונים יחיד; chips שוברים את הכלל הזה",
       correct: false,
-      explanation: "כל תאי chip חולקים את אותו טקסט בסיסי ('@'), אז העמודה אחידה מבחינת סוג טקסט. הבעיה היא הערך, לא הסוג.",
+      explanation: "כל תאי ה-chip חולקים את אותו טקסט בסיסי ('@'), אז העמודה אחידה מבחינת סוג טקסט. הבעיה היא הערך, לא הסוג.",
     },
   ]}
 />
@@ -166,14 +166,14 @@ Charts מתויגים לפי A, חיפושים קוראים B.`}</code></pre>
 
 <MiniGrid
   data={BUYERS_DETAIL.slice(0, 4).map((b) => [b.name, b.team])}
-  caption="ה-roster של ה-buyers שהמטלה משתמשת בו. תוסיפו את שני הראשונים כ-person chips, ואז file chip שמצביע על קובץ Drive כלשהו שיש לכם גישה אליו."
+  caption="ה-roster של ה-buyers שהמטלה משתמשת בו. תוסיפו את שני הראשונים כ-person chips, ואז file chip שמצביע על קובץ Drive כלשהו שיש לכם אליו גישה."
 />
 
-לחצו על **Start lesson** כדי להעלות את ה-workbook. ואז צרו tab חדש בשם `Owners` והוסיפו שלושה smart chips:
+לחצו על **Start lesson** כדי להעלות את ה-workbook. אחר כך צרו tab חדש בשם `Owners` והוסיפו שלושה smart chips:
 
 - **`A2`**: person chip ל-Yoav Cohen (`yoav.cohen@flexelent.com`). בתא, הקלידו `@yoav.cohen` ובחרו אותו מה-chip-picker.
 - **`A3`**: person chip ל-Dina Dayan (`dina.dayan@flexelent.com`).
-- **`B2`**: file chip שמצביע על Sheet, Doc, או קובץ Drive כלשהו שיש לכם גישה אליו. הקלידו `@` ובחרו קובץ מהאחרונים שלכם, או הדביקו URL של Drive וקבלו את ה-prompt "convert to chip".
+- **`B2`**: file chip שמצביע על Sheet, Doc או קובץ Drive כלשהו שיש לכם אליו גישה. הקלידו `@` ובחרו קובץ מהאחרונים שלכם, או הדביקו URL של Drive ואשרו את ה-prompt "convert to chip".
 
 ה-grader קורא את ה-`chipRuns` של כל תא חזרה דרך Sheets API ובודק את סוג ה-chip, האימייל המקושר (case-insensitive), וה-mimeType של הקובץ.
 
@@ -182,7 +182,7 @@ Charts מתויגים לפי A, חיפושים קוראים B.`}</code></pre>
 ב-workbooks האמיתיים של הצוות:
 
 - **לכל tab של `Aggregator` יש עמודת Owner עם person chips.** כשמשהו נשבר ב-11 בלילה, מערך ה-on-call עושה `@`-mention ל-chip והאדם הנכון מקבל page. שם בטקסט רגיל לא עושה page לאף אחד.
-- **למאסטר log הקמפיינים יש עמודת `Source folder` עם file chips.** ה-chip של כל שורה מצביע על תיקיית Drive שמחזיקה את הקריאייטיבים, screenshots של דף הנחיתה, וה-brief. לחיצה אחת מהשורה לחפצים.
+- **ל-master log הקמפיינים יש עמודת `Source folder` עם file chips.** ה-chip של כל שורה מצביע על תיקיית Drive שמחזיקה את הקריאייטיבים, screenshots של דף הנחיתה, וה-brief. לחיצה אחת מהשורה לנכסים.
 - **Dashboards נושאים סמן freshness.** תא כותרת עם date chip אומר "Data through May 9, 2026" וה-chip הופך ל-Calendar link אם הצוות רוצה לתזמן סקירה.
 - **שיוך owner לכל קמפיין.** כשתא ה-`Buyer` של שורה הוא person chip, סינון הגיליון לפי buyer עדיין עובד כי Sheets מאנדקס את שם התצוגה של ה-chip. ה-chip הוא שדרוג מובהק על טקסט רגיל במקרה הזה.
 
@@ -190,7 +190,7 @@ Charts מתויגים לפי A, חיפושים קוראים B.`}</code></pre>
 
 - **Chips לא שורדים `Paste special → Values only`.** מצב הדבקה זה מסיר את ה-chip ומשאיר את ה-`@` החשוף. אם בונים workbook על ידי הדבקה מ-spreadsheet אחר, תצטרכו להזין מחדש כל chip בצד היעד. הדבקה רגילה משמרת chips; values-only לא.
 - **חיפוש שם של אדם עם `FIND` או `REGEXMATCH` לא מתאים.** הטקסט הבסיסי של התא הוא `@`. השם `Yoav Cohen` חי ב-`personProperties` של ה-chip, לא בערך התא. `FIND("Yoav", A2)` מחזיר `#VALUE!`. כדי לחפש על פני chips, צריך את ה-API או Apps Script.
-- **Chips נשברים ל-viewers מחוץ ל-domain של Workspace.** person chip של `@yoav.cohen@flexelent.com` מופיע ל-contractor עם Gmail אישי כ-chip pill, אבל לחיצה מובילה ל-"you don't have access". File chips יש להם אותו מצב כישלון אם קובץ ה-Drive המקושר לא משותף עם ה-viewer.
-- **`IMPORTRANGE` לא מביא chips על פני** (שיעור 1.27). כשה-tab של `Aggregator` שולף מ-`Raw - Taboola` דרך `IMPORTRANGE`, התאים המיובאים מכילים כל טקסט שהמקור היה במיקום ה-chip, שזה רק `@`. צריך לשחזר chips על הגיליון הצורך, או הנתונים במקור צריכים לחיות בעמודות רגילות לצד.
-- **מיון עמודת person chips עובד, אבל מפתח המיון הוא שם התצוגה של ה-chip, לא האימייל.** שני buyers עם אותו שם פרטי (`Yoav Cohen` ו-`Yoav Levi`) ממוינים לפי שם תצוגה מלא. אם צריכים מיון בדיוק של אימייל, מוסיפים עמודת עזר מוסתרת עם האימייל שנשלף דרך Apps Script.
-- **chip בטווח מקור של `QUERY` הופך ל-`@` החשוף** בפלט ה-QUERY. QUERY קורא את ערך הטקסט של התא, לא את metadata של ה-chip. אגרגציה של עמודות נושאות-chip משמעה איבוד ה-chip בתוצאה.
+- **Chips נשברים ל-viewers מחוץ ל-domain של Workspace.** person chip של `@yoav.cohen@flexelent.com` מופיע ל-contractor עם Gmail אישי כ-chip pill, אבל לחיצה מובילה ל-"you don't have access". ל-file chips יש את אותו מצב כישלון אם קובץ ה-Drive המקושר לא משותף עם ה-viewer.
+- **`IMPORTRANGE` לא מביא chips איתו** (שיעור 1.27). כשה-tab של `Aggregator` שולף מ-`Raw - Taboola` דרך `IMPORTRANGE`, התאים המיובאים מכילים את הטקסט שהיה במקור במיקום ה-chip, שזה רק `@`. צריך לשחזר chips בגיליון הצורך, או שהנתונים במקור צריכים לחיות בעמודות רגילות לצידם.
+- **מיון עמודת person chips עובד, אבל מפתח המיון הוא שם התצוגה של ה-chip, לא האימייל.** שני buyers עם אותו שם פרטי (`Yoav Cohen` ו-`Yoav Levi`) ממוינים לפי שם תצוגה מלא. אם צריך מיון מדויק לפי אימייל, מוסיפים עמודת עזר מוסתרת עם האימייל שנשלף דרך Apps Script.
+- **chip בטווח מקור של `QUERY` הופך ל-`@` החשוף** בפלט ה-QUERY. QUERY קורא את ערך הטקסט של התא, לא את ה-metadata של ה-chip. אגרגציה של עמודות נושאות chip משמעה איבוד ה-chip בתוצאה.

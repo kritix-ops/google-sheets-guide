@@ -2,21 +2,22 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Capstone של dashboard לבאיירים: בנייה מקצה לקצה
 
-שמונים שיעורים נכנסים, יש לכם את כל החלקים. נוסחאות שמצרפות, מחפשות, מסננות ומאגדות. אוצר מילים של modeling: pivots, conditional formatting, charts, scorecards. Apps Script לעבודה שנוסחאות לא יכולות לעשות לפי לוח זמנים. כלי scale ליום שגיליון נהיה גדול מדי ולצינורות שמושכים ממקורות במעלה הזרם. AI בתוך תאים כשהשאלה היא כזו שרק מודל יכול לענות עליה. עד עכשיו, כל שיעור לימד חלק אחד. השיעור הזה הוא החלק שבו מחברים את הכל ובונים משהו שרץ בלי שתשמרו עליו.
+שמונים שיעורים מאחור, יש לכם את כל החלקים. נוסחאות שמצרפות, מחפשות, מסננות ומאגדות. אוצר מילים של modeling: pivots, conditional formatting, charts, scorecards. Apps Script לעבודה שנוסחאות לא יכולות לעשות לפי לוח זמנים. כלי scale ליום שגיליון נהיה גדול מדי וצינורות שמושכים ממקורות במעלה הזרם. AI בתוך תאים כשהשאלה היא כזו שרק מודל יכול לענות עליה. עד עכשיו, כל שיעור לימד חלק אחד. השיעור הזה הוא החלק שבו מחברים את הכל ובונים משהו שרץ בלי שתשגיחו עליו.
 
-המציאות של הצוות: הקבוצה של מאיה משיקה את ה-portfolio המשולב native-search ל-Q3. חמישה buyers, שלוש פלטפורמות, שתים-עשרה verticals. ה-standup של בוקר יום שני צריך dashboard שאומר, במסך אחד, מה השתנה השבוע. מאיה לא רוצה ללחוץ על שום דבר כדי לעשות את המסך הזה עדכני. היא רוצה לפתוח את ה-workbook ב-09:00 ולקרוא אותו. כל חלק מהבנייה למטה עונה על חלק אחד של הדרישה הזאת.
+המציאות של הצוות: הקבוצה של מאיה משיקה את ה-portfolio המשולב native-search ל-Q3. חמישה buyers, שלוש פלטפורמות, שתים-עשרה verticals. ה-standup של בוקר יום שני צריך dashboard שאומר, במסך אחד, מה השתנה השבוע. מאיה לא רוצה ללחוץ על שום דבר כדי לעדכן את המסך הזה. היא רוצה לפתוח את ה-workbook ב-09:00 ולקרוא אותו. כל חלק מהבנייה למטה עונה על חלק אחד של הדרישה הזאת.
 
-הצורה היא מכוונת. Track 1 בונה את המתמטיקה, Track 2 בונה את הוויזואלים, Track 3 בונה את לוח הזמנים, Track 4 בונה את הצינורות, Track 5 בונה את הפרוזה. תורידו אחד מהם וה-dashboard לא שלם בדרך שעולה שעה לאדם אחר. ה-capstone האבחוני ב-Track 4 שיעור 11 הוא למה שקורה כש-dashboard כזה נשבר. השיעור הזה הוא איך לבנות אותו נכון לפני שהוא נשבר.
+הצורה מכוונת. Track 1 בונה את המתמטיקה, Track 2 בונה את הוויזואלים, Track 3 בונה את לוח הזמנים, Track 4 בונה את הצינורות, Track 5 בונה את הפרוזה. תורידו אחד מהם וה-dashboard לא שלם בצורה שעולה שעה לאדם אחר. ה-capstone האבחוני ב-Track 4 שיעור 11 הוא למה שקורה כש-dashboard כזה נשבר. השיעור הזה הוא איך לבנות אותו נכון לפני שהוא נשבר.
 
 ## התרחיש
 
-שני workbooks מקור במעלה הזרם מחזיקים את הנתונים הגולמיים ברמת היום: `Taboola_Raw` ו-`Outbrain_Raw`. הם יושבים בחשבון של מישהו אחר. ה-workbook של ה-dashboard של הצוות מושך את שניהם דרך `IMPORTRANGE`, מאגד אותם לקובייה של buyer x vertical x יום, ומציג שלושה views: scorecard tiles שמשווים את השבוע הזה לשבוע שעבר, pivot של buyer-מול-vertical עם conditional formatting, ו-chart מגמה יומי של spend מול revenue.
+שני workbooks מקור במעלה הזרם מחזיקים את הנתונים הגולמיים ברמת היום: `Taboola_Raw` ו-`Outbrain_Raw`. הם יושבים בחשבון של מישהו אחר. ה-workbook של ה-dashboard של הצוות מושך את שניהם דרך `IMPORTRANGE`, מאגד אותם לקובייה של buyer x vertical x יום, ומציג שלושה views: scorecard tiles שמשווים את השבוע הזה לשבוע שעבר, pivot של buyer מול vertical עם conditional formatting, ו-chart מגמה יומי של spend מול revenue.
 
-trigger של Apps Script לפי זמן רץ בכל שעה. הוא כותב timestamp של refresh ל-footer של ה-dashboard, מתריע למאיה במייל אם איזה IMPORTRANGE מחזיר `#REF!`, ומוסיף שורה ל-tab בשם `_AILog` כך ש-audit trail עומד בקצב של מחזור ה-refresh. בסוף השבוע, קריאת `=AI()` אחת מבוססת על הטבלה המאוגדת מפיקה סיכום של פסקה אחת "מה השתנה" שה-trigger paste-as-values לתא סטטי בתחתית ה-dashboard. עד 08:55 ביום שני, כשמאיה פותחת את ה-workbook, המספרים עדכניים, ה-chart עדכני, פסקת הסיכום עדכנית, וב-audit trail יש כל צעד.
+trigger של Apps Script לפי זמן רץ בכל שעה. הוא כותב timestamp של refresh ל-footer של ה-dashboard, מתריע למאיה במייל אם איזשהו IMPORTRANGE מחזיר `#REF!`, ומוסיף שורה ל-tab בשם `_AILog` כך ש-audit trail עומד בקצב של מחזור ה-refresh. בסוף השבוע, קריאת `=AI()` אחת מבוססת על הטבלה המאוגדת מפיקה סיכום של פסקה אחת "מה השתנה" שה-trigger מדביק כ-paste-as-values לתא סטטי בתחתית ה-dashboard. עד 08:55 ביום שני, כשמאיה פותחת את ה-workbook, המספרים עדכניים, ה-chart עדכני, פסקת הסיכום עדכנית, וב-audit trail יש כל צעד.
 
 ## ארכיטקטורה: איך ה-workbook מתחבר
 
 ה-dashboard יושב על workbook אחד עם חמישה tabs. שני workbooks מקור מזינים אותו מבחוץ. כיוון החץ למטה הוא כיוון הנתונים; ה-trigger של Apps Script דוחף נגד הכיוון הזה פעם בשעה כדי לרענן ערכים ולכתוב logs.
+
 
 <MiniGrid
   data={[
@@ -27,10 +28,10 @@ trigger של Apps Script לפי זמן רץ בכל שעה. הוא כותב times
     ["(ה-workbook הזה)", "Buyer_Pivot", "Pivot מעוגן ב-A1; CF על עמודת ROI"],
     ["(ה-workbook הזה)", "_AILog", "Apps Script מוסיף שורה לכל refresh"],
   ]}
-  caption="ה-workbook של ה-dashboard קורא משני feeds במעלה הזרם ומאגד את עצמו. שלושה tabs מציגים את ה-views; tab אחד הוא תשתית. ה-underscore המקדים ב-_AILog בדרך כלל מסמן אותו כפנימי למערכת."
+  caption="ה-workbook של ה-dashboard קורא משני feeds במעלה הזרם ומאגד את עצמו. שלושה tabs מציגים את ה-views; tab אחד הוא תשתית. ה-underscore המקדים ב-_AILog לרוב מסמן אותו כפנימי למערכת."
 />
 
-ה-tab של Dashboard הוא משטח התפעול. עמודה A עד G מחזיקה את לוג הקמפיינים לפי שורה (Date, Buyer, Vertical, Platform, Country, Spend, Revenue). עמודה J מחזיקה את האגרגציה. עמודה L מחזיקה את שני תאי ה-IMPORTRANGE. עמודה N מחזיקה את שלוש אריחי ה-scorecard. עמודה P מחזיקה את סיכום ה-AI ואת ה-footer של ה-timestamp. ה-tab Buyer_Pivot הוא ה-cross-tab לפי buyer. ה-tab `_AILog` הוא ה-audit trail של המערכת.
+ה-tab של Dashboard הוא משטח התפעול. עמודה A עד G מחזיקה את לוג הקמפיינים לפי שורה (Date, Buyer, Vertical, Platform, Country, Spend, Revenue). עמודה J מחזיקה את האגרגציה. עמודה L מחזיקה את שני תאי ה-IMPORTRANGE. עמודה N מחזיקה את שלושת אריחי ה-scorecard. עמודה P מחזיקה את סיכום ה-AI ואת ה-footer של ה-timestamp. ה-tab Buyer_Pivot הוא ה-cross-tab לפי buyer. ה-tab `_AILog` הוא ה-audit trail של המערכת.
 
 <MiniGrid
   data={[
@@ -46,23 +47,23 @@ trigger של Apps Script לפי זמן רץ בכל שעה. הוא כותב times
     ["P5", "5 (script)", "Timestamp של refresh אחרון", "Apps Script כותב"],
     ["_AILog", "6", "Audit trail של הרצות AI", "Apps Script מוסיף"],
   ]}
-  caption="עשרת התאים שבונים. העמודה האמצעית אומרת לכם את השלב שיוצר כל תא; העמודה הימנית אומרת לכם באילו תאים (או מקורות חיצוניים) הוא תלוי. בונים את התאים לפי סדר השלבים הרשום כך שלכל פלט יש קלטים מוכנים."
+  caption="עשרת התאים שבונים. העמודה האמצעית אומרת לכם את השלב שיוצר כל תא; העמודה הימנית אומרת לכם באילו תאים (או מקורות חיצוניים) הוא תלוי. בונים את התאים לפי סדר השלבים הרשום כדי שלכל פלט יהיו קלטים מוכנים."
 />
 
 ## שלב 1: משיכת הנתונים הגולמיים (IMPORTRANGE)
 
-החיווט הראשון הוא זה שמתקנים ראשון כשהוא נשבר. שני תאי ה-IMPORTRANGE יושבים ב-tab של Dashboard בעמודה L. כשמדביקים בפעם הראשונה נוסחת IMPORTRANGE שמפנה ל-workbook שלא משכתם ממנו לפני כן, התא מציג `#REF!` עם pill של "Allow access". לוחצים על ה-pill, מאשרים את ההודעה, והתא מתיישב. Track 4 שיעור 3 מכסה את כל ה-handshake; שיעור 4.8 מכסה את מצבי הכשל שיגיעו אחר כך.
+החיווט הראשון הוא זה שמתקנים ראשון כשהוא נשבר. שני תאי ה-IMPORTRANGE יושבים ב-tab של Dashboard בעמודה L. כשמדביקים בפעם הראשונה נוסחת IMPORTRANGE שמפנה ל-workbook שלא משכתם ממנו לפני כן, התא מציג `#REF!` עם pill של "Allow access". לוחצים על ה-pill, מאשרים את ההודעה, והתא מתיישר. Track 4 שיעור 3 מכסה את כל ה-handshake; שיעור 4.8 מכסה את מצבי הכשל שיגיעו אחר כך.
 
 ```
 L1: =IMPORTRANGE("https://docs.google.com/spreadsheets/d/TABOOLA_RAW_ID/edit", "Taboola_Raw!A1:G500")
 L2: =IMPORTRANGE("https://docs.google.com/spreadsheets/d/OUTBRAIN_RAW_ID/edit", "Outbrain_Raw!A1:G500")
 ```
 
-שני דברים שמים לב אליהם. ארגומנט הטווח קורא בשם של ה-platform (`Taboola_Raw` מול `Outbrain_Raw`) כך שכל מי שקורא את ה-formula bar יכול לזהות איזה platform מזין איזה תא. החסימה היא `A1:G500` ולא עמודה מלאה `A:G`; הצוות עובד עם כמה מאות שורות של נתונים יומיים, ומשיכה חסומה היא מהירה יותר לרענון וזולה יותר על המקור במעלה הזרם. `A:G` חשוף עובד ל-feeds קטנים ומתחיל להאט באופן ניכר מעבר לכמה אלפי שורות; שיעור 4.1 כיסה למה.
+שני דברים לשים לב אליהם. ארגומנט הטווח נושא את השם של ה-platform (`Taboola_Raw` מול `Outbrain_Raw`) כך שכל מי שקורא את ה-formula bar יכול לזהות איזה platform מזין איזה תא. החסימה היא `A1:G500` ולא עמודה מלאה `A:G`; הצוות עובד עם כמה מאות שורות של נתונים יומיים, ומשיכה חסומה היא מהירה יותר לרענון וזולה יותר על המקור במעלה הזרם. `A:G` חשוף עובד ל-feeds קטנים ומתחיל להאט באופן ניכר מעבר לכמה אלפי שורות; שיעור 4.1 כיסה את הסיבה.
 
 ## שלב 2: לאגד (QUERY + ARRAYFORMULA)
 
-האגרגציה היא הלב של ה-dashboard. נוסחת `QUERY` אחת ב-`J1` קוראת את הנתונים לפי שורה ומפיקה את הקובייה של buyer x vertical x יום שכל שאר ה-dashboard קוראת ממנה. Track 1 שיעורים 12 ו-13 כיסו את ה-dialect הדומה ל-SQL; ה-clauses המרכזיים לבנייה הזו הם `SELECT`, `GROUP BY` ו-`LABEL`.
+האגרגציה היא הלב של ה-dashboard. נוסחת `QUERY` אחת ב-`J1` קוראת את הנתונים לפי שורה ומפיקה את הקובייה של buyer x vertical x יום שכל שאר ה-dashboard קוראת ממנה. Track 1 שיעורים 12 ו-13 כיסו את ה-dialect שדומה ל-SQL; ה-clauses המרכזיים לבנייה הזו הם `SELECT`, `GROUP BY` ו-`LABEL`.
 
 ```
 J1: =QUERY(A1:G62,
@@ -72,13 +73,13 @@ J1: =QUERY(A1:G62,
    LABEL SUM(F) 'Spend', SUM(G) 'Revenue'", 1)
 ```
 
-`SELECT A, B, C, SUM(F), SUM(G)` בוחר Date, Buyer, Vertical, Spend מסוכם, ו-Revenue מסוכם. `GROUP BY A, B, C` מאגד לפי מימדי השורה. `LABEL` משנה את שמות העמודות המסוכמות כך שהכותרות יקראו `Spend` ו-`Revenue` במקום ברירת המחדל `sum F`. ה-`1` הסופי אומר ל-QUERY שבמקור יש שורת כותרת אחת.
+`SELECT A, B, C, SUM(F), SUM(G)` בוחר Date, Buyer, Vertical, Spend מסוכם, ו-Revenue מסוכם. `GROUP BY A, B, C` מאגד לפי מימדי השורה. `LABEL` משנה את שמות העמודות המסוכמות כך שהכותרות יוצגו כ-`Spend` ו-`Revenue` במקום ברירת המחדל `sum F`. ה-`1` הסופי אומר ל-QUERY שבמקור יש שורת כותרת אחת.
 
-הסיבה שהאגרגציה גרה ב-QUERY אחד ולא בעמודה של SUMIFS: נוסחה אחת spills לטווח, מחושבת מחדש אטומית, ומסדרת את עצמה כששהזוגות buyer-vertical חדשים מופיעים בנתונים. קיר של SUMIFS היה דורש לשמור ידנית רשת buyer-vertical סטטית, והיה מפספס בשקט vertical חדש ביום הראשון של ההשקה.
+הסיבה שהאגרגציה יושבת ב-QUERY אחד ולא בעמודה של SUMIFS: נוסחה אחת spills לטווח, מחושבת מחדש אטומית, ומסדרת את עצמה כשזוגות buyer-vertical חדשים מופיעים בנתונים. קיר של SUMIFS היה דורש לשמור ידנית רשת buyer-vertical סטטית, והיה מפספס בשקט vertical חדש ביום הראשון של ההשקה.
 
 ## שלב 3: pivot ו-conditional formatting
 
-ה-tab Buyer_Pivot נותן למאיה את ה-view של ה-cross-tab: כל buyer הוא שורה, כל vertical הוא עמודה, ובתאים יש ROI. Insert → Pivot table → New sheet, נותנים לגיליון את השם `Buyer_Pivot`, מעגנים ב-A1. טווח המקור: `Dashboard!A1:G62`. Track 2 שיעור 3 מכסה calculated fields לעומק; שדה ה-ROI הוא המרכזי.
+ה-tab Buyer_Pivot נותן למאיה את ה-view של ה-cross-tab: כל buyer הוא שורה, כל vertical הוא עמודה, ובתאים יש ROI. Insert → Pivot table → New sheet, נותנים לגיליון את השם `Buyer_Pivot`, מעגנים ב-A1. טווח המקור: `Dashboard!A1:G62`. Track 2 שיעור 3 מכסה לעומק calculated fields; שדה ה-ROI הוא המרכזי.
 
 הגדרות ה-Pivot editor:
 
@@ -90,9 +91,9 @@ J1: =QUERY(A1:G62,
 | Values | Revenue (SUM) | אותה צורה. |
 | Values | Calculated field | נוסחה: `=('Revenue' - 'Spend') / 'Spend'`. נותנים שם `ROI`. |
 
-ה-calculated field הוא החלק שתופס כל אחד בפעם הראשונה. אי אפשר לחשב ROI כממוצע של ROIs ברמת שורה; זה ייתן משקל יתר לקמפיינים קטנים. ה-calculated field משתמש בסיכומים המצטברים כקלט, אז התא של ROI ב-buyer-vertical מציג `(SUM(Revenue) - SUM(Spend)) / SUM(Spend)` — ה-ROI הנכון לקבוצה.
+ה-calculated field הוא החלק שכולם נתקלים בו בפעם הראשונה. אי אפשר לחשב ROI כממוצע של ROIs ברמת שורה; זה ייתן משקל יתר לקמפיינים קטנים. ה-calculated field משתמש בסיכומים המצטברים כקלט, אז התא של ROI ב-buyer-vertical מציג `(SUM(Revenue) - SUM(Spend)) / SUM(Spend)` - ה-ROI הנכון לקבוצה.
 
-ה-color scale הוא מה שעושה את ה-pivot שימושי במבט. Format → Conditional formatting → Color scale על עמודת ROI. מגדירים את ה-mid-point כמספר, ערך `1.0` (break-even). מתחת ל-mid-point לא רווחי, מעליו רווחי. Track 2 שיעור 6 כיסה את צורת הכלל; זה אותו כלל מוחל על העמודה המשמעותית ביותר ב-workbook.
+ה-color scale הוא מה שהופך את ה-pivot לשימושי במבט. Format → Conditional formatting → Color scale על עמודת ROI. מגדירים את ה-mid-point כמספר, ערך `1.0` (break-even). מתחת ל-mid-point לא רווחי, מעליו רווחי. Track 2 שיעור 6 כיסה את צורת הכלל; זה אותו כלל מוחל על העמודה המשמעותית ביותר ב-workbook.
 
 <Compare>
   <ComparePanel label="שבור (ממוצע של ROIs)" tone="negative">
@@ -101,7 +102,7 @@ ROI מחושב כ-AVERAGE של ROI לכל שורה
 ... משקל יתר לקמפיין אחד של $5 ב-ROI 8.0
 ... משקל חסר ל-עשרה קמפיינים של $500 ב-ROI 1.2
 ... ה-pivot אומר שה-ROI של ה-buyer הוא 2.4 (משקר)`}</code></pre>
-    <p className="mt-2 text-sm">קמפיין בדיקה אחד זעיר מושך את הממוצע למעלה. מאיה קוראת "רוני ב-2.4" ומקצה מחדש spend על סמך נקודת נתונים אחת. השקר של ה-ROI לפי buyer-vertical הוא מצב הכשל הנפוץ ביותר של pivot tables בדוחות adtech.</p>
+    <p className="mt-2 text-sm">קמפיין בדיקה אחד זעיר מושך את הממוצע למעלה. מאיה קוראת "רוני ב-2.4" ומקצה מחדש spend על סמך נקודת נתונים אחת. השקר של ROI לפי buyer-vertical הוא מצב הכשל הנפוץ ביותר של pivot tables בדוחות adtech.</p>
   </ComparePanel>
   <ComparePanel label="עובד (calculated field)" tone="positive">
     <pre className="font-mono text-xs"><code>{`Pivot Values → Add Calculated field
@@ -115,7 +116,7 @@ ROI מחושב כ-AVERAGE של ROI לכל שורה
 
 ## שלב 4: scorecard tiles ו-chart מגמה
 
-שלושה תאים בעמודה N מחזיקים את ה-scorecard שבוע-מול-שבוע. Track 2 שיעורים 9 עד 11 כיסו את הדפוס של chart-ו-tile; אריחי ה-scorecard הם האח הטקסטואלי של אותו רעיון.
+שלושה תאים בעמודה N מחזיקים את ה-scorecard שבוע מול שבוע. Track 2 שיעורים 9 עד 11 כיסו את הדפוס של chart ו-tile; אריחי ה-scorecard הם האח הטקסטואלי של אותו רעיון.
 
 ```
 N1: =SUMIFS(F2:F62, A2:A62, ">="&TODAY()-7)
@@ -123,30 +124,30 @@ N2: =SUMIFS(G2:G62, A2:A62, ">="&TODAY()-7)
 N3: =N2/N1 - 1
 ```
 
-`SUMIFS` מסנן לפי טווח תאריכים; הקריטריון `">="&TODAY()-7` כולל את כל מה שהיה ב-7 הימים האחרונים. dashboards חיים כן משתמשים ב-`TODAY()`, למרות אזהרת התנודתיות מ-Track 1 שיעור 8 — ה-scorecard הוא המקום היחיד שבו העלות משתלמת כי התשובה מילולית חייבת להיות "השבוע". אם ה-workbook נהיה איטי ככל שהנתונים נערמים, התיקון הוא לחסום את הטווח יותר (`F2:F62` כאן במקום `F:F`), לא להוריד את סינון התאריך.
+`SUMIFS` מסנן לפי טווח תאריכים; הקריטריון `">="&TODAY()-7` כולל את כל מה שהיה ב-7 הימים האחרונים. dashboards חיים כן משתמשים ב-`TODAY()`, למרות אזהרת התנודתיות מ-Track 1 שיעור 8 - ה-scorecard הוא המקום היחיד שבו העלות משתלמת כי התשובה מילולית חייבת להיות "השבוע". אם ה-workbook נהיה איטי ככל שהנתונים נערמים, התיקון הוא לחסום את הטווח יותר (`F2:F62` כאן במקום `F:F`), ולא להוריד את סינון התאריך.
 
-ל-chart מגמה יומי: בוחרים `A2:A62`, `F2:F62` ו-`G2:G62`, Insert → Chart, type Line. שתי סדרות (Spend, Revenue), ציר x אחד (Date). Track 2 שיעור 10 כיסה התאמת צירים; ל-dashboard, מגדירים את כותרת ה-chart "This week vs last week" ומקבעים את ה-chart בתנוחה קבועה ליד אריחי ה-scorecard כך שהעין תוכל להשוות מספרים ומגמה במבט אחד.
+ל-chart מגמה יומי: בוחרים `A2:A62`, `F2:F62` ו-`G2:G62`, Insert → Chart, type Line. שתי סדרות (Spend, Revenue), ציר x אחד (Date). Track 2 שיעור 10 כיסה התאמת צירים; ל-dashboard, מגדירים את כותרת ה-chart "This week vs last week" ומקבעים את ה-chart במיקום קבוע ליד אריחי ה-scorecard כך שהעין תוכל להשוות מספרים ומגמה במבט אחד.
 
 <QuickCheck
-  question="ה-scorecard ב-N3 קורא `=N2/N1 - 1` ומציג 0.18. מאיה פותחת את ה-workbook ביום שני ב-09:00 והתא עדיין אומר 0.18 — אבל ה-IMPORTRANGE ב-L1 מציג #REF!. מה בעצם לא בסדר?"
+  question="ה-scorecard ב-N3 קורא `=N2/N1 - 1` ומציג 0.18. מאיה פותחת את ה-workbook ביום שני ב-09:00 והתא עדיין אומר 0.18, אבל ה-IMPORTRANGE ב-L1 מציג #REF!. מה בעצם לא בסדר?"
   options={[
     {
       id: "a",
       label: <>שום דבר לא בסדר; ה-scorecard קורא מה-tab של Dashboard, לא מ-L1.</>,
       correct: false,
-      explanation: "ה-tab של Dashboard הוא בדיוק המקום שאליו הנתונים זורמים דרך L1. אם L1 שבור, הנתונים לפי שורה מיושנים. ה-scorecard אולי קורא 0.18 כי שורות ה-dashboard עדיין מחזיקות את הערכים שנמשכו בשבוע שעבר — אבל הערכים האלה כבר לא מתרעננים. ה-audit trail וזרימת ה-trigger קיימים בדיוק כדי לתפוס את זה.",
+      explanation: "ה-tab של Dashboard הוא בדיוק המקום שאליו הנתונים זורמים דרך L1. אם L1 שבור, הנתונים לפי שורה מיושנים. ה-scorecard אולי קורא 0.18 כי שורות ה-dashboard עדיין מחזיקות את הערכים שנמשכו בשבוע שעבר, אבל הערכים האלה כבר לא מתרעננים. ה-audit trail וזרימת ה-trigger קיימים בדיוק כדי לתפוס את זה.",
     },
     {
       id: "b",
       label: <>הנתונים שנמשכו מיושנים. המספר של ה-scorecard אמיתי אבל הוא אמיתי לרגע קודם, לא ל"עכשיו".</>,
       correct: true,
-      explanation: "ה-trigger השעתי של Apps Script אמור היה לזהות את ה-#REF! ב-L1 ולשלוח מייל למאיה, אבל המספר ב-dashboard לא היה מתנקה לבד. ערכים מיושנים נראים נכונים והם שגויים. סדר התיקון: לשחזר את ה-IMPORTRANGE, לכפות refresh, לקרוא מחדש את ה-scorecard, ואז לסמוך עליו.",
+      explanation: "ה-trigger השעתי של Apps Script אמור היה לזהות את ה-#REF! ב-L1 ולשלוח מייל למאיה, אבל המספר ב-dashboard לא היה מתנקה לבד. ערכים מיושנים נראים נכונים והם שגויים. סדר התיקון: משחזרים את ה-IMPORTRANGE, מכריחים refresh, קוראים מחדש את ה-scorecard, ורק אז סומכים עליו.",
     },
     {
       id: "c",
       label: <>הכל בסדר כי Sheets שומר ערכי IMPORTRANGE ב-cache עד שהם מתרעננים.</>,
       correct: false,
-      explanation: "Sheets אכן שומר IMPORTRANGE ב-cache בין refreshes, אבל #REF! זה לא 'caching' — זה 'הקישור נשבר ולא הורשה מחדש'. הערכים ב-cache הם עדיין המשיכה המוצלחת האחרונה; שורות חדשות שהמקור הוסיף מאז חסרות.",
+      explanation: "Sheets אכן שומר IMPORTRANGE ב-cache בין refreshes, אבל #REF! זה לא 'caching', זה 'הקישור נשבר ולא הורשה מחדש'. הערכים ב-cache הם עדיין המשיכה המוצלחת האחרונה; שורות חדשות שהמקור הוסיף מאז חסרות.",
     },
   ]}
 />
@@ -155,7 +156,7 @@ N3: =N2/N1 - 1
 
 ה-refresh השעתי הוא החלק של ה-dashboard שרץ בלי שמאיה צופה בו. פותחים Extensions → Apps Script מה-workbook כדי לפתוח את ה-script editor המקושר. Track 3 שיעור 7 כיסה simple triggers; שיעור 3.8 כיסה את ה-installable. time-driven trigger הוא installable; ה-`onEdit` וה-`onOpen` הפשוטים לא יכולים לעשות את זה.
 
-תכתבו שתי פונקציות. `setupHourlyRefresh()` הוא שלב הרישום שמריצים פעם אחת מהעורך; הוא מקבל את ה-auth prompt ורושם את ה-trigger. `refreshDashboard()` הוא ה-handler שה-trigger יורה בכל שעה.
+תכתבו שתי פונקציות. `setupHourlyRefresh()` הוא שלב הרישום שמריצים פעם אחת מהעורך; הוא מקבל את ה-auth prompt ורושם את ה-trigger. `refreshDashboard()` הוא ה-handler שה-trigger מפעיל בכל שעה.
 
 ```js
 function setupHourlyRefresh() {
@@ -190,11 +191,11 @@ function refreshDashboard() {
 }
 ```
 
-`setupHourlyRefresh` רץ פעם אחת מכפתור ה-Run של העורך. מאותה נקודה, ה-trigger יורה כל שעה בלי שאף אחד יגע בזה. ה-handler עושה שלושה דברים: מתריע על מקור שבור במעלה הזרם, כותב timestamp footer, ומתעד את סיכום ה-AI שנמצא כרגע ב-P1 ל-tab של ה-audit.
+`setupHourlyRefresh` רץ פעם אחת מכפתור ה-Run של העורך. מאותה נקודה, ה-trigger מופעל כל שעה בלי שאף אחד יגע בזה. ה-handler עושה שלושה דברים: מתריע על מקור שבור במעלה הזרם, כותב timestamp ל-footer, ומתעד את סיכום ה-AI שנמצא כרגע ב-P1 ל-tab של ה-audit.
 
 ## שלב 6: סיכום ה-AI השבועי (=AI() עם audit trail)
 
-תא הסיכום הוא ה-AI היחיד בבנייה. קריאה אחת, מבוססת על השבוע המאוגד, מפיקה פסקה אחת. Track 5 שיעור 2 כיסה prompt engineering; הדפוסים משיעור 5.6 (הקשרים רגישים ל-audit trail) מסבירים למה ה-trigger paste-as-values אותו לצורה סטטית.
+תא הסיכום הוא ה-AI היחיד בבנייה. קריאה אחת, מבוססת על השבוע המאוגד, מפיקה פסקה אחת. Track 5 שיעור 2 כיסה prompt engineering; הדפוסים משיעור 5.6 (הקשרים רגישים ל-audit trail) מסבירים למה ה-trigger מדביק אותו ב-paste-as-values לצורה סטטית.
 
 ```
 P1: =AI(
@@ -205,7 +206,7 @@ P1: =AI(
 )
 ```
 
-הארגומנט השני הוא טווח ה-grounding. בלעדיו, Gemini מנחש מול ה-snapshot של ה-tab הפעיל, וזה גורם לתוצאה להיסחף בין קריאות. שיעור 5.1 כיסה למה הסחיפה הזו היא מצב הכשל הנפוץ ביותר של AI-in-Sheets.
+הארגומנט השני הוא טווח ה-grounding. בלעדיו, Gemini מנחש מול ה-snapshot של ה-tab הפעיל, וזה גורם לתוצאה להיסחף בין קריאות. שיעור 5.1 כיסה למה הסחיפה הזו היא מצב הכשל הנפוץ ביותר של AI ב-Sheets.
 
 ה-audit trail הוא המקום שבו הבנייה מרוויחה דירוג production. ה-trigger קורא את P1 בכל שעה ומוסיף את התגובה של המודל ל-`_AILog` עם timestamp, שם ה-prompt וגרסת המודל. שיעור 5.6 הסביר את הדפוס: AI בתאים זה נוח, AI בתאים בלי audit trail זה חסר אחריות. ה-tab של `_AILog` הוא ההבדל.
 
@@ -214,7 +215,7 @@ P1: =AI(
 A: Timestamp        B: שם prompt        C: גרסת מודל         D: תגובה
 ```
 
-עבור מייל יום שני עצמו, הצוות paste-as-values את התא P1 ל-tab סטטי של "Monday brief" פעם בשבוע. מאותה נקודה, הפסקה לא יכולה להיסחף; ה-`=AI()` החי ממשיך להיווצר מחדש ב-P1 בכל שעה, וה-Monday brief המוקפא יושב ב-tab שלו כתיעוד היסטורי.
+עבור מייל יום שני עצמו, הצוות מדביק את התא P1 כ-paste-as-values ל-tab סטטי של "Monday brief" פעם בשבוע. מאותה נקודה, הפסקה לא יכולה להיסחף; ה-`=AI()` החי ממשיך להיווצר מחדש ב-P1 בכל שעה, וה-Monday brief המוקפא יושב ב-tab שלו כתיעוד היסטורי.
 
 ## הבנייה המלאה, מקצה לקצה
 
@@ -330,7 +331,7 @@ Calculated ROI = ('Revenue' - 'Spend') / 'Spend'.
    אות: REGEXMATCH צדדי על P1 מזהה
    שהתגובה חסרה את שמות ה-buyers
    הנדרשים; מסמן למאיה לסקירה ידנית.`}</code></pre>
-    <p className="mt-2 text-sm">שלוש שכבות, שלושה אותות. האותות הם החלק שהופך dashboard שביר ל-dashboard אמין. בלי אחד מהם, ה-workbook יכול להיות שגוי בשקט במשך שבוע לפני שמישהו שם לב.</p>
+    <p className="mt-2 text-sm">שלוש שכבות, שלושה אותות. האותות הם החלק שהופך dashboard שביר ל-dashboard אמין. בלי אחד מהם, ה-workbook יכול להיות שגוי בשקט במשך שבוע שלם לפני שמישהו שם לב.</p>
   </ComparePanel>
   <ComparePanel label="איך נראה monitoring טוב" tone="positive">
     <pre className="font-mono text-xs"><code>{`Refresh שעתי יורה.
@@ -346,21 +347,21 @@ Calculated ROI = ('Revenue' - 'Spend') / 'Spend'.
 ("last refresh: 08:55").
 אם P5 מיושן היא חוקרת לפני שהיא
 סומכת על המספרים.`}</code></pre>
-    <p className="mt-2 text-sm">Dashboard שאומר לך מתי לסמוך עליו הוא dashboard שאפשר לפעול לפיו. הדפוס: לכל פלט יש מחוון טריות שהקורא יכול לבדוק לפני שהוא מסתמך על המספר.</p>
+    <p className="mt-2 text-sm">Dashboard שאומר לכם מתי לסמוך עליו הוא dashboard שאפשר לפעול לפיו. הדפוס: לכל פלט יש מחוון טריות שהקורא יכול לבדוק לפני שהוא מסתמך על המספר.</p>
   </ComparePanel>
 </Compare>
 
 ## בשטח (Used in the wild)
 
-בוקר יום שני, 09:00. מאיה פותחת את ה-workbook. המבט הראשון שלה הוא ב-footer P5: "Last refresh: 2026-05-12 08:55". עדכני. היא קוראת את אריחי ה-scorecard: Spend השבוע הוא $14,820, Revenue השבוע הוא $19,140, ROI השבוע הוא 0.29. ה-trend chart מראה שיום רביעי וחמישי הרבה מעל הממוצע היומי של השבוע הקודם. ה-pivot של buyer-vertical מציג את יואב-על-Solar-Systems-PR בירוק עמוק; את רוני-על-Online-MBA-PR באדום חיוור. פסקת ה-P1 קוראת:
+בוקר יום שני, 09:00. מאיה פותחת את ה-workbook. המבט הראשון שלה הוא ב-footer P5: "Last refresh: 2026-05-12 08:55". עדכני. היא קוראת את אריחי ה-scorecard: Spend השבוע הוא $14,820, Revenue השבוע הוא $19,140, ROI השבוע הוא 0.29. ה-trend chart מראה שיום רביעי וחמישי היו הרבה מעל הממוצע היומי של השבוע הקודם. ה-pivot של buyer-vertical מציג את יואב-על-Solar-Systems-PR בירוק עמוק; את רוני-על-Online-MBA-PR באדום חיוור. פסקת ה-P1 קוראת:
 
-> Spend השבוע עלה ב-12% לעומת השבוע הקודם בעוד Revenue גדל ב-18%, מה שהעלה את ROI המצרפי מ-0.22 ל-0.29. הצירוף החזק ביותר לפי ROI היה יואב כהן על Solar Systems & Panels PR ב-1.36, מונע על ידי דחיפת Outbrain ביום רביעי. החלש ביותר היה רוני לוי על Online MBA PR; ה-revenue יום-מול-יום נשחק למרות spend יציב, שווה סקירה ידנית.
+> Spend השבוע עלה ב-12% לעומת השבוע הקודם בעוד Revenue גדל ב-18%, מה שהעלה את ROI המצרפי מ-0.22 ל-0.29. הצירוף החזק ביותר לפי ROI היה יואב כהן על Solar Systems & Panels PR ב-1.36, מונע על ידי דחיפת Outbrain ביום רביעי. החלש ביותר היה רוני לוי על Online MBA PR; ה-revenue יום מול יום נשחק למרות spend יציב, שווה סקירה ידנית.
 
-מאיה יודעת עכשיו מה לקרוא ב-standup. ה-capstone האבחוני (שיעור 4.11) היה למה שקורה כש-dashboard כזה נשבר; השיעור הזה הוא איך זה נראה כשהוא לא. הבנייה למעלה רצה ללא השגחה בין יום שני 09:00 בשבוע שעבר ליום שני 09:00 השבוע, עם מייל התראה אחד שנשלח ביום חמישי ב-14:15 כשהבעלים של Taboola_Raw בטעות שינה את שם ה-workbook המקור, ושורה אחת שנוספה ל-`_AILog` בכל שעה ללא חריג.
+מאיה יודעת עכשיו מה לקרוא ב-standup. ה-capstone האבחוני (שיעור 4.11) היה למה שקורה כש-dashboard כזה נשבר; השיעור הזה הוא איך זה נראה כשהוא לא נשבר. הבנייה למעלה רצה ללא השגחה בין יום שני 09:00 בשבוע שעבר ליום שני 09:00 השבוע, עם מייל התראה אחד שנשלח ביום חמישי ב-14:15 כשהבעלים של Taboola_Raw בטעות שינה את שם ה-workbook המקור, ושורה אחת שנוספה ל-`_AILog` בכל שעה ללא חריג.
 
 ## סיכום cross-track
 
-Dashboard שאתם יודעים לבנות גם אומר לכם איזה שיעור מלמד את התיקון כשמשהו משתבש:
+Dashboard שאתם יודעים לבנות גם אומר לכם איזה שיעור מלמד את התיקון כשמשהו נשבר:
 
 | כשל | Track | שיעור |
 |---|---|---|
@@ -376,19 +377,19 @@ Dashboard שאתם יודעים לבנות גם אומר לכם איזה שיע�
 | ה-tab `_AILog` מתמלא | 5 | 6 (כש-AI צריך audit) |
 
 <QuickCheck
-  question="ה-L1 IMPORTRANGE של ה-dashboard שלכם שונה במקור. ה-trigger השעתי ירה, קיבלתם את מייל ההתראה, תיקנתם את ה-URL. ה-dashboard חזר, אבל מאיה שואלת 'האם המספרים היו שגויים ב-deck של ה-standup ששלחתי ביום שני?' מה ה-מקום הראשון לבדוק, ואיזה שיעור Track כיסה את התשובה?"
+  question="ה-L1 IMPORTRANGE של ה-dashboard שלכם שונה במקור. ה-trigger השעתי הופעל, קיבלתם את מייל ההתראה, תיקנתם את ה-URL. ה-dashboard חזר, אבל מאיה שואלת 'האם המספרים היו שגויים ב-deck של ה-standup ששלחתי ביום שני?' מה המקום הראשון לבדוק, ואיזה שיעור Track כיסה את התשובה?"
   options={[
     {
       id: "a",
       label: <>בודקים ב-`_AILog` את ה-timestamp של ה-refresh הנקי האחרון לפני השבירה. Track 5 שיעור 6 כיסה את דפוס ה-audit trail.</>,
       correct: true,
-      explanation: "ה-tab _AILog הוא ה-audit trail מתוכנן. ה-timestamp של השורה הנקייה האחרונה אומר לכם את הרגע האחרון שבו המספרים של ה-dashboard היו אמינים. אם ה-timestamp הזה לפני יום שני 09:00, ה-deck של ה-standup היה מיושן; אם אחרי, ה-deck היה עדכני והשבירה קרתה אחר כך. שיעור 5.6 הוא בדיוק הדפוס הזה.",
+      explanation: "ה-tab _AILog הוא ה-audit trail מעצם תכנונו. ה-timestamp של השורה הנקייה האחרונה אומר לכם את הרגע האחרון שבו המספרים של ה-dashboard היו אמינים. אם ה-timestamp הזה לפני יום שני 09:00, ה-deck של ה-standup היה מיושן; אם אחרי, ה-deck היה עדכני והשבירה קרתה אחר כך. שיעור 5.6 הוא בדיוק הדפוס הזה.",
     },
     {
       id: "b",
       label: <>מריצים מחדש את ה-QUERY ב-J1. Track 1 שיעור 13 כיסה QUERY.</>,
       correct: false,
-      explanation: "הרצה מחדש של ה-QUERY אומרת לכם מה ה-dashboard קורא עכשיו, לא מה הוא קרא בזמן ה-standup. ה-audit trail הוא הדרך היחידה לענות על 'מה ה-workbook אמר ביום שני ב-09:00?' — בשביל זה ה-trail קיים.",
+      explanation: "הרצה מחדש של ה-QUERY אומרת לכם מה ה-dashboard קורא עכשיו, לא מה הוא קרא בזמן ה-standup. ה-audit trail הוא הדרך היחידה לענות על 'מה ה-workbook אמר ביום שני ב-09:00?', לשם כך ה-trail קיים.",
     },
     {
       id: "c",
@@ -403,13 +404,13 @@ Dashboard שאתם יודעים לבנות גם אומר לכם איזה שיע�
 
 המטלה היא הבנייה. מתחילים עם ה-tab של Dashboard מוזרע עם נתוני הקמפיינים לפי שורה ועם תוויות בעמודה I לשמונת התאים שצריך לבנות. ה-grader מריץ אחד-עשר חוקים על פני שבעת המבנים: L1, L2, J1, N1, N2, N3, P1, ה-tab של Buyer_Pivot ו-calculated field שלו, ה-color-scale conditional format על Buyer_Pivot, ה-tab של `_AILog` עם שורת כותרת בתוספת לפחות רישום אחד מוזרע, וה-handler `refreshDashboard` של Apps Script עם גוף פרודוקטיבי שנוגע ב-`_AILog`.
 
-חוק אחד שה-grader לא יכול לאמת ישירות: שרשמתם את ה-time-driven trigger על ידי הרצת `setupHourlyRefresh()` מעורך Apps Script. ה-grader קורא את מקור ה-script ומאשר שהפונקציה קיימת, אבל רישום ה-trigger עצמו חי בטבלת user שה-grader לא יכול לראות. מריצים את `setupHourlyRefresh()` פעם אחת מהעורך, מאשרים את ה-auth prompt, ומאשרים במסך Triggers ש-trigger זמן של שעה אחת מופיע. השיעור מניח שעשיתם את הצעד הזה.
+חוק אחד שה-grader לא יכול לאמת ישירות: שרשמתם את ה-time-driven trigger על ידי הרצת `setupHourlyRefresh()` מעורך Apps Script. ה-grader קורא את מקור ה-script ומאשר שהפונקציה קיימת, אבל רישום ה-trigger עצמו יושב בטבלת user שה-grader לא יכול לראות. מריצים את `setupHourlyRefresh()` פעם אחת מהעורך, מאשרים את ה-auth prompt, ומוודאים במסך Triggers ש-trigger זמן של שעה אחת מופיע. השיעור מניח שעשיתם את הצעד הזה.
 
 ## מלכודות ברמת פרו
 
-- **בניית פלטים לפני קלטים.** כתיבת SUMIFS של ה-scorecard לפני שתאי ה-IMPORTRANGE מחוברים אומר שהאריח מציג אפס עד שמחברים את המקור. האפס נראה תקין; הוא שגוי. בונים קלטים קודם, פלטים אחר כך.
+- **בניית פלטים לפני קלטים.** כתיבת SUMIFS של ה-scorecard לפני שתאי ה-IMPORTRANGE מחוברים אומרת שהאריח מציג אפס עד שמחברים את המקור. האפס נראה תקין; הוא שגוי. בונים קלטים קודם, פלטים אחר כך.
 - **Pivot של ROI לפי ממוצע.** Pivot שלוקח את ה-AVERAGE של ROIs לפי שורה הוא הבאג הנפוץ ביותר ב-dashboards של adtech. ה-calculated field הוא הדפוס הנכון היחיד; כל היתר נותן משקל יתר לקמפיינים זעירים.
 - **שכחת paste-as-values של סיכום ה-AI ב-Monday brief.** תא `=AI()` חי ב-deck ששלחתם לצוות ה-exec הוא פסקה שיכולה לכתוב את עצמה מחדש. Paste-as-values ל-tab סטטי ברגע ש-deck ה-standup יוצא.
-- **בלי התראה על IMPORTRANGE שבור.** Dashboard שמראה בשקט מספרים מיושנים כשמקור במעלה הזרם נשבר גרוע יותר מ-dashboard שמראה `#REF!`. לפחות `#REF!` אומר לכם להסתכל. שתיקה מיושנת נשלחת ל-execs.
+- **בלי התראה על IMPORTRANGE שבור.** Dashboard שמראה בשקט מספרים מיושנים כשמקור במעלה הזרם נשבר הוא גרוע יותר מ-dashboard שמראה `#REF!`. לפחות `#REF!` אומר לכם להסתכל. שתיקה מיושנת נשלחת ל-execs.
 - **אין `_AILog` עד האירוע הראשון.** ה-audit trail מתחיל ביום הראשון. שחזור בדיעבד הוא בלתי אפשרי; ה-trigger חייב לתעד מההרצה הראשונה.
-- **Trigger שעתי עם handler איטי.** אם `refreshDashboard` לוקח 5 דקות לרוץ, לא בניתם refresh שעתי, בניתם 5-דקות-של-חוסר-זמינות-בכל-שעה. Track 3 שיעור 16 מכסה batching; ה-handler למעלה קטן מספיק כדי לסיים בשניות, אבל בודקים את ה-Executions dashboard בשבוע הראשון.
+- **Trigger שעתי עם handler איטי.** אם `refreshDashboard` לוקח 5 דקות לרוץ, לא בניתם refresh שעתי, בניתם חוסר זמינות של 5 דקות בכל שעה. Track 3 שיעור 16 מכסה batching; ה-handler למעלה קטן מספיק כדי לסיים בשניות, אבל בודקים את ה-Executions dashboard בשבוע הראשון.

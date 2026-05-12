@@ -2,7 +2,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # מניפולציה של טקסט: LEFT, RIGHT, MID, FIND, SUBSTITUTE
 
-מידע אמיתי מגיע מלוכלך, במיוחד אחרי שעבר בחצי תריסר פלטפורמות לפני שמגיע אליכם. שמות verticals עם סיומות לא עקביות, קודי קמפיין דחוסים במטא-דאטה, שמות media buyers שצריך לקצר בשביל לג'נד של גרף. פונקציות חיתוך הטקסט מטפלות בניקיון היומיומי. פונקציות העיצוב (UPPER, LOWER, TRIM) משיעור 3 מטפלות ב-case וב-whitespace, השיעור הזה מטפל בחיתוך והחלפה.
+מידע אמיתי מגיע מלוכלך, במיוחד אחרי שעבר בחצי תריסר פלטפורמות לפני שהגיע אליכם. שמות verticals עם סיומות לא עקביות, קודי קמפיין שדחוסים בהם metadata, שמות media buyers שצריך לקצר בשביל לג'נד של גרף. פונקציות חיתוך הטקסט מטפלות בניקיון היומיומי. פונקציות העיצוב (UPPER, LOWER, TRIM) משיעור 3 מטפלות ב-case וב-whitespace; השיעור הזה מטפל בחיתוך והחלפה.
 
 ## LEFT, RIGHT, MID: חילוץ לפי מיקום
 
@@ -12,7 +12,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 - `RIGHT(text, n)` מחזיר את `n` התווים האחרונים
 - `MID(text, start, n)` מחזיר `n` תווים החל ממיקום `start` (1-indexed)
 
-שמות ה-verticals של הצוות כולם מסתיימים ב-`" PR"` לפי הקונבנציה. כדי לקבל רק את הנושא, להוריד את 3 התווים האחרונים, צריך `LEFT` בשילוב עם `LEN` (הוצג בשיעור 3).
+שמות ה-verticals של הצוות כולם מסתיימים ב-`" PR"` לפי הקונבנציה. כדי לקבל רק את הנושא (להוריד את 3 התווים האחרונים) צריך `LEFT` בשילוב עם `LEN` (הוצג בשיעור 3).
 
 <FunctionRef name="LEFT" />
 
@@ -28,7 +28,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ### דוגמה 1: נתוני צעצוע
 
-מושכים את התווים הראשונים מקוד מוצר. `LEFT`/`RIGHT`/`MID` כולם מתנהגים אותו דבר: מעבירים טקסט ומספר.
+שולפים את התווים הראשונים מקוד מוצר. `LEFT`/`RIGHT`/`MID` כולם מתנהגים אותו דבר: מעבירים טקסט ומספר.
 
 <RefDemo
   data={[
@@ -41,7 +41,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   formulaCell="B2"
   fillTo="B4"
   expectedFills={['=LEFT(A2,3)', '=LEFT(A3,3)', '=LEFT(A4,3)']}
-  caption="LEFT(A2, 3) מחזיר את 3 התווים הראשונים. אותו רעיון ממלא למטה לעמודה."
+  caption="LEFT(A2, 3) מחזיר את 3 התווים הראשונים. אותו רעיון מתפשט מטה לעמודה שלמה."
 />
 
 ### דוגמה 2: נתוני אדטק אמיתיים
@@ -54,14 +54,14 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula="=LEFT(C2,LEN(C2)-3)"
   task={<>הורידו את הסיומת <code>" PR"</code> משם ה-vertical של הקמפיין הראשון. <code>"Car Deals PR"</code> צריך להפוך ל-<code>"Car Deals"</code>.</>}
   hint={<><code>LEFT(text, n)</code> לוקח את <code>n</code> התווים השמאליים. האורך הכולל פחות 3 נותן את הכל חוץ מהרווח האחרון ו-"PR".</>}
-  answer={<><code>LEN(C2)</code> הוא 12 (שנים-עשר תווים ב-"Car Deals PR"). מחסירים 3 כדי להוריד את ה-" PR" שבסוף, מקבלים 9. <code>LEFT(C2, 9)</code> מחזיר "Car Deals". התבנית הזאת (LEFT עם LEN פחות אורך סיומת ידועה) שברירית אם הסיומת משתנה. בכל מקום שבו המידע של הצוות עובר ניקיון לפני join עם מידע מצד הפלטפורמה, זאת הנוסחה. החלופה החזקה כשהתבנית משתנה: <code>REGEXEXTRACT</code> (מכוסה בשיעור 16).</>}
+  answer={<><code>LEN(C2)</code> הוא 12 (שנים-עשר תווים ב-"Car Deals PR"). מחסירים 3 כדי להוריד את ה-" PR" שבסוף, ומקבלים 9. <code>LEFT(C2, 9)</code> מחזיר "Car Deals". התבנית הזאת (LEFT עם LEN פחות אורך סיומת ידועה) שברירית אם הסיומת משתנה. בכל מקום שבו המידע של הצוות עובר ניקיון לפני join עם מידע מצד הפלטפורמה, זאת הנוסחה. החלופה החזקה כשהתבנית משתנה: <code>REGEXEXTRACT</code> (מכוסה בשיעור 16).</>}
 />
 
 ## FIND: לאתר תו
 
-`FIND(needle, haystack, [start])` מחזיר את ה**מיקום** של ההתאמה הראשונה. הוא 1-indexed ורגיש ל-case. `SEARCH` הוא האח שלא רגיש ל-case, באותה צורה אבל סובלני להבדלי case. מושכים ל-`SEARCH` כשטקסט המקור מגיע מ-feeds לא עקביים במעלה הזרם; מושכים ל-`FIND` כש-case משנה (פירסור של קודי הקמפיין של הצוות שמבדילים בין "PR" ל-"pr").
+`FIND(needle, haystack, [start])` מחזיר את ה**מיקום** של ההתאמה הראשונה. הוא 1-indexed ורגיש ל-case. `SEARCH` הוא האח שלא רגיש ל-case, עם אותה צורה אבל סובלני להבדלי case. שולפים את `SEARCH` כשטקסט המקור מגיע מ-feeds לא עקביים; שולפים את `FIND` כש-case חשוב (פירסור של קודי הקמפיין של הצוות שמבדילים בין "PR" ל-"pr").
 
-מרכיבים את `FIND` עם `LEFT`/`RIGHT`/`MID` כדי לחתוך לפי מפריד ידוע במקום מיקום ידוע. ל-vertical כמו `"Car Deals PR"`, המילה הראשונה היא כל מה שמשמאל לרווח הראשון, אבל המיקום משתנה לפי שם ה-vertical.
+מרכיבים את `FIND` עם `LEFT`/`RIGHT`/`MID` כדי לחתוך לפי מפריד ידוע במקום לפי מיקום ידוע. ל-vertical כמו `"Car Deals PR"`, המילה הראשונה היא כל מה שמשמאל לרווח הראשון, אבל המיקום משתנה לפי שם ה-vertical.
 
 <FunctionRef name="FIND" />
 
@@ -73,14 +73,14 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula='=LEFT(C2,FIND(" ",C2)-1)'
   task={<>חלצו את המילה הראשונה משם ה-vertical הראשון. <code>"Car Deals PR"</code> ← <code>"Car"</code>.</>}
   hint={<>מצאו את הרווח הראשון עם <code>FIND(" ", C2)</code>, ואז קחו את אותו מספר תווים פחות 1 עם <code>LEFT</code>.</>}
-  answer={<><code>FIND(" ", C2)</code> מחזיר 4 (הרווח בין "Car" ל-"Deals"). <code>LEFT(C2, 4-1)</code> מחזיר את 3 התווים הראשונים, "Car". ה-<code>-1</code> מוציא את הרווח עצמו. התבנית הזאת מופיעה בכל מקום שבו צריך לפרסר קודי קמפיין. קמפיין בשם "Taboola_CarDealsPR_DesktopUS_2026-05" אפשר לפצל על כל קו תחתון כדי לחלץ את הפלטפורמה, ה-vertical, הקהל והתאריך, על ידי שרשור FIND עם LEFT/MID/RIGHT לכל סגמנט.</>}
+  answer={<>הפונקציה <code>FIND(" ", C2)</code> מחזירה 4 (הרווח בין "Car" ל-"Deals"). <code>LEFT(C2, 4-1)</code> מחזיר את 3 התווים הראשונים, "Car". ה-<code>-1</code> מוציא את הרווח עצמו. התבנית הזאת מופיעה בכל מקום שבו צריך לפרסר קודי קמפיין. קמפיין בשם "Taboola_CarDealsPR_DesktopUS_2026-05" אפשר לפצל על כל קו תחתון כדי לחלץ את הפלטפורמה, ה-vertical, הקהל והתאריך, על ידי שרשור FIND עם LEFT/MID/RIGHT לכל סגמנט.</>}
 />
 
 ## LEN: לספור תווים
 
 <FunctionRef name="LEN" />
 
-`LEN(text)` מחזיר את מספר התווים. שימושי לבד לוולידציה ("יש איזשהו שם vertical מעל 30 תווים?") וכאבן בניין בחיתוך.
+`LEN(text)` מחזיר את מספר התווים. שימושי לבד לוולידציה ("יש שם vertical כלשהו מעל 30 תווים?") וכאבן בניין בחיתוך.
 
 <TryIt
   data={CAMPAIGNS}
@@ -88,14 +88,14 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula="=LEN(B2)"
   task={<>ספרו את התווים בשם ה-media buyer הראשון. <code>"Yoav Cohen"</code> אמור לתת <code>10</code>.</>}
   hint={<><code>LEN(text)</code>. אל תשכחו שהרווח נחשב תו.</>}
-  answer={<><code>LEN</code> סופר כל תו, כולל רווחים, סימני פיסוק, מספרים ואימוג'י. "Yoav Cohen" הוא 10 תווים: Y-o-a-v-רווח-C-o-h-e-n. בפרודקשן, LEN הוא הבסיס לכללי וולידציה: "שם vertical צריך להיות {"<"}= 30 תווים לפני סיומת ' PR'", "שם media buyer לא צריך לעבור 25 תווים כדי להתאים ללג'נד", "קוד קמפיין צריך להיות בדיוק 18 תווים לפי תקן השמות". משלבים עם conditional formatting (טראק 2) כדי לדגל שורות שנכשלות.</>}
+  answer={<><code>LEN</code> סופר כל תו, כולל רווחים, סימני פיסוק, מספרים ואימוג'י. "Yoav Cohen" הוא 10 תווים: Y-o-a-v-רווח-C-o-h-e-n. בפרודקשן, LEN הוא הבסיס לכללי וולידציה: "שם vertical צריך להיות {"<"}= 30 תווים לפני סיומת ' PR'", "שם media buyer לא צריך לעבור 25 תווים כדי להתאים ללג'נד", "קוד קמפיין צריך להיות בדיוק 18 תווים לפי תקן השמות". משלבים עם conditional formatting (Track 2) כדי לדגל שורות שנכשלות.</>}
 />
 
 ## SUBSTITUTE: להחליף תת-מחרוזת באחרת
 
 <FunctionRef name="SUBSTITUTE" />
 
-`SUBSTITUTE(text, old, new, [occurrence])` מחליף כל מופע של `old` ב-`new`. מעבירים מספר `occurrence` כדי להחליף רק את המופע ה-n. שימושי לקיצור שמות לגרפים, לנרמול מפרידים לא עקביים או להסרת תווים לא רצויים. שיעור 3 הזכיר אותו בהעברה לצד פונקציות ה-casing; זו ההצגה הקנונית עם הווריאנט שמודע-למיקום דרך ה-occurrence_number האופציונלי.
+`SUBSTITUTE(text, old, new, [occurrence])` מחליף כל מופע של `old` ב-`new`. מעבירים מספר `occurrence` כדי להחליף רק את המופע ה-n. שימושי לקיצור שמות לגרפים, לנרמול מפרידים לא עקביים או להסרת תווים לא רצויים. שיעור 3 הזכיר אותו בקצרה לצד פונקציות ה-casing; זו ההצגה הקנונית עם הווריאנט שמודע-למיקום דרך ה-occurrence_number האופציונלי.
 
 <QuickCheck
   question="חבר צוות הריץ קמפיינים שבהם ה-vertical הוקלד באופן לא עקבי בין feeds: 'Car Deals PR' ב-Taboola, 'car deals pr' ב-Outbrain, 'CAR DEALS PR' ב-Google. רוצים נוסחה שמפצלת על האות 'd' כדי לקחת את הכל לפני 'Deals'. איזה עמיד לכל שלוש הצורות?"
@@ -104,19 +104,19 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
       id: "a",
       label: <code>=LEFT(C2, FIND("D", C2) - 1)</code>,
       correct: false,
-      explanation: "FIND רגיש ל-case. הוא מאתר את 'D' (גדולה) המילולית ומחזיר #VALUE! בשורה של 'car deals pr' באותיות קטנות כי אין שם D גדולה למצוא. השגיאה מתפזרת לכל עמודה במורד הזרם.",
+      explanation: "FIND רגיש ל-case. הוא מאתר את 'D' (גדולה) המילולית ומחזיר #VALUE! בשורה של 'car deals pr' באותיות קטנות כי אין שם D גדולה למצוא. השגיאה מתפזרת לכל עמודה שמתבססת על הנוסחה הזאת.",
     },
     {
       id: "b",
       label: <code>=LEFT(C2, SEARCH("D", C2) - 1)</code>,
       correct: true,
-      explanation: "SEARCH לא רגיש ל-case. 'D', 'd' וכל case אחר מתאימים. SEARCH הוא ברירת המחדל הבטוחה כשמחפשים אות ולא ניתן להבטיח case של מקור. FIND בסדר למפרידים שאינם אותיות כמו רווחים, פסיקים וקווים תחתונים שבהם case לא רלוונטי.",
+      explanation: "SEARCH לא רגיש ל-case. 'D', 'd' וכל case אחר מתאימים. SEARCH הוא ברירת המחדל הבטוחה כשמחפשים אות ולא ניתן להבטיח case של המקור. FIND בסדר למפרידים שאינם אותיות כמו רווחים, פסיקים וקווים תחתונים שבהם case לא רלוונטי.",
     },
     {
       id: "c",
       label: <code>=LEFT(C2, 4)</code>,
       correct: false,
-      explanation: "4 תווים מקובעים עובד רק ל-'Car ' לפני 'Deals'. נשבר ברגע שנכנס vertical עם אורך מילה ראשונה שונה ('Online MBA PR', 'Solar Systems & Panels PR' וכן הלאה).",
+      explanation: "אורך מקובע של 4 תווים עובד רק ל-'Car ' לפני 'Deals'. נשבר ברגע שנכנס vertical עם אורך מילה ראשונה שונה ('Online MBA PR', 'Solar Systems & Panels PR' וכן הלאה).",
     },
   ]}
 />
@@ -127,7 +127,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula='=SUBSTITUTE(B2,"Cohen","C.")'
   task={<>קצרו את שם ה-media buyer הראשון מ-<code>"Yoav Cohen"</code> ל-<code>"Yoav C."</code> בשביל לג'נד של גרף.</>}
   hint={<><code>SUBSTITUTE(text, old, new)</code>. החליפו את "Cohen" ב-"C.".</>}
-  answer={<>SUBSTITUTE מחפש תת-מחרוזת מילולית (בלי wildcards). הוא מחזיר מחרוזת חדשה, התא המקורי לא משתנה. הארגומנט הרביעי האופציונלי מאפשר להחליף רק את ההתאמה ה-n, שימושי לעריכת רק הקו התחתון השני בקוד קמפיין, למשל. כדי להחליף לפי מיקום ולא לפי תת-מחרוזת, משתמשים ב-<code>REPLACE</code> (פונקציה אחרת: <code>REPLACE(text, start, length, new)</code>).</>}
+  answer={<>SUBSTITUTE מחפש תת-מחרוזת מילולית (בלי wildcards). הוא מחזיר מחרוזת חדשה; התא המקורי לא משתנה. הארגומנט הרביעי האופציונלי מאפשר להחליף רק את ההתאמה ה-n, שימושי למשל לעריכה של רק הקו התחתון השני בקוד קמפיין. כדי להחליף לפי מיקום ולא לפי תת-מחרוזת, משתמשים ב-<code>REPLACE</code> (פונקציה אחרת: <code>REPLACE(text, start, length, new)</code>).</>}
 />
 
 <QuickCheck
@@ -137,19 +137,19 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
       id: "a",
       label: <code>=LEFT(C2, 9)</code>,
       correct: false,
-      explanation: "אורך מקובע של 9 בסדר ל-'Car Deals PR' (12 תווים פחות 3) אבל נשבר לשמות נושא קצרים או ארוכים יותר היום, והמספר הקסום הופך אפילו לשגוי יותר כשאורך הסיומת משתנה. שני באגים בנוסחה אחת.",
+      explanation: "אורך מקובע של 9 בסדר ל-'Car Deals PR' (12 תווים פחות 3) אבל נשבר לשמות נושא קצרים או ארוכים יותר כבר היום, והמספר הקסום הופך לעוד יותר שגוי כשאורך הסיומת משתנה. שני באגים בנוסחה אחת.",
     },
     {
       id: "b",
       label: <code>=LEFT(C2, LEN(C2)-3)</code>,
       correct: false,
-      explanation: "עובד היום ל-' PR' (3 תווים). כשהסיומת הופכת ל-' Rev' (4 תווים), כל תא מקצר בשקט את הנושא בתו אחד ('Car Deal' במקום 'Car Deals') והבאג מתפזר דרך כל דוח במורד הזרם. ה-3 הקסום הוא הפצצה.",
+      explanation: "עובד היום ל-' PR' (3 תווים). כשהסיומת תהפוך ל-' Rev' (4 תווים), כל תא יקצר בשקט את הנושא בתו אחד ('Car Deal' במקום 'Car Deals') והבאג יתפזר לכל דוח שמתבסס על העמודה. ה-3 הקסום הוא הפצצה.",
     },
     {
       id: "c",
       label: <code>=SUBSTITUTE(C2, " PR", "")</code>,
       correct: true,
-      explanation: "הכי בר-תחזוקה. הסיומת מוצהרת מפורשות, כך שההגירה היא עריכה יחידה (\" PR\" ← \" Rev\") במקום חישוב מחדש של קבוע אורך. SUBSTITUTE גם מתנהג בנימוס בשורות שכבר חסרות את הסיומת, בעוד LEN-פחות-3 ימשיך לחתוך שלושה תווים מכל מה שיש שם.",
+      explanation: "הכי בר-תחזוקה. הסיומת מוצהרת מפורשות, כך שההגירה היא עריכה יחידה (\" PR\" ← \" Rev\") במקום חישוב מחדש של קבוע אורך. SUBSTITUTE גם לא פוגע בשורות שכבר חסרות את הסיומת, בעוד LEN-פחות-3 ימשיך לחתוך שלושה תווים מכל מה שיש שם.",
     },
   ]}
 />
@@ -159,7 +159,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=LEFT(C2, 9)</code></pre>
-    <p className="mt-2 text-sm">אורך מקובע. עובד ל-"Car Deals PR" (12 תווים פחות 3 שווה 9), נשבר ל-"Solar Systems &amp; Panels PR" (25 תווים). עמודת ה"נושא" במורד הזרם יוצאת חתוכה או מודבקת בהתאם לשורה.</p>
+    <p className="mt-2 text-sm">אורך מקובע. עובד ל-"Car Deals PR" (12 תווים פחות 3 שווה 9), נשבר ל-"Solar Systems &amp; Panels PR" (25 תווים). עמודת ה"נושא" מתקבלת חתוכה או מרופדת בהתאם לשורה.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>=LEFT(C2, LEN(C2)-3)</code></pre>
@@ -170,11 +170,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=LEFT(C2, FIND(" ", C2))</code></pre>
-    <p className="mt-2 text-sm">שכחו את ה-<code>-1</code>. התוצאה כוללת את הרווח שמצאו: "Car " במקום "Car". Whitespace בסוף מפתח עמודה זה הגורם השקט הכי נפוץ לכישלון join.</p>
+    <p className="mt-2 text-sm">שכחו את ה-<code>-1</code>. התוצאה כוללת את הרווח שנמצא: "Car " במקום "Car". Whitespace בסוף של מפתח עמודה הוא הגורם השקט הכי נפוץ לכישלון join.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>=LEFT(C2, FIND(" ", C2)-1)</code></pre>
-    <p className="mt-2 text-sm">מחסירים 1 כדי להוציא את הרווח. או עוטפים ב-<code>TRIM(...)</code> אם לא ניתן לסמוך על המקור: זה מהלך זול של חגורה ושלייקס שחסך אחר צהריים רבים.</p>
+    <p className="mt-2 text-sm">מחסירים 1 כדי להוציא את הרווח. או עוטפים ב-<code>TRIM(...)</code> אם לא ניתן לסמוך על המקור: ביטוח זול שחסך הרבה שעות עבודה.</p>
   </ComparePanel>
 </Compare>
 
@@ -183,11 +183,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=FIND("PR", C2)</code></pre>
-    <p className="mt-2 text-sm">רגיש ל-case. אם גיליון במעלה הזרם שלח "Car Deals pr" (lowercase), <code>FIND</code> מחזיר <code>#VALUE!</code> ושובר כל פירסור במורד הזרם.</p>
+    <p className="mt-2 text-sm">רגיש ל-case. אם גיליון המקור שלח "Car Deals pr" (lowercase), <code>FIND</code> מחזיר <code>#VALUE!</code> ושובר כל פירסור שמתבסס עליו.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>=SEARCH("PR", C2)</code></pre>
-    <p className="mt-2 text-sm"><code>SEARCH</code> הוא האח שאינו רגיש ל-case. אותה חתימה, מוצא "PR", "pr", "Pr" כאחד. שלפו אותו כשלא ניתן לשלוט ב-case של המקור; שלפו <code>FIND</code> כש-case באמת חשוב (פירסור של קודי קמפיין שמבדילים בין "PR" ל-"pr").</p>
+    <p className="mt-2 text-sm"><code>SEARCH</code> הוא האח שאינו רגיש ל-case. אותה חתימה, מוצא "PR", "pr", "Pr" באותה צורה. שלפו אותו כשלא ניתן לשלוט ב-case של המקור; שלפו את <code>FIND</code> כש-case באמת חשוב (פירסור של קודי קמפיין שמבדילים בין "PR" ל-"pr").</p>
   </ComparePanel>
 </Compare>
 
@@ -205,17 +205,17 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## נפוץ בשטח
 
-- **הורדת הסיומת " PR" מכל עמודת vertical.** או כ-LEFT+LEN inline או כ-SUBSTITUTE לפי סיומת. נעשה פעם אחת בראש טאב "clean" דרך ARRAYFORMULA, ככה שכל הגיליונות במורד הזרם מקבלים את הגרסה רק-עם-נושא.
+- **הורדת הסיומת " PR" מכל עמודת vertical.** או כ-LEFT+LEN inline או כ-SUBSTITUTE לפי סיומת. נעשה פעם אחת בראש טאב "clean" דרך ARRAYFORMULA, ככה שכל הגיליונות שמתבססים עליו מקבלים את הגרסה רק-עם-נושא.
 - **פירסור קודי קמפיין.** קודים כמו `Taboola_CarDealsPR_DesktopUS_2026-05` משרשרים FIND+MID לחילוץ פלטפורמה, vertical, תג קהל, תקופה, בדרך כלל בונים 4 עמודות ליד עמודת הקוד.
 - **קיצור שמות media buyers ללג'נדים של גרפים.** SUBSTITUTE של שם המשפחה לאות, או LEFT(buyer, FIND(" ", buyer)-1) כדי לקחת רק את השם הפרטי.
-- **נרמול מפתחות join.** משלבים UPPER/LOWER (שיעור 3) עם TRIM ו-SUBSTITUTE לפני XLOOKUP בין גיליונות, במיוחד כששני המקורות הגיעו מפלטפורמות שונות עם קונבנציות שונות.
+- **נירמול מפתחות join.** משלבים UPPER/LOWER (שיעור 3) עם TRIM ו-SUBSTITUTE לפני XLOOKUP בין גיליונות, במיוחד כששני המקורות הגיעו מפלטפורמות שונות עם קונבנציות שונות.
 
 ## מלכודות מקצועיות
 
 - **`FIND` מחזיר `#VALUE!` כשאין התאמה.** אם מפרסרים מפריד שאולי לא קיים, עוטפים ב-`IFERROR` (שיעור 9): <code>=IFERROR(LEFT(A2, FIND(" ", A2)-1), A2)</code>.
 - **`SUBSTITUTE` רגיש ל-case.** `=SUBSTITUTE("Cohen Cohen", "cohen", "C.")` מחזיר "Cohen Cohen" בלי שינוי. או מעבירים את ה-case הנכון או עוטפים את שני הצדדים ב-`LOWER()`.
-- **`LEFT(A2, LEN(A2)-3)` מחזיר זבל למחרוזות קצרות מ-3 תווים.** הוא מחזיר LEFT עם ספירה שלילית, מה ששוגה. הוסיפו משמר עם `IF(LEN(A2)<=3, "", LEFT(...))` למידע מבולגן.
-- **Whitespace בלתי נראה.** `=LEN(A2)` למה שנראה כמו "Yoav" יכול להחזיר 5 אם יש רווח אחרי. עושים TRIM קודם בזמן פירסור.
+- **`LEFT(A2, LEN(A2)-3)` מחזיר זבל למחרוזות קצרות מ-3 תווים.** הוא מחזיר LEFT עם ספירה שלילית, וזה נכשל. הוסיפו guard עם `IF(LEN(A2)<=3, "", LEFT(...))` למידע מבולגן.
+- **Whitespace בלתי נראה.** `=LEN(A2)` למה שנראה כמו "Yoav" יכול להחזיר 5 אם יש רווח בסוף. עושים TRIM קודם בזמן פירסור.
 
 ## עכשיו לעבודה אמיתית
 

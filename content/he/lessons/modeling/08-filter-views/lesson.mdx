@@ -2,21 +2,21 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Filter views: סינונים פרטיים בלי להפריע לאחרים
 
-filter רגיל מסדר מחדש את מה ש-*כולם* רואים. ברגע שאתם מפעילים "Buyer = Yoav Cohen" ב-tab משותף של Campaigns, Dina מאבדת גם את השורות שלה, Maya מאבדת את שלה, ה-dashboard ששואב מ-tab זה בשקט מחזיר שלוש שורות במקום שישים, ומישהו עושה Slack "שברת את הגיליון?" Filter views פותרים את זה. כל משתמש מקבל filter view פעיל משלו; החלפת view לעולם לא משפיעה על אף אחד אחר; ה-views עצמם נשמרים עם שמות, אז בפעם הבאה שאתם צריכים "רק הקמפיינים המפסידים של Yoav השבוע" אתם לוחצים על שם במקום לבנות מחדש את ה-filter.
+filter רגיל מסדר מחדש את מה ש-*כולם* רואים. ברגע שאתם מפעילים "Buyer = Yoav Cohen" ב-tab משותף של Campaigns, Dina מאבדת גם את השורות שלה, Maya מאבדת את שלה, ה-dashboard ששואב מ-tab זה מחזיר בשקט שלוש שורות במקום שישים, ומישהו שולח ב-Slack "שברת את הגיליון?" Filter views פותרים את זה. כל משתמש מקבל filter view פעיל משלו; החלפת view לעולם לא משפיעה על אף אחד אחר; ה-views עצמם נשמרים עם שמות, אז בפעם הבאה שאתם צריכים "רק הקמפיינים המפסידים של Yoav השבוע" אתם לוחצים על שם במקום לבנות מחדש את ה-filter.
 
 זה אחד הפיצ'רים הבודדים שבהם ברירת המחדל הנכונה הפוכה למובן מאליו. תפריט ה-Data מציג `Create a filter` ו-`Create a filter view` כאופציות אחיות; משתמשים חדשים כמעט תמיד בוחרים את הראשון כי הוא ראשון. עד שהם מבינים את העלות, הצוות מקבל הודעה על dashboard "שבור". ברגע ש-workbook משותף, filter views הם ה-filter היחיד שצריך להשתמש בו.
 
-## מה filter view באמת
+## מה זה filter view בעצם
 
-`Data → Create a filter view` פותח שורת כותרת מפוספסת שחורה מעל הנתונים ופאנל שבו מסמנים את ה-view. ממושב המשתמש, זה נראה כמו filter רגיל. מבחינה מכנית, שני דברים שונים:
+`Data → Create a filter view` פותח שורת כותרת מפוספסת שחורה מעל הנתונים, ופאנל שבו נותנים שם ל-view. ממושב המשתמש, זה נראה כמו filter רגיל. מבחינה מכנית, שני דברים שונים:
 
 | התנהגות | filter רגיל | filter view |
 |---|---|---|
-| נראה למשתמשים אחרים | כן, ה-filter שלכם מסדר את המסך שלהם גם | לא, כל משתמש רואה את ה-view הפעיל שלו, או בלי view |
-| נשמר בשם | לא, יש רק filter רגיל אחד | כן, נשמר בשם, מופיע ב-`Data → Filter views`, ניתן להחלפה בלחיצה אחת |
+| נראה למשתמשים אחרים | כן, ה-filter שלכם מסדר גם את המסך שלהם | לא, כל משתמש רואה את ה-view הפעיל שלו, או בלי view |
+| נשמר עם שם | לא, יש רק filter רגיל אחד | כן, נשמר בשם, מופיע ב-`Data → Filter views`, ניתן להחלפה בלחיצה אחת |
 | שורד copy-paste של הנתונים | filter לא מועבר | filter view גם לא מועבר |
 
-ברירת המחדל של הצוות היא **תמיד להשתמש ב-filter view, אף פעם לא ב-filter רגיל** בכל workbook משותף. Filters רגילים מיועדים ל-workbooks סולו שאף אחד אחר לא מסתכל. ברגע שגיליון משותף עם עורך אחד נוסף, כפתור ה-filter הרגיל הוא footgun. (Slicers משיעור 2.3 יושבים בנישה אחרת: slicer הוא קונטרול על הגיליון מחובר ל-pivot אחד, מיועד ל-viewers בלי גישת עריכה. Filter views הם בצד-העורך, נשמרים, ופועלים על שורות raw ולא על הגדרת pivot.)
+ברירת המחדל של הצוות היא **תמיד להשתמש ב-filter view, אף פעם לא ב-filter רגיל** בכל workbook משותף. Filters רגילים מיועדים ל-workbooks סולו שאף אחד אחר לא מסתכל עליהם. ברגע שגיליון משותף עם עורך נוסף אחד, כפתור ה-filter הרגיל הוא footgun. (Slicers משיעור 2.3 יושבים בנישה אחרת: slicer הוא פקד על הגיליון שמחובר ל-pivot אחד, מיועד ל-viewers בלי גישת עריכה. Filter views הם בצד העורך, נשמרים, ופועלים על שורות raw ולא על הגדרת pivot.)
 
 <Compare>
   <ComparePanel label="filter רגיל: נזק עקיף" tone="negative">
@@ -30,19 +30,19 @@ Yoav לוחץ Data → Create a filter,
 
 dashboard שקורא מ-A:G
 מחזיר רק את השורות של Yoav.`}</code></pre>
-    <p className="mt-2 text-sm">ה-filter של אדם אחד הוא ה-filter של כולם. ה-dashboard שתלוי ב-tab הזה משנה צורה בשקט. Slack מתלקח.</p>
+    <p className="mt-2 text-sm">ה-filter של אדם אחד הוא ה-filter של כולם. ה-dashboard שתלוי ב-tab הזה משנה צורה בשקט. ה-Slack מתלקח.</p>
   </ComparePanel>
   <ComparePanel label="filter view: מצומצם למשתמש אחד" tone="positive">
     <pre className="font-mono text-xs"><code>{`אותו tab משותף.
 Yoav לוחץ Data → Create a filter view,
-מקבע אותו בשם "Yoav only",
+נותן לו את השם "Yoav only",
 מסנן Buyer = "Yoav Cohen".
 
 המסך של Dina: ללא שינוי.
 dashboard שקורא מ-A:G: ללא שינוי.
 
 רק Yoav רואה את ה-view המסונן.`}</code></pre>
-    <p className="mt-2 text-sm">Filter views הם מקומיים. כל משתמש בוחר את ה-view הפעיל שלו. החלפה, יציאה, החלה: כל אלה פעולות אישיות. משתמשים אחרים לא רואים שינוי.</p>
+    <p className="mt-2 text-sm">Filter views הם מקומיים. כל משתמש בוחר את ה-view הפעיל שלו. החלפה, יציאה, החלה: כל אלה פעולות אישיות. משתמשים אחרים לא רואים שום שינוי.</p>
   </ComparePanel>
 </Compare>
 
@@ -51,9 +51,9 @@ dashboard שקורא מ-A:G: ללא שינוי.
   options={[
     {
       id: "a",
-      label: "להסיר כל filter רגיל וליצור מחדש את המועילים כ-filter views מקובעים בשם",
+      label: "להסיר כל filter רגיל וליצור מחדש את המועילים כ-filter views עם שמות",
       correct: true,
-      explanation: "ה-dashboards 'לפעמים' מחזירים מספרים מוזרים כי filters רגילים משפיעים על כל משתמש. התיקון הוא הכלל: אף פעם filters רגילים על tabs משותפים. audit, להסיר, ליצור מחדש כ-filter views.",
+      explanation: "ה-dashboards 'לפעמים' מחזירים מספרים מוזרים כי filters רגילים משפיעים על כל משתמש. התיקון הוא הכלל: אף פעם לא filters רגילים על tabs משותפים. audit, להסיר, ליצור מחדש כ-filter views.",
     },
     {
       id: "b",
@@ -65,7 +65,7 @@ dashboard שקורא מ-A:G: ללא שינוי.
       id: "c",
       label: "להמיר את כל ה-dashboards לקרוא מ-tab של snapshot במקום מהחי",
       correct: false,
-      explanation: "אפשרי, אבל כבד. התיקון הפשוט פותר את זה: לשנות איזה primitive של filter בשימוש.",
+      explanation: "אפשרי, אבל כבד. התיקון הפשוט פותר את זה: להחליף איזה primitive של filter בשימוש.",
     },
   ]}
 />
@@ -74,11 +74,11 @@ dashboard שקורא מ-A:G: ללא שינוי.
 
 filter view בשם `YC test 3` בלתי נראה לכל אחד חוץ מהאדם שיצר אותו. שלושה חודשים אחר כך, אפילו האדם הזה לא זוכר מה זה עושה. השמות שאנשים אחרים בצוות יכולים להשתמש בהם הם אלה ששווים את המאמץ. דפוסים שהצוות מסתמך עליהם:
 
-- **לכל buyer:** `Yoav only`, `Dina only`, `Maya only`. לכל dashboard שבנוי על ה-tab של Campaigns יש אחד כזה לכל buyer. media buyer חדש מצטרף, מוסיפים view חדש על שמו.
-- **לכל חלון-זמן:** `This week`, `Last week`, `MTD`, `Q2 2026`. Filters של תאריך מבוטאים פעם אחת וחוזרים בשימוש.
+- **לכל buyer:** `Yoav only`, `Dina only`, `Maya only`. לכל dashboard שבנוי על ה-tab של Campaigns יש view כזה לכל buyer. media buyer חדש מצטרף, מוסיפים view חדש על שמו.
+- **לכל חלון זמן:** `This week`, `Last week`, `MTD`, `Q2 2026`. Filters של תאריך מוגדרים פעם אחת ונמצאים בשימוש חוזר.
 - **דיאגנוסטי:** `Spend > $500 with no revenue`, `Verticals never run before`, `Losses to investigate`. כל אחד תופס שאלה שמישהו שואל באופן קבוע.
 
-כלל אצבע: אם חבר/ת צוות שמסתכל/ת על הפאנל בפעם הראשונה לא יכול/ה להגיד מה ה-view עושה מהשם, השם שגוי. שנו את השם.
+כלל אצבע: אם חבר/ת צוות שמסתכל/ת על הפאנל בפעם הראשונה לא יכול/ה להבין מה ה-view עושה מהשם, השם שגוי. שנו את השם.
 
 <Compare>
   <ComparePanel label="שמות גרועים: בלתי נראים לאחרים" tone="negative">
@@ -88,7 +88,7 @@ filter view בשם `YC test 3` בלתי נראה לכל אחד חוץ מהאדם
   asdf
   testing 5/11
   Maya's thing`}</code></pre>
-    <p className="mt-2 text-sm">קריפטי, מתוארך, פרטי. אף אחד אחר לא יכול להשתמש באלה. הם מצטברים לנצח כי אף אחד לא יודע אילו למחוק.</p>
+    <p className="mt-2 text-sm">קריפטי, מתוארך, פרטי. אף אחד אחר לא יכול להשתמש באלה. הם מצטברים לנצח כי אף אחד לא יודע אילו מהם למחוק.</p>
   </ComparePanel>
   <ComparePanel label="שמות טובים: מסבירים את עצמם" tone="positive">
     <pre className="font-mono text-xs"><code>{`פאנל Filter views:
@@ -106,7 +106,7 @@ filter view בשם `YC test 3` בלתי נראה לכל אחד חוץ מהאדם
 
 Filtering בתוך filter view הוא מקומי ל-view שלכם. **מיון בתוך filter view ממיין את הנתונים הבסיסיים לכולם.** זה נושך אנשים שחושבים ש-filter view הוא ארגז חול. הוא לא, לא בשביל מיון. אם תלחצו `Sort A→Z` על עמודת ה-Buyer בתוך `Yoav only`, Sheets ימיין מחדש את ה-tab של Campaigns לכל הצוות.
 
-הדרך לעקוף: מיון עם `SORT(...)` ב-tab ניתוח נפרד, לא בתוך filter view. או שכפול הנתונים ל-tab `Working copy` שבו סידור מחדש בסדר. מתייחסים ל-filter view עצמו כ-read-only למיון.
+הדרך לעקוף: מיון עם `SORT(...)` ב-tab ניתוח נפרד, לא בתוך filter view. או שכפול הנתונים ל-tab `Working copy` שבו סידור מחדש מותר. מתייחסים ל-filter view עצמו כ-read-only למיון.
 
 <QuickCheck
   question="אתם בתוך filter view 'Yoav only'. אתם לוחצים 'Sort Z→A' על עמודת Spend כדי למצוא את יום ה-spend הגדול ביותר של Yoav. מה קורה ל-tab של Campaigns הבסיסי?"
@@ -121,7 +121,7 @@ Filtering בתוך filter view הוא מקומי ל-view שלכם. **מיון ב
       id: "b",
       label: "ה-tab של Campaigns מסודר מחדש Z→A לפי Spend לכל משתמש, לא רק בתוך ה-filter view שלכם",
       correct: true,
-      explanation: "מיון בתוך filter view מסדר מחדש את הנתונים הבסיסיים. הצוות רואה שורות בסדר החדש. הימנעו ממיון בתוך filter views; עושים מיון ב-tabs של ניתוח.",
+      explanation: "מיון בתוך filter view מסדר מחדש את הנתונים הבסיסיים. הצוות רואה שורות בסדר החדש. הימנעו ממיון בתוך filter views; ממיינים ב-tabs של ניתוח.",
     },
     {
       id: "c",
@@ -136,28 +136,28 @@ Filtering בתוך filter view הוא מקומי ל-view שלכם. **מיון ב
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="Campaigns חי ב-A1:G61. תיצרו שני filter views ב-tab הזה."
+  caption="Campaigns יושב ב-A1:G61. תיצרו שני filter views ב-tab הזה."
 />
 
-לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. ואז צרו שני filter views ב-tab של Campaigns דרך `Data → Create a filter view`:
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. אחר כך צרו שני filter views ב-tab של Campaigns דרך `Data → Create a filter view`:
 
 - **Filter view 1**: כותרת בדיוק `Yoav only`. בתוך ה-view, סננו עמודה B (Buyer) ל-`Yoav Cohen` בלבד. שמרו וצאו מה-view.
 - **Filter view 2**: כותרת בדיוק `Profitable only`. בתוך ה-view, הוסיפו filter על עמודה G (Revenue) באמצעות `Filter by condition → Custom formula is` `=G2>F2`. שמרו וצאו.
 
-ה-grader קורא את הכותרות של ה-filter view חזרה דרך `sheet.filterViewTitles("Campaigns")` ובודק ששני השמות קיימים, בהתאמה case-sensitive מדויקת. תנאי ה-filter בפועל בתוך כל view לא מקבלים grade על ידי ה-runner (ה-API עדיין לא חושף אותם), אבל כלל הצוות הוא שהשם חייב להגיד מה ה-filter עושה. `yoav only` באותיות קטנות נדחה כי הקונבנציה של הצוות היא title-case.
+ה-grader קורא את הכותרות של ה-filter view חזרה דרך `sheet.filterViewTitles("Campaigns")` ובודק ששני השמות קיימים, בהתאמה case-sensitive מדויקת. תנאי ה-filter בפועל בתוך כל view לא נבדקים על ידי ה-runner (ה-API עדיין לא חושף אותם), אבל כלל הצוות הוא שהשם חייב להגיד מה ה-filter עושה. `yoav only` באותיות קטנות נדחה כי הקונבנציה של הצוות היא title-case.
 
 ## נפוץ בשטח
 
 ב-workbooks האמיתיים של הצוות:
 
 - **filter views לכל buyer בכל dashboard.** ל-tab של Campaigns ב-master dashboard יש שמונה filter views, אחד לכל buyer פעיל. סטנדאפ יומי: כל buyer לוחץ על ה-view שלו, רואה את השורות שלו, אף פעם לא נוגע במה שאף אחד אחר מסתכל עליו.
-- **Views של טווח תאריך לאותם נתונים.** `This week`, `Last week`, `MTD`, `QTD`. נבנים פעם אחת עם `Filter by condition → Date is between`, מסומנים בבירור, חוזרים בשימוש כל בוקר. החלופה, להקליד את התאריכים בכל פעם, היא איפה ש-buyers מבזבזים חמש דקות לסשן ולפעמים שולפים את השבוע הלא נכון.
-- **Views דיאגנוסטיים כשאלות שמורות.** `Spend > $500 with no revenue` הוא ה-view שמנהל הצוות פותח אחרי הצהריים ביום שישי כדי למצוא את הקמפיינים שצריכים החלטת kill. ה-view הוא השאלה. השאלה חיה ב-workbook, לא בראש של מישהו.
+- **Views של טווח תאריך לאותם נתונים.** `This week`, `Last week`, `MTD`, `QTD`. נבנים פעם אחת עם `Filter by condition → Date is between`, מתויגים בבירור, נמצאים בשימוש חוזר כל בוקר. החלופה, להקליד את התאריכים בכל פעם, היא איפה ש-buyers מבזבזים חמש דקות בסשן ולפעמים שולפים את השבוע הלא נכון.
+- **Views דיאגנוסטיים כשאלות שמורות.** `Spend > $500 with no revenue` הוא ה-view שמנהל הצוות פותח בימי שישי אחרי הצהריים כדי למצוא את הקמפיינים שצריכים החלטת kill. ה-view הוא השאלה. השאלה חיה ב-workbook, לא בראש של מישהו.
 
 ## מלכודות מקצועיות
 
-- **filter רגיל ו-filter view פעילים באותו זמן.** אם filter רגיל פעיל, פתיחת filter view ערבת אותם באופן מבלבל. משתמשים שונים רואים שילובים שונים. כלל: ב-workbook משותף, מסירים את ה-filter הרגיל (`Data → Remove filter`) לפני שמישהו יוצר filter views.
-- **מיון בתוך filter view מסדר מחדש לכולם.** ה-filter מקומי; המיון גלובלי. אם אתם מוצאים את עצמכם פונים ל-`Sort A→Z` בתוך view, עוצרים ומשתמשים בנוסחת `SORT(...)` ב-tab ניתוח במקום.
+- **filter רגיל ו-filter view פעילים באותו זמן.** אם filter רגיל פעיל, פתיחת filter view משלבת אותם בצורה מבלבלת. משתמשים שונים רואים שילובים שונים. כלל: ב-workbook משותף, מסירים את ה-filter הרגיל (`Data → Remove filter`) לפני שמישהו יוצר filter views.
+- **מיון בתוך filter view מסדר מחדש לכולם.** ה-filter מקומי; המיון גלובלי. אם אתם מוצאים את עצמכם פונים ל-`Sort A→Z` בתוך view, עוצרים ומשתמשים בנוסחת `SORT(...)` ב-tab של ניתוח במקום.
 - **Filter views לא שורדים copy-paste ל-sheet חדש.** משכפלים את ה-tab וה-filter views הולכים איתו. Copy-paste של *התאים* ל-tab רענן וה-filter views נשארים מאחור. אם אתם משכפלים tab כנקודת התחלה, השתמשו ב-`Duplicate` מתפריט ה-tab, לא בהדבקה.
-- **`IMPORTRANGE` שובר filter views בשקט** (שיעור 1.27). Filter views מפנים לאותיות עמודות ולספירות שורות. כשה-workbook המקור מוסיף עמודה או טווח ה-`IMPORTRANGE` של היעד מתרחב, ה-filter השמור על עמודה G עשוי כעת לשבת על העמודה הלא נכונה. ה-view עדיין נטען; ה-filter פשוט כבר לא אומר מה שחשבתם. עושים audit ל-filter views אחרי כל שינוי במקור `IMPORTRANGE`.
-- **קודים פרטיים בשמות view.** `YC v3 test final FINAL2` בלתי נראה לצוות שלכם. שנו שמות לכל דבר קריפטי למשפט שחבר/ת צוות יזהה.
+- **`IMPORTRANGE` שובר filter views בשקט** (שיעור 1.27). Filter views מפנים לאותיות עמודות ולספירות שורות. כשה-workbook המקור מוסיף עמודה או טווח ה-`IMPORTRANGE` של היעד מתרחב, ה-filter השמור על עמודה G עשוי כעת לשבת על העמודה הלא נכונה. ה-view עדיין נטען; ה-filter פשוט כבר לא אומר את מה שחשבתם. עושים audit ל-filter views אחרי כל שינוי במקור `IMPORTRANGE`.
+- **קודים פרטיים בשמות view.** `YC v3 test final FINAL2` בלתי נראה לצוות שלכם. שנו כל שם קריפטי למשפט שחבר/ת צוות יזהה.

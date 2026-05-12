@@ -2,9 +2,9 @@ import { MESSY_CAMPAIGNS, CAMPAIGNS } from "@/content/datasets/adtech";
 
 # Fill with Gemini
 
-Fill with Gemini הוא **UI sugar מעל הפונקציה `=AI()`** (מכוסה בשיעור 5.2): אותו מודל בסיס ואותו משטח של טיפול בנתונים, מולבש כפעולה בלחיצה אחת במקום נוסחה. בוחרים טווח, מפעילים Fill (drag-fill או prompt-fill, הפסקה הבאה מפרטת איזה הוא איזה), מקלידים הוראה בשפה טבעית, ו-Gemini מציע עמודה של ערכי literal. סוקרים את ההצעה, ואז apply או discard. ההבדל מ-`=AI()` הוא מה שנוחת בתאים: Fill כותב ערכים סטטיים, `=AI()` משאיר נוסחה חיה.
+Fill with Gemini הוא **UI sugar מעל הפונקציה `=AI()`** (מכוסה בשיעור 5.2): אותו מודל בסיס ואותו משטח של טיפול בנתונים, עטוף כפעולה בלחיצה אחת במקום נוסחה. בוחרים טווח, מפעילים Fill (drag-fill או prompt-fill, הפסקה הבאה מפרטת איזה הוא איזה), מקלידים הוראה בשפה טבעית, ו-Gemini מציע עמודה של ערכי literal. סוקרים את ההצעה, ואז apply או discard. ההבדל מ-`=AI()` הוא מה שנוחת בתאים: Fill כותב ערכים סטטיים, `=AI()` משאיר נוסחה חיה.
 
-זה מרגיש קסם בפעם הראשונה. זה גם חולק עם עצמו בין ריצות, מדי פעם ממלא תאים מחוץ לבחירה שלכם, ולא משאיר audit trail של מה שונה. הכרזת ה-Workspace Updates טוענת ל-9x מהיר יותר מהזנה ידנית במשימות של 100 תאים, ובמשימת ניקיון נקייה זה הסדר גודל הנכון. בשימוש לא זהיר זה מכניס באגים שקטים שהצוות מגלה שבועיים אחר כך. השיעור הזה הוא איך להשתמש בזה בכוונה ואיפה זה מנצח גם את Smart Fill וגם עמודת `=AI()`.
+זה מרגיש קסם בפעם הראשונה. זה גם סותר את עצמו בין ריצות, מדי פעם ממלא תאים מחוץ לבחירה שלכם, ולא משאיר audit trail של מה שונה. ההכרזה של Workspace Updates טוענת ל-9x מהיר יותר מהזנה ידנית במשימות של 100 תאים, ובמשימת ניקיון נקייה זה סדר הגודל הנכון. בשימוש לא זהיר זה מכניס באגים שקטים שהצוות מגלה שבועיים אחר כך. השיעור הזה הוא איך להשתמש בזה בכוונה ואיפה זה מנצח גם את Smart Fill וגם עמודת `=AI()`.
 
 ## איך זה עובד בפועל
 
@@ -18,7 +18,7 @@ Fill with Gemini הוא **UI sugar מעל הפונקציה `=AI()`** (מכוסה
 בכל מקרה, השלבים שאחר כך זהים:
 
 1. Gemini קורא את העמודות *השכנות* לבחירה שלכם כדי להבין הקשר. הוא מציג לכם הצעה בפאנל preview.
-2. סוקרים את ההצעה תא-תא.
+2. סוקרים את ההצעה תא תא.
 3. לוחצים על **Apply** כדי להכניס את הערכים הספרותיים לתאים, או **Discard**.
 
 שלב ה-Apply הוא מה שמבדיל מ-`=AI()`. `=AI()` משאירה נוסחה מאחור שמחושבת מחדש בדרישה. Fill with Gemini כותב ערכים סטטיים פעם אחת והולך. לשניהם יש מקום; טבלת ה-trade-off למטה מפרקת ביניהם.
@@ -30,11 +30,11 @@ Fill with Gemini הוא **UI sugar מעל הפונקציה `=AI()`** (מכוסה
 
 ## מתי Fill with Gemini מנצח את Smart Fill ו-`=AI()`
 
-Smart Fill (פיצ'ר ה-Sheets הישן יותר) לומד משתי או שלוש שורות דוגמה שמקלידים. זה עובד כשהטרנספורמציה דטרמיניסטית: לחלץ שם פרטי, לתת capitalize לעמודה, להוציא קוד מדינה משם קמפיין. אם אפשר לתאר את הטרנספורם עם regex או נוסחת `LEFT`/`MID`, Smart Fill כנראה עושה את זה גם. `=AI()` הוא המקבילה החיה והנוסחתית. Fill with Gemini יושב בין השניים: חכם יותר מ-Smart Fill, קל יותר מ-`=AI()`, ובניגוד לשניהם הוא כותב ערכים literal שלא תלויים בחישוב מחדש.
+Smart Fill (הפיצ'ר הישן יותר ב-Sheets) לומד משתי או שלוש שורות דוגמה שמקלידים. זה עובד כשהטרנספורמציה דטרמיניסטית: לחלץ שם פרטי, לתת capitalize לעמודה, להוציא קוד מדינה משם קמפיין. אם אפשר לתאר את הטרנספורם עם regex או נוסחת `LEFT`/`MID`, Smart Fill כנראה עושה את זה גם. `=AI()` הוא המקבילה החיה והנוסחתית. Fill with Gemini יושב בין השניים: חכם יותר מ-Smart Fill, קל יותר מ-`=AI()`, ובניגוד לשניהם הוא כותב ערכים literal שלא תלויים בחישוב מחדש.
 
 Fill with Gemini מנצח כשהטרנספורמציה מטושטשת:
 
-- **נורמליזציה של טקסט לא עקבי.** `"car deals pr"`, `"Car Deals PR"`, `"CARDEALSPR"` כולם קורסים ל-`"Car Deals PR"` עם הוראה אחת.
+- **נורמליזציה של טקסט לא עקבי.** `"car deals pr"`, `"Car Deals PR"`, `"CARDEALSPR"` כולם קורסים ל-`"Car Deals PR"` בהוראה אחת.
 - **סיווג של טקסט חופשי.** "סווג את הערת הלקוח הזו כ: complaint, question, compliment, other."
 - **טרנספורמציות רב-שלביות.** "תוציא את העיר, תן לה capitalize, ותסטנדרט את קודי המדינה ל-2 אותיות."
 
@@ -45,56 +45,56 @@ Smart Fill צריך דוגמאות. Fill with Gemini צריך הוראה. כשה
 | לחלץ שם פרטי | מנצח. דטרמיניסטי, חינם. | מוגזם. | מוגזם ובתשלום. |
 | Capitalize לעמודה | מנצח. | מוגזם. | מוגזם. |
 | לסטנדרט 12 וריאציות של "Car Deals PR" | איטי (צריך הרבה דוגמאות) ושביר. | **מנצח.** הוראה אחת, פלט literal. | עובד אבל משאיר נוסחה חיה שמחושבת מחדש. |
-| לסווג הערות לקוחות (ניקוי חד-פעמי) | לא יכול. | **מנצח.** | עובד אבל העמודה סוחפת בכל refresh. |
-| לסווג הערות לקוחות (מתמשך) | לא יכול. | מפסיד: literals מקפיאים, לא יתעדכנו. | **מנצח.** נוסחאות חיות עוקבות אחרי שורות חדשות. |
+| לסווג הערות לקוחות (ניקוי חד-פעמי) | לא יכול. | **מנצח.** | עובד אבל העמודה נסחפת בכל refresh. |
+| לסווג הערות לקוחות (מתמשך) | לא יכול. | מפסיד: literals מקפיאים ולא יתעדכנו. | **מנצח.** נוסחאות חיות עוקבות אחרי שורות חדשות. |
 | לחלץ `card9999` משם קמפיין | מנצח אם הפורמט עקבי. | מנצח גם, אבל עולה קריאת Gemini פר-שורה. | אותו דבר. |
 
 כלל אצבע: אם נוסחה או Smart Fill יכולים לעשות את זה, משתמשים בהם. שומרים את Fill with Gemini למשימות ניקיון חד-פעמיות שזקוקות לשיפוט בשפה טבעית. שומרים את `=AI()` לסיווג מתמשך.
 
 <QuickCheck
-  question="קיבלתם בירושה גיליון עם 600 שורות של הערות לקוחות. צריך לסווג כל אחת כ-complaint/question/compliment/other פעם אחת, ולא לסווג מחדש. איזה כלי מתאים?"
+  question="קיבלתם בירושה גיליון עם 600 שורות של הערות לקוחות. צריך לסווג כל אחת כ-complaint/question/compliment/other פעם אחת, ולא לסווג שוב. איזה כלי הכי מתאים?"
   options={[
     {
       id: "a",
       label: <>Smart Fill מ-2-3 סיווגי דוגמה.</>,
       correct: false,
-      explanation: "Smart Fill הוא לטרנספורמציות דטרמיניסטיות (לחלץ, capitalize, parse). סיווג מטושטש של טקסט חופשי מעבר לגבול שלו.",
+      explanation: "Smart Fill הוא לטרנספורמציות דטרמיניסטיות (לחלץ, capitalize, parse). סיווג מטושטש של טקסט חופשי הוא מעבר לגבול שלו.",
     },
     {
       id: "b",
       label: <>Fill with Gemini עם prompt שמפרט את ארבעת ה-labels.</>,
       correct: true,
-      explanation: "סיווג מטושטש חד-פעמי עם סט labels קבוע זה בדיוק הנקודה המתוקה של Fill with Gemini. Apply כותב ערכים literal; ה-refresh הבא לא יסווג מחדש.",
+      explanation: "סיווג מטושטש חד-פעמי עם סט labels קבוע זה בדיוק הנקודה המתוקה של Fill with Gemini. Apply כותב ערכים literal; ה-refresh הבא לא יסווג שוב.",
     },
     {
       id: "c",
       label: <>עמודת =AI() עם אותו prompt, נגררת 600 שורות.</>,
       correct: false,
-      explanation: "=AI() עובד, אבל העמודה תסחף בשקט בין ריצות (אי-דטרמיניזם). לסיווג חד-פעמי, literals בטוחים יותר מנוסחה חיה.",
+      explanation: "=AI() עובד, אבל העמודה תיסחף בשקט בין ריצות (אי-דטרמיניזם). לסיווג חד-פעמי, literals בטוחים יותר מנוסחה חיה.",
     },
   ]}
 />
 
 <QuickCheck
-  question="שלוש משימות נחתו על השולחן ביום שני: (A) חילוץ המילה הראשונה מ-600 תאים של שמות קמפיינים, (B) סיווג 600 הערות לקוחות לפי sentiment לדוח חד-פעמי, (C) שמירה של עמודת 'risk' בדשבורד החי עדכנית כשנכנסות שורות חדשות. איזה כלי מתאים לכל אחת?"
+  question="שלוש משימות נחתו על השולחן ביום שני: (A) חילוץ המילה הראשונה מ-600 תאים של שמות קמפיינים, (B) סיווג 600 הערות לקוחות לפי sentiment לדוח חד-פעמי, (C) שמירה על עמודת 'risk' בדשבורד החי עדכנית כשנכנסות שורות חדשות. איזה כלי מתאים לכל אחת?"
   options={[
     {
       id: "a",
-      label: <>כל השלוש הן עבודה ל-Fill with Gemini, זה החדש והחזק ביותר.</>,
+      label: <>כל השלוש הן עבודה ל-Fill with Gemini, כי הוא החדש והחזק ביותר.</>,
       correct: false,
-      explanation: "חדש יותר זה לא טוב יותר. (A) דטרמיניסטי ו-Smart Fill או נוסחת SPLIT עושים את זה בחינם. (C) צריך לחשב מחדש על שורות חדשות, מה ש-Fill with Gemini לא יכול. שימוש ב-Fill with Gemini לכל דבר מבזבז quota ויוצר literals במקום שצריך נוסחאות.",
+      explanation: "חדש יותר לא בהכרח טוב יותר. (A) דטרמיניסטי ו-Smart Fill או נוסחת SPLIT עושים את זה בחינם. (C) צריך לחשב מחדש על שורות חדשות, מה ש-Fill with Gemini לא יכול. שימוש ב-Fill with Gemini לכל דבר מבזבז quota ויוצר literals במקום שבו צריך נוסחאות.",
     },
     {
       id: "b",
       label: <>(A) Smart Fill, (B) Fill with Gemini, (C) =AI() עם IFERROR.</>,
       correct: true,
-      explanation: "שלוש משימות, שלושה כלים, התאמה לדטרמיניזם ולרעננות. (A) חילוץ דטרמיניסטי: Smart Fill או LEFT/SPLIT. (B) סיווג fuzzy חד-פעמי: Fill with Gemini כותב literals והולך הלאה. (C) צריך לעקוב אחרי שורות חדשות: =AI() הוא הכלי החי הנוסחתי.",
+      explanation: "שלוש משימות, שלושה כלים, התאמה לדטרמיניזם וטריות. (A) חילוץ דטרמיניסטי: Smart Fill או LEFT/SPLIT. (B) סיווג fuzzy חד-פעמי: Fill with Gemini כותב literals והולך הלאה. (C) צריך לעקוב אחרי שורות חדשות: =AI() הוא הכלי החי הנוסחתי.",
     },
     {
       id: "c",
       label: <>(A) =AI(), (B) Smart Fill, (C) Fill with Gemini.</>,
       correct: false,
-      explanation: "הפוך בכל השלוש. =AI() הוא overkill וחיוב על חילוץ דטרמיניסטי חינמי. Smart Fill לא יודע sentiment fuzzy. ה-literals של Fill with Gemini קופאים ולא יעקבו אחרי שורות חדשות.",
+      explanation: "הפוך בכל השלוש. =AI() הוא overkill ומחויב על חילוץ דטרמיניסטי חינמי. Smart Fill לא יודע sentiment fuzzy. ה-literals של Fill with Gemini קופאים ולא יעקבו אחרי שורות חדשות.",
     },
   ]}
 />
@@ -104,10 +104,10 @@ Smart Fill צריך דוגמאות. Fill with Gemini צריך הוראה. כשה
 פאנל ההצעה הוא השלב הכי חשוב והכי מדולג. ההצעה מראה לכם את התאים ש-Gemini יכתוב. תמיד בודקים שלושה דברים לפני Apply:
 
 1. **האם כל תא בהצעה הוא מה שציפיתם?** עושים spot-check לעשרה מהם, במיוחד השורות שלעולם לא הייתם מסתכלים עליהן (שורות 50, 137, 244 וכו').
-2. **האם Gemini מילא תאים שלא בחרתם?** מדי פעם ההצעה מתרחבת מעבר לבחירה המקורית אם Gemini מחליט שעמודות מסקנה נוספות שימושיות. דוחים את ה-apply אם כן.
-3. **האם Gemini שינה סדר שורות?** נדיר אבל אמיתי. תצוגת ה-preview של ההצעה לרוב שומרת את הסדר המקורי; מאמתים מול עמודה מקבילה שלא נגעתם בה.
+2. **האם Gemini מילא תאים שלא בחרתם?** מדי פעם ההצעה מתרחבת מעבר לבחירה המקורית אם Gemini מחליט שעמודות מסקנה נוספות שימושיות. אם כך, דוחים את ה-apply.
+3. **האם Gemini שינה סדר שורות?** נדיר אבל קורה. ה-preview של ההצעה לרוב שומר את הסדר המקורי; מאמתים מול עמודה מקבילה שלא נגעתם בה.
 
-שלב ה-Apply הוא לא תמיד יחידת undo נקייה. אם apply ואז תופסים טעות, `Ctrl+Z` עשוי להחזיר רק חלק מהתאים. מתייחסים ל-apply כ-commit ולא כ-preview חינמי. הכלל בצוות: snapshot של ה-workbook (File → Make a copy או version history) לפני כל Apply בסיכון גבוה. Track 4 שיעור 10 מכסה לעומק את דפוס הגרסאות הממוספרות; המשמעת מועברת לכאן ללא שינוי.
+שלב ה-Apply הוא לא תמיד יחידת undo נקייה. אם עושים apply ואז תופסים טעות, `Ctrl+Z` עשוי להחזיר רק חלק מהתאים. מתייחסים ל-apply כ-commit ולא כ-preview חינמי. הכלל בצוות: snapshot של ה-workbook (File → Make a copy או version history) לפני כל Apply בסיכון גבוה. Track 4 שיעור 10 מכסה לעומק את דפוס הגרסאות הממוספרות; המשמעת מועברת לכאן ללא שינוי.
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
@@ -120,7 +120,7 @@ H10: "Senior Living PR"   ✗ (היה "Senior Living P", typo)
 ...
 
 הסוקר עובר ברפרוף; apply.`}</code></pre>
-    <p className="mt-2 text-sm">Gemini תיקן אוטומטית את ה-typo, מה שנשמע מצוין עד שהצוות מאמת שיש גם vertical נפרד "Seniors PR" וה-guess של Gemini היה שגוי בשלוש שורות. אין audit trail; sums במורד הזרם לפי vertical מיוחסים לא נכון.</p>
+    <p className="mt-2 text-sm">Gemini תיקן אוטומטית את ה-typo, מה שנשמע מצוין עד שהצוות מגלה שיש גם vertical נפרד "Seniors PR" וה-guess של Gemini היה שגוי בשלוש שורות. אין audit trail; sums במורד הזרם לפי vertical משוייכים לא נכון.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`הוראה: "Standardize the vertical names.
@@ -133,7 +133,7 @@ For anything else, write the literal text
 H10: "needs review"  ✓
 
 הסוקר רואה H10 מסומן, פותח את השורה, מתקן ידנית.`}</code></pre>
-    <p className="mt-2 text-sm">סט labels מצומצם, הוראה מפורשת של "do not guess". הזיה הופכת לדגל, לא לערך שגוי שקט.</p>
+    <p className="mt-2 text-sm">סט labels מצומצם, הוראה מפורשת של "do not guess". הזיה הופכת לסימון, לא לערך שגוי שקט.</p>
   </ComparePanel>
 </Compare>
 
@@ -143,12 +143,12 @@ H10: "needs review"  ✓
   expectedFormula={`=AI("Standardize the vertical to canonical Title Case. Allowed values: Car Deals PR, Bathroom Remodeling PR, Hearing Aids PR, Senior Living PR. For anything else, return 'needs review' (do not guess). Preserve the trailing PR suffix. Vertical: " & C2)`}
   task={<>בעמודת ה-Vertical יש סחיפת casing ו-spacing (<code>"car deals pr"</code>, <code>"Car Deals"</code>, <code>"CarDealsPR"</code>, <code>"Car Deals PR"</code>). כתבו את קריאת <code>=AI()</code> ב-<code>H2</code> שתמלא את השם הקנוני. היא חייבת לכלול (a) רשימה מפורשת של ערכים מותרים, (b) כלל "do not guess", ו-(c) הוראת "preserve trailing PR suffix".</>}
   hint={<>מתחילים ב-<code>=AI("Standardize the vertical to canonical Title Case. Allowed values: ..."</code>. ואז מוסיפים את הרשימה הקנונית. אחר כך את סעיף ה-"do not guess": <code>"For anything else, return 'needs review' (do not guess)."</code> ואז את כלל ה-suffix: <code>"Preserve the trailing PR suffix."</code> משרשרים את ה-vertical של השורה עם <code>&amp; C2</code> בסוף.</>}
-  answer={<>שלושת המרכיבים הורגים כל אחד failure mode ספציפי. <strong>הרשימה המותרת</strong> הופכת משימה גנרטיבית למשימת סיווג: המודל מחזיר אחת מהמחרוזות ברשימה בפועל. <strong>סעיף ה-"do not guess"</strong> ממיר הזיות לשורות מסומנות כך שאדם תופס אותן ולא dashboard. <strong>כלל ה-"preserve trailing PR suffix"</strong> ספציפי לצוות: המוסכמה היא ששמות vertical תמיד מסתיימים ב-PR, וברירת המחדל של Gemini לפעמים תורידה אותו במהלך נורמליזציה. בלי כל השלושה, ההצעה נראית בטוחה ושגויה בשקט בקומץ שורות.</>}
+  answer={<>שלושת המרכיבים הורגים כל אחד failure mode ספציפי. <strong>הרשימה המותרת</strong> הופכת משימה גנרטיבית למשימת סיווג: המודל מחזיר בפועל אחת מהמחרוזות ברשימה. <strong>סעיף ה-"do not guess"</strong> ממיר הזיות לשורות מסומנות כך שאדם תופס אותן ולא dashboard. <strong>כלל ה-"preserve trailing PR suffix"</strong> ספציפי לצוות: המוסכמה היא ששמות vertical תמיד מסתיימים ב-PR, וברירת המחדל של Gemini לפעמים תוריד אותו במהלך נורמליזציה. בלי שלושת המרכיבים, ההצעה נראית בטוחה ושגויה בשקט בקומץ שורות.</>}
 />
 
 ## מלכודות schema ואי-התאמת עמודות
 
-Fill with Gemini קורא עמודות שכנות כדי להסיק הקשר. כשטקסט הכותרת דו-משמעי או שגוי, ההסקה שגויה. הצוות פגע בשני failure modes ספציפיים שכדאי להציף:
+Fill with Gemini קורא עמודות שכנות כדי להסיק הקשר. כשטקסט הכותרת דו-משמעי או שגוי, ההסקה שגויה. הצוות נתקל בשני failure modes ספציפיים שכדאי להציף:
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
@@ -157,7 +157,7 @@ Fill with Gemini קורא עמודות שכנות כדי להסיק הקשר. כ
 
 הוראה: "Classify each row's
 risk based on spend and revenue."`}</code></pre>
-    <p className="mt-2 text-sm">כותרות מקוצרות מאלצות את Gemini לנחש מה `Plt`, `Spnd`, `Rev` אומרים. בגיליון קטן של 12 שורות, הוא מנחש נכון; בגיליון של 600 שורות עם עמודות דומות במקום אחר, הוא יכול לקרוא את העמודה הלא נכונה. Schema mismatch בלתי נראה ב-preview של ההצעה.</p>
+    <p className="mt-2 text-sm">כותרות מקוצרות מאלצות את Gemini לנחש מה `Plt`, `Spnd`, `Rev` אומרים. בגיליון קטן של 12 שורות, הוא מנחש נכון; בגיליון של 600 שורות עם עמודות דומות במקום אחר, הוא יכול לקרוא את העמודה הלא נכונה. Schema mismatch הוא בלתי נראה ב-preview של ההצעה.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`כותרות: A=Date, B=Buyer, C=Vertical,
@@ -167,26 +167,26 @@ risk based on spend and revenue."`}</code></pre>
 הוראה: "Classify each row's
 risk based on Spend (column E) and
 Revenue (column F) only."`}</code></pre>
-    <p className="mt-2 text-sm">שמות כותרת מלאים בתוספת עוגן מפורש של "based on column E and column F only". ההסקה הופכת לדטרמיניסטית-יחסית.</p>
+    <p className="mt-2 text-sm">שמות כותרת מלאים בתוספת עוגן מפורש של "based on column E and column F only". ההסקה הופכת ליחסית דטרמיניסטית.</p>
   </ComparePanel>
 </Compare>
 
 ## עלות, מכסה, ומשטח הפרטיות
 
-Fill with Gemini מחויב לפי Workspace plan. כמה Workspace plans כוללים חלונות גישה פרומו עם מכסות פר-משתמש גבוהות יותר במהלך השקת Gemini-in-Sheets (מוזכר גם בשיעור 5.1); בודקים מול ה-admin שלכם באיזה tier הצוות נמצא ואיזה מגבלות חלות, כי ה-gating זז ככל ש-features מגיעים ל-GA. כל שלב Apply נספר מול המכסה. Apply של 100 תאים הוא אירוע מכסה אחד בפועל; Apply של 600 תאים הוא גדול יותר. ההבטחה של 9x במהירות מההכרזה של Workspace אמיתית למשימות נקיות, אבל החשבון גם אמיתי. שמים לב לזה בריצות ניקיון בנפח גבוה.
+Fill with Gemini מחויב לפי Workspace plan. כמה Workspace plans כוללים חלונות גישה פרומו עם מכסות פר-משתמש גבוהות יותר במהלך השקת Gemini-in-Sheets (מוזכר גם בשיעור 5.1); בודקים מול ה-admin שלכם באיזה tier הצוות נמצא ואילו מגבלות חלות, כי ה-gating משתנה ככל ש-features מגיעים ל-GA. כל שלב Apply נספר מול המכסה. Apply של 100 תאים הוא אירוע מכסה אחד בפועל; Apply של 600 תאים הוא גדול יותר. ההבטחה של 9x במהירות מההכרזה של Workspace אמיתית למשימות נקיות, אבל גם החשבון אמיתי. שמים לב לזה בריצות ניקיון בנפח גבוה.
 
-PII יש לו אותו משטח כמו ל-`=AI()`: עמודות שכנות נקראות ל-context של Gemini, אז אם הבחירה שלכם יושבת ליד עמודת email של לקוח, ה-emails האלה ב-snapshot. שיעור 5.6 מכסה את מדיניות ה-PII בפירוט. הגרסה הקצרה: אם לא הייתם מדביקים עמודה לטופס web של vendor חיצוני, אל תפעילו Fill with Gemini עליה בלי לבדוק את תנאי הטיפול בנתונים של ה-plan שלכם קודם.
+ל-PII יש את אותו משטח כמו ל-`=AI()`: עמודות שכנות נקראות ל-context של Gemini, אז אם הבחירה שלכם יושבת ליד עמודת email של לקוח, ה-emails האלה ב-snapshot. שיעור 5.6 מכסה את מדיניות ה-PII בפירוט. הגרסה הקצרה: אם לא הייתם מדביקים עמודה לטופס web של vendor חיצוני, אל תפעילו עליה Fill with Gemini בלי לבדוק קודם את תנאי הטיפול בנתונים של ה-plan שלכם.
 
 ## עכשיו לעבודה אמיתית
 
 <MiniGrid
   data={MESSY_CAMPAIGNS.slice(0, 6)}
-  caption="ל-MESSY_CAMPAIGNS יש 12 שורות עם שמות vertical לא עקביים: lowercase, רווחים, ה-typo 'Senior Living P'. המשימה שלכם היא להפיק את הצורה הקנונית 'Title Case PR' בעמודה H."
+  caption="ל-MESSY_CAMPAIGNS יש 12 שורות עם שמות vertical לא עקביים: lowercase, רווחים, ה-typo 'Senior Living P'. המשימה שלכם היא להפיק את הצורה הקנונית בפורמט 'Title Case PR' בעמודה H."
 />
 
 לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים המלוכלך לטאב Cleanup. שלוש משימות:
 
-- **עמודה H, שורות 2 עד 14**: ממלאים את שם ה-vertical הקנוני המנוקה לכל שורה כערך literal. ה-grader עושה spot-check ל-H2, H5, ו-H10 מול הצורות הקנוניות. כל ערך צריך להסתיים ב-" PR" ולהיות Title Case.
+- **עמודה H, שורות 2 עד 14**: ממלאים את שם ה-vertical הקנוני המנוקה לכל שורה כערך literal. ה-grader עושה spot-check ל-H2, H5, ו-H10 מול הצורות הקנוניות. כל ערך צריך להסתיים ב-" PR" ולהיות ב-Title Case.
 - **J1**: כותבים את ה-prompt בשפה טבעית שהייתם משתמשים בו ב-Fill with Gemini. כוללים את המילים `standardize` (או `normalize`), `vertical`, ו-`PR`.
 - **בלי נוסחאות** בעמודה H. Fill with Gemini מייצר ערכים literal, לא נוסחאות, וה-grader אוכף את זה.
 
@@ -194,7 +194,7 @@ PII יש לו אותו משטח כמו ל-`=AI()`: עמודות שכנות נק�
 
 ## נפוץ בשטח
 
-הצוות פוגש את הבלגן הזה בדיוק כל שבוע. ה-export של Taboola שולח שמות vertical ב-12 casings שונים ושלוש כתיבים. עד Fill with Gemini, הניקיון היה ריטואל שבועי של 20 דקות: paste ל-aggregator, להריץ שרשרת `SUBSTITUTE`, לתקן ידנית את ה-typos שה-substitutions פספסו. עכשיו ה-workflow הוא:
+הצוות נתקל בבלגן הזה בדיוק כל שבוע. ה-export של Taboola שולח שמות vertical ב-12 casings שונים ושלושה כתיבים שונים. עד Fill with Gemini, הניקיון היה טקס שבועי של 20 דקות: paste ל-aggregator, להריץ שרשרת `SUBSTITUTE`, לתקן ידנית את ה-typos שה-substitutions פספסו. עכשיו ה-workflow הוא:
 
 - מדביקים את ה-export לטאב staging.
 - בוחרים את עמודת ה-Vertical.
@@ -202,13 +202,13 @@ PII יש לו אותו משטח כמו ל-`=AI()`: עמודות שכנות נק�
 - סוקרים את ההצעה. Apply.
 - שאר הניקיונים הדטרמיניסטיים (trim של רווחים, פורמט תאריך) רצים דרך נוסחאות `TRIM` ו-`TEXT` בעמודה הבאה.
 
-השילוב מהיר יותר מכל כלי לבד: Gemini מטפל בנורמליזציה המטושטשת, נוסחאות מטפלות בשאר.
+השילוב מהיר יותר מכל אחד מהכלים לבד: Gemini מטפל בנורמליזציה המטושטשת, נוסחאות מטפלות בשאר.
 
 ## מלכודות מקצועיות
 
-- **אין formula trace.** התאים אחרי apply נראים בדיוק כמו תאים שהקלדתם. שבועיים אחר כך, אף אחד לא יכול לדעת אילו נוצרו על-ידי AI ואילו ידניים. התיקון: מוסיפים עמודה אחות שמשמרת את הערך המקורי, כך שקורא עתידי יכול לראות את ה-diff.
-- **נורמליזציה שמאבדת מידע.** אם ה-prompt שלכם הוא "Standardize to canonical Title Case PR form" ו-Gemini רואה "Senior Living P" (typo), Gemini ינחש "Senior Living PR" וייתכן שיהיה נכון או שגוי תלוי אם לצוות יש vertical של "Senior Living" או "Seniors". תמיד כוללים את הרשימה המותרת ב-prompt אם יש לכם, עם כלל מפורש של "do not guess".
+- **אין formula trace.** התאים אחרי apply נראים בדיוק כמו תאים שהקלדתם. שבועיים אחר כך, אף אחד לא יכול לדעת אילו נוצרו על-ידי AI ואילו ידניים. התיקון: מוסיפים עמודה צמודה שמשמרת את הערך המקורי, כך שקורא עתידי יוכל לראות את ה-diff.
+- **נורמליזציה שמאבדת מידע.** אם ה-prompt שלכם הוא "Standardize to canonical Title Case PR form" ו-Gemini רואה "Senior Living P" (typo), Gemini ינחש "Senior Living PR" וייתכן שיהיה נכון או שגוי, תלוי אם לצוות יש vertical של "Senior Living" או "Seniors". תמיד כוללים את הרשימה המותרת ב-prompt אם יש לכם, עם כלל מפורש של "do not guess".
 - **הצעה שמתפרסת מעבר לבחירה שלכם.** Gemini מדי פעם מציע עמודות מסקנה לצד ה-fill הראשי. ה-apply יכתוב את כולן. בודקים את ה-preview בקפידה.
 - **Apply הוא לא יחידת undo נקייה.** `Ctrl+Z` אחרי apply עשוי להחזיר חלקית. מתייחסים ל-apply כ-commit; שומרים snapshot של ה-workbook קודם אם הסיכון גבוה.
-- **מלכודת ה"נראה נכון אבל שגוי".** ההצעה של Fill with Gemini נראית בטוחה. בעמודה של 200 שורות, שלוש שורות שגויות בעדינות (שם capitalize-ed לא עקבי, typo ש-Gemini ניחש לא נכון) בלתי נראות במבט. עושים spot-check ל-10 שורות אקראיות בכל apply, במיוחד לשדות ש-`SUMIFS` או pivots במורד הזרם יקבצו עליהם.
+- **המלכודת של "נראה נכון אבל שגוי".** ההצעה של Fill with Gemini נראית בטוחה. בעמודה של 200 שורות, שלוש שורות שגויות בעדינות (שם עם capitalize לא עקבי, typo ש-Gemini ניחש לא נכון) בלתי נראות במבט. עושים spot-check ל-10 שורות אקראיות בכל apply, במיוחד לשדות ש-`SUMIFS` או pivots במורד הזרם יקבצו עליהם.
 - **Schema mismatch של כותרות.** כותרות מקוצרות או דו-משמעיות מאלצות את Gemini לנחש מה העמודות שלכם אומרות. הניחוש השגוי בלתי נראה ב-preview של ההצעה כי הערכים נראים סבירים. משתמשים בשמות כותרת מלאים וחד-משמעיים, ומפנים אליהם בהוראה.

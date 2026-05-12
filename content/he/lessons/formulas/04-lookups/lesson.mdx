@@ -2,9 +2,9 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
 
 # Lookups: VLOOKUP, HLOOKUP, INDEX/MATCH, XLOOKUP
 
-ל-Sheets יש ארבע דרכים לעשות lookup לערך בטבלה. כולן עושות בערך את אותה עבודה. שלוש מהן סוחבות מגבלות מהשמונים. אחת היא הזוכה המודרנית. השיעור הזה אומר לכם באיזו לשלוף ולמה. עם המקרה הכי נפוץ באדטק: התאמה של שורות קמפיינים מול טבלת metadata נפרדת.
+ל-Sheets יש ארבע דרכים לעשות lookup לערך בטבלה. כולן עושות בערך את אותה עבודה. שלוש מהן סוחבות מגבלות משנות השמונים. אחת היא המנצחת המודרנית. השיעור הזה אומר לכם באיזו לשלוף ולמה, דרך המקרה הכי נפוץ באדטק: התאמה של שורות קמפיינים מול טבלת metadata נפרדת.
 
-הסטאפ: לכל קמפיין יש **vertical** (הנושא, כמו "Car Deals PR"). טבלת **Verticals** נפרדת מחזיקה את הקטגוריה ואת ה-CPC הממוצע לכל vertical. כדי להעשיר את טבלת הקמפיינים במידע על הקטגוריה, צריך lookup.
+הסטאפ: לכל קמפיין יש **vertical** (הנושא, כמו "Car Deals PR"). טבלת **Verticals** נפרדת מחזיקה את הקטגוריה ואת ה-CPC הממוצע של כל vertical. כדי להעשיר את טבלת הקמפיינים במידע על הקטגוריה, צריך lookup.
 
 <MiniGrid
   data={CAMPAIGNS}
@@ -20,9 +20,9 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
 
 ## VLOOKUP: ברירת המחדל הישנה
 
-`VLOOKUP` סורק את **העמודה הראשונה** של טווח, מוצא את ההתאמה הראשונה, ומחזיר ערך מעמודה אחרת באותה שורה. זאת הפונקציה ש-lookup רוב האנשים לומדים קודם: spreadsheets שלחו אותה במשך עשורים, ורוב ה-workbooks שהצוות יורש עדיין מסתמכים עליה. ידיעה איך היא עובדת היא חצי לשימוש וחצי לקריאה של מה שהיא עשתה כשמשהו נשבר.
+`VLOOKUP` סורק את **העמודה הראשונה** של טווח, מוצא את ההתאמה הראשונה, ומחזיר ערך מעמודה אחרת באותה שורה. זאת פונקציית ה-lookup שרוב האנשים לומדים קודם. spreadsheets הציעו אותה במשך עשורים, ורוב ה-workbooks שהצוות יורש עדיין מסתמכים עליה. הידיעה איך היא עובדת היא חצי לצורך השימוש בה וחצי כדי להבין מה היא עשתה כשמשהו נשבר.
 
-ארבעת הארגומנטים הם `search_key`, `range`, `index`, `[is_sorted]`. הדגל `is_sorted` כמעט תמיד צריך להיות `FALSE` להתאמה מדויקת; ברירת המחדל `TRUE` מניחה בשקט שעמודה ראשונה ממוינת, וזה המקור של הבאג הקלאסי של "הוחזרה שורה לא נכונה" שנראה למטה.
+ארבעת הארגומנטים הם `search_key`, `range`, `index`, `[is_sorted]`. הדגל `is_sorted` כמעט תמיד צריך להיות `FALSE` להתאמה מדויקת; ברירת המחדל `TRUE` מניחה בשקט שהעמודה הראשונה ממוינת, וזה המקור של הבאג הקלאסי של "הוחזרה שורה לא נכונה" שנראה בהמשך.
 
 <FunctionRef name="VLOOKUP" />
 
@@ -63,7 +63,7 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
   ]}
 />
 
-בתרגיל, טבלת ה-Verticals יושבת בעמודות I-K של אותו גיליון. ב-spreadsheets אמיתיים היא הייתה בטאב נפרד, עם reference דרך `Verticals!A:C` או נמשכת דרך `IMPORTRANGE`.
+בתרגיל, טבלת ה-Verticals יושבת בעמודות I-K של אותו גיליון. ב-spreadsheets אמיתיים היא הייתה יושבת בטאב נפרד, עם reference דרך `Verticals!A:C` או נמשכת דרך `IMPORTRANGE`.
 
 <TryIt
   data={CAMPAIGNS}
@@ -71,21 +71,21 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
   expectedFormula="=VLOOKUP(C2,I2:K11,2,FALSE)"
   task={<>השתמשו ב-<code>VLOOKUP</code> כדי למצוא את הקטגוריה של ה-vertical של הקמפיין הראשון (Car Deals PR). התוצאה ב-<code>H2</code> צריכה להיות <code>Autos & Vehicles</code>.</>}
   hint={<>ארבעה ארגומנטים: search key (<code>C2</code>, שם ה-vertical), range (<code>I2:K11</code>, טבלת ה-verticals), מספר העמודה (<code>2</code> ל-category), ו-<code>FALSE</code> להתאמה מדויקת.</>}
-  answer={<>הארגומנט השלישי הוא מספר העמודה <strong>בתוך הטווח</strong>, לא בתוך הגיליון. כיוון שהטווח מתחיל בעמודה I, "Category" הוא עמודה 2 של הטווח. הארגומנט הרביעי <code>FALSE</code> מאלץ התאמה מדויקת. השמטה שלו (או העברת <code>TRUE</code>) אומרת ל-VLOOKUP שהמידע ממוין, מה שעלול להחזיר התאמות שגויות בשקט אם הוא לא. תמיד תעבירו <code>FALSE</code> אלא אם אתם מבצעים lookup של range-bucket במכוון.</>}
+  answer={<>הארגומנט השלישי הוא מספר העמודה <strong>בתוך הטווח</strong>, לא בתוך הגיליון. כיוון שהטווח מתחיל בעמודה I, "Category" הוא עמודה 2 של הטווח. הארגומנט הרביעי <code>FALSE</code> מאלץ התאמה מדויקת. השמטה שלו (או העברת <code>TRUE</code>) אומרת ל-VLOOKUP שהמידע ממוין, מה שעלול להחזיר התאמות שגויות בשקט אם הוא לא. תמיד תעבירו <code>FALSE</code> אלא אם אתם עושים lookup של range-bucket במכוון.</>}
 />
 
-המלכודת הכי גדולה של VLOOKUP: הוא יכול לקרוא **רק** עמודות שמימין לעמודת ה-lookup. אם עמודת ה-lookup שלכם נמצאת מימין לעמודה שאתם רוצים להחזיר, VLOOKUP לא יעזור. מקרה אדטק אמיתי: בגיליון verticals יש עמודות Vertical, Category, Avg CPC. למצוא איזה vertical יש לו Avg CPC מסוים, VLOOKUP לא מסוגל. Avg CPC נמצא מימין ל-Vertical.
+המלכודת הכי גדולה של VLOOKUP: הוא יכול לקרוא **רק** עמודות שמימין לעמודת ה-lookup. אם עמודת ה-lookup שלכם נמצאת מימין לעמודה שאתם רוצים להחזיר, VLOOKUP לא יעזור. מקרה אדטק אמיתי: בגיליון verticals יש עמודות Vertical, Category, Avg CPC. כדי למצוא איזה vertical יש לו Avg CPC מסוים, VLOOKUP לא יכול לעזור, כי Avg CPC נמצא מימין ל-Vertical.
 
 ### מלכודות נפוצות
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=VLOOKUP(C2, I2:K11, 2)`}</code></pre>
-    <p className="mt-2 text-sm">בלי הארגומנט הרביעי, אז <code>is_sorted</code> מקבל ערך ברירת מחדל <code>TRUE</code>. VLOOKUP מניח שהעמודה הראשונה ממוינת בסדר עולה ומחזיר את השורה עם הערך הגדול ביותר &lt;= search_key. על שמות vertical לא ממוינים, התוצאה לא צפויה ולעיתים קרובות שגויה בשקט.</p>
+    <p className="mt-2 text-sm">בלי הארגומנט הרביעי, <code>is_sorted</code> מקבל ערך ברירת מחדל <code>TRUE</code>. VLOOKUP מניח שהעמודה הראשונה ממוינת בסדר עולה ומחזיר את השורה עם הערך הגדול ביותר &lt;= search_key. על שמות vertical לא ממוינים, התוצאה לא צפויה ולעיתים קרובות שגויה בשקט.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=VLOOKUP(C2, I2:K11, 2, FALSE)`}</code></pre>
-    <p className="mt-2 text-sm">להעביר <code>FALSE</code> במפורש כדי לאלץ exact match. זה צריך להיות רפלקס: בכל פעם שכותבים VLOOKUP, הארגומנט הרביעי הוא <code>FALSE</code> אלא אם אתם יכולים לנמק למה לא.</p>
+    <p className="mt-2 text-sm">מעבירים <code>FALSE</code> במפורש כדי לאלץ exact match. זה צריך להיות רפלקס: בכל פעם שכותבים VLOOKUP, הארגומנט הרביעי הוא <code>FALSE</code> אלא אם אתם יכולים לנמק למה לא.</p>
   </ComparePanel>
 </Compare>
 
@@ -96,7 +96,7 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=XLOOKUP(C2, I2:I11, K2:K11)`}</code></pre>
-    <p className="mt-2 text-sm">לעשות reference לעמודת ההחזרה דרך טווח, לא דרך מספר. הוספת עמודה לא שוברת את הנוסחה כי שני הטווחים מתעדכנים יחד.</p>
+    <p className="mt-2 text-sm">עושים reference לעמודת ההחזרה דרך טווח, לא דרך מספר. הוספת עמודה לא שוברת את הנוסחה כי שני הטווחים מתעדכנים יחד.</p>
   </ComparePanel>
 </Compare>
 
@@ -107,19 +107,19 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
       id: "a",
       label: "VLOOKUP החזיר את השורה הראשונה כברירת מחדל.",
       correct: false,
-      explanation: "הוא לא החזיר את השורה הראשונה באופן שרירותי. הוא יישם את התנהגות ההתאמה הברירת מחדל שלו.",
+      explanation: "הוא לא החזיר את השורה הראשונה באופן שרירותי. הוא יישם את התנהגות ההתאמה של ברירת המחדל שלו.",
     },
     {
       id: "b",
       label: "בלי is_sorted, VLOOKUP קיבל ערך ברירת מחדל TRUE (התאמה מקורבת) והחזיר את הערך הגדול ביותר בעמודה הראשונה <= search_key.",
       correct: true,
-      explanation: "ברירת המחדל TRUE היא ה-footgun הקלאסי של VLOOKUP. תעבירו FALSE תמיד למידע לא ממוין.",
+      explanation: "ברירת המחדל TRUE היא ה-footgun הקלאסי של VLOOKUP. תעבירו FALSE תמיד עבור מידע לא ממוין.",
     },
     {
       id: "c",
       label: "VLOOKUP לא מסתדר עם טווח שכולל את שורת הכותרת.",
       correct: false,
-      explanation: "כותרות בתוך הטווח בסדר; הבעיה היא ההיעדרות של הארגומנט הרביעי.",
+      explanation: "כותרות בתוך הטווח בסדר; הבעיה היא היעדרות הארגומנט הרביעי.",
     },
   ]}
 />
@@ -131,40 +131,40 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
       id: "a",
       label: "VLOOKUP מצא את 'SUV Deals PR' אבל קרא מהעמודה הלא נכונה.",
       correct: false,
-      explanation: "אינדקס העמודה הוא 2, וזה נכון. הבעיה של שורה לא נכונה אינה באג של אינדקס עמודה; היא באג של match-mode.",
+      explanation: "אינדקס העמודה הוא 2, וזה נכון. הבעיה של שורה לא נכונה אינה באג של אינדקס עמודה; היא באג של match mode.",
     },
     {
       id: "b",
       label: "בלי הארגומנט הרביעי, is_sorted קיבל ברירת מחדל TRUE. VLOOKUP עשה binary search בהנחה שהעמודה הראשונה ממוינת בסדר עולה, חלף על ההתאמה האמיתית, והחזיר את הערך הגדול ביותר שמצא שהיה <= ל-search key. על נתונים לא ממוינים ה-'binary search' נופל על שורה סבירה-אבל-שגויה ולעולם לא מחזיר שגיאה.",
       correct: true,
-      explanation: "זאת ה-footgun השקטה: is_sorted=TRUE לא רק מאפשר התאמה מקורבת; הוא מעביר את VLOOKUP לאלגוריתם binary-search שמניח נתונים ממוינים. על עמודות lookup לא ממוינות (שזה רוב טבלאות ה-lookup האמיתיות), ה-binary search נוחת על איזו שורה שהחציה במקרה מוצאת, מחזיר אותה בלי שגיאה, ואתם סומכים על המספר. תמיד תעבירו FALSE כארגומנט הרביעי אלא אם עמודת ה-lookup שלכם באמת ממוינת בסדר עולה וגם אתם באמת רוצים התאמה מקורבת בסגנון bucket.",
+      explanation: "זאת ה-footgun השקטה: is_sorted=TRUE לא רק מאפשר התאמה מקורבת; הוא מעביר את VLOOKUP לאלגוריתם binary-search שמניח נתונים ממוינים. על עמודות lookup לא ממוינות (שזה רוב טבלאות ה-lookup האמיתיות), ה-binary search נוחת על איזו שורה שהחציה במקרה מוצאת, מחזיר אותה בלי שגיאה, ואתם סומכים על המספר. תמיד תעבירו FALSE כארגומנט הרביעי, אלא אם עמודת ה-lookup שלכם באמת ממוינת בסדר עולה וגם אתם באמת רוצים התאמה מקורבת בסגנון bucket.",
     },
     {
       id: "c",
       label: "צריך למיין את טבלת ה-lookup לפי אלפבית לפני ש-VLOOKUP יכול למצוא משהו.",
       correct: false,
-      explanation: "VLOOKUP עם is_sorted=FALSE עושה סריקת exact-match לינארית ולא אכפת לו מסדר המיון. הפתרון אינו מיון המקור; הוא העברת FALSE.",
+      explanation: "VLOOKUP עם is_sorted=FALSE עושה סריקת exact-match לינארית ולא אכפת לו מסדר המיון. הפתרון אינו מיון המקור, אלא העברת FALSE.",
     },
     {
       id: "d",
       label: "VLOOKUP לא מסתדר עם שמות vertical שמכילים רווחים.",
       correct: false,
-      explanation: "רווחים ב-search key בסדר. הבעיה היא ה-match mode של ברירת המחדל.",
+      explanation: "רווחים ב-search key לא מהווים בעיה. הבעיה היא ה-match mode של ברירת המחדל.",
     },
   ]}
 />
 
 ## HLOOKUP: VLOOKUP מסובב ב-90 מעלות
 
-`HLOOKUP` סורק את **השורה הראשונה** של טווח ומחזיר ערך משורה אחרת באותה עמודה. אותם ארגומנטים כמו ב-VLOOKUP, רק במגמה אופקית. נדיר שתצטרכו אותו כי טבלאות כמעט תמיד אנכיות. המקום היחיד שהוא מופיע באדטק: לוחות סיכום רבעוניים שבהם החודשים מסודרים על פני עמודות, ורוצים lookup של מדד לפי שם חודש. גם שם, `INDEX/MATCH` או `XLOOKUP` (עם המידע transposed) בדרך כלל מנצחים.
+`HLOOKUP` סורק את **השורה הראשונה** של טווח ומחזיר ערך משורה אחרת באותה עמודה. אותם ארגומנטים כמו ב-VLOOKUP, רק בכיוון אופקי. נדיר שתצטרכו אותו כי טבלאות כמעט תמיד אנכיות. המקום היחיד שהוא מופיע בו באדטק: לוחות סיכום רבעוניים שבהם החודשים מסודרים על פני עמודות, ורוצים lookup של מדד לפי שם חודש. גם שם, `INDEX/MATCH` או `XLOOKUP` (עם המידע transposed) בדרך כלל מנצחים.
 
 <FunctionRef name="HLOOKUP" />
 
 ## INDEX/MATCH: הקלאסיקה הגמישה
 
-הצירוף של INDEX/MATCH מפצל את ה-lookup לשתי פונקציות. `MATCH(search_key, range)` מחזיר את **המיקום** של ההתאמה. `INDEX(range, position)` מחזיר את הערך באותו מיקום. משלבים אותן ומקבלים lookup שלא אכפת לו מסדר העמודות. במשך עשור זאת הייתה התשובה ה"נכונה" ב-workbooks רציניים, כי בניגוד ל-VLOOKUP הוא שורד הוספת עמודות ועובד משמאל לימין או מימין לשמאל.
+הצירוף של INDEX/MATCH מפצל את ה-lookup לשתי פונקציות. `MATCH(search_key, range)` מחזיר את **המיקום** של ההתאמה. `INDEX(range, position)` מחזיר את הערך באותו מיקום. משלבים אותן ומקבלים lookup שלא אכפת לו מסדר העמודות. במשך עשור זאת הייתה התשובה ה"נכונה" ב-workbooks רציניים, כי בניגוד ל-VLOOKUP הוא שורד הוספת עמודות ועובד גם משמאל לימין וגם מימין לשמאל.
 
-המחיר הוא ריבוי מילים: שתי קריאות פונקציה במקום שאחת תספיק. workbooks מודרניים של Sheets מעדיפים XLOOKUP לנוסחאות חדשות; INDEX/MATCH עדיין מופיע במקומות שבהם תאימות ל-legacy חשובה או בנוסחאות שאתם מתחזקים במקום לכתוב מחדש.
+המחיר הוא מילים מיותרות: שתי קריאות פונקציה במקום שאחת תספיק. workbooks מודרניים של Sheets מעדיפים XLOOKUP לנוסחאות חדשות; INDEX/MATCH עדיין מופיע במקומות שבהם תאימות ל-legacy חשובה או בנוסחאות שאתם מתחזקים במקום לכתוב מחדש.
 
 <FunctionRef name="MATCH" />
 
@@ -211,14 +211,14 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
   data={CAMPAIGNS}
   inputCell="H2"
   expectedFormula="=INDEX(J2:J11,MATCH(C2,I2:I11,0))"
-  task={<>השתמשו ב-<code>INDEX/MATCH</code> כדי למצוא את הקטגוריה של ה-vertical של הקמפיין הראשון. אותה תוצאה כמו ה-VLOOKUP, אבל עם שתי פונקציות מורכבות.</>}
+  task={<>השתמשו ב-<code>INDEX/MATCH</code> כדי למצוא את הקטגוריה של ה-vertical של הקמפיין הראשון. אותה תוצאה כמו ה-VLOOKUP, אבל עם הרכבה של שתי פונקציות.</>}
   hint={<><code>MATCH</code> מקבל את ה-search key, את הטווח לחיפוש, ואת match type (<code>0</code> ל-exact). <code>INDEX</code> מקבל את הטווח לקרוא ממנו ואת המיקום.</>}
-  answer={<>קוראים מבפנים החוצה: <code>MATCH(C2, I2:I11, 0)</code> מתורגם קודם ומחזיר <code>1</code> (Car Deals PR הוא ה-vertical הראשון ב-lookup). אז <code>INDEX(J2:J11, 1)</code> מחזיר את הקטגוריה הראשונה. תוצאה: Autos & Vehicles. INDEX/MATCH הייתה התשובה ה"נכונה" במשך עשור, כי היא עובדת משמאל לימין או מימין לשמאל ויש לה ביצועים צפויים על גיליונות ענקיים. החיסרון: שתי פונקציות לכתוב ולתחזק.</>}
+  answer={<>קוראים מבפנים החוצה: <code>MATCH(C2, I2:I11, 0)</code> מתורגם קודם ומחזיר <code>1</code> (Car Deals PR הוא ה-vertical הראשון ב-lookup). אז <code>INDEX(J2:J11, 1)</code> מחזיר את הקטגוריה הראשונה. תוצאה: Autos & Vehicles. INDEX/MATCH הייתה התשובה ה"נכונה" במשך עשור, כי היא עובדת בשני הכיוונים ויש לה ביצועים צפויים על גיליונות ענקיים. החיסרון: שתי פונקציות לכתוב ולתחזק.</>}
 />
 
 ## XLOOKUP: הזוכה המודרני
 
-`XLOOKUP` הגיע ל-Sheets ב-2022 ועכשיו הוא ברירת המחדל של פונקציית lookup לכל workbook חדש שהצוות פותח. פונקציה אחת, בלי תעלולים של column-index, עובדת בכל כיוון, ויש לה ענף not-found מובנה. ה-spec המלא חי בשיעור 2 שבו פגשנו אותו לראשונה; המוקד פה הוא איך הוא משתלב במשפחת ה-lookup ומנצח את האחרים בכל ציר שמשנה ל-spreadsheets פרודקשן.
+`XLOOKUP` הגיע ל-Sheets ב-2022 ועכשיו הוא ברירת המחדל של פונקציית lookup לכל workbook חדש שהצוות פותח. פונקציה אחת, בלי תעלולים של column-index, עובדת בכל כיוון, ויש לה ענף not-found מובנה. ה-spec המלא נמצא בשיעור 2 שבו פגשנו אותו לראשונה; המוקד פה הוא איך הוא משתלב במשפחת ה-lookup ומנצח את האחרים בכל ציר שמשנה ל-spreadsheets פרודקשן.
 
 <FunctionRef name="XLOOKUP" />
 
@@ -249,10 +249,10 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
   expectedFormula="=XLOOKUP(C2,I2:I11,J2:J11)"
   task={<>השתמשו ב-<code>XLOOKUP</code> כדי למצוא את הקטגוריה של ה-vertical של הקמפיין הראשון. אותה תוצאה, נוסחה פשוטה יותר.</>}
   hint={<>שלושה ארגומנטים מספיקים: search key, lookup range, return range.</>}
-  answer={<>ה-lookup range וה-return range מועברים כארגומנטים נפרדים. הם מיושרים שורה-מול-שורה: שורה 1 של <code>I2:I11</code> היא "Car Deals PR", שורה 1 של <code>J2:J11</code> היא "Autos & Vehicles". בלי חשבון של מספר עמודה, בלי דגל <code>FALSE</code> ל-exact match (XLOOKUP ברירת מחדל ל-exact). רק שלושה ארגומנטים.</>}
+  answer={<>ה-lookup range וה-return range מועברים כארגומנטים נפרדים. הם מיושרים שורה-מול-שורה: שורה 1 של <code>I2:I11</code> היא "Car Deals PR", שורה 1 של <code>J2:J11</code> היא "Autos & Vehicles". בלי חשבון של מספר עמודה, בלי דגל <code>FALSE</code> ל-exact match (ברירת המחדל של XLOOKUP היא exact). רק שלושה ארגומנטים.</>}
 />
 
-הארגומנט הרביעי הוא **ערך ה-not-found**. בלעדיו, התאמות שלא נמצאות מחזירות `#N/A`. איתו, מקבלים fallback נקי. קריטי לגיליונות פרודקשן שבהם צוותים אחרים מוסיפים verticals חדשים, וה-dashboards שלכם לא אמורים להישבר.
+הארגומנט הרביעי הוא **ערך ה-not-found**. בלעדיו, התאמות שלא נמצאות מחזירות `#N/A`. איתו, מקבלים fallback נקי. קריטי לגיליונות פרודקשן שבהם צוותים אחרים מוסיפים verticals חדשים, וה-dashboards שלכם לא אמורים להישבר בגלל זה.
 
 <TryIt
   data={CAMPAIGNS}
@@ -260,10 +260,10 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
   expectedFormula='=XLOOKUP("Crypto Trading PR",I2:I11,J2:J11,"Uncategorized")'
   task={<>חפשו את ה-vertical "Crypto Trading PR" (שלא קיים בטבלת ה-Verticals) והחזירו <code>"Uncategorized"</code> במקום <code>#N/A</code>.</>}
   hint={<>הארגומנט הרביעי של <code>XLOOKUP</code> הוא הערך שיוחזר כשלא נמצאת התאמה.</>}
-  answer={<>בלי ארגומנט not-found, XLOOKUP מחזיר <code>#N/A</code> כשהוא לא יכול למצוא את ה-search key. הארגומנט הרביעי מאפשר לכם לספק fallback. זה אחד הרווחים הכי גדולים של XLOOKUP על VLOOKUP בנוחות שימוש, שבו היה צריך לעטוף את כל הנוסחה ב-<code>IFERROR(VLOOKUP(...), "Uncategorized")</code>. בגיליון קמפיינים שמושך verticals מ-IMPORTRANGE עליון, vertical לא ידוע לא קורס את ה-dashboard. הוא מקבל תווית נקייה ואתם בודקים אחר כך.</>}
+  answer={<>בלי ארגומנט not-found, XLOOKUP מחזיר <code>#N/A</code> כשהוא לא יכול למצוא את ה-search key. הארגומנט הרביעי מאפשר לכם לספק fallback. זה אחד היתרונות הכי גדולים של XLOOKUP על VLOOKUP מבחינת נוחות שימוש, ששם היה צריך לעטוף את כל הנוסחה ב-<code>IFERROR(VLOOKUP(...), "Uncategorized")</code>. בגיליון קמפיינים שמושך verticals מ-IMPORTRANGE עליון, vertical לא מוכר לא מפיל את ה-dashboard. הוא מקבל תווית נקייה ואתם בודקים אחר כך.</>}
 />
 
-XLOOKUP גם קורא מימין לשמאל. למצוא את ה-vertical עם ה-Avg CPC הגבוה ביותר:
+XLOOKUP גם קורא מימין לשמאל. הנה דוגמה לאיך למצוא את ה-vertical עם ה-Avg CPC הגבוה ביותר:
 
 <TryIt
   data={CAMPAIGNS}
@@ -271,7 +271,7 @@ XLOOKUP גם קורא מימין לשמאל. למצוא את ה-vertical עם ה
   expectedFormula="=XLOOKUP(MAX(K2:K11),K2:K11,I2:I11)"
   task={<>מצאו את ה-vertical עם ה-Avg CPC הגבוה ביותר בטבלת ה-lookup. עמודת ה-lookup היא K2:K11 (CPC), עמודת ההחזרה היא I2:I11 (שם ה-vertical).</>}
   hint={<>השתמשו ב-<code>MAX(K2:K11)</code> כ-search key. ה-lookup range הוא עמודת ה-CPC. ה-return range הוא עמודת ה-vertical.</>}
-  answer={<>VLOOKUP לא יכול לעשות את זה. הוא סורק את העמודה הראשונה ומחזיר מעמודה שמימין. ל-XLOOKUP לא אכפת מסדר. ה-lookup range וה-return range יכולים להיות בכל סדר. התוצאה היא "Online MBA PR" עם Avg CPC של $2.15. ה-vertical הכי יקר להציע עליו. הדפוס הזה הוא איך מוצאים "את הקמפיין עם ה-ROI הגרוע ביותר", "את ה-media buyer עם ה-spend הגבוה ביותר", "את הפלטפורמה עם ה-CPC הנמוך ביותר". בכל פעם שהתשובה היא "השורה שיש לה X בעמודה Y".</>}
+  answer={<>VLOOKUP לא יכול לעשות את זה. הוא סורק את העמודה הראשונה ומחזיר מעמודה שמימין. ל-XLOOKUP לא אכפת מהסדר. ה-lookup range וה-return range יכולים להיות בכל סדר. התוצאה היא "Online MBA PR" עם Avg CPC של $2.15, ה-vertical הכי יקר להציע עליו. הדפוס הזה הוא איך מוצאים "את הקמפיין עם ה-ROI הגרוע ביותר", "את ה-media buyer עם ה-spend הגבוה ביותר", "את הפלטפורמה עם ה-CPC הנמוך ביותר". בכל פעם שהתשובה היא "השורה שיש לה X בעמודה Y".</>}
 />
 
 ## מתי כל אחד מנצח
@@ -281,7 +281,7 @@ XLOOKUP גם קורא מימין לשמאל. למצוא את ה-vertical עם ה
 | נוסחה חדשה בגיליון חדש | **XLOOKUP** |
 | עמודת ה-lookup מימין לעמודת ההחזרה | XLOOKUP או INDEX/MATCH |
 | גיליון משותף עם אנשים על Excel 2019 או ישן יותר | INDEX/MATCH (XLOOKUP הגיע ל-Excel רק ב-2020) |
-| תחזוקת נוסחאות ישנות | מה שיש שם. אל תכתבו מחדש VLOOKUP ל-XLOOKUP אלא אם משהו אחר משתנה ממילא |
+| תחזוקת נוסחאות ישנות | מה שכבר שם. אל תכתבו מחדש VLOOKUP ל-XLOOKUP אלא אם משהו אחר משתנה ממילא |
 | Lookup חד-פעמי שייזרק | XLOOKUP |
 | טבלה אופקית | HLOOKUP, או transpose של המידע קודם |
 
@@ -292,13 +292,13 @@ XLOOKUP גם קורא מימין לשמאל. למצוא את ה-vertical עם ה
       id: "a",
       label: <code>VLOOKUP</code>,
       correct: false,
-      explanation: "VLOOKUP עובד פה, אבל הארגומנט של column-index שביר (הוסיפו עמודה והנוסחה תחזיר מידע שגוי בשקט). XLOOKUP בטוח יותר.",
+      explanation: "VLOOKUP עובד פה, אבל הארגומנט של column-index שביר (מוסיפים עמודה והנוסחה תחזיר מידע שגוי בשקט). XLOOKUP בטוח יותר.",
     },
     {
       id: "b",
       label: <code>INDEX/MATCH</code>,
       correct: false,
-      explanation: "INDEX/MATCH עובד, אבל זה שתי פונקציות במקום שאחת תספיק. השתמשו ב-XLOOKUP אלא אם צריך תאימות ל-Excel ישן.",
+      explanation: "INDEX/MATCH עובד, אבל אלו שתי פונקציות במקום שאחת תספיק. השתמשו ב-XLOOKUP אלא אם צריך תאימות ל-Excel ישן.",
     },
     {
       id: "c",
@@ -311,19 +311,19 @@ XLOOKUP גם קורא מימין לשמאל. למצוא את ה-vertical עם ה
 
 ## נפוץ בשטח
 
-ב-spreadsheets האמיתיים של הצוות, lookups מופיעים כל הזמן. והם נשברים כל הזמן. הדפוסים:
+ב-spreadsheets האמיתיים של הצוות, lookups מופיעים כל הזמן, והם נשברים כל הזמן. הדפוסים:
 
 - **Vertical → category enrichment.** לכל גיליון קמפיינים יש עמודת XLOOKUP שמתחברת לטאב Verticals מרכזי דרך IMPORTRANGE.
 - **Buyer → team enrichment.** אותה צורה: XLOOKUP מטבלת הקמפיינים לטבלת ייחוס של media buyers.
-- **Lookup של התקופה הנוכחית.** תא יחיד עם שם "current_period" (למשל, "2026-05") מתבצע עליו XLOOKUP מטבלת Periods לקבל תאריכי התחלה/סיום שמסננים את כל ה-dashboards.
+- **Lookup של התקופה הנוכחית.** על תא יחיד עם שם "current_period" (למשל, "2026-05") מבוצע XLOOKUP מטבלת Periods כדי לקבל תאריכי התחלה/סיום שמסננים את כל ה-dashboards.
 
 ## מלכודות מקצועיות
 
-- **הארגומנט של column-index ב-VLOOKUP שביר.** אם מישהו מכניס עמודה בתוך טווח ה-lookup שלכם, מספר העמודה עכשיו מצביע על מידע אחר. הנוסחה תחזיר ערכים שגויים בלי שגיאה. XLOOKUP נמנע מזה על ידי references לעמודות החזרה דרך טווח, לא דרך מספר.
+- **הארגומנט של column-index ב-VLOOKUP שביר.** אם מישהו מכניס עמודה בתוך טווח ה-lookup שלכם, מספר העמודה עכשיו מצביע על מידע אחר. הנוסחה תחזיר ערכים שגויים בלי שגיאה. XLOOKUP נמנע מזה דרך references לעמודות החזרה לפי טווח, לא לפי מספר.
 - **טבלאות lookup שעוברות דרך INDIRECT/IMPORTRANGE עלולות להחזיר טקסט במקום מספרים.** אם CPC חוזר כ-"1.42" (מחרוזת) במקום 1.42 (מספר), השוואת XLOOKUP עדיין עובדת ל-exact match אבל חשבון על התוצאה נשבר. המירו עם `VALUE()` או `*1`.
-- **שלילת הרשאת IMPORTRANGE.** כשהבעלים של ה-spreadsheet המקור שולל גישת editor על ה-spreadsheet היעד, כל lookup שמוזן מ-IMPORTRANGE מחזיר `#REF!`. הפתרון הוא להעניק הרשאה מחדש, אבל הסימפטום (מפל של #REF! על פני נוסחאות רבות) נראה מפחיד. Track 4 מכסה איך לאתר את זה.
+- **שלילת הרשאת IMPORTRANGE.** כשהבעלים של ה-spreadsheet המקור שולל גישת editor על ה-spreadsheet היעד, כל lookup שמוזן מ-IMPORTRANGE מחזיר `#REF!`. הפתרון הוא להעניק הרשאה מחדש, אבל הסימפטום (מפל של #REF! על פני נוסחאות רבות) נראה מפחיד. Track 4 מכסה איך לאבחן את זה.
 - **רווחים סופיים או הבדלי case ב-key של ה-lookup גורמים ל-#N/A שקט.** עטפו את שני הצדדים ב-`TRIM(LOWER(...))` אם המידע שלכם ממקורות שונים.
 
 ## עכשיו לעבודה אמיתית
 
-לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים יחד עם טבלת ה-Verticals בעמודות I-K. תכתבו ארבעה סגנונות של lookup לאותו יעד (קטגוריית ה-vertical של הקמפיין הראשון), ואז תשתמשו בכוח הימין-לשמאל של XLOOKUP כדי למצוא את ה-vertical עם ה-CPC הגבוה ביותר.
+לחצו על **Start lesson** כדי להעלות את טבלת הקמפיינים יחד עם טבלת ה-Verticals בעמודות I-K. תכתבו ארבעה סגנונות של lookup לאותו יעד (קטגוריית ה-vertical של הקמפיין הראשון), ואז תשתמשו ביכולת של XLOOKUP לקרוא מימין לשמאל כדי למצוא את ה-vertical עם ה-CPC הגבוה ביותר.

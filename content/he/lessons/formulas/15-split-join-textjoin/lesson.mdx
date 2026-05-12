@@ -2,21 +2,21 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # SPLIT, JOIN, TEXTJOIN, FLATTEN
 
-הארבעה האלה הם הגשר בין *נתוני טקסט* ל*נתוני עמודות*. `SPLIT` הופך תא אחד להרבה. `JOIN` ו-`TEXTJOIN` הולכים בכיוון ההפוך: הרבה תאים לאחד. `FLATTEN` מקפל רשת דו-ממדית לעמודה יחידה כך שפונקציות במורד הזרם כמו `UNIQUE` ו-`FILTER` יכולות ללעוס אותה.
+הארבעה האלה הם הגשר בין *נתוני טקסט* ל*נתוני עמודות*. `SPLIT` הופך תא אחד להרבה. `JOIN` ו-`TEXTJOIN` הולכים בכיוון ההפוך: הרבה תאים לאחד. `FLATTEN` משטח רשת דו-ממדית לעמודה יחידה כך שפונקציות שעובדות בהמשך כמו `UNIQUE` ו-`FILTER` יוכלו לעבד אותה.
 
-תושיטו אליהם את היד כל הזמן באדטק. קודי הקמפיין של הצוות אורזים ארבעה או חמישה רכיבי מטה-דאטה למחרוזת אחת (`Taboola_CarDealsPR_DesktopUS_2026-05`); `SPLIT` מפענח אותם. רשימות שמות buyers לעדכוני Slack נבנות עם `TEXTJOIN`. ובכל פעם שצריך להסיר כפילויות מערכים שחיים ב-pivot רחב, `FLATTEN` הוא מה שהופך את צורת הנתונים לתואמת ל-`UNIQUE`.
+תשתמשו בהם כל הזמן באדטק. קודי הקמפיין של הצוות אורזים ארבעה או חמישה רכיבי מטה-דאטה למחרוזת אחת (`Taboola_CarDealsPR_DesktopUS_2026-05`); `SPLIT` מפענח אותם. רשימות שמות buyers לעדכוני Slack נבנות עם `TEXTJOIN`. ובכל פעם שצריך להסיר כפילויות מערכים שחיים ב-pivot רחב, `FLATTEN` הוא מה שהופך את צורת הנתונים לתואמת ל-`UNIQUE`.
 
 ## SPLIT: תא אחד להרבה
 
-`SPLIT` שובר מחרוזת לתאים נפרדים. התוצאה זורמת אופקית כברירת מחדל. המכשול הכי גדול היחיד הוא הארגומנט `split_by_each`: כברירת מחדל, כל תו של ה-delimiter מתפקד כמפצל בפני עצמו. עם delimiter של תו בודד כמו `"_"` זה מה שרוצים. עם delimiter רב-תווי כמו `", "` זה כמעט אף פעם לא מה שרוצים, ומשם רוב הבאגים של SPLIT באים.
+`SPLIT` שובר מחרוזת לתאים נפרדים. התוצאה עושה spill אופקי כברירת מחדל. המכשול הכי גדול הוא הארגומנט `split_by_each`: כברירת מחדל, כל תו של ה-delimiter מתפקד כמפצל בפני עצמו. עם delimiter של תו בודד כמו `"_"` זה מה שרוצים. עם delimiter רב-תווי כמו `", "` זה כמעט אף פעם לא מה שרוצים, ומשם מגיעים רוב הבאגים של SPLIT.
 
-תושיטו את היד ל-SPLIT בכל פעם שעמודה מחזיקה מטה-דאטה ארוז: קודי קמפיין, רשימות תגים מופרדות-בפסיק שמודבקות מ-CMS, כל דבר עם מפריד מבני.
+תשתמשו ב-SPLIT בכל פעם שעמודה מחזיקה מטה-דאטה ארוז: קודי קמפיין, רשימות תגים מופרדות-בפסיק שמודבקות מ-CMS, כל דבר עם מפריד מבני.
 
 <FunctionRef name="SPLIT" />
 
 ### דוגמה 1: נתוני צעצוע
 
-מחרוזת ארוזה יחידה. SPLIT ב-`B1` שובר אותה ועושה spill לארבעת החתיכות על פני `B1:E1`.
+מחרוזת ארוזה יחידה. SPLIT ב-`B1` שובר אותה ועושה spill לארבעת החלקים על פני `B1:E1`.
 
 <RefDemo
   data={[["red,blue,green,yellow"]]}
@@ -24,12 +24,12 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   formulaCell="B1"
   fillTo="B1"
   expectedFills={['=SPLIT(A1, ",")']}
-  caption='=SPLIT("red,blue,green,yellow", ",") עושה spill לארבעה תאים אופקית: red | blue | green | yellow. התוצאה חיה ב-B1:E1.'
+  caption='=SPLIT("red,blue,green,yellow", ",") עושה spill לארבעה תאים אופקית: red | blue | green | yellow. התוצאה יושבת ב-B1:E1.'
 />
 
 ### דוגמה 2: נתוני אדטק אמיתיים
 
-קודי הקמפיין של הצוות עוקבים אחר הצורה `Platform_Vertical_Audience_Period`. SPLIT מפענח אחד בנוסחה אחת.
+קודי הקמפיין של הצוות בנויים בצורה `Platform_Vertical_Audience_Period`. SPLIT מפענח אחד בנוסחה אחת.
 
 <TryIt
   data={[["Taboola_CarDealsPR_DesktopUS_2026-05", "", "", "", ""]]}
@@ -37,18 +37,18 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula='=SPLIT(A1,"_")'
   task={<>פצלו את קוד הקמפיין ב-<code>A1</code> לפי הקו התחתון. התוצאה אמורה לעשות spill על פני <code>B1:E1</code> עם ארבעת החלקים.</>}
   hint={<><code>SPLIT(text, delimiter)</code>. ה-delimiter הוא מחרוזת בגרשיים. כאן ה-delimiter הוא קו תחתון בודד.</>}
-  answer={<>SPLIT מפצל כברירת מחדל לפי <strong>כל תו</strong> ב-delimiter. עם delimiter של תו בודד כמו <code>"_"</code> זה בסדר. עם delimiter רב-תווי כמו <code>", "</code> הוא מפצל גם על פסיק וגם על רווח, וזה כמעט אף פעם לא מה שרוצים. תעבירו <code>FALSE</code> כארגומנט שלישי כדי להתייחס ל-delimiter כמפריד רב-תווי יחיד. תעבירו <code>TRUE</code> כרביעי (remove_empty) כדי לדלג על רשומות ריקות מ-delimiters רצופים.</>}
+  answer={<>SPLIT מפצל כברירת מחדל לפי <strong>כל תו</strong> ב-delimiter. עם delimiter של תו בודד כמו <code>"_"</code> זה בסדר. עם delimiter רב-תווי כמו <code>", "</code> הוא מפצל גם על פסיק וגם על רווח, וזה כמעט אף פעם לא מה שרוצים. העבירו <code>FALSE</code> כארגומנט שלישי כדי להתייחס ל-delimiter כמפריד רב-תווי יחיד. העבירו <code>TRUE</code> כרביעי (remove_empty) כדי לדלג על רשומות ריקות מ-delimiters רצופים.</>}
 />
 
-### דוגמה משולבת: SPLIT + INDEX לשליפת חתיכה אחת
+### דוגמה משולבת: SPLIT + INDEX לשליפת חלק אחד
 
-לעיתים נדירות רוצים את כל ארבעת החלקים. התבנית הנפוצה היא "תן לי רק את ה-vertical" או "רק את ה-platform". עוטפים `SPLIT` ב-`INDEX` כדי לקטוף מיקום בודד מהפלט שעושה spill.
+לעיתים נדירות רוצים את כל ארבעת החלקים. התבנית הנפוצה היא "תן לי רק את ה-vertical" או "רק את ה-platform". עוטפים `SPLIT` ב-`INDEX` כדי לשלוף מיקום בודד מהפלט שעושה spill.
 
 ```
 =INDEX(SPLIT(A2, "_"), 2)
 ```
 
-מחזיר את החתיכה השנייה (ה-vertical) מקוד הקמפיין ב-`A2`. שלבו עם `ARRAYFORMULA` (שיעור 1.10) כדי לחשב את זה לכל שורה של העמודה בבת אחת.
+מחזיר את החלק השני (ה-vertical) מקוד הקמפיין ב-`A2`. שלבו עם `ARRAYFORMULA` (שיעור 1.10) כדי לחשב את זה לכל שורה של העמודה בבת אחת.
 
 <TryIt
   data={[
@@ -59,9 +59,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   ]}
   inputCell="B2"
   expectedFormula='=INDEX(SPLIT(A2,"_"),2)'
-  task={<>שלפו רק את ה-vertical (החתיכה השנייה) מקוד הקמפיין ב-<code>A2</code> ושימו אותו ב-<code>B2</code>.</>}
+  task={<>שלפו רק את ה-vertical (החלק השני) מקוד הקמפיין ב-<code>A2</code> ושימו אותו ב-<code>B2</code>.</>}
   hint={<>SPLIT מחזיר מערך של 4 תאים. <code>INDEX(array, position)</code> בוחר תא אחד. ה-vertical נמצא במיקום 2.</>}
-  answer={<>השילוב <code>INDEX(SPLIT(A2, "_"), 2)</code> נותן לכם "CarDealsPR". להרצה על עמודה שלמה, עוטפים ב-<code>ARRAYFORMULA</code> ומשתמשים בטווחים פתוחים: <code>=ARRAYFORMULA(IFERROR(REGEXEXTRACT(A2:A, "^[^_]+_([^_]+)_"), ""))</code> בעצם מהיר יותר על דאטה-סטים גדולים כי INDEX בתוך ARRAYFORMULA לא משדר נקי עם הפלט של SPLIT שעושה spill. שיעור 1.16 מכסה REGEXEXTRACT.</>}
+  answer={<>השילוב <code>INDEX(SPLIT(A2, "_"), 2)</code> נותן לכם "CarDealsPR". להרצה על עמודה שלמה, עוטפים ב-<code>ARRAYFORMULA</code> ומשתמשים בטווחים פתוחים: <code>=ARRAYFORMULA(IFERROR(REGEXEXTRACT(A2:A, "^[^_]+_([^_]+)_"), ""))</code> בעצם מהיר יותר על דאטה-סטים גדולים, כי INDEX בתוך ARRAYFORMULA לא משדר טוב עם הפלט של SPLIT שעושה spill. שיעור 1.16 מכסה REGEXEXTRACT.</>}
 />
 
 ### מלכודות נפוצות: SPLIT
@@ -69,19 +69,19 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=SPLIT("Yoav, Sarah, David", ", ")`}</code></pre>
-    <p className="mt-2 text-sm"><strong>ברירת המחדל split_by_each = TRUE.</strong> מפצל על פסיקים וגם על רווחים בנפרד. תוצאה: 5 תאים ("Yoav", "", "Sarah", "", "David") עם ריקים במיקומי הרווח. אז כי <code>remove_empty_text = TRUE</code>, הריקים מתקפלים, ונשארים 3 תאים שנראים נכון... עד שהצוות משנה שם של buyer ל-"De La Cruz" וזה מתפרק לשלוש חתיכות.</p>
+    <p className="mt-2 text-sm"><strong>ברירת המחדל split_by_each = TRUE.</strong> מפצל על פסיקים וגם על רווחים בנפרד. תוצאה: 5 תאים ("Yoav", "", "Sarah", "", "David") עם ריקים במיקומי הרווח. אחר כך, כי <code>remove_empty_text = TRUE</code>, הריקים מוסרים, ונשארים 3 תאים שנראים נכון... עד שהצוות משנה שם של buyer ל-"De La Cruz" וזה מתפצל לשלושה חלקים.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=SPLIT("Yoav, Sarah, David", ", ", FALSE)`}</code></pre>
-    <p className="mt-2 text-sm"><strong>split_by_each = FALSE מפורש.</strong> מתייחס ל-<code>", "</code> כמפריד רב-תווי יחיד. מפצל בנקיון על רצף פסיק-רווח ואף פעם לא על רווח בודד. תשתמשו בזה כל פעם שה-delimiter ארוך מתו אחד.</p>
+    <p className="mt-2 text-sm"><strong>split_by_each = FALSE מפורש.</strong> מתייחס ל-<code>", "</code> כמפריד רב-תווי יחיד. מפצל נקי על רצף פסיק-רווח ולעולם לא על רווח בודד. השתמשו בזה בכל פעם שה-delimiter ארוך מתו אחד.</p>
   </ComparePanel>
 </Compare>
 
 ## JOIN ו-TEXTJOIN: הרבה תאים לאחד
 
-`JOIN(delimiter, range)` ו-`TEXTJOIN(delimiter, ignore_empty, range)` הם ההפכים של SPLIT. הם מקבלים מערך ומפיקים מחרוזת יחידה עם delimiter בין כל חתיכה.
+`JOIN(delimiter, range)` ו-`TEXTJOIN(delimiter, ignore_empty, range)` הם ההפכים של SPLIT. הם מקבלים מערך ומחזירים מחרוזת יחידה עם delimiter בין כל חלק.
 
-`TEXTJOIN` הוא מה שתושיטו אליו את היד בפרודקשן: הוא מדלג על תאים ריקים כשמעבירים `ignore_empty = TRUE`, והוא מקבל טווחים דו-ממדיים. `JOIN` שוגה על טווחים דו-ממדיים וכולל ריקים. תתייחסו ל-JOIN כ-legacy.
+`TEXTJOIN` הוא מה שתשתמשו בו בפרודקשן: הוא מדלג על תאים ריקים כשמעבירים `ignore_empty = TRUE`, והוא מקבל טווחים דו-ממדיים. `JOIN` נכשל על טווחים דו-ממדיים וכולל ריקים. התייחסו ל-JOIN כ-legacy.
 
 <FunctionRef name="JOIN" />
 
@@ -89,7 +89,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ### דוגמה 1: נתוני צעצוע
 
-שלושה שמות, מחרוזת אחת מופרדת-בפסיק. `TEXTJOIN` עם `ignore_empty = TRUE` יציב גם כשבמקור יש פערים.
+שלושה שמות, מחרוזת אחת מופרדת בפסיקים. `TEXTJOIN` עם `ignore_empty = TRUE` יציב גם כשבמקור יש פערים.
 
 <RefDemo
   data={[
@@ -102,12 +102,12 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   formulaCell="C2"
   fillTo="C2"
   expectedFills={['=TEXTJOIN(", ", TRUE, A2:A4)']}
-  caption='TEXTJOIN עם delimiter ", " מפיק "Yoav, Sarah, David" בתא בודד. תוריד שורה ותוסיף ריק במקור והפלט נשאר נקי.'
+  caption='TEXTJOIN עם delimiter ", " מחזיר "Yoav, Sarah, David" בתא בודד. תורידו שורה או תוסיפו ריק במקור והפלט נשאר נקי.'
 />
 
 ### דוגמה 2: נתוני אדטק אמיתיים
 
-בנו את הודעת ה-Slack "buyers בפלטפורמה הזו" של הצוות: כל buyer ייחודי מלוג הקמפיינים, מחובר בפסיקים. שלבו `TEXTJOIN` עם `UNIQUE` (שיעור 1.14) לתבנית הקנונית.
+בנו את הודעת ה-Slack של הצוות "buyers בפלטפורמה הזו": כל buyer ייחודי מלוג הקמפיינים, מחובר בפסיקים. שלבו `TEXTJOIN` עם `UNIQUE` (שיעור 1.14) לתבנית הקנונית.
 
 <TryIt
   data={CAMPAIGNS}
@@ -115,7 +115,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula='=TEXTJOIN(", ",TRUE,UNIQUE(B2:B13))'
   task={<>בנו מחרוזת יחידה של כל media buyer שונה בלוג הקמפיינים, מופרדת ב-", ". שימו אותה ב-<code>H1</code>.</>}
   hint={<>השתמשו ב-<code>UNIQUE(B2:B13)</code> כדי להסיר כפילויות מעמודת ה-buyer, ואז עטפו ב-<code>TEXTJOIN(", ", TRUE, ...)</code>.</>}
-  answer={<>השילוב הוא <code>TEXTJOIN(", ", TRUE, UNIQUE(B2:B13))</code>. UNIQUE מחזיר את עמודת ה-buyers השונים; TEXTJOIN מקפל אותה למחרוזת אחת עם פסיק-רווח בין השמות. ה-<code>TRUE</code> ל-<code>ignore_empty</code> מגן מפני ריקים בעמודת ה-buyer. השתמשו בפלט להדבקה ישירה ל-Slack, לאימייל, או לכותרת משנה של גרף.</>}
+  answer={<>השילוב הוא <code>TEXTJOIN(", ", TRUE, UNIQUE(B2:B13))</code>. UNIQUE מחזירה את עמודת ה-buyers השונים; TEXTJOIN משטח אותה למחרוזת אחת עם פסיק-רווח בין השמות. ה-<code>TRUE</code> ל-<code>ignore_empty</code> מגן מפני ריקים בעמודת ה-buyer. השתמשו בפלט להדבקה ישירה ל-Slack, לאימייל או לכותרת משנה של גרף.</>}
 />
 
 ### מלכודות נפוצות: JOIN לעומת TEXTJOIN
@@ -123,18 +123,18 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=JOIN(", ", A2:C4)</code></pre>
-    <p className="mt-2 text-sm"><strong>JOIN על טווח דו-ממדי.</strong> שוגה עם "JOIN parameter 2 expects a value or a one-dimensional range." הצוות פגע בזה בכל פעם שמישהו ניסה לתפור רשת של זוגות buyer-vertical למחרוזת.</p>
+    <p className="mt-2 text-sm"><strong>JOIN על טווח דו-ממדי.</strong> מחזיר שגיאה "JOIN parameter 2 expects a value or a one-dimensional range." הצוות נכשל בזה בכל פעם שמישהו ניסה לחבר רשת של זוגות buyer-vertical למחרוזת.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>=TEXTJOIN(", ", TRUE, A2:C4)</code></pre>
-    <p className="mt-2 text-sm"><strong>TEXTJOIN מטפל בדו-ממדי בלי בעיה.</strong> הוא הולך על הטווח בסדר row-major ומחבר כל תא לא-ריק עם ה-delimiter. למקרה של JOIN, עוטפים את הטווח ב-<code>FLATTEN</code> קודם (ראו למטה).</p>
+    <p className="mt-2 text-sm"><strong>TEXTJOIN מטפל בדו-ממדי בלי בעיה.</strong> הוא עובר על הטווח בסדר row-major ומחבר כל תא לא-ריק עם ה-delimiter. למקרה של JOIN, עוטפים את הטווח ב-<code>FLATTEN</code> קודם (ראו למטה).</p>
   </ComparePanel>
 </Compare>
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=TEXTJOIN(", ", FALSE, A2:A100)</code></pre>
-    <p className="mt-2 text-sm"><strong>ignore_empty = FALSE על עמודה דלילה.</strong> כל תא ריק הופך ל-", , " בפלט. הודעת ה-Slack "active buyers" של הצוות נראית בסוף כמו <code>"Yoav, , , Sarah, , , , David, , ..."</code>.</p>
+    <p className="mt-2 text-sm"><strong>ignore_empty = FALSE על עמודה דלילה.</strong> כל תא ריק הופך ל-", , " בפלט. הודעת ה-Slack של הצוות "active buyers" נראית בסוף כמו <code>"Yoav, , , Sarah, , , , David, , ..."</code>.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>=TEXTJOIN(", ", TRUE, A2:A100)</code></pre>
@@ -144,15 +144,15 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## FLATTEN: רשת דו-ממדית לעמודה אחת
 
-`FLATTEN(range1, [range2, ...])` מקפל טווח דו-ממדי לעמודה יחידה, הולך על הרשת שורה אחר שורה (כל השורה הראשונה לפני השנייה). הוא קיים כי `UNIQUE`, `FILTER`, ו-`QUERY` כולם מצפים לקלט של עמודה אחת בהרבה מהשימושים שלהם; FLATTEN הוא ה-adapter.
+`FLATTEN(range1, [range2, ...])` משטח טווח דו-ממדי לעמודה יחידה, הולך על הרשת שורה אחר שורה (כל השורה הראשונה לפני השנייה). הוא קיים כי `UNIQUE`, `FILTER` ו-`QUERY` כולם מצפים לקלט של עמודה אחת בהרבה מהשימושים שלהם; FLATTEN הוא ה-adapter.
 
-בעבודת אדטק, תושיטו את היד ל-FLATTEN כשלדאשבורד יש זוגות buyer-vertical פרוסים ברשת וצריך להסיר כפילויות מכולם, או כש-`IMPORTRANGE` מושך בלוק רחב ורוצים לחלץ את האיחוד של כל הערכים.
+בעבודת אדטק, תשתמשו ב-FLATTEN כשלדאשבורד יש זוגות buyer-vertical פרוסים ברשת וצריך להסיר כפילויות מכולם, או כש-`IMPORTRANGE` מושך בלוק רחב ורוצים לחלץ את האיחוד של כל הערכים.
 
 <FunctionRef name="FLATTEN" />
 
 ### דוגמה 1: נתוני צעצוע
 
-רשת 3 × 3 של ערכים. FLATTEN הולך עליה שורה אחר שורה ומערים את כל תשעת הערכים לעמודה יחידה.
+רשת 3 × 3 של ערכים. FLATTEN עובר עליה שורה אחר שורה ומערים את כל תשעת הערכים לעמודה יחידה.
 
 <MiniGrid
   data={[
@@ -161,21 +161,21 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
     ["red", "yellow", "blue"],
     ["green", "red", "purple"],
   ]}
-  caption='=FLATTEN(A2:C4) קורא את הרשת בסדר row-major ועושה spill לעמודה של 9 שורות: red, blue, green, red, yellow, blue, green, red, purple. תוסיפו UNIQUE מעל ותקבלו את קבוצת הצבעים השונים.'
+  caption='=FLATTEN(A2:C4) קורא את הרשת בסדר row-major ועושה spill לעמודה של 9 שורות: red, blue, green, red, yellow, blue, green, red, purple. הוסיפו UNIQUE מעל ותקבלו את קבוצת הצבעים השונים.'
   highlight={["A2", "C4"]}
 />
 
 ### דוגמה 2: נתוני אדטק אמיתיים
 
-התבנית המורכבת. FLATTEN של רשת (buyer, vertical) ועטיפה ב-UNIQUE כדי לקבל את הערכים השונים של buyer-או-vertical. בפועל, הצוות לרוב מפלשטח אוסף של עמודות לפני העברה ל-TEXTJOIN או COUNTA.
+התבנית המורכבת. FLATTEN של רשת (buyer, vertical) ועטיפה ב-UNIQUE כדי לקבל את הערכים השונים של buyer-או-vertical. בפועל, הצוות לרוב משטח אוסף של עמודות לפני העברה ל-TEXTJOIN או COUNTA.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
   expectedFormula="=UNIQUE(FLATTEN(B2:C13))"
-  task={<>בנו רשימה בלי כפילויות של כל ערך שונה לרוחב עמודת ה-buyer ועמודת ה-vertical. שלבו <code>FLATTEN</code> עם <code>UNIQUE</code>. שימו את התוצאה ב-<code>H1</code>.</>}
-  hint={<>FLATTEN את <code>B2:C13</code> קודם כדי ששתי העמודות יהפכו לערימה אחת של 24 ערכים; אז עוטפים ב-<code>UNIQUE</code> כדי לקפל כפילויות.</>}
-  answer={<>השילוב הוא <code>UNIQUE(FLATTEN(B2:C13))</code>. FLATTEN נותן עמודה של 24 שורות (12 שורות על 2 עמודות, row-major). UNIQUE שומר על כל ערך שונה פעם אחת. התוצאה מערבבת buyers ו-verticals לרשימה אחת, שימושי ל-dropdown "search anything" שמאפשר למשתמש לסנן לפי כל אחד מהם. שימו לב ש-FLATTEN שומר על ריקים; אם בטווח יש ריקים, תמשיכו עם <code>FILTER(..., ...&lt;&gt;"")</code> כדי להוריד אותם.</>}
+  task={<>בנו רשימה בלי כפילויות של כל ערך שונה ברוחב עמודת ה-buyer ועמודת ה-vertical. שלבו <code>FLATTEN</code> עם <code>UNIQUE</code>. שימו את התוצאה ב-<code>H1</code>.</>}
+  hint={<>הריצו FLATTEN על <code>B2:C13</code> קודם כדי ששתי העמודות יהפכו לערימה אחת של 24 ערכים; אחר כך עוטפים ב-<code>UNIQUE</code> כדי להסיר כפילויות.</>}
+  answer={<>השילוב הוא <code>UNIQUE(FLATTEN(B2:C13))</code>. FLATTEN נותן עמודה של 24 שורות (12 שורות על 2 עמודות, row-major). UNIQUE שומר על כל ערך שונה פעם אחת. התוצאה מערבבת buyers ו-verticals לרשימה אחת, שימושית ל-dropdown "search anything" שמאפשר למשתמש לסנן לפי כל אחד מהם. שימו לב ש-FLATTEN שומר על ריקים; אם בטווח יש ריקים, המשיכו עם <code>FILTER(..., ...&lt;&gt;"")</code> כדי להוריד אותם.</>}
 />
 
 ### מלכודות נפוצות: FLATTEN
@@ -183,11 +183,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=UNIQUE(FLATTEN(B2:C))</code></pre>
-    <p className="mt-2 text-sm"><strong>ריקים לא סוננו.</strong> טווח פתוח <code>B2:C</code> כולל מאות שורות ריקות. FLATTEN שומר עליהן; UNIQUE רואה "ריק" כערך שונה ומחזיר אותו פעם אחת בראש התוצאה, פלוס הריקים שלכם ממלאים את שאר עמודת התוצאה.</p>
+    <p className="mt-2 text-sm"><strong>ריקים לא סוננו.</strong> טווח פתוח <code>B2:C</code> כולל מאות שורות ריקות. FLATTEN שומר עליהן; UNIQUE רואה "ריק" כערך שונה ומחזיר אותו פעם אחת בראש התוצאה, ובנוסף הריקים שלכם ממלאים את שאר עמודת התוצאה.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=UNIQUE(FILTER(FLATTEN(B2:C), FLATTEN(B2:C)<>""))`}</code></pre>
-    <p className="mt-2 text-sm"><strong>סננו ריקים לפני הסרת כפילויות.</strong> מגן <code>FILTER(..., ...&lt;&gt;"")</code> מוריד ריקים כך ש-UNIQUE רואה רק ערכים אמיתיים. השתמשו בתבנית הזו בכל פעם ש-FLATTEN מזין UNIQUE על טווח פתוח.</p>
+    <p className="mt-2 text-sm"><strong>סננו ריקים לפני הסרת כפילויות.</strong> ה-<code>FILTER(..., ...&lt;&gt;"")</code> מוריד ריקים כך ש-UNIQUE רואה רק ערכים אמיתיים. השתמשו בתבנית הזו בכל פעם ש-FLATTEN מזין UNIQUE על טווח פתוח.</p>
   </ComparePanel>
 </Compare>
 
@@ -202,15 +202,15 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
     },
     {
       id: "b",
-      label: "כברירת מחדל SPLIT מתייחס לכל תו של ה-delimiter כמפצל בפני עצמו. עם \", \" הוא מפצל גם על פסיק וגם על רווח, מייצר תאים ריקים נוספים.",
+      label: "כברירת מחדל SPLIT מתייחס לכל תו של ה-delimiter כמפצל בפני עצמו. עם \", \" הוא מפצל גם על פסיק וגם על רווח, ומייצר תאים ריקים נוספים.",
       correct: true,
-      explanation: "split_by_each כברירת מחדל הוא TRUE, אז ', ' מתפרש כ-'פצל על פסיק או רווח'. הריקים מוסרים אוטומטית כי גם remove_empty_text כברירת מחדל הוא TRUE, מה שמסווה את הבאג עד שמופיע ערך עם רווחים פנימיים. תמיד תעבירו FALSE כארגומנט השלישי ל-delimiters רב-תווים.",
+      explanation: "split_by_each כברירת מחדל הוא TRUE, אז ', ' מתפרש כ-'פצל על פסיק או רווח'. הריקים מוסרים אוטומטית כי גם remove_empty_text כברירת מחדל הוא TRUE, מה שמסווה את הבאג עד שמופיע ערך עם רווחים פנימיים. תמיד העבירו FALSE כארגומנט השלישי ל-delimiters רב-תווים.",
     },
     {
       id: "c",
-      label: "המחרוזת מכילה תווים לא-נראים מ-copy-paste.",
+      label: "המחרוזת מכילה תווים בלתי נראים מ-copy-paste.",
       correct: false,
-      explanation: "אפשרי בתיאוריה אבל לא הבעיה כאן. הצורה של התוצאה (5 תאים, שניים ריקים) היא החתימה של split_by_each = TRUE על delimiter רב-תווי.",
+      explanation: "אפשרי בתיאוריה אבל זאת לא הבעיה כאן. הצורה של התוצאה (5 תאים, שניים ריקים) היא החתימה של split_by_each = TRUE על delimiter רב-תווי.",
     },
   ]}
 />
@@ -218,21 +218,21 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 ## נפוץ בשטח
 
 - **פיענוח של קודי קמפיין.** `SPLIT` שובר את `Platform_Vertical_Audience_Period` לארבע עמודות בראש כל לוג קמפיינים. הצורה מזינה דאשבורדים שמסננים לפי platform או vertical.
-- **שליפה ממוקדת.** `INDEX(SPLIT(...), n)` שולף רק את החתיכה שצריך (רק vertical, רק period). לשליפה לפי עמודה על לוג שגדל, `REGEXEXTRACT` בתוך `ARRAYFORMULA` (שיעור 1.16) בדרך כלל מהיר יותר.
-- **רשימות buyers מוכנות ל-Slack.** `TEXTJOIN(", ", TRUE, UNIQUE(B2:B))` בונה רשימת פסיקים של buyers שונים לעדכוני סטטוס בלי הקלדה ידנית.
+- **שליפה ממוקדת.** `INDEX(SPLIT(...), n)` שולף רק את החלק שצריך (רק vertical, רק period). לשליפה לפי עמודה על לוג שגדל, `REGEXEXTRACT` בתוך `ARRAYFORMULA` (שיעור 1.16) בדרך כלל מהיר יותר.
+- **רשימות buyers מוכנות ל-Slack.** `TEXTJOIN(", ", TRUE, UNIQUE(B2:B))` בונה רשימה מופרדת בפסיקים של buyers שונים לעדכוני סטטוס בלי הקלדה ידנית.
 - **Exports בסגנון CSV.** `TEXTJOIN(",", FALSE, row_range)` בונה שורות CSV כשצריך פורמט מהיר להדבקה ל-Notion או לאימייל.
-- **הסרת כפילויות חוצת-עמודות.** `UNIQUE(FLATTEN(B2:D))` מקפל שלוש עמודות קשורות לרשימה אחת בלי כפילויות, שימושי לדוחות "כל ערך שאי פעם הופיע באחת מעמודות התגים האלה".
+- **הסרת כפילויות חוצת-עמודות.** `UNIQUE(FLATTEN(B2:D))` משטח שלוש עמודות קשורות לרשימה אחת בלי כפילויות, שימושי לדוחות "כל ערך שאי פעם הופיע באחת מעמודות התגים האלה".
 
 ## מלכודות מקצועיות
 
-- **`SPLIT` עם ברירת מחדל `split_by_each = TRUE` מפצל על כל תו של delimiter רב-תווי.** תמיד תעבירו `FALSE` ל-delimiters ארוכים מתו אחד.
+- **`SPLIT` עם ברירת מחדל `split_by_each = TRUE` מפצל על כל תו של delimiter רב-תווי.** תמיד העבירו `FALSE` ל-delimiters ארוכים מתו אחד.
 - **`SPLIT` מוריד תוצאות ריקות כברירת מחדל.** `SPLIT(",,a", ",")` מחזיר רק `"a"` אלא אם מעבירים `FALSE` ל-`remove_empty_text`. הצוות איבד שורות נתונים ככה.
-- **`JOIN` שוגה על טווחים דו-ממדיים.** השתמשו ב-`TEXTJOIN` (שמטפל בדו-ממדי) או עטפו את הטווח ב-`FLATTEN` קודם.
+- **`JOIN` נכשל על טווחים דו-ממדיים.** השתמשו ב-`TEXTJOIN` (שמטפל בדו-ממדי) או עטפו את הטווח ב-`FLATTEN` קודם.
 - **`TEXTJOIN` על טווח מאוד גדול יכול לחרוג ממגבלת ה-50,000 תווים של תא.** כל דבר מעבר לכמה אלפי שורות של מחרוזות באורך בינוני צריך להיות מחולק או מועבר דרך `QUERY`.
 - **`FLATTEN` שומר על תאים ריקים.** שלבו עם `FILTER(FLATTEN(...), FLATTEN(...)<>"")` כדי להוריד אותם לפני הסרת כפילויות.
-- **`SPLIT` על תא ש-`IMPORTRANGE` מביא נשאר רפרנס למקור.** שינוי שם של חוברת המקור וכל SPLIT תלוי נשבר בשקט. שיעור 1.27 מכסה את תבניות ההתאוששות.
+- **`SPLIT` על תא ש-`IMPORTRANGE` מביא נשאר עם reference למקור.** שינוי שם של חוברת המקור וכל SPLIT תלוי נשבר בשקט. שיעור 1.27 מכסה את תבניות ההתאוששות.
 - **הפלט של `SPLIT` הוא אופקי כברירת מחדל.** אם צריך רשימה אנכית, עוטפים ב-`TRANSPOSE` או משתמשים ב-`REGEXEXTRACT` שוב ושוב.
 
 ## עכשיו לעבודה אמיתית
 
-לחצו על **Start lesson** כדי להעלות גיליון עם דוגמאות של קודי קמפיין ועמודת buyer. תכתבו ארבע נוסחאות: `SPLIT` שמפענח קוד קמפיין, `SPLIT` עם `split_by_each = FALSE` על delimiter של פסיק-רווח, `TEXTJOIN` שתופר שמות buyers בלי כפילויות לרשימת פסיקים, ו-`UNIQUE(FLATTEN(...))` מורכב שמקפל שתי עמודות לרשימה אחת בלי כפילויות.
+לחצו על **Start lesson** כדי לפתוח גיליון עם דוגמאות של קודי קמפיין ועמודת buyer. תכתבו ארבע נוסחאות: `SPLIT` שמפענח קוד קמפיין, `SPLIT` עם `split_by_each = FALSE` על delimiter של פסיק-רווח, `TEXTJOIN` שמחבר שמות buyers בלי כפילויות לרשימה מופרדת בפסיקים, ו-`UNIQUE(FLATTEN(...))` מורכב שמשטח שתי עמודות לרשימה אחת בלי כפילויות.

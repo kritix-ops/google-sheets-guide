@@ -2,9 +2,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # אינטגרציות Workspace: Drive, Calendar, Gmail
 
-bound Apps Script project לא רואה רק את ה-spreadsheet שהוא חי בתוכו. אותו script יכול לקרוא ולכתוב קבצים ב-Drive, לשלוח מייל דרך חשבון Gmail שלכם, וליצור events בקלנדר שלכם, הכל מאותו קוד JavaScript שכבר רץ על edit-triggers ועל לחיצות תפריט. ה-catch הוא שלכל שירות יש OAuth scope משלו, ו-Apps Script יבקש את המשתמש פעם אחת לכל scope חדש בפעם הראשונה שה-function רצה. שיעור 4 כיסה את משטח `SpreadsheetApp`; השיעור הזה עוסק בשלושת השירותים שנוגעים בכל השאר ב-workspace.
+Apps Script project מסוג bound לא רואה רק את ה-spreadsheet שהוא חי בתוכו. אותו script יכול לקרוא ולכתוב קבצים ב-Drive, לשלוח מייל דרך חשבון Gmail שלכם, וליצור events ביומן שלכם, הכל מאותו קוד JavaScript שכבר רץ על edit-triggers ועל לחיצות תפריט. ה-catch הוא שלכל שירות יש OAuth scope משלו, ו-Apps Script יבקש מהמשתמש אישור פעם אחת לכל scope חדש בפעם הראשונה שה-function רצה. שיעור 4 כיסה את המשטח של `SpreadsheetApp`; השיעור הזה עוסק בשלושת השירותים שנוגעים בכל השאר ב-workspace.
 
-השיעור הזה עובר דרך DriveApp (חיפוש, קריאה, העתקת קבצים), CalendarApp (יצירה וקריאה של events), הפיצול MailApp/GmailApp (מתי לבחור איזה), ו-function עם ארבעה שירותים מעובדת שעושה ingest יומי. האגרגטור הלילי של הצוות הוא בדיוק ה-pattern בין-שירותי בסוף: חיפוש Drive אחד, כתיבת Sheets אחת, event של Calendar אחד, מייל אישור אחד. ברגע שראיתם את כל הארבעה משורשרים, שאר Track 3 מפסיק להציג שירותים חדשים.
+השיעור הזה עובר דרך DriveApp (חיפוש, קריאה, העתקת קבצים), CalendarApp (יצירה וקריאה של events), הפיצול בין MailApp ל-GmailApp (מתי לבחור איזה), ו-function אחת שמשתמשת בארבעה שירותים ומבצעת ingest יומי. האגרגטור הלילי של הצוות הוא בדיוק ה-pattern הבין-שירותי שמופיע בסוף: חיפוש Drive אחד, כתיבת Sheets אחת, event אחד ב-Calendar, מייל אישור אחד. ברגע שראיתם את כל הארבעה משורשרים, שאר Track 3 לא מציג שירותים חדשים.
 
 ## DriveApp: חיפוש, קריאה, כתיבת קבצים
 
@@ -26,9 +26,9 @@ while (iter.hasNext()) {
 const copy = file.makeCopy("Taboola export 2026-05-11", DriveApp.getFolderById("0folder..."));
 ```
 
-ה-iterator הוא המלכודת הקלה. `searchFiles` ו-`getFolders` שניהם מחזירים Drive iterators, לא מערכים. `.map` ו-`.filter` לא קיימים עליהם: חייבים להניע אותם עם `.hasNext()` ו-`.next()`. לומד שכותב `DriveApp.searchFiles(q).forEach(...)` מקבל שגיאת runtime על "forEach is not a function", וה-bug הוא ה-iterator, לא ה-query.
+ה-iterator הוא המלכודת הקלה. גם `searchFiles` וגם `getFolders` מחזירים Drive iterators, לא מערכים. `.map` ו-`.filter` לא קיימים עליהם: חייבים להניע אותם עם `.hasNext()` ו-`.next()`. לומד שכותב `DriveApp.searchFiles(q).forEach(...)` מקבל שגיאת runtime על "forEach is not a function", וה-bug הוא ה-iterator, לא ה-query.
 
-`DriveApp` צריך את ה-scope `https://www.googleapis.com/auth/drive`. יש `https://www.googleapis.com/auth/drive.file` צר יותר שרואה רק קבצים שהמשתמש מסר במפורש ל-app שלכם (דרך picker או על ידי שנוצרו על ידי ה-script). ה-scope הצר הוא ברירת המחדל הנכונה ל-scripts שנוגעים רק בקבצי הפלט שלהם; מרחיבים רק כשבאמת צריכים לקרוא נתוני משתמש קיימים.
+`DriveApp` צריך את ה-scope `https://www.googleapis.com/auth/drive`. יש scope צר יותר, `https://www.googleapis.com/auth/drive.file`, שרואה רק קבצים שהמשתמש מסר במפורש ל-app שלכם (דרך picker או קבצים שה-script עצמו יצר). ה-scope הצר הוא ברירת המחדל הנכונה ל-scripts שנוגעים רק בקבצי הפלט שלהם; מרחיבים רק כשבאמת צריכים לקרוא נתוני משתמש קיימים.
 
 <Compare>
   <ComparePanel label="לא נכון: מתייחס ל-iterator כמערך" tone="negative">
@@ -45,7 +45,7 @@ while (iter.hasNext()) {
   const f = iter.next();
   Logger.log(f.getName());
 }`}</code></pre>
-    <p className="mt-2 text-sm">עוברים על ה-iterator עם hasNext/next. אם צריך מערך לעיבוד מאוחר, דוחפים לאחד בתוך הלולאה: <code>const all = []; while (iter.hasNext()) all.push(iter.next());</code></p>
+    <p className="mt-2 text-sm">עוברים על ה-iterator עם hasNext/next. אם צריך מערך לעיבוד מאוחר יותר, דוחפים אליו בתוך הלולאה: <code>const all = []; while (iter.hasNext()) all.push(iter.next());</code></p>
   </ComparePanel>
 </Compare>
 
@@ -65,13 +65,13 @@ const event = cal.createEvent(
 );
 ```
 
-CalendarApp הוא הקל ביותר מהשלושה. מקבלים Calendar, קוראים ל-`createEvent` (one-off) או `createAllDayEvent` או `createEventSeries` (recurring), וה-event נוחת בקלנדר עם הזמנות אורחים אופציונליות. קריאות עובדות אותו דבר: `cal.getEventsForDay(new Date())` מחזיר מערך (זה כן מערך, לא iterator), וכל Event חושף `getTitle`, `getStartTime`, `getEndTime`, `getDescription`, וכן הלאה.
+CalendarApp הוא הקל ביותר מבין השלושה. מקבלים Calendar, קוראים ל-`createEvent` (חד-פעמי) או ל-`createAllDayEvent` או ל-`createEventSeries` (חוזר), וה-event נוחת ביומן עם הזמנות אורחים אופציונליות. קריאות עובדות באותה דרך: `cal.getEventsForDay(new Date())` מחזיר מערך (זה כן מערך, לא iterator), וכל Event חושף `getTitle`, `getStartTime`, `getEndTime`, `getDescription`, וכן הלאה.
 
-ה-scope הוא `https://www.googleapis.com/auth/calendar`. script שיוצר רק events למשתמש הרץ (אין נגיעה בקלנדרים אחרים) מסתפק ב-`calendar.events` הצר יותר: שווה להגדיר במניפסט אם ה-script הולך להיות משותף נרחבות.
+ה-scope הוא `https://www.googleapis.com/auth/calendar`. script שיוצר events רק למשתמש שמריץ אותו (בלי נגיעה ביומנים אחרים) מסתפק ב-`calendar.events` הצר יותר: שווה להגדיר ב-manifest אם ה-script הולך להיות משותף בהרחבה.
 
 ## MailApp מול GmailApp: פשוט מול עשיר
 
-שני שירותים שולחים מייל. הם נראים דומים במקום הקריאה אבל שונים במה שהם יכולים לעשות ובאיזה scope הם צריכים.
+שני שירותים שולחים מייל. הם נראים דומים באתר הקריאה אבל שונים במה שהם יכולים לעשות ובאיזה scope הם צריכים.
 
 | | `MailApp` | `GmailApp` |
 |---|---|---|
@@ -83,7 +83,7 @@ CalendarApp הוא הקל ביותר מהשלושה. מקבלים Calendar, קו
 | מכסה יומית (חשבונות consumer) | 100 מיילים / יום | 100 מיילים / יום |
 | מכסה יומית (Workspace) | 1,500 מיילים / יום | 1,500 מיילים / יום |
 
-אם ה-script צריך רק לשלוח הודעה יוצאת אחת לכל ריצה, משתמשים ב-`MailApp`. ה-scope צר יותר (לא תיתנו בטעות ל-script גישת קריאה ל-inbox שלכם), ה-API קטן יותר, והמכסה זהה. ה-mailer היומי של ה-spend של הצוות משתמש ב-`MailApp` בדיוק מהסיבה הזו.
+אם ה-script צריך רק לשלוח הודעה יוצאת אחת לכל ריצה, משתמשים ב-`MailApp`. ה-scope צר יותר (לא תיתנו בטעות ל-script גישת קריאה ל-inbox שלכם), ה-API קטן יותר, והמכסה זהה. ה-mailer היומי של ה-spend של הצוות משתמש ב-`MailApp` בדיוק מהסיבה הזאת.
 
 ```js
 MailApp.sendEmail({
@@ -93,11 +93,11 @@ MailApp.sendEmail({
 });
 ```
 
-תיק האפשרויות חשוב. הצורות עם ארגומנט יחיד (`MailApp.sendEmail(to, subject, body)`) עובדות אבל נועלות אתכם מ-features כמו `htmlBody`, `cc`, `bcc`, `attachments`, `replyTo`, ו-`name` (שם התצוגה של From, לא הנמען: ראו את המלכודות למטה). ברירת מחדל לצורת ה-object ביום הראשון ולא תצטרכו לכתוב מחדש את הקריאה כשהצוות מבקש פורמט HTML.
+ה-options bag חשוב. הצורות עם ארגומנט יחיד (`MailApp.sendEmail(to, subject, body)`) עובדות אבל נועלות אתכם מחוץ ל-features כמו `htmlBody`, `cc`, `bcc`, `attachments`, `replyTo`, ו-`name` (שם התצוגה של From, לא הנמען: ראו את המלכודות למטה). תתחילו עם צורת ה-object מהיום הראשון ולא תצטרכו לכתוב את הקריאה מחדש כשהצוות יבקש פורמט HTML.
 
 ### מתי GmailApp באמת שווה את ה-scope הרחב יותר
 
-ברגע שאתם צריכים *לקרוא* מייל (לא רק לשלוח), `MailApp` יוצא מהמשחק. ה-job הלילי של הצוות "שומרים את ה-attachments של חשבוניות Tonic ל-Drive" הוא המקרה הקנוני: מחפשים ב-inbox את ה-thread היומי של החשבונית, עוברים על ההודעות, מושכים כל PDF attachment, שומרים אותו לתיקיית Drive כך שגיליון הפיננסים יוכל להרים אותו.
+ברגע שאתם צריכים *לקרוא* מייל (לא רק לשלוח), `MailApp` יוצא מהמשחק. ה-job הלילי של הצוות שמסנכרן את ה-attachments של חשבוניות Tonic ל-Drive הוא המקרה הקנוני: מחפשים ב-inbox את ה-thread היומי של החשבונית, עוברים על ההודעות, מושכים כל PDF attachment, שומרים אותו לתיקיית Drive כדי שגיליון הפיננסים יוכל להרים אותו.
 
 ```js
 function archiveTonicInvoices() {
@@ -117,11 +117,11 @@ function archiveTonicInvoices() {
 }
 ```
 
-שלוש יכולות GmailApp מופיעות כאן ש-`MailApp` לא יכול להתאים: `GmailApp.search` (אותו syntax של query כמו של סרגל החיפוש של ממשק Gmail), איטרציה על threads והודעות, ושינוי labels על ה-thread ברגע שהעבודה נגמרה. שלב ה-label הוא הטריק הזול ל-idempotency: הריצה של מחר מחפשת `newer_than:2d -label:archived-to-drive` ומדלגת על threads שכבר עיבדה.
+שלוש יכולות של GmailApp מופיעות כאן ש-`MailApp` לא מסוגל להתחרות בהן: `GmailApp.search` (אותו syntax של query כמו בסרגל החיפוש של ממשק Gmail), איטרציה על threads והודעות, ושינוי labels על ה-thread ברגע שהעבודה נגמרה. שלב ה-label הוא הטריק הזול ל-idempotency: הריצה של מחר מחפשת `newer_than:2d -label:archived-to-drive` ומדלגת על threads שכבר עובדו.
 
 ## Patterns בין-שירותיים
 
-הכוח המלא של scripts של Workspace מופיע כש-function אחת משרשרת את כל השלושה:
+הכוח המלא של scripts של Workspace מתגלה כש-function אחת משרשרת את כל השלושה:
 
 ```js
 function ingestDailyTaboolaCsv() {
@@ -161,7 +161,7 @@ function ingestDailyTaboolaCsv() {
 }
 ```
 
-ארבעה שירותים, function אחת, trigger אחד. בפעם הראשונה שבעל הצוות מריץ אותה, Apps Script מבקש scopes של Drive, Sheets, Calendar, ו-Gmail כולם ביחד. מאז זה רץ בשקט.
+ארבעה שירותים, function אחת, trigger אחד. בפעם הראשונה שראש הצוות מריץ אותה, Apps Script מבקש את ה-scopes של Drive, Sheets, Calendar, ו-Gmail בבת אחת. מאז זה רץ בשקט.
 
 <StepThrough
   frames={[
@@ -169,8 +169,8 @@ function ingestDailyTaboolaCsv() {
       caption: "שלב 1: חיפוש Drive ב-02:00",
       body: (
         <>
-          ה-trigger יורה. <code>DriveApp.searchFiles</code> מחפש את ה-Taboola
-          export של היום. <code>iter.hasNext()</code> הוא true: ה-CSV שם.
+          ה-trigger נורה. <code>DriveApp.searchFiles</code> מחפש את ה-Taboola
+          export של היום. <code>iter.hasNext()</code> מחזיר true: ה-CSV שם.
         </>
       ),
     },
@@ -188,8 +188,8 @@ function ingestDailyTaboolaCsv() {
       caption: "שלב 3: כתיבה ל-sheet",
       body: (
         <>
-          <code>setValues</code> אחד כותב את כל המערך הדו-ממדי ל-tab Taboola raw.
-          אפילו עם 5,000 שורות זה round-trip אחד ומסיים תוך שנייה.
+          <code>setValues</code> אחד כותב את כל המערך הדו-ממדי ל-tab של Taboola raw.
+          אפילו עם 5,000 שורות זה round-trip אחד ומסתיים תוך שנייה.
         </>
       ),
     },
@@ -197,8 +197,8 @@ function ingestDailyTaboolaCsv() {
       caption: "שלב 4: תזמון והודעה",
       body: (
         <>
-          <code>createEvent</code> מציב event סקירה של 17:00 בקלנדר.
-          <code>MailApp.sendEmail</code> שולח אישור. ה-trigger handler יוצא.
+          <code>createEvent</code> מציב event סקירה של 17:00 ביומן.
+          <code>MailApp.sendEmail</code> שולח אישור. ה-trigger handler מסיים.
           סך זמן ריצה: ~3 שניות לריצה לילית נקייה.
         </>
       ),
@@ -211,7 +211,7 @@ function ingestDailyTaboolaCsv() {
   options={[
     {
       id: "a",
-      label: "ל-query החיפוש יש syntax לא חוקי; .forEach בסדר על התוצאות.",
+      label: "ל-query של החיפוש יש syntax לא חוקי; .forEach בסדר על התוצאות.",
       correct: false,
       explanation: "ה-query בסדר. הבעיה היא ש-searchFiles מחזיר iterator, לא מערך, ול-iterators אין array methods.",
     },
@@ -225,7 +225,7 @@ function ingestDailyTaboolaCsv() {
       id: "c",
       label: "V8 runtime של Apps Script לא תומך ב-.forEach על אוסף קבצים; חייבים להשתמש בלולאת for.",
       correct: false,
-      explanation: ".forEach עובד על מערכים רגילים ב-V8. הבעיה היא iterator מול מערך, לא תמיכת מנוע.",
+      explanation: ".forEach עובד על מערכים רגילים ב-V8. הבעיה היא iterator מול מערך, לא תמיכה של המנוע.",
     },
   ]}
 />
@@ -241,25 +241,25 @@ function ingestDailyTaboolaCsv() {
 
 1. קוראים את סכום ה-spend מ-J1 ב-tab של Campaigns: `const spend = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Campaigns").getRange("J1").getValue();`.
 2. שולחים מייל עם `MailApp.sendEmail({ to: ..., subject: ..., body: ... })`. הנמען יכול להיות `info@flexelent.com` או כל כתובת שאתם שולטים בה.
-3. וודאו שה-body באמת כולל את הסכום (template literal: `` `Total spend today: $${spend}` ``).
+3. ודאו שה-body באמת כולל את הסכום (template literal: `` `Total spend today: $${spend}` ``).
 
-לוחצים Run על `emailSpendReport` בעורך. מקבלים את ה-prompt של scope ה-gmail בפעם הראשונה. מריצים שוב; בודקים את ה-inbox.
+לוחצים Run על `emailSpendReport` בעורך. מאשרים את ה-prompt של scope ה-gmail בפעם הראשונה. מריצים שוב; בודקים את ה-inbox.
 
 ## נפוץ בשטח
 
 לצוות יש שלושה scripts שנוגעים ב-Workspace שרצים כל יום:
 
-- **התקציר היומי של ה-spend.** trigger מבוסס-זמן קורא ל-`emailSpendReport` ב-09:00 עם הסכום של היום הקודם, שלוש ה-verticals הגבוהות ביותר, ושלוש הנמוכות ביותר. הולך לכל media buyer פעיל.
-- **ניקוי Drive של יום שישי.** query של `searchFiles` מוצא כל קובץ "raw export" ישן מ-30 יום, מעתיק אותם לתיקיית ארכיון, ומסיר את המקורות. חוסך את מכסת ה-Drive של הצוות ל-exports של השבוע הנוכחי.
-- **drops של launch קמפיין ב-קלנדר.** כש-buyer לוחץ "Launch" ב-sidebar מותאם (שיעור 9 מכסה את ה-pattern של ה-sidebar), ה-script יוצר event ב-Calendar 24 שעות קדימה כ-check-in סקירה placeholder.
+- **התקציר היומי של ה-spend.** trigger מבוסס-זמן קורא ל-`emailSpendReport` ב-09:00 עם הסכום של היום הקודם, שלוש ה-verticals הגבוהות ביותר, ושלוש הנמוכות ביותר. נשלח לכל media buyer פעיל.
+- **ניקוי Drive של יום שישי.** query של `searchFiles` מוצא כל קובץ "raw export" שישן יותר מ-30 יום, מעתיק אותם לתיקיית ארכיון, ומוחק את המקורות. חוסך את מכסת ה-Drive של הצוות ל-exports של השבוע הנוכחי.
+- **יצירת events של launch קמפיין ביומן.** כש-buyer לוחץ "Launch" ב-sidebar מותאם (שיעור 9 מכסה את ה-pattern של ה-sidebar), ה-script יוצר event ב-Calendar 24 שעות קדימה כ-check-in סקירה placeholder.
 
 ## מלכודות מקצועיות
 
-- **שדה `name` של `MailApp.sendEmail` הוא שם התצוגה של ה-FROM, לא הנמען.** קוד מתחיל שקורא `MailApp.sendEmail({ to: "info@flexelent.com", name: "info@flexelent.com", ... })` שולח הודעה מ-"info@flexelent.com" (תצוגה) ול-"info@flexelent.com": שעובד, אבל לא מה שהכותב חשב שהוא עושה. הנמען הוא תמיד `to:` (או `bcc:` / `cc:`).
+- **שדה `name` של `MailApp.sendEmail` הוא שם התצוגה של ה-FROM, לא הנמען.** קוד מתחיל שכותב `MailApp.sendEmail({ to: "info@flexelent.com", name: "info@flexelent.com", ... })` שולח הודעה מ-"info@flexelent.com" (תצוגה) ל-"info@flexelent.com": זה עובד, אבל לא מה שהכותב חשב שהוא עושה. הנמען הוא תמיד `to:` (או `bcc:` / `cc:`).
 - **`DriveApp.searchFiles` מחזיר iterator, לא מערך.** אין `.map`, אין `.forEach`, אין `.length`. Drive iterators הם streams; עוברים עליהם עם `.hasNext()` / `.next()` ואוספים למערך בעצמכם אם צריך אחד.
-- **מכסות שליחת Gmail מחמירות ממה שהן נראות** (שיעור 16 מכסה מכסות פר-שירות ואסטרטגיות batching לעומק). 100 / יום לחשבונות consumer, 1,500 / יום ל-Workspace, והן מתאפסות בחלון מתגלגל של 24 שעות, לא בחצות. script שעושה לולאה של `sendEmail` 100 פעמים בדקה אחת יפגע במגבלת קצב השליחה פר-דקה לפני שיפגע במגבלה היומית ויתחיל לזרוק. עוטפים להודעה אחת עם body ארוך יותר, או מגבילים קצב עם `Utilities.sleep(1000)` בין שליחות.
-- **`DriveApp.createFile` ב-bound script שם את הקובץ ב-Drive של בעל ה-SCRIPT, לא ב-Drive של המשתמש הרץ.** אם ה-script שלכם בבעלות יואב ומורץ על ידי דינה, הקובץ נוחת ב-Drive של יואב עם דינה כעורכת (אם זכרתם לשתף אותו). כדי ליצור ב-Drive של המשתמש הרץ, משתמשים ב-`Drive.Files.create(...)` עם שירות Drive המתקדם במקום: הוא רץ כמשתמש.
-- **`CalendarApp.getDefaultCalendar()` מחזיר את הקלנדר שבבעלות מי שמריץ את ה-script, לא של בעל ה-script.** ב-script עם "Execute as me" בעל ה-script הוא "me", אז הריצה של דינה עדיין יוצרת events בקלנדר של יואב. שני מצבי ההרצה ("as me" מול "as the user accessing") חשובים כאן בדיוק כמו ב-web apps בשיעור 13.
-- **בקשת `https://mail.google.com/` (גישת Gmail מלאה) כשרק שולחים מייל.** ה-prompt של ההרשאה של Apps Script מציג את התיאור המלא של ה-scope, ו-"Read, compose, send, and permanently delete all your email" מבריח משתמשים מהרצת ה-script. יורדים ל-`script.send_mail` אם כל מה שאתם עושים זה לשלוח.
-- **`Utilities.parseCsv` שלא מכבד delimiters מותאמים.** כברירת מחדל הוא מפצל בפסיק. ל-TSV (חלק מהפלטפורמות exports מופרדי-tab), מעבירים `Utilities.parseCsv(str, "\t")`. bug נפוץ הוא ניתוח TSV עם ה-delimiter ברירת המחדל של פסיק וקבלת עמודה אחת עם הכל מודבק ב-tab.
-- **timezones של event ב-Calendar שנסחפים.** `new Date("2026-05-12T09:00:00")` מנתח כ-timezone של ה-script אם אין offset; מעבירים `+03:00` (ישראל) או `-04:00` (NYC) במפורש כך שה-event ינחת בזמן שעון נכון ללא קשר לאיזה משתמש מריץ את ה-function.
+- **מכסות השליחה של Gmail מחמירות יותר ממה שהן נראות** (שיעור 16 מכסה מכסות פר-שירות ואסטרטגיות batching לעומק). 100 ליום לחשבונות consumer, 1,500 ליום ל-Workspace, והן מתאפסות בחלון מתגלגל של 24 שעות, לא בחצות. script שעושה לולאה של `sendEmail` 100 פעמים בדקה אחת יפגע במגבלת קצב השליחה הפר-דקתית לפני שיפגע במגבלה היומית ויתחיל לזרוק שגיאות. אוספים להודעה אחת עם body ארוך יותר, או מגבילים קצב עם `Utilities.sleep(1000)` בין שליחות.
+- **`DriveApp.createFile` ב-bound script שם את הקובץ ב-Drive של בעל ה-SCRIPT, לא ב-Drive של המשתמש שמריץ.** אם ה-script שלכם בבעלות יואב ודינה מריצה אותו, הקובץ נוחת ב-Drive של יואב עם דינה כעורכת (אם זכרתם לשתף לה אותו). כדי ליצור ב-Drive של המשתמש שמריץ, משתמשים ב-`Drive.Files.create(...)` עם ה-Drive advanced service: הוא רץ כמשתמש.
+- **`CalendarApp.getDefaultCalendar()` מחזיר את היומן של מי שמריץ את ה-script, לא של בעל ה-script.** ב-script עם "Execute as me" בעל ה-script הוא "me", אז הריצה של דינה עדיין יוצרת events ביומן של יואב. שני מצבי ההרצה ("as me" מול "as the user accessing") חשובים כאן בדיוק כמו ב-web apps בשיעור 13.
+- **בקשת `https://mail.google.com/` (גישת Gmail מלאה) כשרק שולחים מייל.** ה-prompt של ההרשאה של Apps Script מציג את התיאור המלא של ה-scope, וההודעה "Read, compose, send, and permanently delete all your email" מבריחה משתמשים מהרצת ה-script. יורדים ל-`script.send_mail` אם כל מה שאתם עושים זה לשלוח.
+- **`Utilities.parseCsv` לא מכבד delimiters מותאמים אישית.** כברירת מחדל הוא מפצל בפסיק. ל-TSV (חלק מהפלטפורמות מייצאות מופרד-tab), מעבירים `Utilities.parseCsv(str, "\t")`. bug נפוץ הוא ניתוח TSV עם ה-delimiter ברירת המחדל של פסיק וקבלת עמודה אחת עם הכל מודבק ב-tab.
+- **timezones של event ב-Calendar שנסחפים.** `new Date("2026-05-12T09:00:00")` מנותח לפי ה-timezone של ה-script אם אין offset; מעבירים `+03:00` (ישראל) או `-04:00` (NYC) במפורש כדי שה-event ינחת בזמן השעון הנכון בלי קשר לאיזה משתמש מריץ את ה-function.

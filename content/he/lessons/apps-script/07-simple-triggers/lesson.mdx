@@ -2,28 +2,28 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Simple triggers: onOpen, onEdit, onSelectionChange
 
-Custom functions רצות רק כשתא מבקש מהן. הצעד הבא הוא קוד שרץ על *event* של גיליון: משתמש פותח את ה-spreadsheet, עורך תא, בוחר טווח אחר. Apps Script מטפל בזה דרך קבוצה קטנה של **שמות functions שמורים**. אם מצהירים על function ברמה העליונה עם אחד מהשמות האלה, ה-runtime מפעיל אותה אוטומטית בכל פעם שה-event המתאים קורה, בלי רישום, בלי הגדרה. אלה ה-**simple triggers**.
+Custom functions רצות רק כשתא מבקש מהן. הצעד הבא הוא קוד שרץ על *event* של גיליון: משתמש פותח את ה-spreadsheet, עורך תא, בוחר טווח אחר. Apps Script מטפל בזה דרך קבוצה קטנה של **שמות functions שמורים**. אם מצהירים על function ברמה העליונה עם אחד מהשמות האלה, ה-runtime מפעיל אותה אוטומטית בכל פעם שה-event המתאים קורה: בלי רישום, בלי הגדרה. אלה ה-**simple triggers**.
 
-השיעור הזה מכסה ארבעה שמות trigger, את ה-event object שכל אחד מקבל, את ה-auth context הצר שתחתיו הם רצים, ואת המקרים שבהם פונים לאחד מול האחר. משטח ה-simple-trigger קטן אבל הוא נושא בערך 70% ממה ש-workbook אמיתי עושה מחוץ ללחיצות תפריט ידניות: חתימה אוטומטית של העורך, נורמליזציה של נתונים כשהם נוחתים, בניית התפריט בפתיחה. שיעור 8 מכסה installable triggers, שזה איך שעוקפים את מגבלות ה-auth context.
+השיעור הזה מכסה ארבעה שמות trigger, את ה-event object שכל אחד מקבל, את ה-auth context הצר שתחתיו הם רצים, ואת המקרים שבהם פונים לאחד מול האחר. משטח ה-simple-trigger קטן אבל הוא נושא בערך 70% ממה ש-workbook אמיתי עושה מחוץ ללחיצות תפריט ידניות: חתימה אוטומטית של העורך, נרמול של נתונים כשהם נוחתים, בניית התפריט בפתיחה. שיעור 8 מכסה installable triggers, שזה איך שעוקפים את מגבלות ה-auth context.
 
 ארבעת השמות השמורים שחשובים:
 
-| שם | נורה כש |
+| שם | מופעל כש |
 |---|---|
 | `onOpen(e)` | ה-workbook נפתח על ידי משתמש עם גישת עריכה. |
 | `onEdit(e)` | משתמש עורך תא (paste, type-in, fill-down, delete). |
 | `onSelectionChange(e)` | הבחירה הפעילה זזה לתא או טווח אחר. |
-| `onChange(e)` | שינוי מבני: הוספת שורה, שינוי שם sheet, עריכת פורמט, וכו'. |
+| `onChange(e)` | שינוי מבני: הוספת שורה, שינוי שם של sheet, עריכת פורמט, וכו'. |
 
-שני דברים לשים לב מראש. **שמות רגישים לרישיות.** `onedit` לא נורה. `OnEdit` לא נורה. רק `onEdit` נורה. ו**ה-function חייבת להיות ברמה העליונה**: אותו כלל כמו custom functions. הצהרה מקוננת או arrow מוצמד ל-const בלתי נראים למערכת ה-trigger.
+שני דברים לשים לב אליהם מראש. **השמות רגישים לרישיות.** `onedit` לא מופעל. `OnEdit` לא מופעל. רק `onEdit` מופעל. ו**ה-function חייבת להיות ברמה העליונה**: אותו כלל כמו ב-custom functions. הצהרה מקוננת או arrow שמוצמד ל-const בלתי נראים למערכת ה-trigger.
 
 ## הערה על `onOpen` בקורס הזה
 
-ה-bound Apps Script project של הקורס הזה כבר מצהיר על `function onOpen()`: זה מה שמתקין את **תפריט Lesson** כשפותחים את ה-workbook. אתם לא יכולים להצהיר על `onOpen` שני באותו project; Apps Script יסרב לשמור. הקטע המעשי שלכם בשיעור הזה מתמקד ב-`onEdit` במקום. ב-workbook שאתם בעליו, `onOpen` הוא שלכם לכתוב. ה-pattern זהה ל-`onEdit`: מצהירים עליו ברמת ה-top, עושים משהו עם `e`, מחזירים.
+ה-bound Apps Script project של הקורס הזה כבר מצהיר על `function onOpen()`: זה מה שמתקין את **תפריט Lesson** כשפותחים את ה-workbook. אתם לא יכולים להצהיר על `onOpen` שני באותו project; Apps Script יסרב לשמור. הקטע המעשי שלכם בשיעור הזה מתמקד ב-`onEdit` במקום. ב-workbook שבבעלותכם, `onOpen` הוא שלכם לכתוב. ה-pattern זהה ל-`onEdit`: מצהירים עליו ברמת ה-top, עושים משהו עם `e`, מחזירים.
 
 ## ה-event object
 
-כל simple trigger מקבל event object: לפי מוסכמה בשם `e`. הצורה משתנה מעט פר-trigger; השדות הרלוונטיים ל-`onEdit` הם:
+כל simple trigger מקבל event object: לפי מוסכמה בשם `e`. הצורה משתנה מעט מ-trigger ל-trigger; השדות הרלוונטיים ל-`onEdit` הם:
 
 ```js
 function onEdit(e) {
@@ -41,7 +41,7 @@ function onEdit(e) {
 }
 ```
 
-ה-`range` הוא השדה הכי שימושי: הוא נושא את ה-sheet, את השורה, את העמודה, ואת הכתובת A1 הכל ביחד. pattern של שומר טיפוסי קורא אותו קודם:
+ה-`range` הוא השדה הכי שימושי: הוא נושא את ה-sheet, את השורה, את העמודה ואת הכתובת A1 הכל ביחד. pattern של בדיקת הגנה טיפוסי קורא אותו קודם:
 
 ```js
 function onEdit(e) {
@@ -52,7 +52,7 @@ function onEdit(e) {
 }
 ```
 
-ל-`onChange` יש צורת event שונה: אין `range`, אין `value`, במקום זה יש שדה `changeType` עם ערכים כמו `"INSERT_ROW"`, `"REMOVE_COLUMN"`, `"FORMAT"`. אל תעתיקו body של `onEdit` ל-`onChange` ותצפו שזה יתקמפל.
+ל-`onChange` יש צורת event שונה: אין `range`, אין `value`, במקום זה יש שדה `changeType` עם ערכים כמו `"INSERT_ROW"`, `"REMOVE_COLUMN"`, `"FORMAT"`. אל תעתיקו body של `onEdit` ל-`onChange` ותצפו שזה יתקמפל לכם.
 
 <Compare>
   <ComparePanel label="לא נכון: מניח תא יחיד" tone="negative">
@@ -61,18 +61,18 @@ function onEdit(e) {
     e.range.setBackground("red");
   }
 }`}</code></pre>
-    <p className="mt-2 text-sm">paste של 10 שורות מפעיל onEdit פעם אחת עם <code>e.range</code> שתופס 10 שורות ו-<code>e.value === undefined</code>. ה-handler בשקט לא עושה כלום על ה-paste.</p>
+    <p className="mt-2 text-sm">paste של 10 שורות מפעיל את onEdit פעם אחת עם <code>e.range</code> שתופס 10 שורות ו-<code>e.value === undefined</code>. ה-handler בשקט לא עושה כלום על ה-paste.</p>
   </ComparePanel>
-  <ComparePanel label="נכון: לטפל בשתי הצורות" tone="positive">
+  <ComparePanel label="נכון: מטפלים בשתי הצורות" tone="positive">
     <pre className="font-mono text-xs"><code>{`function onEdit(e) {
   const range = e.range;
   const isSingleCell = range.getNumRows() * range.getNumColumns() === 1;
   if (isSingleCell && e.value === "DEAD") {
     range.setBackground("red");
   }
-  // paste רב-תאים: לקרוא ערכים ולעבד שורה אחר שורה אם צריך.
+  // paste רב-תאי: קוראים ערכים ומעבדים שורה אחר שורה אם צריך.
 }`}</code></pre>
-    <p className="mt-2 text-sm">תמיד לבדוק את גודל ה-range לפני קריאת <code>e.value</code>. לעריכות רב-תאיות, לקרוא <code>range.getValues()</code> ולעבור.</p>
+    <p className="mt-2 text-sm">תמיד בודקים את גודל ה-range לפני קריאת <code>e.value</code>. לעריכות רב-תאיות, קוראים <code>range.getValues()</code> ועוברים.</p>
   </ComparePanel>
 </Compare>
 
@@ -81,34 +81,34 @@ function onEdit(e) {
 simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth scope צר בכוונה. הם יכולים:
 
 - לקרוא ולכתוב ל-spreadsheet הפעיל (`SpreadsheetApp.getActiveSpreadsheet()`)
-- להשתמש ב-`Utilities.*` לפורמט וניתוח
+- להשתמש ב-`Utilities.*` לפורמט ולפענוח
 - להריץ JS טהור
 
 הם **לא יכולים**:
 
 - לשלוח מייל (`MailApp.sendEmail`, `GmailApp.sendEmail`)
-- לפגוע ברשת (`UrlFetchApp.fetch`)
+- לפנות לרשת (`UrlFetchApp.fetch`)
 - לגעת במסמכים אחרים (`SpreadsheetApp.openById`, `DriveApp.*`)
-- להציג sidebar או dialog (ה-UI context הפעיל לא שלהם לתבוע)
+- להציג sidebar או dialog (ה-UI context הפעיל אינו שלהם לתבוע)
 - לשנות הרשאות Drive
 - לקרוא scripts חיצוניים
 
-המלכודת היא שהקריאות האלה **נכשלות בשקט**: אין שגיאה שנזרקת, אין רשומת לוג, אין כלום ב-Execution dashboard. ה-trigger נראה כאילו הוא נורה בסדר; המייל פשוט אף פעם לא יוצא. אם אתם מוצאים את עצמכם רוצים אחד מהשירותים המוגבלים, התשובה היא בשיעור הבא: **installable trigger**, רשום עם auth מלא.
+המלכודת היא שהקריאות האלה **נכשלות בשקט**: אין שגיאה שנזרקת, אין רשומת לוג, אין כלום ב-Execution dashboard. ה-trigger נראה כאילו הוא הופעל בסדר; המייל פשוט אף פעם לא יוצא. אם אתם מוצאים את עצמכם רוצים אחד מהשירותים המוגבלים, התשובה היא בשיעור הבא: **installable trigger**, רשום עם auth מלא.
 
-ל-simple triggers יש גם **תקציב של 30 שניות**. לולאה דרך 60,000 שורות בתוך `onEdit` וה-runtime הורג אותה באמצע הלולאה. שומרים את ה-handlers של simple-trigger קטנים.
+ל-simple triggers יש גם **תקציב של 30 שניות**. עוברים בלולאה על 60,000 שורות בתוך `onEdit` וה-runtime הורג אותה באמצע הלולאה. שומרים את ה-handlers של simple-trigger קטנים.
 
 ## מתי כל trigger הוא הכלי הנכון
 
 סיור קצר:
 
 - **`onOpen`**: המקום היחיד האמין להתקין תפריט מותאם. workbook נפתח, תפריט מופיע. כל דבר יותר מורכב (גודל אוטומטי של שורות, צביעה מחדש של עמודת סטטוס) שייך ל-function שהתפריט *קורא לה*, לא ל-`onOpen` עצמו, כי מסלול הפתיחה נמצא במסלול הקריטי של טעינת ה-workbook.
-- **`onEdit`**: הסוס העובד. משתמשים בו להיגיינת נתונים בשורה: מילוי אוטומטי של ה-buyer ממייל העורך כששורת קמפיין חדשה מופיעה, נורמליזציה של שם vertical כשמקלידים, חתימה של זמן השינוי האחרון. נזהרים ממה שנחשב "עריכה": הקלדה בתא, fill-down, paste, delete, ו*הפעלת checkbox* כולם מפעילים אותו. paste-המוני מפעיל אותו פעם אחת עם כל טווח ה-paste כ-`e.range`.
-- **`onSelectionChange`**: נורה בכל הקשה על מקש חץ. רק דברים זולים: עדכון תא של status bar, הדגשת השורה הפעילה. handler של 100ms כאן בסדר; של 500ms מרגיש לא יציב.
-- **`onChange`**: נורה על שינויים מבניים שהאחרים מפספסים. הגנה אוטומטית על שורת כותרת כשמישהו מוסיף עמודה. צפייה לשינויי שם sheet לא מכוונים ב-workbook שבו נוסחאות `IMPORTRANGE` (שיעור 1.27) תלויות בשמות tabs.
+- **`onEdit`**: סוס העבודה. משתמשים בו להיגיינת נתונים בשורה: מילוי אוטומטי של ה-buyer מהמייל של העורך כששורת קמפיין חדשה מופיעה, נרמול של שם vertical כשמקלידים, חתימה של זמן השינוי האחרון. נזהרים ממה שנחשב "עריכה": הקלדה בתא, fill-down, paste, delete, ו*הפעלת checkbox* כולם מפעילים אותו. paste המוני מפעיל אותו פעם אחת עם כל טווח ה-paste כ-`e.range`.
+- **`onSelectionChange`**: מופעל בכל הקשה על מקש חץ. רק דברים זולים: עדכון של תא status bar, הדגשת השורה הפעילה. handler של 100ms כאן בסדר; של 500ms מרגיש לא יציב.
+- **`onChange`**: מופעל על שינויים מבניים שהאחרים מפספסים. הגנה אוטומטית על שורת כותרת כשמישהו מוסיף עמודה. צפייה לשינויי שם sheet לא מכוונים ב-workbook שבו נוסחאות `IMPORTRANGE` (שיעור 1.27) תלויות בשמות tabs.
 
 ### דוגמה מעובדת: הגנה על שורת הכותרת כשמוסיפים עמודה
 
-`onEdit` לא נורה כש-buyer לוחץ קליק ימני על כותרת עמודה ובוחר "Insert 1 column left". התאים זזים; אף עריכה לא נחתה. `onChange` תופס את זה דרך `e.changeType`. קבוצת הערכים שהשדה מקבל קבועה: `INSERT_ROW`, `INSERT_COLUMN`, `REMOVE_ROW`, `REMOVE_COLUMN`, `INSERT_GRID` (tab חדש), `REMOVE_GRID` (tab נמחק), `FORMAT`, `EDIT`, `OTHER`. רוב ה-handlers מסננים את השניים-שלושה סוגים שאכפת להם וחוזרים על כל השאר.
+`onEdit` לא מופעל כש-buyer לוחץ קליק ימני על כותרת עמודה ובוחר "Insert 1 column left". התאים זזים; אף עריכה לא נחתה. `onChange` תופס את זה דרך `e.changeType`. קבוצת הערכים שהשדה מקבל קבועה: `INSERT_ROW`, `INSERT_COLUMN`, `REMOVE_ROW`, `REMOVE_COLUMN`, `INSERT_GRID` (tab חדש), `REMOVE_GRID` (tab נמחק), `FORMAT`, `EDIT`, `OTHER`. רוב ה-handlers מסננים את השניים-שלושה הסוגים שאכפת להם וחוזרים על כל השאר.
 
 <Compare>
   <ComparePanel label="לא נכון: ניסיון להשתמש ב-onEdit להוספת עמודה" tone="negative">
@@ -121,7 +121,7 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
 }`}</code></pre>
     <p className="mt-2 text-sm">הוספת עמודה לא מפעילה <code>onEdit</code>: שום תא לא נערך. ה-handler אף פעם לא רץ, שורת הכותרת אף פעם לא מוגנת מחדש, וה-buyer הבא שעורך את שורה 1 בטעות מקלקל את הכותרות.</p>
   </ComparePanel>
-  <ComparePanel label="נכון: onChange + שומר changeType" tone="positive">
+  <ComparePanel label="נכון: onChange + בדיקה של changeType" tone="positive">
     <pre className="font-mono text-xs"><code>{`function onChange(e) {
   if (e.changeType !== "INSERT_COLUMN" &&
       e.changeType !== "INSERT_ROW") return;
@@ -134,7 +134,7 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
     .setDescription("Header row, auto-protected")
     .setWarningOnly(true);
 }`}</code></pre>
-    <p className="mt-2 text-sm">שומרים על <code>e.changeType</code> קודם; שינויים מבניים הם היחידים שה-handler הזה מתעניין בהם. שימו לב ש-<code>e.range</code> לא קיים על ה-event של onChange, אז מגיעים ל-sheet לפי שם במקום.</p>
+    <p className="mt-2 text-sm">בודקים את <code>e.changeType</code> קודם; שינויים מבניים הם היחידים שה-handler הזה מתעניין בהם. שימו לב ש-<code>e.range</code> לא קיים על ה-event של onChange, אז מגיעים ל-sheet לפי שם במקום.</p>
   </ComparePanel>
 </Compare>
 
@@ -144,7 +144,7 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
       caption: "שלב 1: המשתמש עורך את F2 מ-412.5 ל-500",
       body: (
         <>
-          Apps Script מפעיל <code>onEdit(e)</code> על ה-bound script של ה-workbook.
+          Apps Script מפעיל את <code>onEdit(e)</code> על ה-bound script של ה-workbook.
           ה-event object{" "}
           <code>{`{ range: F2, value: 500, oldValue: 412.5, user: ... }`}</code>{" "}
           מועבר ל-handler שלכם.
@@ -152,11 +152,11 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
       ),
     },
     {
-      caption: "שלב 2: ה-handler מריץ את השומרים",
+      caption: "שלב 2: ה-handler מריץ את הבדיקות",
       body: (
         <>
           <code>e.range.getSheet().getName() === "Campaigns"</code>: כן.{" "}
-          <code>e.range.getColumn() === 6</code>: כן. שני השומרים עוברים, אז
+          <code>e.range.getColumn() === 6</code>: כן. שתי הבדיקות עוברות, אז
           ה-body מתבצע.
         </>
       ),
@@ -166,7 +166,7 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
       body: (
         <>
           <code>range.getSheet().getRange(e.range.getRow(), 10).setValue("updated")</code>{" "}
-          כותב <code>"updated"</code> ל-J2. הכתיבה ב-auth context זהה
+          כותב <code>"updated"</code> ל-J2. הכתיבה היא באותו auth context
           (workbook פעיל), אז זה מותר.
         </>
       ),
@@ -175,8 +175,8 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
       caption: "שלב 4: ה-handler מחזיר; ה-UI מתעדכן",
       body: (
         <>
-          המשתמש רואה את הערך שהקליד ב-F2 ואת הסימן מופיע ב-J2. סך זמן
-          ריצה של ה-handler: פחות מ-100 ms. תקציב 30 השניות לא דאגה
+          המשתמש רואה את הערך שהקליד ב-F2 ואת הסימן שמופיע ב-J2. סך זמן
+          הריצה של ה-handler: פחות מ-100 ms. תקציב 30 השניות אינו דאגה
           ל-handler בגודל הזה.
         </>
       ),
@@ -184,27 +184,27 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
   ]}
 />
 
-## קוראים את זה לפני שאתם שולחים יד ל-`e.user`
+## קוראים את זה לפני שאתם פונים ל-`e.user`
 
-`e.user.getEmail()` הוא השדה שכל לומד שולח אליו יד ראשון ("אני אמלא אוטומטית את ה-buyer ממי שערך את השורה"), והוא השדה שבשקט לא עובד. ה-documentation של ה-events של Google אומר ש-`e.user` מאוכלס "אם זמין (תלוי בקבוצה מורכבת של הגבלות אבטחה)". ב-trigger פשוט של `onEdit` זה מתורגם ל: **`e.user` בדרך כלל ריק עבור כולם חוץ מבעל ה-script**, פלוס קבוצה צרה של מקרים בדומיין Workspace שבהם מדיניות ה-admin מאפשרת את זה.
+`e.user.getEmail()` הוא השדה שכל לומד פונה אליו ראשון ("אני אמלא אוטומטית את ה-buyer ממי שערך את השורה"), והוא השדה שבשקט לא עובד. ה-documentation של ה-events של Google אומר ש-`e.user` מאוכלס "אם זמין (תלוי בקבוצה מורכבת של הגבלות אבטחה)". ב-trigger פשוט של `onEdit` זה מתורגם ל: **`e.user` בדרך כלל ריק עבור כולם חוץ מבעל ה-script**, פלוס קבוצה צרה של מקרים בדומיין Workspace שבהם מדיניות ה-admin מאפשרת את זה.
 
 מה זה אומר בפועל:
 
 - handler של `onEdit` פשוט שקורא ל-`e.user.getEmail()` יחזיר `""` עבור כל חבר צוות שאינו בעל ה-script. ה-handler נראה כאילו הוא עובד עבורכם בבדיקה (אתם הבעלים) ונשבר בשקט עבור שאר הצוות.
-- trigger **installable** של `onEdit` (שיעור 8) רץ עם auth מלא, אבל הוא רץ כ-*מתקין*, לא כעורך. `e.user` ב-installable trigger אומר לכם מי התקין את ה-trigger, לא מי עשה את העריכה. אז installable triggers לא סוגרים את הפער הזה גם.
-- המסלולים הכנים ל-"מי ערך את השורה הזו?" הם: (א) לדרוש הזנה ידנית של שם ה-buyer, (ב) להשתמש ב-dropdown מקושר לרוסטר ה-buyer, או (ג) לתחזק installable trigger פר-משתמש שכותב את כתובת המייל של המתקין ל-bucket של user-properties וקורא אותה בזמן עריכה. אפשרות (ב) היא זו שהצוות באמת משתמש בה.
+- trigger **installable** של `onEdit` (שיעור 8) רץ עם auth מלא, אבל הוא רץ כ-*מתקין*, לא כעורך. `e.user` ב-installable trigger אומר לכם מי התקין את ה-trigger, לא מי עשה את העריכה. אז installable triggers לא סוגרים גם הם את הפער הזה.
+- המסלולים הכנים ל-"מי ערך את השורה הזו?" הם: (א) לדרוש הזנה ידנית של שם ה-buyer, (ב) להשתמש ב-dropdown שמקושר לרוסטר ה-buyer, או (ג) לתחזק installable trigger פר-משתמש שכותב את כתובת המייל של המתקין ל-bucket של user-properties וקורא אותה בזמן עריכה. אפשרות (ב) היא זו שהצוות באמת משתמש בה.
 
-הדוגמה המעובדת למטה שומרת על צורת `e.user` ל-hook של השיעור (כך שתראו איך השדה אמור להיראות), אבל ערך ה-"נפוץ בשטח" שמתחתיו נכתב מחדש כדי לשקף את מה שבאמת נשלח.
+הדוגמה המעובדת למטה שומרת על הצורה של `e.user` בשביל ה-hook של השיעור (כך שתראו איך השדה אמור להיראות), אבל הסעיף של "נפוץ בשטח" שמתחתיו נכתב מחדש כדי לשקף את מה שבאמת נשלח לפרודקשן.
 
 ## נפוץ בשטח
 
 שני patterns מ-workbooks האמיתיים של הצוות:
 
-- **מילוי אוטומטי של ה-buyer מ-dropdown, לא מ-`e.user`.** עמודת Buyer ביומן היומי היא dropdown של data-validation מקושר לגיליון רוסטר ה-buyer הקנוני. handler של `onEdit` צופה בשורה לזיהוי Vertical חדש שהוקלד, ואם Buyer עדיין ריק, מגדיר את ה-validation של התא ל-"show warning" כך שה-buyer לא יוכל להמשיך בלי לבחור את עצמו. הצוות ניסה את ה-lookup של `e.user.getEmail()` פעם אחת; הוא נכשל בשקט עבור כל חבר צוות שאינו בעל ה-script, וה-dashboards התמלאו בייחוסי Buyer ריקים. ה-dropdown ניצח.
-- **סימון אוטומטי של עמודת Spend כשנוגעים בה מחדש.** כש-buyer מתאים מספר spend באמצע השבוע, `onEdit` חותם סימן "updated" קטן עמודה אחת מעבר. הביקורת השבועית עושה pivot על העמודה הזו כדי לסמן שורות שזזו מההעלאה. ה-pattern הזה לא תלוי ב-`e.user`; הוא קורא רק את `e.range`, שתמיד מאוכלס. בגלל זה הוא שורד איפה ש-pattern של buyer-from-email לא שורד.
+- **מילוי אוטומטי של ה-buyer מ-dropdown, לא מ-`e.user`.** עמודת Buyer ביומן היומי היא dropdown של data-validation שמקושר לגיליון של רוסטר ה-buyer הקנוני. handler של `onEdit` צופה בשורה לזיהוי Vertical חדש שהוקלד, ואם Buyer עדיין ריק, מגדיר את ה-validation של התא ל-"show warning" כך שה-buyer לא יוכל להמשיך בלי לבחור את עצמו. הצוות ניסה את ה-lookup של `e.user.getEmail()` פעם אחת; הוא נכשל בשקט עבור כל חבר צוות שאינו בעל ה-script, וה-dashboards התמלאו בייחוסי Buyer ריקים. ה-dropdown ניצח.
+- **סימון אוטומטי של עמודת Spend כשנוגעים בה מחדש.** כש-buyer מכוונן מספר spend באמצע השבוע, `onEdit` חותם סימן "updated" קטן עמודה אחת לידו. הביקורת השבועית עושה pivot על העמודה הזו כדי לסמן שורות שזזו מההעלאה. ה-pattern הזה לא תלוי ב-`e.user`; הוא קורא רק את `e.range`, שתמיד מאוכלס. בגלל זה הוא שורד שם שה-pattern של buyer-from-email לא שורד.
 
 <QuickCheck
-  question="ה-onEdit handler שלכם קורא את e.value כדי לזהות כשתא הופך ל-'DEAD' והופך את השורה לאדומה. buyer מדביק 20 שורות שאחת מהן מכילה 'DEAD'. ה-handler לא עושה כלום. למה?"
+  question="ה-onEdit handler שלכם קורא את e.value כדי לזהות מתי תא הופך ל-'DEAD' והופך את השורה לאדומה. buyer מדביק 20 שורות שאחת מהן מכילה 'DEAD'. ה-handler לא עושה כלום. למה?"
   options={[
     {
       id: "a",
@@ -216,7 +216,7 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
       id: "b",
       label: "paste רב-תאי מפעיל onEdit פעם אחת עם e.range שתופס 20 שורות ו-e.value === undefined. ה-handler צריך לקרוא range.getValues() ולעבור.",
       correct: true,
-      explanation: "נכון. e.value ו-e.oldValue ממולאים רק עבור עריכות תא יחיד. עבור עריכות רב-תאיות (paste, fill-down), קוראים range.getValues() ועוברים על התאים בעצמכם.",
+      explanation: "נכון. e.value ו-e.oldValue מאוכלסים רק עבור עריכות של תא יחיד. עבור עריכות רב-תאיות (paste, fill-down), קוראים range.getValues() ועוברים על התאים בעצמכם.",
     },
     {
       id: "c",
@@ -231,26 +231,26 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="לוג ה-Campaigns תופס A1:G61. עמודה F מחזיקה spend ב-USD. עמודה I יש לה את התווית `Last edited marker`; עמודה J היא תא הסימן. ה-onEdit שלכם צריך למלא את J עבור השורה שה-F שלה זה עתה נערך."
+  caption="לוג ה-Campaigns תופס A1:G61. עמודה F מחזיקה spend ב-USD. לעמודה I יש את התווית `Last edited marker`; עמודה J היא תא הסימן. ה-onEdit שלכם צריך למלא את J עבור השורה שה-F שלה זה עתה נערך."
 />
 
 הקובץ ההתחלתי `Lesson.gs` כבר מצהיר על `function onEdit(e)` עם body ריק. שלוש בדיקות שה-body צריך לעשות, לפי הסדר:
 
-1. **בדיקת sheet.** אם `e.range.getSheet().getName()` אינו `"Campaigns"`, חוזרים מיד. בלי זה, ה-trigger נורה בכל tab: כולל tabs עוזרים של ה-Sidebar וכל דבר אחר ב-workbook.
-2. **בדיקת עמודה.** אם `e.range.getColumn()` אינו `6` (F היא העמודה ה-6), חוזרים. אנחנו רוצים שהסימן יירה רק על עריכות Spend, לא על כל עריכת תא בכל מקום בשורה.
+1. **בדיקת sheet.** אם `e.range.getSheet().getName()` אינו `"Campaigns"`, חוזרים מיד. בלי זה, ה-trigger יופעל בכל tab: כולל tabs עוזרים של ה-Sidebar וכל דבר אחר ב-workbook.
+2. **בדיקת עמודה.** אם `e.range.getColumn()` אינו `6` (F היא העמודה ה-6), חוזרים. אנחנו רוצים שהסימן ייכתב רק על עריכות Spend, לא על כל עריכת תא בכל מקום בשורה.
 3. **כותבים את הסימן.** משתמשים ב-`range.getSheet().getRange(range.getRow(), 10).setValue("updated")` כדי לכתוב `"updated"` לעמודה J של השורה שנערכה.
 
-שומרים את הפרויקט. פותחים את tab Campaigns. עורכים את F2. J2 צריך להתמלא ב-`"updated"`. עורכים את F3. J3 מתמלא. עורכים תא אחר: J נשאר במקומו.
+שומרים את הפרויקט. פותחים את tab Campaigns. עורכים את F2. J2 אמור להתמלא ב-`"updated"`. עורכים את F3. J3 מתמלא. עורכים תא אחר: J נשאר במקומו.
 
-אם שום דבר לא קורה, פותחים את תצוגת ה-**Executions** של רצועת השמאל של Apps Script (אייקון השעון). כל ירייה של simple-trigger מתועדת שם. ירייה כושלת מתועדת שם גם. אם השורה חסרה לחלוטין, ה-trigger function לא נרשם: בדרך כלל typo בשם ה-function (O גדולה `OnEdit` הוא הנפוץ ביותר).
+אם שום דבר לא קורה, פותחים את תצוגת ה-**Executions** ברצועת השמאל של Apps Script (אייקון השעון). כל הפעלה של simple-trigger מתועדת שם. גם הפעלה כושלת מתועדת שם. אם השורה חסרה לחלוטין, ה-trigger function לא נרשם: בדרך כלל typo בשם ה-function (O גדולה `OnEdit` הוא הנפוץ ביותר).
 
 ## מלכודות מקצועיות
 
-- **`onEdit` נורה בכל לחיצת מקש בעריכה בתוך תא.** הוא לא: אבל ה-`onSelectionChange` הקשור נורה בכל לחיצת מקש חץ כשהמשתמש זז סביב ה-sheet. אם אתם מחברים עבודה כבדה ל-selection-change, כל תזוזת סמן מריצה אותה.
-- **paste-המוני מפעיל את `onEdit` פעם אחת עם כל טווח ה-paste.** נוסחה שמניחה ש-`e.range` הוא תא יחיד קורסת על `e.value` שהוא `undefined`. תמיד בודקים `range.getNumRows() * range.getNumColumns() === 1` לפני קריאת `e.value` / `e.oldValue`.
+- **`onEdit` מופעל בכל לחיצת מקש בעריכה בתוך תא.** הוא לא: אבל ה-`onSelectionChange` הקשור מופעל בכל לחיצה על מקש חץ כשהמשתמש זז סביב ה-sheet. אם אתם מחברים עבודה כבדה ל-selection-change, כל תזוזת סמן מריצה אותה.
+- **paste המוני מפעיל את `onEdit` פעם אחת עם כל טווח ה-paste.** נוסחה שמניחה ש-`e.range` הוא תא יחיד קורסת על `e.value` שהוא `undefined`. תמיד בודקים `range.getNumRows() * range.getNumColumns() === 1` לפני קריאת `e.value` / `e.oldValue`.
 - **ל-`onChange` יש צורת `e` שונה.** אין `e.range`, אין `e.value`. העתקת body של handler מ-`onEdit` ל-`onChange` וציפייה שזה יעבוד היא session של דיבאג של 20 דקות.
-- **שמות שמורים רגישים לרישיות.** `function onedit` לא נורה. `function OnEdit` לא נורה. עורך Apps Script לא מזהיר אתכם.
+- **שמות שמורים רגישים לרישיות.** `function onedit` לא מופעל. `function OnEdit` לא מופעל. עורך Apps Script לא מזהיר אתכם.
 - **ה-timeout של 30 שניות לא סולח.** אם ה-handler שלכם צריך לעבור על כל ה-sheet, זה הכלי הלא נכון: מתזמנים installable trigger מבוסס-זמן שרץ בלילה עם auth מלא ותקציב ארוך יותר.
-- **simple triggers לא יכולים לשלוח מייל, fetch, או לגעת במסמכים אחרים.** הקריאה נכשלת בשקט. אם ה-handler שלכם "לא נראה עובד" ויש בו `MailApp.sendEmail` או `UrlFetchApp.fetch`, זו הסיבה. שדרגו ל-installable trigger בשיעור הבא.
+- **simple triggers לא יכולים לשלוח מייל, fetch, או לגעת במסמכים אחרים.** הקריאה נכשלת בשקט. אם ה-handler שלכם "נראה לא עובד" ויש בו `MailApp.sendEmail` או `UrlFetchApp.fetch`, זו הסיבה. שדרגו ל-installable trigger בשיעור הבא.
 - **`e.user.getEmail()` מחזיר מחרוזת ריקה עבור חברי צוות.** מכוסה בקטע המודגש מעל הדוגמה המעובדת: `e.user` מאוכלס באופן אמין רק כשהעורך הוא בעל ה-script (או, באופן צר, משתמש Workspace באותו דומיין שבו מדיניות ה-admin מאפשרת את זה). עבור כל חבר צוות אחר השדה ריק. ל-`Session.getActiveUser().getEmail()` יש את אותה הגבלה ב-context של simple-trigger, אז זה לא workaround. התיקון האמיתי הוא installable trigger (שיעור 8) פלוס dropdown לזהות העורך, לא heuristic.
-- **onEdit handler שעורך באופן רקורסיבי את אותו range.** אם ה-handler עושה `range.setValue(x)` בפנים, הכתיבה הזו לא מפעילה `onEdit` שוב (ה-runtime של Google מגן על הלולאה), אבל כתיבה לתא *אחר* שיש לו נוסחה שמפנה לתא שנערך יכולה להיכנס למפל. צופים ב-Executions panel להפעלות חוזרות.
+- **onEdit handler שעורך באופן רקורסיבי את אותו range.** אם ה-handler עושה `range.setValue(x)` בפנים, הכתיבה הזו לא מפעילה `onEdit` שוב (ה-runtime של Google מגן מהלולאה), אבל כתיבה לתא *אחר* שיש לו נוסחה שמפנה לתא שנערך יכולה להיכנס למפל. צופים ב-Executions panel להפעלות חוזרות.

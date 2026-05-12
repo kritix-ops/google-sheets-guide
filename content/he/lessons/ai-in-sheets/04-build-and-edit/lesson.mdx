@@ -2,15 +2,15 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 # בנייה ועריכה של spreadsheets עם Gemini
 
-ה-side panel של Gemini לוקח prompts בשפה טבעית ומייצר שינויים מבניים בגיליון שלכם: scorecards חדשים מעל נתונים קיימים, dashboard של P&L בטאב חדש, ארגון מחדש של pivot של buyer-מול-platform. אתם מתארים את התוצאה; Gemini מנסח את התאים, הנוסחאות, הפורמט, וה-charts; אתם סוקרים את ההצעה ב-diff צד-לצד ואז apply או discard. Gemini ב-Sheets קיבל ציון של **70.48% ב-SpreadsheetBench**, benchmark של משימות spreadsheet מורכבות ([הבלוג של Google, מרץ 2026](https://blog.google/products-and-platforms/products/workspace/gemini-google-sheets-state-of-the-art/)). מספרי benchmark לא מתורגמים ישירות ל-workbook שלכם: ה-prompts שלכם, הנתונים שלכם, ומשמעת האימות שלכם חשובים יותר מהמספר הראשי. משתמשים בציון כדי לקבוע ציפיות גסות, לא כהבטחה. המקרים שה-benchmark מפספס הם בדיוק הסיבה שהשיעור הזה קיים.
+ה-side panel של Gemini לוקח prompts בשפה טבעית ומייצר שינויים מבניים בגיליון שלכם: scorecards חדשים מעל נתונים קיימים, dashboard של P&L בטאב חדש, סידור מחדש של pivot של buyer מול platform. אתם מתארים את התוצאה; Gemini מנסח את התאים, הנוסחאות, הפורמט, וה-charts; אתם סוקרים את ההצעה ב-diff צד לצד ואז apply או discard. Gemini ב-Sheets קיבל ציון של **70.48% ב-SpreadsheetBench**, benchmark של משימות spreadsheet מורכבות ([הבלוג של Google, מרץ 2026](https://blog.google/products-and-platforms/products/workspace/gemini-google-sheets-state-of-the-art/)). מספרי benchmark לא מתורגמים ישירות ל-workbook שלכם: ה-prompts שלכם, הנתונים שלכם, ומשמעת האימות שלכם חשובים יותר מהמספר הראשי. משתמשים בציון כדי לקבוע ציפיות גסות, לא כהבטחה. המקרים שה-benchmark מפספס הם בדיוק הסיבה שהשיעור הזה קיים.
 
-כשזה עובד, build-and-edit מחליף אחר צהריים של בנייה ידנית של dashboard בחמש דקות של prompting. כשזה לא עובד, זה מייצר אחר צהריים של דיבוג dashboard עם שלוש נוסחאות שגויות בעדינות. ההבדל בין שתי התוצאות הללו הוא ה-prompt וה-review. השיעור הזה הולך על שניהם, עם דפוסי ה-prompt בפועל של הצוות ו-failure modes שהם הריצו דרכם.
+כשזה עובד, build-and-edit מחליף אחר צהריים של בנייה ידנית של dashboard בחמש דקות של prompting. כשזה לא עובד, זה מייצר אחר צהריים של דיבוג dashboard עם שלוש נוסחאות שגויות בעדינות. ההבדל בין שתי התוצאות הללו הוא ה-prompt וה-review. השיעור הזה עובר על שניהם, עם דפוסי ה-prompt בפועל של הצוות ו-failure modes שהם נתקלו בהם.
 
 ## פתיחת ה-side panel
 
 לוחצים על הכפתור **Ask Gemini** בפינה הימנית-עליונה של הגיליון (אייקון הניצוץ ליד כפתור ה-Share), או בקיצור `Ctrl+Alt+G` ב-Windows / `Cmd+Ctrl+G` ב-Mac. הפאנל מתעגן בצד ימין. מקלידים את ה-prompt בתחתית; ההצעה של Gemini מופיעה מעליה, עם כפתורי **Apply** ו-**Discard** מתחת לפאנל ההצעה.
 
-ה-side panel הוא אותו פאנל המכוסה בשיעור 5.1 ("מה Gemini רואה"), כך שאותם כללי scoping חלים: כברירת מחדל, ה-side panel קורא רק את הגיליון הפעיל, ואז את התאים שאתם מצביעים עליהם, ושום דבר מעבר. ב-Workspace plans עם **Workspace Intelligence** מופעל (Business Standard / Plus, Enterprise Standard / Plus, Google AI Pro / Ultra; [Workspace Updates, אפריל 2026](https://workspaceupdates.googleblog.com/2026/04/build-and-edit-complex-spreadsheets-with-Gemini-in-Google-Sheets.html)), ה-side panel יכול גם למשוך הקשר מ-Gmail, Drive, Docs, ו-Calendar שלכם, שימושי ל-prompts כמו "add a row for the campaign Maya proposed in her email last Tuesday." אם ה-plan שלכם לא כולל Workspace Intelligence, ה-side panel עדיין מתעדכן רק לגיליון הפעיל; מחליפים טאבים לפני שליחת ה-prompt או מדביקים את הנתונים פנימה במפורש כשצריך מקור אחר.
+ה-side panel הוא אותו פאנל שמכוסה בשיעור 5.1 ("מה Gemini רואה"), כך שאותם כללי scoping חלים: כברירת מחדל, ה-side panel קורא רק את הגיליון הפעיל, ואז את התאים שאתם מצביעים עליהם, ושום דבר מעבר. ב-Workspace plans עם **Workspace Intelligence** מופעל (Business Standard / Plus, Enterprise Standard / Plus, Google AI Pro / Ultra; [Workspace Updates, אפריל 2026](https://workspaceupdates.googleblog.com/2026/04/build-and-edit-complex-spreadsheets-with-Gemini-in-Google-Sheets.html)), ה-side panel יכול גם למשוך הקשר מ-Gmail, Drive, Docs, ו-Calendar שלכם, שימושי ל-prompts כמו "add a row for the campaign Maya proposed in her email last Tuesday." אם ה-plan שלכם לא כולל Workspace Intelligence, ה-side panel עדיין מוגבל רק לגיליון הפעיל; מחליפים טאבים לפני שליחת ה-prompt או מדביקים את הנתונים פנימה במפורש כשצריך מקור אחר.
 
 <MiniGrid
   data={CAMPAIGNS.slice(0, 5)}
@@ -26,7 +26,7 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 | **Build** | יוצר מבנה חדש: scorecards, pivots, טאבים חדשים, charts | מתארים את הפלט: איזה סוג artifact, אילו שדות, איזה layout |
 | **Edit** | משנה מבנה קיים: מפרמט עמודה, מוסיף year-over-year, מזיז scorecard | מתארים את השינוי: מה היה, מה צריך להשתנות, מה צריך להישאר |
 
-השניים דורשים prompts שונים. Build prompts ממוקדים בתיאור הפלט: איזה סוג artifact, אילו שדות, איזה layout. Edit prompts ממוקדים בתיאור הדלתא: מה היה, מה צריך להשתנות, מה צריך להישאר ללא נגיעה. ערבוב שלהם ("build a scorecard and also add a chart and also change the date format on column A") נותן ל-Gemini שלוש עבודות לעשות, וההצעה לרוב מכוונת באחת ומחמיצה בשתי האחרות.
+השניים דורשים prompts שונים. Build prompts ממוקדים בתיאור הפלט: איזה סוג artifact, אילו שדות, איזה layout. Edit prompts ממוקדים בתיאור הדלתא: מה היה, מה צריך להשתנות, מה צריך להישאר ללא נגיעה. ערבוב שלהם ("build a scorecard and also add a chart and also change the date format on column A") נותן ל-Gemini שלוש עבודות לעשות, וההצעה לרוב קולעת באחת ומחמיצה בשתיים האחרות.
 
 ## איך נראה build prompt טוב
 
@@ -46,9 +46,9 @@ On a new "Monthly Summary" tab, build a table grouping campaigns by month with t
 
 מה גורם להם לעבוד:
 
-- **סוג פלט שמני.** Scorecard, pivot, table, chart. Gemini יודע את הצורות שאלה באות בהן.
-- **שדות שמיים.** "Total spend and total revenue" עדיף על "the totals". Gemini לא מנחש שמות עמודות שלכם טוב.
-- **מיקום שמני.** "Above the data", "to the right", "on a new tab". בלי זה, Gemini מנחש, לרוב לא טוב.
+- **סוג פלט בשם.** Scorecard, pivot, table, chart. Gemini יודע את הצורות שאלה באות בהן.
+- **שדות בשם.** "Total spend and total revenue" עדיף על "the totals". Gemini לא מנחש טוב את שמות העמודות שלכם.
+- **מיקום בשם.** "Above the data", "to the right", "on a new tab". בלי זה, Gemini מנחש, ולרוב לא טוב.
 - **Scope משתמע.** הנתונים של הגיליון הפעיל הם המקור. אם אתם רוצים מקור אחר, אומרים את זה במפורש: "Use the rolled-up monthly summary on the `Daily Summary` tab."
 
 ארבעת אלה הם הצורה הספציפית ל-build. דפוסי ה-prompt-engineering הכלליים (לתייג כל תא, לצמצם את מרחב הפלט, להתייחס לאות עמודה, "do not guess") חלים גם כאן, והם מאוחדים תחת **דפוסי prompt שעובדים ב-spreadsheets** בשיעור 5.2. שולחים יד לטבלה הזו כשכותבים כל prompt שנוגע בתא, לא רק קריאות `=AI()`.
@@ -60,13 +60,13 @@ On a new "Monthly Summary" tab, build a table grouping campaigns by month with t
       id: "a",
       label: <>"Make me a dashboard."</>,
       correct: false,
-      explanation: "אין סוג פלט, אין שדות, אין מיקום. Gemini יבחר את כל השלושה וכנראה יטעה באחד.",
+      explanation: "אין סוג פלט, אין שדות, אין מיקום. Gemini יבחר את שלושתם וכנראה יטעה באחד.",
     },
     {
       id: "b",
       label: <>"Add some KPIs and a pivot somewhere."</>,
       correct: false,
-      explanation: "קצת יותר ספציפי אבל עדיין משאיר ל-Gemini לנחש את רשימת השדות וה-layout. צריך לצפות לאיטרציות.",
+      explanation: "קצת יותר ספציפי אבל עדיין משאיר ל-Gemini לנחש את רשימת השדות וה-layout. כדאי לצפות לאיטרציות.",
     },
     {
       id: "c",
@@ -79,9 +79,9 @@ On a new "Monthly Summary" tab, build a table grouping campaigns by month with t
 
 ## פאנל סקירת ההצעה
 
-אחרי ששולחים build prompt, ה-side panel מציג diff צד-לצד: הגיליון הנוכחי משמאל, הגיליון המוצע מימין. ההצעה מדגישה מה ש-Gemini ישנה: תאים חדשים, תאים שונים, charts חדשים, טווחים שנמחקו.
+אחרי ששולחים build prompt, ה-side panel מציג diff צד לצד: הגיליון הנוכחי משמאל, הגיליון המוצע מימין. ההצעה מדגישה מה ש-Gemini ישנה: תאים חדשים, תאים שהשתנו, charts חדשים, טווחים שנמחקו.
 
-הדיסציפלינה היא לקרוא את ההצעה לפני apply. לא ברפרוף. לקרוא.
+המשמעת היא לקרוא את ההצעה לפני apply. לא ברפרוף. לקרוא.
 
 חמישה דברים לבדוק:
 
@@ -91,7 +91,7 @@ On a new "Monthly Summary" tab, build a table grouping campaigns by month with t
 4. **האם Gemini שינה תאים מחוץ למבנה החדש?** Side effects בלוג הקמפיינים עצמו נפוצים ורעים.
 5. **האם Gemini מחק משהו?** מחפשים הסרות מודגשות באדום.
 
-Apply מבצע commit. Discard חוזר למצב הקודם. איטרציה זה בסדר: discard, מחדדים את ה-prompt, מנסים שוב. שלוש איטרציות זה נורמלי ל-build לא טריוויאלי. הכלל בצוות: snapshot של ה-workbook (גרסה ממוספרת, Track 4 שיעור 10) לפני Apply בסיכון גבוה, כי התנהגות ה-undo אחרי build רב-שלבי מורכב היא לא יחידה אחת אמינה.
+Apply מבצע commit. Discard חוזר למצב הקודם. איטרציה זה בסדר: discard, מחדדים את ה-prompt, מנסים שוב. שלוש איטרציות זה נורמלי ל-build לא טריוויאלי. הכלל בצוות: snapshot של ה-workbook (גרסה ממוספרת, Track 4 שיעור 10) לפני Apply בסיכון גבוה, כי התנהגות ה-undo אחרי build רב-שלבי מורכב היא לא תמיד יחידה אחת אמינה.
 
 ## מה Gemini עושה נכון
 
@@ -102,11 +102,11 @@ Apply מבצע commit. Discard חוזר למצב הקודם. איטרציה זה
 
 ## מה Gemini טועה בביטחון
 
-- **לוגיקה עסקית מותאמת אישית.** "Calculate ROI weighted by media buyer seniority" מייצר נוסחה שנראית סבירה שאינה השקלול האמיתי של הצוות. אגרגציות תחום-ספציפיות צריכות וידוא אנושי, בכל פעם.
+- **לוגיקה עסקית מותאמת אישית.** "Calculate ROI weighted by media buyer seniority" מייצר נוסחה שנראית סבירה אבל אינה השקלול האמיתי של הצוות. אגרגציות תחום-ספציפיות צריכות וידוא אנושי, בכל פעם.
 - **שמות עמודות שלא קיימים.** Gemini הוזה עמודות סבירות. אם לנתונים שלכם יש `Profit` אבל ההצעה של Gemini מפנה ל-`Margin`, הנוסחה נשברת בשקט.
-- **מוסכמות פורמט.** סמלי currency, פורמטי תאריך, דיוק עשרוני. המוסכמות של הצוות ("MMM dd" פורמט תאריך, `$#,##0` currency) הן לא ברירת המחדל של Gemini.
+- **מוסכמות פורמט.** סמלי currency, פורמטי תאריך, דיוק עשרוני. המוסכמות של הצוות (פורמט תאריך "MMM dd", currency `$#,##0`) הן לא ברירת המחדל של Gemini.
 - **Edge cases ב-pivots.** Pivots עם ריקים במקור. Pivots על עמודות תאריך שבהן תאריכים נשמרים כטקסט. ההצעה של Gemini לרוב לא מטפלת באלה.
-- **Dashboards מבוססי IMPORTRANGE.** Gemini רואה את הערכים המופקים, לא את הייבוא. אם ה-IMPORTRANGE במעלה הזרם חתוך ל-1000 שורות בטעות, ה-pivot של Gemini גם חתוך ואתם לא תדעו. שיעור 5.1 מכסה את זה; Track 1 שיעור 27 מכסה IMPORTRANGE עצמו.
+- **Dashboards מבוססי IMPORTRANGE.** Gemini רואה את הערכים המיובאים, לא את הייבוא. אם ה-IMPORTRANGE במעלה הזרם חתוך ל-1000 שורות בטעות, ה-pivot של Gemini גם חתוך ואתם לא תדעו. שיעור 5.1 מכסה את זה; Track 1 שיעור 27 מכסה את IMPORTRANGE עצמו.
 
 המודל המנטלי: Gemini הוא אנליסט ג'וניור חזק. הוא כותב artifacts נקיים ומקובלים במהירות. הוא לא יודע את המוסכמות של הצוות שלכם או את הקיצונים של הנתונים שלכם. מאמתים, בכל פעם, לפני apply.
 
@@ -121,7 +121,7 @@ total profit by buyer."
 עמודות הצוות הן Date, Buyer,
 Vertical, Platform, Country, Spend,
 Revenue. אין עמודת Profit.`}</code></pre>
-    <p className="mt-2 text-sm">Gemini הוזה עמודת Profit. הנוסחה מתפרשת ל-`#REF!` או אפס תלוי בוריאנט. ההצעה נראית סבירה כי "Profit" הוא שם ש-spreadsheet שפוי יכול להיות לו.</p>
+    <p className="mt-2 text-sm">Gemini הוזה עמודת Profit. הנוסחה מתפרשת ל-`#REF!` או אפס תלוי בוריאנט. ההצעה נראית סבירה כי "Profit" הוא שם שיכול להיות ל-spreadsheet שפוי.</p>
   </ComparePanel>
   <ComparePanel label="עובד (נגזרת מפורשת)" tone="positive">
     <pre className="font-mono text-xs"><code>{`Prompt: "Build a buyer scorecard with
@@ -133,7 +133,7 @@ Group by Buyer (column B)."
 ההצעה מכילה:
 =SUMIFS(G2:G61, B2:B61, "Yoav Cohen")
 - SUMIFS(F2:F61, B2:B61, "Yoav Cohen")`}</code></pre>
-    <p className="mt-2 text-sm">מפרטים את הנגזרת ואת אותיות העמודות. Gemini מפסיק להזות כי ה-prompt אומר לו בדיוק מה Profit אומר.</p>
+    <p className="mt-2 text-sm">מפרטים את הנגזרת ואת אותיות העמודות. Gemini מפסיק להזות כי ה-prompt אומר לו בדיוק מה זה Profit.</p>
   </ComparePanel>
 </Compare>
 
@@ -143,7 +143,7 @@ Group by Buyer (column B)."
 
 ההצעה מכילה:
 =SUM(F:F)`}</code></pre>
-    <p className="mt-2 text-sm">Reference לעמודה לא חסום. בסדר עד שמישהו מדביק סכום נוסף בשורה 200 של עמודה F או מוסיף שורת header מתחת לנתונים; ה-SUM עכשיו קורא זבל. גם איטי בגיליונות גדולים.</p>
+    <p className="mt-2 text-sm">הפניה לעמודה לא חסומה. בסדר עד שמישהו מדביק סכום נוסף בשורה 200 של עמודה F או מוסיף שורת header מתחת לנתונים; ה-SUM עכשיו קורא זבל. גם איטי בגיליונות גדולים.</p>
   </ComparePanel>
   <ComparePanel label="עובד (טווח חסום)" tone="positive">
     <pre className="font-mono text-xs"><code>{`Prompt: "Add a scorecard for total spend.
@@ -162,7 +162,7 @@ The data is in F2:F61 (60 campaign rows)."
 1. **ה-prompt הראשון הוא הצורה הגסה.** "Build a P&L by buyer." Gemini מנסח משהו.
 2. **הסקירה הראשונה מציפה את הפער.** עמודה לא נכונה, layout לא נכון, שדה חסר.
 3. **ה-prompt השני הוא התיקון.** "Move the pivot to start at column J, not column I. Add a Profit column."
-4. **ה-prompt השלישי הוא הפוליש.** "Format the Profit column as currency with no decimals. Highlight rows with negative profit in red."
+4. **ה-prompt השלישי הוא הליטוש.** "Format the Profit column as currency with no decimals. Highlight rows with negative profit in red."
 
 Discard אחרי כל איטרציה חינמי. העלות היא ה-prompt הבא. אל תעשו apply לטיוטה הגסה ותנסו לנקות; הניקוי עולה יותר זמן מה-prompt הבא, וה-undo אחרי apply לא אמין.
 
@@ -173,25 +173,25 @@ Discard אחרי כל איטרציה חינמי. העלות היא ה-prompt ה�
       id: "a",
       label: <>Apply להצעה, ואז למחוק ידנית את שורות ה-verticals הלא רצויות מה-pivot.</>,
       correct: false,
-      explanation: "מאבדים את העבודה המבנית של Gemini ברגע שמתחילים לערוך את ה-pivot ביד. הנתיב של apply-ואז-תקן גם שורף את ה-undo הזול: הניקוי כעת קבוע ב-workbook, ו-build prompt עתידי יראה את העריכות שלכם כקו הבסיס החדש.",
+      explanation: "מאבדים את העבודה המבנית של Gemini ברגע שמתחילים לערוך את ה-pivot ביד. הנתיב של apply-ואז-תקן גם שורף את ה-undo הזול: הניקוי עכשיו קבוע ב-workbook, ו-build prompt עתידי יראה את העריכות שלכם כקו הבסיס החדש.",
     },
     {
       id: "b",
       label: <>Discard, לחדד את ה-prompt לציין את ה-verticals לכלול או להוציא, ואז להריץ שוב.</>,
       correct: true,
-      explanation: "Discard-חידוד-ניסיון-חוזר הוא הלולאה הנכונה. ה-side panel שומר את ה-prompt הקודם שלכם כך שהאיטרציה הבאה היא עריכה אחת, לא התחלה חדשה. עלות ה-discard היא אפס, וחידוד ה-prompt זול יותר מתיקון ההצעה אחרי apply. שלוש איטרציות זה הממוצע של הצוות ל-build לא טריוויאלי.",
+      explanation: "Discard-חידוד-ניסיון חוזר היא הלולאה הנכונה. ה-side panel שומר את ה-prompt הקודם שלכם כך שהאיטרציה הבאה היא עריכה אחת, לא התחלה מחדש. עלות ה-discard היא אפס, וחידוד ה-prompt זול יותר מתיקון ההצעה אחרי apply. שלוש איטרציות זה הממוצע של הצוות ל-build לא טריוויאלי.",
     },
     {
       id: "c",
       label: <>Apply להצעה, ואז לבקש מ-Gemini "הסר את השורות של verticals X ו-Y" ב-prompt עריכה שני.</>,
       correct: false,
-      explanation: "משרשר תוצאה חצי-שגויה לאחרת. כל עריכת side-panel על ה-workbook מצטברת את הסיכוי ל-side effect (נוסחה שזזה, עמודה שעבר לה reformat). ה-prompt המקורי היה במרחק עריכה של שורה אחת מנכון; מתחילים מחדש מה-prompt, לא מה-artifact השבור.",
+      explanation: "משרשר תוצאה חצי שגויה לאחרת. כל עריכת side-panel על ה-workbook מגדילה את הסיכוי ל-side effect (נוסחה שזזה, עמודה שעבר לה reformat). ה-prompt המקורי היה במרחק עריכה של שורה אחת מנכון; מתחילים מחדש מה-prompt, לא מה-artifact השבור.",
     },
     {
       id: "d",
       label: <>נוטשים את Gemini ובונים את ה-pivot ביד.</>,
       correct: false,
-      explanation: "תיקון יתר. ההצעה הראשונה הייתה נכונה מבנית; חידוד prompt אחד מתקן את הפילטר. נטישת Gemini אחרי הפספוס הראשון זורקת את המקרים שבהם הוא נוחת באיטרציה אחת או שתיים.",
+      explanation: "תיקון יתר. ההצעה הראשונה הייתה נכונה מבחינה מבנית; חידוד prompt אחד מתקן את הפילטר. נטישת Gemini אחרי הפספוס הראשון זורקת את המקרים שבהם הוא נוחת באיטרציה אחת או שתיים.",
     },
   ]}
 />
@@ -213,9 +213,9 @@ Discard אחרי כל איטרציה חינמי. העלות היא ה-prompt ה�
     },
     {
       id: "c",
-      label: <>Apply וערוכים את התא ידנית להשתמש ב-'Yoav*' עם wildcard.</>,
+      label: <>Apply ולערוך את התא ידנית כדי להשתמש ב-'Yoav*' עם wildcard.</>,
       correct: false,
-      explanation: "SUMIFS תומך ב-wildcards עם * אבל אתם תערכו את הפלט של Gemini ידנית, מה שמנטרל את הנקודה של סקירת ההצעה. Re-prompt במקום.",
+      explanation: "SUMIFS תומך ב-wildcards עם * אבל אתם תערכו את הפלט של Gemini ידנית, מה שמנטרל את הנקודה של סקירת ההצעה. Re-prompt במקום זה.",
     },
   ]}
 />
@@ -230,8 +230,8 @@ Discard אחרי כל איטרציה חינמי. העלות היא ה-prompt ה�
 לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים בן 60 השורות. ארבעה תאים למלא בטאב Campaigns:
 
 - **L1** הוא ה-prompt בשפה טבעית שהייתם מקלידים ב-side panel. כוללים `scorecard` או `dashboard`, ו-`spend` או `revenue`.
-- **I1, J1, I2, J2** הם תאי ה-scorecard. I1 = `Total Spend`, J1 = הסכום של כל 60 הוצאות, I2 = `Total Revenue`, J2 = הסכום של כל 60 הכנסות. אפשר לחשב את הערכים עם `=SUM(F2:F61)` ו-`=SUM(G2:G61)` אם רוצים; ה-grader בודק רק את הערכים, לא את הנוסחאות (כי applies בסגנון Fill כותבים literals).
-- **K1** מתעד את דיסציפלינת הסקירה: תזכורת literal שמכילה `review` או `verify`, ו-`before applying`.
+- **I1, J1, I2, J2** הם תאי ה-scorecard. I1 = `Total Spend`, J1 = הסכום של כל 60 ההוצאות, I2 = `Total Revenue`, J2 = הסכום של כל 60 ההכנסות. אפשר לחשב את הערכים עם `=SUM(F2:F61)` ו-`=SUM(G2:G61)` אם רוצים; ה-grader בודק רק את הערכים, לא את הנוסחאות (כי applies בסגנון Fill כותבים literals).
+- **K1** מתעד את משמעת הסקירה: הערה literal שמכילה `review` או `verify`, ו-`before applying`.
 
 אתם מייצרים את ה-artifact ואת ה-prompt שהפיק אותו. ב-session בנייה אמיתי, ה-prompt בא קודם ו-Gemini ממלא את ה-scorecard. כאן אתם כותבים את שניהם.
 
@@ -239,17 +239,17 @@ Discard אחרי כל איטרציה חינמי. העלות היא ה-prompt ה�
 
 ב-aggregator האמיתי של הצוות:
 
-- **ה-prompt הראשון של כל session ביקורת חודשי הוא `On a new "Monthly Summary" tab, build a table grouping campaigns by buyer with total spend, total revenue, and ROI.`** Gemini בונה את זה ב-10 שניות. סוקרים, apply, ממשיכים.
+- **ה-prompt הראשון של כל session סקירה חודשי הוא `On a new "Monthly Summary" tab, build a table grouping campaigns by buyer with total spend, total revenue, and ROI.`** Gemini בונה את זה ב-10 שניות. סוקרים, apply, ממשיכים.
 - **איטרציה היא ה-workflow.** Build → review → discard → refine → build again. שלוש איטרציות בממוצע כדי לנחות על ה-artifact הנכון. היסטוריית ה-prompts יושבת בהערה בטאב כדי שבונים עתידיים יראו מה עבד.
-- **Dashboards בסיכון גבוה אף פעם לא apply בבנייה הראשונה.** הצוות בונה, מייצא את ההצעה ל-thread של comment, חבר צוות סוקר, ואז apply. כלל שתי העיניים לכל מה שנוגע ל-scorecard ברמת board.
-- **לכל build שנעשה לו apply יש הערה אחות שמתעדת את ה-prompt.** `Built by: Yoav, 2026-05-11, prompt: "Add a scorecard..."`. ההערה היא ה-audit trail היחיד של מה שנוצר על-ידי AI ומה שנכתב ביד.
+- **Dashboards בסיכון גבוה אף פעם לא עוברים apply בבנייה הראשונה.** הצוות בונה, מייצא את ההצעה ל-thread של comment, חבר צוות סוקר, ואז apply. כלל שתי העיניים לכל מה שנוגע ל-scorecard ברמת board.
+- **לכל build שעבר apply יש הערה צמודה שמתעדת את ה-prompt.** `Built by: Yoav, 2026-05-11, prompt: "Add a scorecard..."`. ההערה היא ה-audit trail היחיד של מה שנוצר על-ידי AI ומה שנכתב ביד.
 
 ## מלכודות מקצועיות
 
-- **נוסחאות שנראות נכונות אבל מחשבות את הדבר הלא נכון.** `=SUMIFS(F2:F61, B2:B61, "Yoav")` של Gemini כמעט נכון; הנכון הוא `=SUMIFS(F2:F61, B2:B61, "Yoav Cohen")`. תמיד spot-check ל-3 עד 5 תאים בהצעה מול המודל המנטלי שלכם.
+- **נוסחאות שנראות נכונות אבל מחשבות את הדבר הלא נכון.** `=SUMIFS(F2:F61, B2:B61, "Yoav")` של Gemini כמעט נכון; הנכון הוא `=SUMIFS(F2:F61, B2:B61, "Yoav Cohen")`. תמיד עושים spot-check ל-3 עד 5 תאים בהצעה מול המודל המנטלי שלכם.
 - **שמות עמודות הזויים.** Gemini לפעמים מפנה ל-`Profit` כשהעמודה שלכם היא `Net Revenue`. הנוסחה מתפרשת ל-`#REF!` או אפס, תלוי בוריאנט.
-- **פורמט שמתנגש במוסכמות הצוות.** Currency עם שני עשרוניים, תאריכים בפורמט US, אחוזים בלי דיוק. מתאמנים על ה-prompt לקבע את המוסכמות, או מתקנים אחרי apply.
+- **פורמט שמתנגש במוסכמות הצוות.** Currency עם שני עשרוניים, תאריכים בפורמט US, אחוזים בלי דיוק. עובדים על ה-prompt כדי לקבע את המוסכמות, או מתקנים אחרי apply.
 - **Build prompt שמייצר 200 תאים שמתוכם 5 שגויים.** קשה לזהות. משתמשים ב-diff view באגרסיביות. ממיינים לפי "modified" קודם אם ה-side panel מציע את זה.
 - **ה-side panel קורא רק את הטאב הפעיל (אלא אם Workspace Intelligence דלוק).** Prompt שאומר "use the data from the Aggregator tab" עובד רק אם Aggregator הוא הטאב הפעיל כששולחים את ה-prompt. החלפת טאבים באמצע session היא מקור שקט ל-builds שגויים. Workspace Intelligence (Business / Enterprise Standard+, AI Pro / Ultra) מרחיב את ההישג ל-Gmail, Drive, Docs, ו-Calendar, אבל טאבים אחרים באותו workbook עדיין חייבים להיות הטאב הפעיל כדי להיכלל בהקשר.
 - **Apply-then-undo לא תמיד עובד נקי.** פעולות בנייה לרוב הן יחידת undo אחת, אבל builds רב-שלביים מורכבים יכולים להיות חלקיים. שומרים snapshot של ה-workbook לפני builds בסיכון גבוה.
-- **עלות recalc על pivots שנבנו על-ידי Gemini.** Gemini לפעמים מציע layout שמשתמש בפונקציות volatile כמו `OFFSET` או `INDIRECT` (מכוסות ב-Track 1 שיעור 25, עם מלכודת הביצועים של פונקציות volatile שמודגשת שם). על מקור של 50K שורות ה-dashboard הופך איטי. קוראים את הנוסחאות המוצעות, לא רק את ה-layout.
+- **עלות recalc על pivots שנבנו על-ידי Gemini.** Gemini לפעמים מציע layout שמשתמש בפונקציות volatile כמו `OFFSET` או `INDIRECT` (מכוסות ב-Track 1 שיעור 25, עם מלכודת הביצועים של פונקציות volatile שמודגשת שם). על מקור של 50K שורות ה-dashboard נהיה איטי. קוראים את הנוסחאות המוצעות, לא רק את ה-layout.

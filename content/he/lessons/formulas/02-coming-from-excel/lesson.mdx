@@ -2,13 +2,13 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # המעבר מ-Excel
 
-Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מה שתופס אנשי מקצוע בשבוע הראשון. הארבעה הגדולים: arrays לא עושים auto-spill, `XLOOKUP` עובד אותו דבר, ל-Power Query אין מקבילה, ומודל השיתוף מבוסס לינק במקום קובץ.
+Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מה שתופס אנשי מקצוע בשבוע הראשון. ארבע ההפתעות הגדולות: arrays לא עושים auto-spill, `XLOOKUP` עובד אותו דבר, ל-Power Query אין מקבילה, ומודל השיתוף מבוסס לינק במקום קובץ.
 
 השיעור הזה הוא גם המפגש הראשון שלכם עם שלוש הפונקציות שתישענו עליהן יומיומית בקורס: `ARRAYFORMULA`, `XLOOKUP`, ו-`QUERY`. אנחנו מציגים כל אחת עם החתימה המלאה ושתי דוגמאות מעובדות כדי שה-syntax יתפוס לפני שיעורי ה-deep-dive הייעודיים (10 ל-arrays, 4 ל-lookups, 12-13 ל-QUERY).
 
 ## Arrays: מפורש, לא משתמע
 
-ב-Excel 365, אם תקלידו `=F2:F13` בתא כלשהו, Excel עושה "spill" של העמודה בעצמו: 12 ערכים מופיעים, אחד לכל שורה, אוטומטית. ב-Sheets אותה נוסחה מחזירה רק את הערך הראשון, `487.3`. מקבלים תא אחד, לא שניים-עשר. כדי לגרום לביטוי טווח להתפרש לתאים שמסביב, עוטפים אותו ב-`ARRAYFORMULA`.
+ב-Excel 365, אם תקלידו `=F2:F13` בתא כלשהו, Excel עושה "spill" של העמודה בעצמו: 12 ערכים מופיעים, אחד לכל שורה, אוטומטית. ב-Sheets אותה נוסחה מחזירה רק את הערך הראשון, `487.3`. מקבלים תא אחד, לא שניים-עשר. כדי לגרום לביטוי טווח להתפשט לתאים שמסביב, עוטפים אותו ב-`ARRAYFORMULA`.
 
 המקרה הקלאסי באדטק: רוצים עמודת רווח (revenue פחות spend) לכל קמפיין בטבלה, מחושבת ב**נוסחה אחת** בראש העמודה. ב-Excel היינו מקלידים `=F2:F13-E2:E13` ומקבלים את העמודה כ-spill בחינם. ב-Sheets עוטפים ב-`ARRAYFORMULA` כדי לבקש את אותה התנהגות.
 
@@ -98,7 +98,7 @@ Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מ
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=ARRAYFORMULA(F2:F-E2:E)</code></pre>
-    <p className="mt-2 text-sm">טווחים פתוחים. Sheets יעשה spill לכל תא ריק עד שורה 1000+, וימלא את העמודה באפסים. מאט את ה-spreadsheet ומזהם סכומים במורד הזרם.</p>
+    <p className="mt-2 text-sm">טווחים פתוחים. Sheets יעשה spill לכל תא ריק עד שורה 1000+, וימלא את העמודה באפסים. מאט את ה-spreadsheet ומזהם סכומים שמתבססים עליו.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>=ARRAYFORMULA(IF(F2:F=&quot;&quot;, &quot;&quot;, F2:F-E2:E))</code></pre>
@@ -109,16 +109,16 @@ Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מ
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=ARRAYFORMULA(SUMIF(B2:B13, &quot;Yoav&quot;, F2:F13))</code></pre>
-    <p className="mt-2 text-sm"><code>SUMIF</code> הוא חד-תאי במהותו. עטיפה ב-<code>ARRAYFORMULA</code> לא משנה את זה. מקבלים מספר אחד, לא עמודה.</p>
+    <p className="mt-2 text-sm"><code>SUMIF</code> הוא חד-תאי במהותו. עטיפה ב-<code>ARRAYFORMULA</code> לא משנה את זה. מקבלים מספר אחד, לא עמודה שלמה.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>=SUMIF(B2:B13, &quot;Yoav&quot;, F2:F13)</code></pre>
-    <p className="mt-2 text-sm">מורידים את העטיפה. אם באמת רציתם סכומים פר-קבוצה לכל שורה, הכלי הנכון הוא <code>QUERY</code> עם <code>GROUP BY</code>, מכוסה בהמשך.</p>
+    <p className="mt-2 text-sm">מורידים את העטיפה. אם באמת רציתם סכומים פר-קבוצה לכל שורה, הכלי הנכון הוא <code>QUERY</code> עם <code>GROUP BY</code>, נכסה אותו בהמשך.</p>
   </ComparePanel>
 </Compare>
 
 <QuickCheck
-  question="מי מהבאים לא זקוק ל-ARRAYFORMULA כדי לעשות spill ב-Sheets?"
+  question="איזו מהאפשרויות הבאות לא זקוקה ל-ARRAYFORMULA כדי לעשות spill ב-Sheets?"
   options={[
     {
       id: "a",
@@ -234,7 +234,7 @@ Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מ
 <Compare>
   <ComparePanel label="Fallback ידידותי" tone="positive">
     <pre className="font-mono text-xs"><code>{`=XLOOKUP("X",B2:B13,F2:F13,0)`}</code></pre>
-    <p className="mt-2 text-sm">מעבירים <code>missing_value = 0</code>. עכשיו buyers שלא בטבלה מחזירים <code>0</code> במקום <code>#N/A</code>, וזה שומר על סכומים נקיים במורד הזרם.</p>
+    <p className="mt-2 text-sm">מעבירים <code>missing_value = 0</code>. עכשיו buyers שלא בטבלה מחזירים <code>0</code> במקום <code>#N/A</code>, וזה שומר על סכומים נקיים בנוסחאות שמתבססות על התוצאה.</p>
   </ComparePanel>
   <ComparePanel label="ההתאמה האחרונה" tone="positive">
     <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav Cohen",B2:B13,F2:F13,0,0,-1)`}</code></pre>
@@ -271,7 +271,7 @@ Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מ
 </Compare>
 
 <QuickCheck
-  question="Buyer לא מופיע בטבלה. רוצים שהנוסחה תחזיר 0 במקום #N/A כדי שסכומים במורד הזרם יישארו נקיים. איזה ארגומנט מעבירים?"
+  question="Buyer לא מופיע בטבלה. רוצים שהנוסחה תחזיר 0 במקום #N/A כדי שסכומים שמתבססים עליה יישארו נקיים. איזה ארגומנט מעבירים?"
   options={[
     {
       id: "a",
@@ -333,7 +333,7 @@ QUERY הוא לא רק סינון. אפשר לקבץ שורות ולצבור א�
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=QUERY(A2:F13, "SELECT B, C, F WHERE F >= 400")`}</code></pre>
-    <p className="mt-2 text-sm">אין שורת headers בטווח המקור. QUERY מנחש שאין header ומסמן עמודות לפי מיקום (column1, column2). גרפים ו-references במורד הזרם נשברים.</p>
+    <p className="mt-2 text-sm">אין שורת headers בטווח המקור. QUERY מנחש שאין header ומסמן עמודות לפי מיקום (column1, column2). גרפים ו-references שמתבססים על התוצאה נשברים.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE F >= 400")`}</code></pre>
@@ -366,15 +366,15 @@ QUERY הוא לא רק סינון. אפשר לקבץ שורות ולצבור א�
 | המרות רב-שלביות | Apps Script (Track 3) |
 | מושכים ממסד נתונים או warehouse | Connected Sheets + BigQuery (Track 4) |
 
-`IMPORTRANGE` היא הדרך שבה הצוות מחבר כל גיליון קמפיינים למקור המידע הגולמי שלו. זה גם המקור הנפוץ ביותר לנוסחאות שבורות: שינוי שם של ה-spreadsheet המקור, שלילה של הרשאות, טווח שזז. שיעור 27 של Track 1 מכסה דפוסי `IMPORTRANGE`. Track 4 מכסה איתור התקלות.
+`IMPORTRANGE` היא הדרך שבה הצוות מחבר כל גיליון קמפיינים למקור המידע הגולמי שלו. זה גם המקור הנפוץ ביותר לנוסחאות שבורות: שינוי שם של ה-spreadsheet המקור, שלילת הרשאות, טווח שזז. שיעור 27 של Track 1 מכסה דפוסי `IMPORTRANGE`. Track 4 מכסה איתור תקלות.
 
 ## מודל השיתוף מבוסס לינק, לא קובץ
 
-קבצי Excel חיים במערכת קבצים, וההרשאה היא חלק ממיקום האחסון. spreadsheets של Sheets חיים ב-Drive, וההרשאה היא metadata על המסמך עצמו: תפקידים גרנולריים (viewer, commenter, editor) ו-scopes של שיתוף בלינק. הזרימה של "לשמור ולשלוח את הקובץ במייל" נעלמת ומוחלפת ב"לשלוח לינק". ל-spreadsheet אחד יכולים להיות מאות עורכים בו-זמנית בלי merge conflicts.
+קבצי Excel חיים במערכת קבצים, וההרשאה היא חלק ממיקום האחסון. ה-spreadsheets של Sheets חיים ב-Drive, וההרשאה היא metadata על המסמך עצמו: תפקידים גרנולריים (viewer, commenter, editor) ו-scopes של שיתוף בלינק. התהליך של "לשמור ולשלוח את הקובץ במייל" נעלם ומוחלף ב"לשלוח לינק". ל-spreadsheet אחד יכולים להיות מאות עורכים בו-זמנית בלי merge conflicts.
 
 באדטק זה מתבטא בשתי דרכים:
 
-- **References בין spreadsheets דרך `IMPORTRANGE`.** כשגיליון א' מייבא מגיליון ב', זה דורש הרשאה מפורשת בפעם הראשונה. אם הבעלים של ב' שולל גישת editor ל-א', ה-IMPORTRANGE נכשל בשקט וכל הנוסחאות התלויות מחזירות `#REF!`. הכפילו פי 10 גיליונות מקור, ושבירה אחת יוצרת מפל.
+- **References בין spreadsheets דרך `IMPORTRANGE`.** כשגיליון א' מייבא מגיליון ב', זה דורש הרשאה מפורשת בפעם הראשונה. אם הבעלים של ב' שולל גישת editor ל-א', ה-IMPORTRANGE נכשל בשקט וכל הנוסחאות התלויות מחזירות `#REF!`. הכפילו פי 10 גיליונות מקור, ושבירה אחת יוצרת מפל שלם.
 - **Filter views (יכוסה בהמשך ב-Track 2).** כשחמישה media buyers חולקים גיליון, כל אחד יכול להפעיל פילטר משלו בלי להפריע לאחרים. בלי filter views, פילטר של "להציג רק Taboola" של אחד מסתיר שורות לכולם.
 
 ## כמה הבדלים שקטים יותר

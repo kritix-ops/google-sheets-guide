@@ -2,9 +2,9 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Apps Script + ה-Sheets advanced service: כש-SpreadsheetApp לא מספיק
 
-`SpreadsheetApp` הוא ה-surface הידידותי שרוב Track 3 השתמש בו: objects ברמה גבוהה, ברירות מחדל שפויות, OAuth מטופל implicitly. הוא מכסה בערך 80% ממה שהצוות עושה ב-bound script. ה-20% הנותרים (יצירת pivot tables תכנותית, conditional formatting בכמויות, copy-paste בין spreadsheets, כל דבר שנוגע ב-Sheets v4 REST API ישירות) צריך את ה-**Sheets advanced service**. זה global דק שנקרא `Sheets` שממפה 1:1 ל-endpoints של Sheets v4 REST, חושף יותר עוצמה, ומחליף קצת נוחות בשליטה.
+`SpreadsheetApp` הוא ה-surface הידידותי שרוב Track 3 השתמש בו: objects ברמה גבוהה, ברירות מחדל שפויות, OAuth מטופל implicitly. הוא מכסה בערך 80% ממה שהצוות עושה ב-bound script. ה-20% הנותרים (יצירת pivot tables באופן תכנותי, conditional formatting בכמויות, copy-paste בין spreadsheets, כל דבר שנוגע ב-Sheets v4 REST API ישירות) צריך את ה-**Sheets advanced service**. זה global דק שנקרא `Sheets` שממפה 1:1 ל-endpoints של Sheets v4 REST, חושף יותר עוצמה, ומחליף קצת נוחות בשליטה.
 
-השיעור הזה מכסה מתי להושיט יד ל-advanced service מול `SpreadsheetApp` רגיל, איך לאפשר אותו (רשומת manifest), הצורה של `Sheets.Spreadsheets.values.get` ו-`update`, ה-`batchUpdate` עבור כל דבר שאין לו `values.*` קיצור, וצורות ה-response שמאפשרות לכם לשרשר עבודת המשך. אחרי השיעור הזה Track 3 גמור: יש לכם את המשטח המלא של Apps Script לחבר כל אוטומציה של workbook שהצוות צריך.
+השיעור הזה מכסה מתי להושיט יד ל-advanced service מול `SpreadsheetApp` רגיל, איך לאפשר אותו (רשומה ב-manifest), הצורה של `Sheets.Spreadsheets.values.get` ו-`update`, ה-`batchUpdate` עבור כל דבר שאין לו קיצור `values.*`, וצורות ה-response שמאפשרות לכם לשרשר עבודת המשך. אחרי השיעור הזה Track 3 גמור: יש לכם את המשטח המלא של Apps Script כדי לחבר כל אוטומציה של workbook שהצוות צריך.
 
 ## מתי להושיט יד ל-advanced service
 
@@ -12,19 +12,19 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 |---|---|---|
 | לקרוא כמה תאים, להגדיר ערך | שורה אחת | מוגזם |
 | לעבור על sheet של 5,000 שורות | עם batching | אותו רעיון, מעט מהיר יותר |
-| ליצור pivot table תכנותית | לא נתמך | `Sheets.Spreadsheets.batchUpdate` עם request `addPivotTable` |
+| ליצור pivot table באופן תכנותי | לא נתמך | `Sheets.Spreadsheets.batchUpdate` עם request של `addPivotTable` |
 | להוסיף 20 חוקי conditional-format בבת אחת | איטי (קריאה אחת לחוק) | `batchUpdate` אחד עם 20 איברי `addConditionalFormatRule` |
 | להעתיק פורמט מ-sheet A ל-sheet B (workbooks שונים) | מסורבל | `batchUpdate` עם requests של `copyPaste` |
-| להריץ request של Sheets API בדרך שה-REST docs מתעדים | משטח לא תואם | משקף את צורת ה-REST |
+| להריץ request של Sheets API בדרך שה-REST docs מתעדים | משטח לא תואם | משקף את הצורה של REST |
 
-אם אי פעם קראתם את [Sheets API REST reference](https://developers.google.com/sheets/api) וחשבתם "הלוואי שיכולתי לקרוא לזה מ-Apps Script", ה-advanced service הוא מה שמגשר על הפער. כל דבר ב-REST docs יש לו מקבילה ב-Sheets advanced service.
+אם אי פעם קראתם את [Sheets API REST reference](https://developers.google.com/sheets/api) וחשבתם "הלוואי שיכולתי לקרוא לזה מ-Apps Script", ה-advanced service הוא מה שמגשר על הפער. לכל דבר ב-REST docs יש מקבילה ב-Sheets advanced service.
 
 ## הפעלה (ריקוד manifest)
 
-ה-advanced service חייב להיכנס פר-script. שתי דרכים לעשות את זה:
+ה-advanced service חייב להיות מופעל פר-script. שתי דרכים לעשות את זה:
 
-1. **UI של העורך**: ברצועת השמאל של עורך Apps Script, לוחצים **Services then + then Google Sheets API then Add**. העורך מוסיף רשומה ל-manifest שלכם אוטומטית וסיימתם.
-2. **עריכת manifest**: פותחים את `appsscript.json` (Project Settings then מסמנים "Show appsscript.json manifest file in editor") ומוסיפים את רשומת ה-`dependencies.enabledAdvancedServices` בעצמכם:
+1. **UI של העורך**: ברצועה השמאלית של עורך Apps Script, לוחצים **Services then + then Google Sheets API then Add**. העורך מוסיף רשומה ל-manifest שלכם אוטומטית וסיימתם.
+2. **עריכת manifest**: פותחים את `appsscript.json` (Project Settings then מסמנים "Show appsscript.json manifest file in editor") ומוסיפים את הרשומה `dependencies.enabledAdvancedServices` בעצמכם:
 
 ```json
 {
@@ -45,11 +45,11 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 | שדה | מה זה עושה |
 |---|---|
-| `userSymbol` | שם ה-global שהעורך יוצר. לפי מוסכמה `Sheets` כך שהקוד שלכם קורא `Sheets.Spreadsheets.values.get(...)`. אפשר לשנות; אף אחד לא עושה. |
+| `userSymbol` | שם ה-global שהעורך יוצר. לפי מוסכמה `Sheets` כך שהקוד שלכם קורא `Sheets.Spreadsheets.values.get(...)`. אפשר לשנות; אף אחד לא משנה. |
 | `serviceId` | ה-service ID הפנימי של Google. ל-Sheets זה `"sheets"`. שירותים advanced אחרים: `"drive"`, `"gmail"`, `"calendar"`. |
 | `version` | גרסת API. Sheets ב-`v4`. |
 
-אחרי שמירה, העורך מפעיל את ה-API התואם ב-project GCP הבסיסי אוטומטית (עבור projects "default"). כשאתם מריצים את ה-function בפעם הראשונה, ה-OAuth consent prompt כולל עכשיו את ה-scope הרחב יותר שה-advanced service צריך.
+אחרי שמירה, העורך מפעיל את ה-API התואם ב-GCP project הבסיסי אוטומטית (עבור projects של "default"). כשאתם מריצים את ה-function בפעם הראשונה, ה-OAuth consent prompt כולל עכשיו את ה-scope הרחב יותר שה-advanced service צריך.
 
 ## הצורה של קריאות advanced-service
 
@@ -80,9 +80,9 @@ function writeOneCell() {
 
 שלושה דברים ששווה להצמיד:
 
-- **סדר הארגומנטים תואם ל-REST.** body קודם (כשיש), אז path params, אז query params. methods של קריאה אין להם body ומתחילים עם path params.
+- **סדר הארגומנטים תואם ל-REST.** body קודם (כשיש), אז path params, אז query params. ל-methods של קריאה אין body והם מתחילים עם path params.
 - **Ranges כוללים את שם ה-sheet.** `"Campaigns!F2:G61"`, לא `"F2:G61"`. ה-advanced service לא יודע על ה-active sheet בדרך ש-`SpreadsheetApp.getActiveSheet()` יודע.
-- **`valueInputOption` חשוב.** `"RAW"` כותב את הערך כמו שהוא. `"USER_ENTERED"` מנתח אותו כאילו משתמש הקליד אותו (אז `"=SUM(...)"` הופך לנוסחה, `"5/12/2026"` הופך לתאריך). ברירת המחדל ב-REST API היא ה-`"RAW"` השמרני יותר, אבל שווה להגדיר במפורש.
+- **`valueInputOption` חשוב.** `"RAW"` כותב את הערך כמו שהוא. `"USER_ENTERED"` מפרסר אותו כאילו משתמש הקליד אותו (אז `"=SUM(...)"` הופך לנוסחה, `"5/12/2026"` הופך לתאריך). ברירת המחדל ב-REST API היא ה-`"RAW"` השמרני יותר, אבל שווה להגדיר אותו במפורש.
 
 <Compare>
   <ComparePanel label="SpreadsheetApp: ברור, ללא pivot" tone="neutral">
@@ -93,7 +93,7 @@ const vals = sheet.getRange("F2:G61").getValues();
 // כדי ליצור pivot table:
 // לא נתמך. הייתם צריכים לכתוב script שמלווה
 // את המשתמש דרך Data → Pivot table ידנית.`}</code></pre>
-    <p className="mt-2 text-sm">ברור וארגונומי למקרה הנפוץ. אבל אין API תכנותי ל-pivots, לקונדישינל פורמטס בכמויות, או לכל דבר שחי בשכבת REST.</p>
+    <p className="mt-2 text-sm">ברור וארגונומי למקרה הנפוץ. אבל אין API תכנותי ל-pivots, ל-conditional formats בכמויות, או לכל דבר שחי בשכבת ה-REST.</p>
   </ComparePanel>
   <ComparePanel label="Advanced service: עוצמה, יותר מפורט" tone="positive">
     <pre className="font-mono text-xs"><code>{`const id = SpreadsheetApp.getActive().getId();
@@ -113,7 +113,7 @@ Sheets.Spreadsheets.batchUpdate(
 
 ## `batchUpdate` הוא הסוס העובד
 
-ה-surface האחר הוא `Sheets.Spreadsheets.batchUpdate`, שמקבל מערך של **requests** בקריאה אחת. ה-requests יכולים לעשות הכל: להוסיף sheet, להוסיף pivot table, להגדיר conditional formats, להקפיא שורות, להסתיר עמודות, copy/paste בין ranges. דוגמה:
+ה-surface האחר הוא `Sheets.Spreadsheets.batchUpdate`, שמקבל מערך של **requests** בקריאה אחת. ה-requests יכולים לעשות הכל: להוסיף sheet, להוסיף pivot table, להגדיר conditional formats, להקפיא שורות, להסתיר עמודות, לעשות copy/paste בין ranges. דוגמה:
 
 ```js
 Sheets.Spreadsheets.batchUpdate(
@@ -128,7 +128,7 @@ Sheets.Spreadsheets.batchUpdate(
 );
 ```
 
-round-trip אחד מיישם את כל שלושת ה-requests אטומית. מוסיפים 20 חוקי conditional-format עם 20 רשומות במערך; מקבלים קריאת רשת אחת במקום 20. ה-script של בונה ה-pivot של הצוות שנהג לקחת 90 שניות (יצירת sheets אחד בכל פעם, הגדרת פורמטים אחד בכל פעם) עכשיו לוקח 4 שניות עם הכל ב-`batchUpdate` יחיד.
+round-trip אחד מיישם את כל שלושת ה-requests באופן אטומי. מוסיפים 20 חוקי conditional-format עם 20 רשומות במערך; מקבלים קריאת רשת אחת במקום 20. ה-script של בונה ה-pivot של הצוות שנהג לקחת 90 שניות (יצירת sheets אחד בכל פעם, הגדרת פורמטים אחד בכל פעם) עכשיו לוקח 4 שניות עם הכל ב-`batchUpdate` יחיד.
 
 <StepThrough
   frames={[
@@ -138,7 +138,7 @@ round-trip אחד מיישם את כל שלושת ה-requests אטומית. מו
         <>
           אתם בונים מערך של request objects ב-JS:{" "}
           <code>[addSheet, addConditionalFormatRule, repeatCell, ...]</code>.
-          אין עדיין קריאות רשת; המערך חי בזיכרון של ה-script שלכם.
+          עדיין אין קריאות רשת; המערך חי בזיכרון של ה-script שלכם.
         </>
       ),
     },
@@ -148,7 +148,7 @@ round-trip אחד מיישם את כל שלושת ה-requests אטומית. מו
         <>
           <code>Sheets.Spreadsheets.batchUpdate({"{requests}"}, id)</code>{" "}
           שולח את כל המערך כ-RPC יחיד. Apps Script מעביר את זה ל-endpoint
-          Sheets v4 REST, שמיישם את ה-requests אטומית.
+          של Sheets v4 REST, שמיישם את ה-requests באופן אטומי.
         </>
       ),
     },
@@ -159,8 +159,8 @@ round-trip אחד מיישם את כל שלושת ה-requests אטומית. מו
           ה-response הוא{" "}
           <code>{`{ replies: [{ addSheet: { properties: { sheetId } } }, ...] }`}</code>.
           כל רשומה ב-<code>replies</code> תואמת ל-request המקביל.
-          ה-<code>sheetId</code> של ה-sheet החדש נמצא ב-reply, שאתם יכולים
-          להשתמש בו לשרשר requests המשך.
+          ה-<code>sheetId</code> של ה-sheet החדש נמצא ב-reply, ואתם יכולים
+          להשתמש בו כדי לשרשר requests של המשך.
         </>
       ),
     },
@@ -170,7 +170,7 @@ round-trip אחד מיישם את כל שלושת ה-requests אטומית. מו
         <>
           <code>batchUpdate</code> שני יכול עכשיו להשתמש ב-sheetId משלב 3
           כדי להוסיף pivot tables, להקפיא שורות וכו', על ה-sheet החדש שנוצר.
-          השרשור הוא מה שהופך את ה-advanced service לחזק.
+          השרשור הוא מה שהופך את ה-advanced service לחזק כל כך.
         </>
       ),
     },
@@ -179,12 +179,12 @@ round-trip אחד מיישם את כל שלושת ה-requests אטומית. מו
 
 ## קריאת ה-response
 
-כל קריאה של advanced-service מחזירה JS object רגיל שתואם לצורת response של REST. `values.get` מחזיר `{ range, majorDimension, values }`. `batchUpdate` מחזיר `{ spreadsheetId, replies, updatedSpreadsheet? }`, כאשר `replies` הוא מערך של תוצאות פר-request (ה-reply של request `addSheet` כולל את ה-`sheetId` של ה-sheet החדש, שאתם יכולים לשרשר ל-request המשך).
+כל קריאה של advanced-service מחזירה JS object רגיל שתואם לצורת ה-response של REST. `values.get` מחזיר `{ range, majorDimension, values }`. `batchUpdate` מחזיר `{ spreadsheetId, replies, updatedSpreadsheet? }`, כאשר `replies` הוא מערך של תוצאות פר-request (ה-reply של request `addSheet` כולל את ה-`sheetId` של ה-sheet החדש, שאתם יכולים לשרשר ל-request של המשך).
 
-זה החלק שעושה את ה-advanced service חזק. ה-reply object נושא את ה-IDs ואת ה-metadata שאתם צריכים לשרשר עבודה נוספת, בדרך ש-`Sheet` objects של `SpreadsheetApp` לא יכולים.
+זה החלק שהופך את ה-advanced service לחזק. ה-reply object נושא את ה-IDs ואת ה-metadata שאתם צריכים כדי לשרשר עבודה נוספת, בדרך ש-`Sheet` objects של `SpreadsheetApp` לא יכולים.
 
 <QuickCheck
-  question="אתם רוצים להוסיף תכנותית pivot table ל-tab Aggregator כל יום שני. איזה API יכול לעשות את זה?"
+  question="אתם רוצים להוסיף באופן תכנותי pivot table ל-tab Aggregator כל יום שני. איזה API יכול לעשות את זה?"
   options={[
     {
       id: "a",
@@ -196,11 +196,11 @@ round-trip אחד מיישם את כל שלושת ה-requests אטומית. מו
       id: "b",
       label: "Sheets.Spreadsheets.batchUpdate עם updateCells request שמספק שדה pivotTable.",
       correct: true,
-      explanation: "נכון. ה-Sheets advanced service חושף את Sheets v4 REST API ישירות. יצירת pivot היא updateCells request עם שדה pivotTable על התא. SpreadsheetApp לא תומך בזה כלל.",
+      explanation: "נכון. ה-Sheets advanced service חושף את Sheets v4 REST API ישירות. יצירת pivot היא updateCells request עם שדה pivotTable על התא. SpreadsheetApp לא תומך בזה בכלל.",
     },
     {
       id: "c",
-      label: "Sheets.Spreadsheets.values.update עם valueInputOption: 'USER_ENTERED' ונוסחה PIVOT() מיוחדת.",
+      label: "Sheets.Spreadsheets.values.update עם valueInputOption: 'USER_ENTERED' ונוסחה מיוחדת PIVOT().",
       correct: false,
       explanation: "אין נוסחת PIVOT(). pivots הם תכונה מבנית של ה-workbook, לא נוסחת תא; הם נוצרים דרך ה-API של batchUpdate.",
     },
@@ -216,26 +216,26 @@ round-trip אחד מיישם את כל שלושת ה-requests אטומית. מו
 
 שני חלקים לקטע המעשי הזה:
 
-1. **מאפשרים את ה-Sheets advanced service** ב-manifest. לוחצים **Services then + then Google Sheets API then Add** בעורך. מאשרים ש-`appsscript.json` עכשיו יש לו את רשומת `dependencies.enabledAdvancedServices` עם `serviceId: "sheets"`.
-2. **מיישמים `batchUpdateUsingAdvancedService`.** ההתחלה ריקה. קוראים `F2:G61` דרך `Sheets.Spreadsheets.values.get`, מסכמים את האיבר הראשון של כל שורה מוחזרת (זה ה-spend; השני הוא ה-revenue), וכותבים את הסכום ל-J1 דרך `Sheets.Spreadsheets.values.update` עם `valueInputOption: "RAW"`.
+1. **מפעילים את ה-Sheets advanced service** ב-manifest. לוחצים **Services then + then Google Sheets API then Add** בעורך. מאשרים שב-`appsscript.json` עכשיו יש את הרשומה `dependencies.enabledAdvancedServices` עם `serviceId: "sheets"`.
+2. **מיישמים `batchUpdateUsingAdvancedService`.** ההתחלה ריקה. קוראים `F2:G61` דרך `Sheets.Spreadsheets.values.get`, מסכמים את האיבר הראשון של כל שורה שמוחזרת (זה ה-spend; השני הוא ה-revenue), וכותבים את הסכום ל-J1 דרך `Sheets.Spreadsheets.values.update` עם `valueInputOption: "RAW"`.
 
-בפעם הראשונה שאתם מריצים את זה, מקבלים את ה-OAuth scope הרחב יותר. מאז ה-advanced service זמין על פני ה-project, כולל מ-functions ו-triggers אחרים.
+בפעם הראשונה שאתם מריצים את זה, מאשרים את ה-OAuth scope הרחב יותר. מאז ה-advanced service זמין על פני כל ה-project, כולל מ-functions ו-triggers אחרים.
 
 ## נפוץ בשטח
 
-- **מחולל pivot תכנותי** (שיעורים 2.2 ו-2.3 מכסים את אותם מנגנוני pivot מצד ה-UI). הצוות צריך pivot פר-buyer-פר-platform שמתחולל מחדש כל יום שני על נתוני השבוע הנוכחי. ל-`SpreadsheetApp` אין method ליצירת pivot; ל-`Sheets.Spreadsheets.batchUpdate` עם request `updateCells` שמספק שדה `pivotTable` יש. trigger בוקר יום שני אחד, קריאת batchUpdate אחת, pivot טרי.
-- **העתקת פורמט בין-workbook.** כשנוצר sheet dashboard חודשי חדש (מ-template), הפורמט של ה-sheet של חודש שעבר חייב להיות מועתק: conditional formats, frozen rows, רוחבי עמודות. `batchUpdate` יחיד עם requests של `copyPaste` (`pasteType: "PASTE_FORMAT"`) מטפל בכל זה; עם `SpreadsheetApp` זה היה עשר קריאות נפרדות.
-- **Conditional formatting בכמויות על עמודות חודשיות חדשות** (שיעור 2.6 מכסה את בונה החוקים ב-UI). כל חודש מוסיפים עמודה חדשה של spend / revenue / ROI ל-sheet פר-buyer. 20 חוקי conditional-format לתחזק (ירוק אם ROI > 1.5, צהוב אם 1.0-1.5, אדום מתחת). `batchUpdate` יחיד עם 20 רשומות `addConditionalFormatRule`; לוקח 2 שניות מול 40 עם המסלול פר-חוק של `SpreadsheetApp`.
-- **Sheets API pagination על ranges ענקיים.** range של 500,000 תאים חושף את מגבלת גודל ה-response של Apps Script כשנקרא דרך `SpreadsheetApp`. ה-advanced service תומך ב-paging דרך ranges בחלקים (`A1:A50000`, `A50001:A100000`, ...); כל קריאה מקבלת response ניתן לניהול.
-- **Vertex AI advanced service לקריאות Gemini.** Apps Script הוסיף **Vertex AI advanced service** ב-12 בינואר 2026 ([release notes](https://developers.google.com/apps-script/release-notes)). הוא קורא ל-Vertex AI API ישירות, עם OAuth שמטופל על ידי ה-wrapper של ה-advanced-service, כך ש-bound script יכול לבקש מ-Gemini טקסט או תמונות בלי לכתוב ידנית `UrlFetchApp` + auth tokens (שיעור 11 מכסה את המסלול הידני). לעבודה רגישה ל-audit-trail, זה המסלול ששיעור 5.6 ב-Track 5 מצביע עליו כחלופה הידידותית ל-`=AI()`: ריצה מתוזמנת כותבת ערכים literals ל-sheet, ה-script רושם את ה-prompt ואת ה-response, והתאים שחזירים כי הם כבר לא נוסחאות. מפעילים את השירות באותה דרך כמו Sheets: פאנל **Services** בעורך, בוחרים **Vertex AI API**.
+- **מחולל pivot תכנותי** (שיעורים 2.2 ו-2.3 מכסים את אותם מנגנוני pivot מצד ה-UI). הצוות צריך pivot פר-buyer-פר-platform שנבנה מחדש כל יום שני על נתוני השבוע הנוכחי. ל-`SpreadsheetApp` אין method ליצירת pivot; ל-`Sheets.Spreadsheets.batchUpdate` עם request של `updateCells` שמספק שדה `pivotTable` יש. trigger אחד של בוקר יום שני, קריאת batchUpdate אחת, pivot טרי.
+- **העתקת פורמט בין-workbooks.** כשנוצר sheet חדש של dashboard חודשי (מ-template), הפורמט של ה-sheet של חודש שעבר חייב להיות מועתק: conditional formats, frozen rows, רוחבי עמודות. `batchUpdate` יחיד עם requests של `copyPaste` (`pasteType: "PASTE_FORMAT"`) מטפל בכל זה; עם `SpreadsheetApp` זה היה עשר קריאות נפרדות.
+- **Conditional formatting בכמויות על עמודות חודשיות חדשות** (שיעור 2.6 מכסה את בונה החוקים ב-UI). כל חודש מוסיפים עמודה חדשה של spend / revenue / ROI ל-sheet פר-buyer. 20 חוקי conditional-format לתחזק (ירוק אם ROI > 1.5, צהוב אם 1.0-1.5, אדום מתחת). `batchUpdate` יחיד עם 20 רשומות `addConditionalFormatRule`; לוקח 2 שניות מול 40 במסלול פר-חוק של `SpreadsheetApp`.
+- **Sheets API pagination על ranges ענקיים.** range של 500,000 תאים חושף את מגבלת גודל ה-response של Apps Script כשהוא נקרא דרך `SpreadsheetApp`. ה-advanced service תומך ב-paging דרך ranges בחלקים (`A1:A50000`, `A50001:A100000`, ...); כל קריאה מקבלת response בגודל סביר.
+- **Vertex AI advanced service לקריאות Gemini.** Apps Script הוסיף **Vertex AI advanced service** ב-12 בינואר 2026 ([release notes](https://developers.google.com/apps-script/release-notes)). הוא קורא ל-Vertex AI API ישירות, עם OAuth שמטופל על ידי ה-wrapper של ה-advanced-service, כך ש-bound script יכול לבקש מ-Gemini טקסט או תמונות בלי לכתוב ידנית `UrlFetchApp` + auth tokens (שיעור 11 מכסה את המסלול הידני). לעבודה רגישה ל-audit-trail, זה המסלול ששיעור 5.6 ב-Track 5 מצביע עליו כחלופה הידידותית ל-`=AI()`: ריצה מתוזמנת כותבת ערכים literals ל-sheet, ה-script רושם את ה-prompt ואת ה-response, והתאים ניתנים לשחזור כי הם כבר לא נוסחאות. מפעילים את השירות באותה דרך כמו Sheets: פאנל **Services** בעורך, בוחרים **Vertex AI API**.
 
 ## מלכודות מקצועיות
 
-- **`Sheets is not defined`** בגוף ה-function אומר שרשומת ה-manifest עדיין לא שם. פאנל ה-Services של העורך מוסיף אותה; שמירת ה-manifest ביד גם עובדת. השגיאה לא יורה עד שה-function רצה, אז לא בוטחים ב-"זה מתקמפל"; מריצים פעם אחת לאימות.
-- **`valueInputOption: "USER_ENTERED"` מנתח באגרסיביות.** כתיבת המחרוזת `"5/12/2026"` כ-`USER_ENTERED` מפורשת כתאריך (12 במאי ב-locale ארה"ב, 5 בדצמבר ב-locale אירופי, תלוי ב-workbook). עבור טקסט גולמי ומספרים מחושבים מראש, `"RAW"` בטוח יותר. עבור ערכים שאמורים להתנהג כאילו הוקלדו (נוסחאות כמו `"=SUM(F2:F61)"`), `"USER_ENTERED"` נדרש.
-- **שירותים advanced נספרים מול אותן מכסות פר-יום כמו `SpreadsheetApp` פלוס מכסות Sheets API.** ל-Sheets API יש מכסה פר-project משלו (300 read requests/דקה, 60 write requests/דקה, free tier). trigger ש-batchUpdates 100 פעמים בשעה יכול לפגוע במגבלת ה-write; ה-API מחזיר 429 וה-script שוגה עם `Quota exceeded for quota metric 'Write requests'`. משתמשים ב-`batchUpdate` עם מספר requests במקום קריאות `batchUpdate` מרובות.
-- **bodies של request batchUpdate גדולים ומחרוזתיים.** כשמשהו משתבש, הודעת השגיאה שמית אינדקס request אבל ללא פירוט. התיקון הוא `console.log(JSON.stringify(requests, null, 2))` לפני הקריאה כך שתוכלו לראות את ה-payload המדויק. הדבקה ב-sandbox "Try it" של Sheets API לרוב מציפה את אי-התאמת ה-schema מהר יותר מהרצה מחדש ב-Apps Script.
-- **ה-advanced service של Drive יותר יקר מ-Sheets.** כשמפעילים את ה-advanced service של Drive לעבור על תיקיות או לשנות metadata של קבצים, כל קריאה מחזירה payload metadata כבד כברירת מחדל. משתמשים בפרמטר `fields` (`{ fields: "id, name" }`) כדי להקטין את ה-response. בלעדיו, איטרציה של 500 קבצים יכולה לפגוע במגבלות גודל response.
-- **הפעלת advanced service מרחיבה OAuth scopes.** מסך ההרשאה של ה-script עכשיו מבקש גישה רחבה יותר (למשל, "See and modify your Sheets"). ב-script project משותף, כל משתמש חייב לתת consent מחדש בריצה הבאה. לא מפעילים advanced services בקלילות על scripts של production שכל הצוות משתמש; מתאמים את ה-rollout.
-- **ה-`userSymbol` שלכם אבל לפי מוסכמה תואם את ה-API.** אתם יכולים לכתוב `"userSymbol": "MySheets"` ואז לקרוא `MySheets.Spreadsheets.values.get(...)`, אבל זה מבלבל. משאירים אותו כ-`"Sheets"` כך שהקוד שלכם תואם ל-docs ולתשובות ב-stack overflow.
-- **`values.get` מחזיר `undefined` עבור `response.values`.** כשה-range המבוקש ריק לחלוטין, ה-response משמיט את שדה ה-`values` לחלוטין. תמיד עושים default עם `response.values || []` כך שהקוד במורד לא יתפוצץ במקרה של sheet ריק.
+- **`Sheets is not defined`** בגוף ה-function אומר שהרשומה ב-manifest עדיין לא שם. פאנל ה-Services של העורך מוסיף אותה; שמירת ה-manifest ביד גם עובדת. השגיאה לא נזרקת עד שה-function רצה, אז לא בוטחים ב-"זה מתקמפל"; מריצים פעם אחת לאימות.
+- **`valueInputOption: "USER_ENTERED"` מפרסר באגרסיביות.** כתיבת המחרוזת `"5/12/2026"` כ-`USER_ENTERED` מתפרשת כתאריך (12 במאי ב-locale של ארה"ב, 5 בדצמבר ב-locale אירופי, תלוי ב-workbook). עבור טקסט גולמי ומספרים מחושבים מראש, `"RAW"` בטוח יותר. עבור ערכים שאמורים להתנהג כאילו הוקלדו (נוסחאות כמו `"=SUM(F2:F61)"`), `"USER_ENTERED"` נדרש.
+- **Advanced services נספרים מול אותן מכסות פר-יום כמו `SpreadsheetApp` פלוס המכסות של Sheets API.** ל-Sheets API יש מכסה פר-project משלו (300 read requests/דקה, 60 write requests/דקה, free tier). trigger שעושה batchUpdates 100 פעמים בשעה יכול לפגוע במגבלת ה-write; ה-API מחזיר 429 וה-script שוגה עם `Quota exceeded for quota metric 'Write requests'`. משתמשים ב-`batchUpdate` עם מספר requests במקום בקריאות `batchUpdate` מרובות.
+- **ה-bodies של request של batchUpdate גדולים ומחרוזתיים.** כשמשהו משתבש, הודעת השגיאה מזכירה אינדקס של request אבל ללא פירוט. התיקון הוא `console.log(JSON.stringify(requests, null, 2))` לפני הקריאה כך שתוכלו לראות את ה-payload המדויק. הדבקה ב-sandbox של "Try it" ב-Sheets API לרוב מציפה את אי-התאמת ה-schema מהר יותר מהרצה מחדש ב-Apps Script.
+- **ה-advanced service של Drive יותר יקר מזה של Sheets.** כשמפעילים את ה-advanced service של Drive כדי לעבור על תיקיות או לשנות metadata של קבצים, כל קריאה מחזירה payload metadata כבד כברירת מחדל. משתמשים בפרמטר `fields` (`{ fields: "id, name" }`) כדי להקטין את ה-response. בלעדיו, איטרציה של 500 קבצים יכולה לפגוע במגבלות גודל response.
+- **הפעלת advanced service מרחיבה OAuth scopes.** מסך ההרשאה של ה-script עכשיו מבקש גישה רחבה יותר (למשל, "See and modify your Sheets"). ב-script project משותף, כל משתמש חייב לתת consent מחדש בריצה הבאה. לא מפעילים advanced services בקלילות על scripts של production שכל הצוות משתמש בהם; מתאמים את ה-rollout.
+- **ה-`userSymbol` שלכם אבל לפי מוסכמה תואם את ה-API.** אתם יכולים לכתוב `"userSymbol": "MySheets"` ואז לקרוא `MySheets.Spreadsheets.values.get(...)`, אבל זה מבלבל. משאירים אותו כ-`"Sheets"` כך שהקוד שלכם יתאים ל-docs ולתשובות ב-stack overflow.
+- **`values.get` מחזיר `undefined` עבור `response.values`.** כשה-range המבוקש ריק לחלוטין, ה-response משמיט את שדה ה-`values` לחלוטין. תמיד מגדירים default עם `response.values || []` כדי שהקוד במורד לא יתפוצץ במקרה של sheet ריק.

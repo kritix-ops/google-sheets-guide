@@ -2,21 +2,21 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY
 
-שש הפונקציות האלה הן מה ש-`LAMBDA` (שיעור 1.18) בעצם קיים בשבילן. כל אחת מקבלת LAMBDA ומחילה אותו על מערך בצורה ספציפית: תא אחר תא (`MAP`), מקופל לערך אחד (`REDUCE`), מקופל עם שלבי ביניים שנשמרים (`SCAN`), פעם אחת לכל שורה (`BYROW`), פעם אחת לכל עמודה (`BYCOL`), או נוצר מאפס (`MAKEARRAY`). יחד הן מחליפות כל workflow של "תגרור את הנוסחה הזו ל-1000 שורות למטה" בתא אחד שמפיק את כל הטרנספורמציה.
+שש הפונקציות האלה הן מה ש-`LAMBDA` (שיעור 1.18) בעצם קיים בשבילן. כל אחת מקבלת LAMBDA ומחילה אותה על מערך בצורה ספציפית: תא אחר תא (`MAP`), מקופלת לערך אחד (`REDUCE`), מקופלת עם שלבי ביניים שנשמרים (`SCAN`), פעם אחת לכל שורה (`BYROW`), פעם אחת לכל עמודה (`BYCOL`), או נוצרת מאפס (`MAKEARRAY`). יחד הן מחליפות כל workflow של "תגרור את הנוסחה הזו ל-1000 שורות למטה" בתא אחד שמפיק את כל הטרנספורמציה.
 
-במונחי אדטק: כל עמודת KPI פר-שורה, כל אגרגציה ממושקלת, כל גרף burn-rate מצטבר, כל סיכום פר-קמפיין על פני pivot רחב. אלה אבני הבניין של כל המדף של עמודות מחושבות. השיעור מכסה את כל השש, עם הדגש על `MAP`, `REDUCE`, ו-`SCAN` כי הן נושאות את העומס הפדגוגי הגדול ביותר. `BYROW`/`BYCOL` הן וריאנטים קצרים של אותו רעיון; `MAKEARRAY` קיבל את ההצגה הקנונית המלאה בשיעור 1.11.
+במונחי אדטק: כל עמודת KPI פר-שורה, כל אגרגציה ממושקלת, כל גרף burn-rate מצטבר, כל סיכום פר-קמפיין על פני pivot רחב. אלה אבני הבניין של כל מערך העמודות המחושבות. השיעור מכסה את כל השש, עם הדגש על `MAP`, `REDUCE` ו-`SCAN` כי הן נושאות את העומס הפדגוגי הגדול ביותר. `BYROW`/`BYCOL` הן וריאנטים קצרים של אותו רעיון; `MAKEARRAY` קיבלה את ההצגה הקנונית המלאה בשיעור 1.11.
 
 ## MAP: החלת LAMBDA על כל תא
 
-`MAP(array1, [array2, ...], lambda)` מחזיר מערך חדש באותה צורה כמו הקלטים, שבו כל תא הוא ה-LAMBDA שהוחל על המיקום המקביל במערכי הקלט. עם מערך אחד, ה-LAMBDA מקבל parameter אחד; עם שני מערכים, שני parameters; וכן הלאה.
+`MAP(array1, [array2, ...], lambda)` מחזיר מערך חדש באותה צורה כמו הקלטים, שבו כל תא הוא ה-LAMBDA שהוחלה על המיקום המקביל במערכי הקלט. עם מערך אחד, ה-LAMBDA מקבלת parameter אחד; עם שני מערכים, שני parameters; וכן הלאה.
 
-תושיטו את היד ל-`MAP` בכל פעם שהייתם כותבים נוסחה בשורה 2 וגוררים אותה למטה. זה בדיוק העניין: תא אחד, נוסחה אחת, כל הטרנספורמציה. שורות חדשות במקור מרחיבות את הפלט אוטומטית כשמשלבים עם טווחים פתוחים.
+השתמשו ב-`MAP` בכל פעם שהייתם כותבים נוסחה בשורה 2 וגוררים אותה למטה. זה בדיוק העניין: תא אחד, נוסחה אחת, כל הטרנספורמציה. שורות חדשות במקור מרחיבות את הפלט אוטומטית כשמשלבים עם טווחים פתוחים.
 
 <FunctionRef name="MAP" />
 
 ### דוגמה 1: נתוני צעצוע
 
-ארבעה מחירים. החילו markup של 10% על כל שורה. נוסחה אחת ב-`D2` עושה spill לארבעת הערכים המודרגים.
+ארבעה מחירים. החילו markup של 10% על כל שורה. נוסחה אחת ב-`D2` עושה spill לארבעת הערכים המעודכנים.
 
 <RefDemo
   data={[
@@ -30,33 +30,33 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   formulaCell="D2"
   fillTo="D5"
   expectedFills={["=MAP(B2:B5, LAMBDA(p, p * 1.1))", "", "", ""]}
-  caption="MAP קורא ל-LAMBDA פעם אחת לכל שורה, מקבל את המחיר, ועושה spill לארבעת הערכים המודרגים ל-D2:D5. תוצאה: 110, 220, 165, 88."
+  caption="MAP קורא ל-LAMBDA פעם אחת לכל שורה, מקבל את המחיר, ועושה spill לארבעת הערכים המעודכנים ל-D2:D5. תוצאה: 110, 220, 165, 88."
 />
 
 ### דוגמה 2: נתוני אדטק אמיתיים
 
-עמודת ROI ללא גרירה על לוג הקמפיינים. `MAP` מקבל גם את עמודת ה-spend וגם את עמודת ה-revenue ומשרשר אותן ל-LAMBDA שמחזיר ROI.
+עמודת ROI ללא גרירה על לוג הקמפיינים. `MAP` מקבל גם את עמודת ה-spend וגם את עמודת ה-revenue ומעביר אותן ל-LAMBDA שמחזירה ROI.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
   expectedFormula="=MAP(E2:E13,F2:F13,LAMBDA(s,r,(r-s)/s))"
   task={<>חשבו ROI לכל קמפיין בנוסחת MAP אחת. שימו אותה ב-<code>H2</code> ותנו לה לעשות spill ל-<code>H2:H13</code>.</>}
-  hint={<>תבנית: <code>MAP(array1, array2, LAMBDA(a, b, body))</code>. ה-LAMBDA מקבל ערך אחד מכל מערך, מותאם מיקום.</>}
-  answer={<>הדרך ללא גרירה לחשב ROI לכל הטבלה. בלי MAP, היו כותבים <code>=(F2-E2)/E2</code> ב-H2 וגוררים למטה: בסדר עד שמישהו מוסיף שורה 14 והנוסחה לא מתרחבת. MAP מתחבר בנקיון עם טווחים פתוחים: <code>MAP(E2:E, F2:F, LAMBDA(s, r, IF(s="", "", (r-s)/s)))</code> ממשיך לגדול עם הלוג. המגן של IFERROR/IF-empty משיעור 1.10 עדיין חל.</>}
+  hint={<>תבנית: <code>MAP(array1, array2, LAMBDA(a, b, body))</code>. ה-LAMBDA מקבלת ערך אחד מכל מערך, מותאם מיקום.</>}
+  answer={<>הדרך ללא גרירה לחשב ROI לכל הטבלה. בלי MAP, היו כותבים <code>=(F2-E2)/E2</code> ב-H2 וגוררים למטה: בסדר עד שמישהו מוסיף שורה 14 והנוסחה לא מתרחבת. MAP מתחבר נקי עם טווחים פתוחים: <code>MAP(E2:E, F2:F, LAMBDA(s, r, IF(s="", "", (r-s)/s)))</code> ממשיך לגדול עם הלוג. ההגנה של IFERROR/IF-empty משיעור 1.10 עדיין חלה.</>}
 />
 
 ## REDUCE: קיפול מערך לערך יחיד
 
-`REDUCE(initial_value, array, LAMBDA(accumulator, current, body))` הולך על המערך משמאל לימין, משרשר *accumulator* רץ דרך ה-LAMBDA שלכם. ה-accumulator מתחיל ב-`initial_value` ומתעדכן בכל שלב; הפונקציה מחזירה את ה-accumulator הסופי אחרי שהמערך נגמר.
+`REDUCE(initial_value, array, LAMBDA(accumulator, current, body))` עובר על המערך משמאל לימין, ומעביר *accumulator* רץ דרך ה-LAMBDA שלכם. ה-accumulator מתחיל ב-`initial_value` ומתעדכן בכל שלב; הפונקציה מחזירה את ה-accumulator הסופי אחרי שהמערך נגמר.
 
-`REDUCE` הוא כלי האגרגציה הכללי ביותר ב-Sheets. `SUM`, `COUNT`, `AVERAGE`, `MAX`, `MIN`, `SUMIF` כולם מקרים פרטיים של REDUCE עם accumulator מסוים ושלב צמצום. הניצחון מופיע ברגע שהאגרגציה שלכם מותאמת מדי למובנים: ממוצעים ממושקלים, סכומים מותנים עם הסתעפויות מרובות, "הערך השני הכי גבוה", "השורה הראשונה שמספקת תנאי מורכב".
+`REDUCE` הוא כלי האגרגציה הכללי ביותר ב-Sheets. `SUM`, `COUNT`, `AVERAGE`, `MAX`, `MIN`, `SUMIF` כולם מקרים פרטיים של REDUCE עם accumulator מסוים ושלב צמצום. היתרון מופיע ברגע שהאגרגציה שלכם מותאמת מדי לפונקציות המובנות: ממוצעים ממושקלים, סכומים מותנים עם הסתעפויות מרובות, "הערך השני הכי גבוה", "השורה הראשונה שמספקת תנאי מורכב".
 
 <FunctionRef name="REDUCE" />
 
 ### דוגמה 1: נתוני צעצוע
 
-לסכם עמודה בדרך הקשה. `REDUCE` עם `0` כ-accumulator התחלתי ו-`acc + current` כשלב שווה ל-`SUM`. הנקודה היא שאתם רואים את המנגנון.
+סיכום עמודה בדרך הקשה. `REDUCE` עם `0` כ-accumulator התחלתי ו-`acc + current` כשלב שווה ל-`SUM`. הנקודה היא שאתם רואים את המנגנון.
 
 <RefDemo
   data={[
@@ -75,15 +75,15 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ### דוגמה 2: נתוני אדטק אמיתיים
 
-האגרגציה המותנית ש-`SUMIF` מוגבל מדי בשבילה. סכמו רק את ה-spends של קמפיינים שגדולים מ-300, עם הסף קל לשינוי במקום אחד.
+האגרגציה המותנית ש-`SUMIF` מוגבל מדי בשבילה. סכמו רק את ה-spends של קמפיינים שגדולים מ-300, כשהסף קל לשינוי במקום אחד.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H1"
   expectedFormula="=REDUCE(0,E2:E13,LAMBDA(a,s,IF(s>300,a+s,a)))"
   task={<>השתמשו ב-REDUCE כדי לסכם רק את ה-Spends של קמפיינים שגדולים מ-300. התוצאה היא מספר יחיד ב-<code>H1</code>.</>}
-  hint={<>תבנית: <code>REDUCE(initial, array, LAMBDA(acc, current, body))</code>. הגוף מוסיף את <code>current</code> ל-<code>acc</code> מותנה.</>}
-  answer={<>המקרה הספציפי הזה היה יכול להיות <code>=SUMIF(E2:E13, "{">"}300")</code>, אבל REDUCE מתכלל לכל תנאי שאתם יכולים לבטא ב-LAMBDA, לא רק לשפת הקריטריונים המוגבלת של SUMIF. הצוות משתמש ב-REDUCE ל"ממוצע ROI ממושקל לפי spend share" ול"ה-revenue השני הכי גבוה על פני כל הקמפיינים של Yoav": לאף אחד מהם אין מובנה.</>}
+  hint={<>תבנית: <code>REDUCE(initial, array, LAMBDA(acc, current, body))</code>. הגוף מוסיף את <code>current</code> ל-<code>acc</code> באופן מותנה.</>}
+  answer={<>המקרה הספציפי הזה היה יכול להיות <code>=SUMIF(E2:E13, "{">"}300")</code>, אבל REDUCE מתכלל לכל תנאי שאתם יכולים לבטא ב-LAMBDA, לא רק לשפת הקריטריונים המוגבלת של SUMIF. הצוות משתמש ב-REDUCE ל"ממוצע ROI ממושקל לפי spend share" ול"ה-revenue השני הכי גבוה על פני כל הקמפיינים של Yoav": לאף אחד מהם אין פונקציה מובנית.</>}
 />
 
 ## SCAN: REDUCE עם כל שלב נשמר
@@ -92,20 +92,20 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 <FunctionRef name="SCAN" />
 
-השימוש האדטקי הקנוני הוא ה-spend המצטבר הרץ. מיינו את הלוג לפי תאריך, ואז `SCAN` מפיק עמודה שמראה כמה הוצאתם דרך כל יום. צריבו את זה מול עמודת התאריך ויש לכם את גרף ה-burn-rate של הצוות.
+השימוש האדטקי הקנוני הוא ה-spend המצטבר הרץ. מיינו את הלוג לפי תאריך, ואז `SCAN` מפיק עמודה שמראה כמה הוצאתם עד כל יום. שרטטו את זה מול עמודת התאריך ויש לכם את גרף ה-burn-rate של הצוות.
 
 ```
 =SCAN(0, E2:E13, LAMBDA(acc, spend, acc + spend))
 ```
 
-על לוג הקמפיינים זה מחזיר שתים-עשרה ערכים: `342.18, 540.58, 1153.48, ...`. כל שורה היא ה-spend המצטבר דרך הקמפיין הזה. הראשון עונה על "האם הגענו ל-$5,000 עד אמצע החודש?" בלי שאף אחד יכתוב עמודת עזר אחת.
+על לוג הקמפיינים זה מחזיר שנים-עשר ערכים: `342.18, 540.58, 1153.48, ...`. כל שורה היא ה-spend המצטבר עד הקמפיין הזה. הראשון עונה על "האם הגענו ל-$5,000 עד אמצע החודש?" בלי שאף אחד יכתוב עמודת עזר אחת.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
   expectedFormula="=SCAN(0,E2:E13,LAMBDA(a,s,a+s))"
   task={<>בנו עמודת Spend מצטבר רץ. שימו את נוסחת ה-SCAN ב-<code>H2</code> כדי שתעשה spill ל-<code>H2:H13</code>.</>}
-  hint={<>אותה חתימה כמו REDUCE אבל מחזיר כל שלב. <code>SCAN(initial, array, LAMBDA(acc, current, body))</code>.</>}
+  hint={<>אותה חתימה כמו REDUCE אבל מחזירה כל שלב. <code>SCAN(initial, array, LAMBDA(acc, current, body))</code>.</>}
   answer={<>SCAN שומר על כל ערך accumulator, לא רק על האחרון. שלבו אותו עם עמודת התאריכים של הקמפיינים ויש לכם גרף spend-מצטבר עם נוסחה אחת. לתצוגה חלקה יותר של רץ-שבועי, החליפו את גוף ה-LAMBDA בצבירה חלונית, או מיינו את הלוג לפי תאריך קודם (SORT משיעור 1.14) כדי שהמצטבר ייקרא בסדר כרונולוגי.</>}
 />
 
@@ -113,7 +113,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 `BYROW(range, LAMBDA(row, body))` מחיל LAMBDA על כל שורה של הטווח ומחזיר עמודה יחידה של תוצאות. `BYCOL(range, LAMBDA(col, body))` עושה את אותו דבר לכל עמודה ומחזיר שורה יחידה.
 
-אלה הבחירה הנכונה כש-LAMBDA צריך לראות שורה או עמודה שלמה בבת אחת, בדרך כלל כי הגוף קורא לאגרגציה כמו `SUM`, `AVERAGE`, `MAX` עליה.
+אלה הבחירה הנכונה כש-LAMBDA צריכה לראות שורה או עמודה שלמה בבת אחת, בדרך כלל כי הגוף קורא לאגרגציה כמו `SUM`, `AVERAGE`, `MAX` עליה.
 
 <FunctionRef name="BYROW" />
 
@@ -124,11 +124,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 =BYCOL(E2:F13, LAMBDA(col, AVERAGE(col))) → ממוצע Spend, ממוצע Revenue (שורה 1×2)
 ```
 
-באדטק, `BYROW` מופיע לרוב למרג'יני רווח פר-שורה על פני טווח רב-עמודות: `=BYROW(Campaigns[[Spend]:[Revenue]], LAMBDA(row, (INDEX(row,1,2)-INDEX(row,1,1))/INDEX(row,1,2)))`. `BYCOL` הוא כלי סיכום עמודה ל-pivot tables רחבים.
+באדטק, `BYROW` מופיע לרוב למרג'יני רווח פר-שורה על פני טווח רב-עמודות: `=BYROW(Campaigns[[Spend]:[Revenue]], LAMBDA(row, (INDEX(row,1,2)-INDEX(row,1,1))/INDEX(row,1,2)))`. `BYCOL` הוא כלי סיכום העמודה ל-pivot tables רחבים.
 
 ## MAKEARRAY: בניית מערך מאפס
 
-`MAKEARRAY(rows, cols, LAMBDA(row_index, col_index, body))` יוצר מערך טרי. ה-LAMBDA מקבל את ה-row וה-col ה-1-indexed ומחזיר את ערך התא. ההצגה הקנונית המלאה היא בשיעור 1.11; כאן הוא מתחבר למשפחת ה-helper.
+`MAKEARRAY(rows, cols, LAMBDA(row_index, col_index, body))` יוצרת מערך חדש. ה-LAMBDA מקבלת את ה-row וה-col ה-1-indexed ומחזירה את ערך התא. ההצגה הקנונית המלאה היא בשיעור 1.11; כאן היא מתחברת למשפחת ה-helper.
 
 <FunctionRef name="MAKEARRAY" />
 
@@ -136,29 +136,29 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 =MAKEARRAY(10, 10, LAMBDA(r, c, r * c))
 ```
 
-טבלת כפל 10×10. בעבודת אדטק, `MAKEARRAY` בעיקר משמש למטריצות תרחישים (רשתות cost tier × ROI tier), טבלאות כיול, ונתוני מבחן סינתטיים לפני שה-`IMPORTRANGE` האמיתי נוחת.
+טבלת כפל 10×10. בעבודת אדטק, `MAKEARRAY` בעיקר משמשת למטריצות תרחישים (רשתות cost tier × ROI tier), טבלאות כיול, ונתוני מבחן סינתטיים לפני שה-`IMPORTRANGE` האמיתי נוחת.
 
 ## מלכודות נפוצות
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=MAP(A2:A10, LAMBDA(x, y, x + y))</code></pre>
-    <p className="mt-2 text-sm"><strong>אי-התאמה במספר ארגומנטים.</strong> ה-LAMBDA מצפה לשני parameters (<code>x</code>, <code>y</code>) אבל MAP מעביר רק אחד כי יש רק מערך קלט אחד. שוגה עם "Lambda's parameter count is incorrect." טעות קלה כשמעתיקים LAMBDA שנכתב ל-MAP אחר ושוכחים לעדכן את מספר המערכים.</p>
+    <p className="mt-2 text-sm"><strong>אי-התאמה במספר ארגומנטים.</strong> ה-LAMBDA מצפה לשני parameters (<code>x</code>, <code>y</code>) אבל MAP מעביר רק אחד כי יש רק מערך קלט אחד. מחזיר שגיאה "Lambda's parameter count is incorrect." טעות קלה כשמעתיקים LAMBDA שנכתבה ל-MAP אחר ושוכחים לעדכן את מספר המערכים.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>=MAP(A2:A10, B2:B10, LAMBDA(x, y, x + y))</code></pre>
-    <p className="mt-2 text-sm"><strong>שני מערכים, שני parameters.</strong> MAP משרשר ערך אחד מכל מערך ל-LAMBDA, מותאם מיקום. מספר ה-parameters חייב להתאים בדיוק למספר המערכים.</p>
+    <p className="mt-2 text-sm"><strong>שני מערכים, שני parameters.</strong> MAP מעביר ערך אחד מכל מערך ל-LAMBDA, מותאם מיקום. מספר ה-parameters חייב להתאים בדיוק למספר המערכים.</p>
   </ComparePanel>
 </Compare>
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=REDUCE({}, E2:E13, LAMBDA(acc, s, acc + s))`}</code></pre>
-    <p className="mt-2 text-sm"><strong>אי-התאמה בסוג ה-accumulator.</strong> ה-accumulator ההתחלתי הוא מערך ריק (<code>{`{}`}</code>) אבל הגוף מוסיף סקלר אליו. השלב הראשון מחשב <code>{`{}`} + 342.18</code>, ש-Sheets לא יכול לפתור נקי: מערך-ריק פלוס סקלר מפיק <code>#VALUE!</code> בשלב הראשון, וגם כשהמערך ההתחלתי לא ריק סמנטיקת ה-broadcasting לא תיתן לכם את הסכום הרץ שהתכוונתם אליו. ה-initial value קובע בשקט את סוג וצורת ה-accumulator לכל ההליכה; בחרו את הלא נכון וכל שלב שאחריו שגוי.</p>
+    <p className="mt-2 text-sm"><strong>אי-התאמה בסוג ה-accumulator.</strong> ה-accumulator ההתחלתי הוא מערך ריק (<code>{`{}`}</code>) אבל הגוף מוסיף אליו סקלר. השלב הראשון מחשב <code>{`{}`} + 342.18</code>, ש-Sheets לא יכול לפתור בצורה נקייה: מערך-ריק פלוס סקלר מפיק <code>#VALUE!</code> בשלב הראשון, וגם כשהמערך ההתחלתי לא ריק סמנטיקת ה-broadcasting לא תיתן לכם את הסכום הרץ שהתכוונתם אליו. ה-initial value קובע בשקט את סוג וצורת ה-accumulator לכל המעבר; בחרו את הלא נכון וכל שלב שאחריו יהיה שגוי.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=REDUCE(0, E2:E13, LAMBDA(acc, s, acc + s))`}</code></pre>
-    <p className="mt-2 text-sm"><strong>התאימו את סוג ה-initial value לפעולה של הגוף.</strong> accumulator מספרי (<code>0</code>) לסכומים מספריים. השתמשו ב-<code>""</code> עם <code>acc &amp; s</code> לשרשור מחרוזות. השתמשו ב-array literal של שורה אחת כמו <code>{`{0, 0}`}</code> אם אתם באמת רוצים לקפל שני סכומים מקבילים בבת אחת. תמיד תדמיינו את הסוגים של השלב הראשון לפני שאתם מתחייבים.</p>
+    <p className="mt-2 text-sm"><strong>התאימו את סוג ה-initial value לפעולה של הגוף.</strong> accumulator מספרי (<code>0</code>) לסכומים מספריים. השתמשו ב-<code>""</code> עם <code>acc &amp; s</code> לשרשור מחרוזות. השתמשו ב-array literal של שורה אחת כמו <code>{`{0, 0}`}</code> אם אתם באמת רוצים לקפל שני סכומים מקבילים בבת אחת. תמיד תחשבו על הסוגים של השלב הראשון לפני שאתם מתחייבים.</p>
   </ComparePanel>
 </Compare>
 
@@ -169,13 +169,13 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
       id: "a",
       label: "=BYROW(E2:F13, LAMBDA(row, SUM(row)))",
       correct: false,
-      explanation: "זה מחזיר SUM(spend + revenue) פר שורה, לא את המרג'ין (revenue - spend) / revenue. BYROW מקבל את טווח השורה המלא; צריך לעשות index לתוכו.",
+      explanation: "זה מחזיר SUM(spend + revenue) פר שורה, לא את המרג'ין (revenue - spend) / revenue. BYROW מקבל את טווח השורה המלא; צריך לבצע index לתוכו.",
     },
     {
       id: "b",
       label: "=MAP(E2:E13, F2:F13, LAMBDA(s, r, (r-s)/r))",
       correct: true,
-      explanation: "MAP עם שני מערכים משרשר את (s, r) המקבילים ל-LAMBDA. ה-LAMBDA מחשב (r-s)/r פר שורה. התוצאה עושה spill ל-12 תאים. MAP הוא הכלי הנכון כש-LAMBDA רוצה סקלרים מתאים מקבילים; BYROW הוא הכלי הנכון כש-LAMBDA רוצה את השורה השלמה כטווח.",
+      explanation: "MAP עם שני מערכים מעביר את (s, r) המקבילים ל-LAMBDA. ה-LAMBDA מחשב (r-s)/r פר שורה. התוצאה עושה spill ל-12 תאים. MAP הוא הכלי הנכון כש-LAMBDA רוצה סקלרים מתאים מקבילים; BYROW הוא הכלי הנכון כש-LAMBDA רוצה את השורה השלמה כטווח.",
     },
     {
       id: "c",
@@ -197,27 +197,27 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 | ערך אחד פר עמודה על פני טווח רב-שורות | `BYCOL` |
 | בניית רשת מ-row/column indices לבד | `MAKEARRAY` |
 
-לחישובי תא-תא טהורים (markup, ROI פר שורה, נרמול), `MAP` ו-`ARRAYFORMULA` (שיעור 1.10) עושים עבודה דומה. `ARRAYFORMULA` ישן יותר ולפעמים מהיר יותר במעט על מערכים גדולים מאוד; `MAP` קריא יותר ומפורש יותר כי ה-LAMBDA נותן שמות ל-parameters שלו. ברירת המחדל היא `MAP`; תושיטו את היד ל-`ARRAYFORMULA` רק כש-`MAP` איטי באופן מדיד.
+לחישובי תא-תא טהורים (markup, ROI פר שורה, נרמול), `MAP` ו-`ARRAYFORMULA` (שיעור 1.10) עושים עבודה דומה. `ARRAYFORMULA` ישן יותר ולפעמים מהיר יותר במעט על מערכים גדולים מאוד; `MAP` קריא יותר ומפורש יותר כי ה-LAMBDA נותנת שמות ל-parameters שלה. ברירת המחדל היא `MAP`; פנו ל-`ARRAYFORMULA` רק כש-`MAP` איטי באופן מדיד.
 
 ## נפוץ בשטח
 
-- **`MAP` למדף השלם של עמודות מחושבות.** Markups בכמויות, נרמולים, ROI פר קמפיין, רווח פר שורה, גזירת מפתח cohort. מחליף נוסחאות גרירה שמתיישנות בהוספת שורות.
-- **`REDUCE` לאגרגציות ש-`SUMIFS` לא יכול.** ממוצעים ממושקלים לפי spend share, סכומים מותנים עם שלוש הסתעפויות, "הערך הקטן ביותר שאינו אפס", "השורה הראשונה שמתאימה לתחזית מורכבת".
+- **`MAP` לכל מערך העמודות המחושבות.** Markups בכמויות, נרמולים, ROI פר קמפיין, רווח פר שורה, גזירת מפתח cohort. מחליף נוסחאות גרירה שמתיישנות בהוספת שורות.
+- **`REDUCE` לאגרגציות ש-`SUMIFS` לא יכול.** ממוצעים ממושקלים לפי spend share, סכומים מותנים עם שלוש הסתעפויות, "הערך הקטן ביותר שאינו אפס", "השורה הראשונה שעומדת בתנאי מורכב".
 - **`SCAN` לסכומים רצים וגרפים של burn-rate.** Spend מצטבר, burn תקציב יום-יום, revenue מתגלגל, עקומות drawdown.
 - **`BYROW` לאגרגציות פר-קמפיין על פני מספר עמודות.** מרג'ין רווח (Spend, Revenue), פיזור (Min, Max), ציון מורכב על פני pivot של מטריקה.
 - **`BYCOL` לשורות סיכום על פני pivot tables רחבים.** ממוצעי עמודה על רשת revenue פר-buyer-פר-vertical, שונויות עמודה להשוואה לבנצ'מרק.
-- **`MAKEARRAY` למטריצות תרחישים.** טבלאות רגישות שבהן כל תא מחושב מ-`(price_tier_index × roi_tier_index)`, שורות מבחן סינתטיות לפני שה-`IMPORTRANGE` האמיתי נוחת.
+- **`MAKEARRAY` למטריצות תרחישים.** טבלאות רגישות שבהן כל תא מחושב מ-`(price_tier_index × roi_tier_index)`, שורות בדיקה סינתטיות לפני שה-`IMPORTRANGE` האמיתי נוחת.
 
 ## מלכודות מקצועיות
 
 - **מספר ה-parameters של ה-LAMBDA חייב להתאים לצורת הקריאה.** `MAP` עם שני מערכים צריך LAMBDA עם שני parameters; `REDUCE` ו-`SCAN` תמיד מקבלים LAMBDA עם שני parameters (acc, current); `BYROW`/`BYCOL` מקבלים LAMBDA עם parameter אחד (השורה או העמודה). אי-התאמה מחזירה הודעת שגיאה ברורה; שימו לב אליה.
-- **ה-initial value של `REDUCE` קובע את סוג ה-accumulator לכל ההליכה.** השתמשו ב-`0` למספרים, `""` לשרשור מחרוזות, `{}` (מערך ריק) לצבירת מערך. סוג שגוי גורם לשגיאות סוג עמוק בתוך ה-LAMBDA.
+- **ה-initial value של `REDUCE` קובע את סוג ה-accumulator לכל המעבר.** השתמשו ב-`0` למספרים, `""` לשרשור מחרוזות, `{}` (מערך ריק) לצבירת מערך. סוג שגוי גורם לשגיאות סוג עמוק בתוך ה-LAMBDA.
 - **`BYROW` / `BYCOL` תמיד מחזירים עמודה/שורה, גם על קלטים של שורה/עמודה יחידה.** קלט של שורה 1 ל-`BYROW` מחזיר עמודה של תא אחד, לא סקלר. עטפו ב-`INDEX(..., 1, 1)` אם צריך סקלר חשוף.
-- **עלות `MAKEARRAY(rows, cols, ...)` היא `rows × cols` קריאות LAMBDA.** `MAKEARRAY(1000, 1000, ...)` קורא ל-LAMBDA מיליון פעמים. Sheets יאט לזחילה. תבנו רק את מה שאתם צריכים.
-- **אין סיום מוקדם.** `REDUCE` הולך על כל המערך בכל פעם. אין "עצור כשהתנאי התקיים". אתם יכולים לקצר את גוף ה-LAMBDA (להחזיר `acc` בלי שינוי בדגל), אבל אתם עדיין משלמים על ההליכה המלאה.
-- **פונקציות תנודתיות בתוך helpers מתחשבות מחדש בכל שינוי.** `LAMBDA(x, NOW() - x)` בתוך `MAP` על טווח של 1000 שורות קורא ל-`NOW()` אלף פעמים בכל חישוב מחדש, ו-`NOW()` תנודתי. כל הנוסחה הופכת תנודתית גם היא. הימנעו מ-`NOW`/`TODAY`/`RAND`/`RANDARRAY`/`INDIRECT`/`OFFSET` בתוך LAMBDAs של helpers אלא אם אתם באמת מתכוונים.
-- **ביצועים מול `ARRAYFORMULA`.** לחישובי תא-תא, `MAP` ו-`ARRAYFORMULA` שווי ערך בערך. `ARRAYFORMULA` יכול להיות מהיר יותר על מערכים מאוד גדולים; `MAP` מפורש יותר. בחרו ב-`MAP` לקריאות והחליפו רק עם מדידות.
+- **עלות `MAKEARRAY(rows, cols, ...)` היא `rows × cols` קריאות LAMBDA.** `MAKEARRAY(1000, 1000, ...)` קורא ל-LAMBDA מיליון פעמים. Sheets יזחל. תבנו רק את מה שאתם צריכים.
+- **אין סיום מוקדם.** `REDUCE` עובר על כל המערך בכל פעם. אין "עצור כשהתנאי התקיים". אפשר לקצר את גוף ה-LAMBDA (להחזיר `acc` בלי שינוי כדגל), אבל עדיין משלמים על המעבר המלא.
+- **פונקציות תנודתיות בתוך helpers מחושבות מחדש בכל שינוי.** `LAMBDA(x, NOW() - x)` בתוך `MAP` על טווח של 1000 שורות קורא ל-`NOW()` אלף פעמים בכל חישוב מחדש, ו-`NOW()` תנודתי. כל הנוסחה הופכת תנודתית גם היא. הימנעו מ-`NOW`/`TODAY`/`RAND`/`RANDARRAY`/`INDIRECT`/`OFFSET` בתוך LAMBDAs של helpers אלא אם אתם באמת מתכוונים לכך.
+- **ביצועים מול `ARRAYFORMULA`.** לחישובי תא-תא, `MAP` ו-`ARRAYFORMULA` שווי ערך בערך. `ARRAYFORMULA` יכול להיות מהיר יותר על מערכים מאוד גדולים; `MAP` מפורש יותר. בחרו ב-`MAP` לקריאות והחליפו רק על סמך מדידות.
 
 ## עכשיו לעבודה אמיתית
 
-לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. תכתבו ארבע נוסחאות: `MAP` שמחשב ROI פר-שורה, `REDUCE` שמסכם רק את ה-Spends מעל סף, `SCAN` שמפיק עמודת Spend מצטבר רצה, ו-`BYROW` שמחשב מרג'ין רווח פר-קמפיין על פני עמודות Spend + Revenue.
+לחצו על **Start lesson** כדי לפתוח את לוג הקמפיינים. תכתבו ארבע נוסחאות: `MAP` שמחשב ROI פר-שורה, `REDUCE` שמסכם רק את ה-Spends מעל סף, `SCAN` שמפיק עמודת Spend מצטבר רץ, ו-`BYROW` שמחשב מרג'ין רווח פר-קמפיין על פני עמודות Spend + Revenue.

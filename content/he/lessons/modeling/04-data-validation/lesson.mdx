@@ -2,13 +2,13 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Data validation: רשימות, תנאים, נוסחאות מותאמות
 
-workbook בלי validation הוא פרויקט ניקיון נתונים שמחכה לקרות. מישהו מקליד `Yoav Chen` במקום `Yoav Cohen`. מישהו מזין `Tabolla` לפלטפורמה. מישהו טועה בהקלדה של spend ל-`-3850`. כל אחד מאלה משחית בשקט כל pivot, lookup ו-SUMIFS במורד הזרם עד שמישהו מוצא את זה שבועות אחרי. Data validation הוא התיקון הזול שמשמשים בו פעם אחת ומנע את כל ה-class של הבאג לתמיד.
+workbook בלי validation הוא פרויקט ניקיון נתונים שמחכה לקרות. מישהו מקליד `Yoav Chen` במקום `Yoav Cohen`. מישהו מזין `Tabolla` לפלטפורמה. מישהו טועה בהקלדה של spend ל-`-3850`. כל אחד מאלה משחית בשקט כל pivot, lookup ו-SUMIFS במורד הזרם עד שמישהו מוצא את זה שבועות אחרי. Data validation הוא התיקון הזול שמטמיעים פעם אחת ומונע את כל מחלקת הבאגים הזו לתמיד.
 
-Validation היא מדיניות, לא עיצוב. Conditional formatting בלסון 2.6 הופך ערך גרוע לנראה אחרי שהוא נחת; validation מסרב לתת לו לנחות מלכתחילה. ההבדל חשוב כש-12 buyers על פני שני אזורי זמן מקלידים לאותו tab. עד ש-conditional formatting צובע את התא באדום, הערך הגרוע כבר שעה שם וה-dashboard כבר צולם.
+Validation היא מדיניות, לא עיצוב. Conditional formatting בשיעור 2.6 הופך ערך גרוע לנראה אחרי שהוא נחת; validation מסרב לתת לו לנחות מלכתחילה. ההבדל חשוב כש-12 buyers על פני שני אזורי זמן מקלידים לאותו tab. עד ש-conditional formatting צובע את התא באדום, הערך הגרוע כבר שעה שם וה-dashboard כבר צולם.
 
 ## שלושה דפוסים, תפריט אחד
 
-`Data → Data validation` הוא המקום שבו זה חי. הדיאלוג נותן שלושה דפוסים שמכסים כמעט כל מקרה אמיתי:
+`Data → Data validation` הוא המקום שבו זה יושב. הדיאלוג נותן שלושה דפוסים שמכסים כמעט כל מקרה אמיתי:
 
 | דפוס | מתי להשתמש | סוג ב-Sheets API |
 |---|---|---|
@@ -16,7 +16,7 @@ Validation היא מדיניות, לא עיצוב. Conditional formatting בלס
 | Dropdown (מטווח) | רשימות שמשתנות עם הזמן: roster של buyers, שמות verticals, מזהי חשבון | `ONE_OF_RANGE` |
 | Custom formula | כל דבר אחר: `Spend > 0`, `Date >= start_of_quarter`, `LEN(name) > 1` | `CUSTOM_FORMULA` |
 
-יש עוד (number-between, date-after, text-contains) אבל בפועל מגיעים לשלושת אלה. עץ ההחלטה: האם הערך מגיע מרשימה סגורה (dropdown) או שהוא צריך לקיים כלל (custom formula)?
+יש עוד (number-between, date-after, text-contains) אבל בפועל פונים לשלושת אלה. עץ ההחלטה: האם הערך מגיע מרשימה סגורה (dropdown) או שהוא צריך לקיים כלל (custom formula)?
 
 <QuickCheck
   question="חבר/ה לצוות שואל/ת 'האם עמודת Status (ערכים: active, paused, archived) צריכה להיות dropdown או validation עם custom formula?'. מהי התשובה הנכונה?"
@@ -25,19 +25,19 @@ Validation היא מדיניות, לא עיצוב. Conditional formatting בלס
       id: "a",
       label: "Custom formula: =OR(A2=\"active\", A2=\"paused\", A2=\"archived\")",
       correct: false,
-      explanation: "זה עובד, אבל זה הכלי הלא נכון. Custom formula זה מה שמגיעים אליו כשאף צורה של dropdown לא מתאימה. כאן הערכים הם רשימה סגורה. השתמשו ב-dropdown inline.",
+      explanation: "זה עובד, אבל זה הכלי הלא נכון. Custom formula זה מה שפונים אליו כשאף צורה של dropdown לא מתאימה. כאן הערכים הם רשימה סגורה. השתמשו ב-dropdown inline.",
     },
     {
       id: "b",
       label: "Inline dropdown (ONE_OF_LIST) עם שלושת הערכים",
       correct: true,
-      explanation: "אוצר המילים סגור וקטן (שלושה ערכים). dropdown inline הוא הבחירה הפשוטה ביותר, שמתעדת את עצמה. משתמשים רואים את האפשרויות בלי להיות צריכים לדעת את הכלל.",
+      explanation: "אוצר המילים סגור וקטן (שלושה ערכים). dropdown inline הוא הבחירה הפשוטה ביותר, ומתעדת את עצמה. משתמשים רואים את האפשרויות בלי שיצטרכו לדעת את הכלל.",
     },
     {
       id: "c",
       label: "dropdown מטווח (ONE_OF_RANGE) שמצביע על tab Statuses",
       correct: false,
-      explanation: "יתר על המידה. ONE_OF_RANGE זוהר כשהרשימה דינמית (roster של buyers שגדל). רשימת סטטוס קבועה של שלושה ערכים לא צריכה tab משלה.",
+      explanation: "יתר על המידה. ONE_OF_RANGE מבריק כשהרשימה דינמית (roster של buyers שגדל). רשימת סטטוס קבועה של שלושה ערכים לא צריכה tab משלה.",
     },
   ]}
 />
@@ -50,7 +50,7 @@ Validation היא מדיניות, לא עיצוב. Conditional formatting בלס
 - **Strict לכללי סימן.** Spend, revenue, click count: מספרים שליליים לא צריכים להגיע לגיליון מלכתחילה. דוחים.
 - **Warning לספים רכים.** "Spend מעל $1000 נראה גבוה, אתם בטוחים?": זו אזהרה, לא דחייה, כי הוצאה של $1500 לא *שגויה*, רק לא רגילה.
 
-המלכודת: **אזהרה שמתעלמים ממנה ב-5 אחר הצהריים היא data**. אם הכלל באמת חשוב, עושים אותו strict.
+המלכודת: **אזהרה שמתעלמים ממנה ב-5 אחר הצהריים נכנסת לנתונים**. אם הכלל באמת חשוב, עושים אותו strict.
 
 <Compare>
   <ComparePanel label="Warning: מתעלמים בלחץ" tone="negative">
@@ -60,8 +60,8 @@ On invalid data: Show warning
 יום שישי 5 אחר הצהריים: buyer מקליד "Yoav Chen"
 Sheets מציג: "Are you sure?"
 לוחצים "OK" ➜ ערך נשמר
-שני: ה-dashboard מפספס את השורה`}</code></pre>
-    <p className="mt-2 text-sm">Warning הוא speed bump, לא קיר. כל אחד יכול ללחוץ. עד שמגלים את הטעות, שלושה דוחות במורד הזרם כבר מפנים לשורה הגרועה.</p>
+ביום שני: ה-dashboard מפספס את השורה`}</code></pre>
+    <p className="mt-2 text-sm">Warning הוא speed bump, לא קיר. כל אחד יכול ללחוץ עליו ולהמשיך. עד שמגלים את הטעות, שלושה דוחות במורד הזרם כבר מפנים לשורה הגרועה.</p>
   </ComparePanel>
   <ComparePanel label="Strict: מסרב לקלט גרוע" tone="positive">
     <pre className="font-mono text-xs"><code>{`כלל: Buyer חייב להיות ב-roster
@@ -71,7 +71,7 @@ On invalid data: Reject input
 Sheets מציג: "Invalid input" + התא מתאפס
 ה-buyer שם לב, מתקן ל-"Yoav Cohen"
 שום שורה פגומה לא נוחתת`}</code></pre>
-    <p className="mt-2 text-sm">Strict הוא ברירת המחדל לכל כלל שחשוב. רגע ה-"אני באמת מתכוון לזה" הוא כש-ה-buyer חושב פעמיים ומתקן.</p>
+    <p className="mt-2 text-sm">Strict הוא ברירת המחדל לכל כלל שחשוב. הרגע של "אני באמת מתכוון לזה" הוא כש-ה-buyer חושב פעמיים ומתקן.</p>
   </ComparePanel>
 </Compare>
 
@@ -82,32 +82,32 @@ Sheets מציג: "Invalid input" + התא מתאפס
       id: "a",
       label: "Spend > $1000: 'זה גבוה באופן לא רגיל, אתם בטוחים?'",
       correct: false,
-      explanation: "לא רגיל זה לא שגוי. buyer שמריץ launch גדול לגיטימית מוציא $1500 ביום. Warning נכון כאן; דחייה תחסום עבודה אמיתית.",
+      explanation: "לא רגיל זה לא שגוי. buyer שמריץ launch גדול מוציא לגיטימית $1500 ביום. Warning נכון כאן; דחייה תחסום עבודה אמיתית.",
     },
     {
       id: "b",
       label: "Buyer חייב להיות ב-roster הפעיל: הקלדת 'Yoav Chen' במקום 'Yoav Cohen' היא תמיד טעות הקלדה",
       correct: true,
-      explanation: "אין מקרה לגיטימי לשם buyer שלא ב-roster. דוחים. Strict תופס את הטעות בכניסה במקום לתת לה להרעיל כל pivot במורד הזרם.",
+      explanation: "אין מקרה לגיטימי לשם buyer שלא ב-roster. דוחים. Strict תופס את הטעות בכניסה במקום לתת לה לזהם כל pivot במורד הזרם.",
     },
     {
       id: "c",
       label: "תאריך בעתיד: 'הקמפיין הזה מתוזמן, אתם בטוחים?'",
       correct: false,
-      explanation: "קמפיין מתוזמן הוא מקרה רגיל לתאריך בעתיד. מזהירים במקום לדחות; אחרת הייתם חוסמים launches מתוזמנים.",
+      explanation: "קמפיין מתוזמן הוא מקרה רגיל של תאריך בעתיד. מזהירים במקום לדחות; אחרת תחסמו launches מתוזמנים.",
     },
   ]}
 />
 
-## Dropdown מטווח לעומק רשימה inline
+## Dropdown מטווח לעומת רשימה inline
 
-שתי הדרכים מייצרות אותו UI של dropdown. ההבדל הוא היכן הרשימה חיה.
+שתי הדרכים מייצרות אותו UI של dropdown. ההבדל הוא היכן הרשימה יושבת.
 
-**רשימה inline (`ONE_OF_LIST`)** היא הבחירה הנכונה כשהרשימה לא תשתנה: 7 פלטפורמות, 6 קודי סטטוס, 4 סוגי מודעה. עדכון הרשימה אומר לערוך את כלל ה-validation על כל תא שמשתמש בו. זה בסדר כשהרשימה נדירות משתנה.
+**רשימה inline (`ONE_OF_LIST`)** היא הבחירה הנכונה כשהרשימה לא תשתנה: 7 פלטפורמות, 6 קודי סטטוס, 4 סוגי מודעה. עדכון הרשימה אומר לערוך את כלל ה-validation על כל תא שמשתמש בו. זה בסדר כשהרשימה משתנה לעיתים נדירות.
 
-**רשימה מבוססת-טווח (`ONE_OF_RANGE`)** היא הבחירה הנכונה כשהרשימה דינמית: roster ה-buyers גדל, verticals באים והולכים, רשימת המדינות מתרחבת. הרשימה חיה ב-tab של `Buyers` או `Verticals` וה-validation קורא משם. כניסות חדשות מופיעות בכל dropdown אוטומטית ברגע שהן מתווספות לטווח המקור. זו ברירת המחדל של הצוות לכל דבר שנמשך מ-tab של config.
+**רשימה מבוססת-טווח (`ONE_OF_RANGE`)** היא הבחירה הנכונה כשהרשימה דינמית: ה-roster של ה-buyers גדל, verticals באים והולכים, רשימת המדינות מתרחבת. הרשימה יושבת ב-tab של `Buyers` או `Verticals` וה-validation קורא משם. ערכים חדשים מופיעים בכל dropdown אוטומטית ברגע שהם מתווספים לטווח המקור. זו ברירת המחדל של הצוות לכל דבר שנשלף מ-tab של config.
 
-המלכודת: אם מכוונים `ONE_OF_RANGE` לטווח קבוע קטן כמו `Buyers!A2:A9`, ואז מוסיפים `Maya Bar` לשורה 10, היא לא תופיע ב-dropdown עד שמרחיבים את טווח ה-validation. השתמשו בגבול נדיב (`A2:A1000`), או טוב יותר, named range שאפשר להרחיב במקום אחד.
+המלכודת: אם מכוונים `ONE_OF_RANGE` לטווח קבוע קטן כמו `Buyers!A2:A9`, ואז מוסיפים `Maya Bar` לשורה 10, היא לא תופיע ב-dropdown עד שמרחיבים את טווח ה-validation. השתמשו בגבול נדיב (`A2:A1000`), או טוב יותר, ב-named range שאפשר להרחיב במקום אחד.
 
 <Compare>
   <ComparePanel label="שבור: טווח צר מדי" tone="negative">
@@ -120,7 +120,7 @@ Range: Buyers!A2:A9
 היא לא מופיעה ב-dropdown.
 כל תא שצריך את שמה זורק
 "Invalid input" עד שעורכים מחדש את הכלל.`}</code></pre>
-    <p className="mt-2 text-sm">טווחים צרים זזים ברגע שהנתונים גדלים. ה-roster דינמי; ה-validation לא.</p>
+    <p className="mt-2 text-sm">טווחים צרים נשארים מאחור ברגע שהנתונים גדלים. ה-roster דינמי; ה-validation לא.</p>
   </ComparePanel>
   <ComparePanel label="עובד: גבול נדיב" tone="positive">
     <pre className="font-mono text-xs"><code>{`Rule: ONE_OF_RANGE
@@ -131,7 +131,7 @@ Range: Buyers!A2:A1000
 שם כל שורה חדשה מופיע ב-dropdown
 ברגע שהוא נוחת בעמודה A.
 אפס עריכות validation נדרשות.`}</code></pre>
-    <p className="mt-2 text-sm">עוד יותר טוב: מצביעים על named range (`BuyerRoster`) כדי שההרחבה תחיה במקום אחד. Track 1 לסון 19 מכסה named ranges.</p>
+    <p className="mt-2 text-sm">עוד יותר טוב: מצביעים על named range (`BuyerRoster`) כדי שההרחבה תהיה במקום אחד. Track 1 שיעור 19 מכסה named ranges.</p>
   </ComparePanel>
 </Compare>
 
@@ -142,26 +142,26 @@ Range: Buyers!A2:A1000
       id: "a",
       label: "תאים עם שם ה-buyer שנמחק מתנקים אוטומטית כי ה-validation כבר לא מתאים",
       correct: false,
-      explanation: "Validation דוחה קלט חדש שלא מתאים; היא לא מנקה רטרואקטיבית ערכים קיימים. שורות גרועות נשארות גרועות עד שמישהו מוצא אותן.",
+      explanation: "Validation דוחה קלט חדש שלא מתאים; היא לא מנקה רטרואקטיבית ערכים קיימים. שורות פגומות נשארות פגומות עד שמישהו מוצא אותן.",
     },
     {
       id: "b",
       label: "תאים קיימים עם שם ה-buyer שנמחק נשארים כטקסט; הם פשוט לא יופיעו שוב ב-dropdown והקלדה מחדש שלהם נחסמת",
       correct: true,
-      explanation: "נכון. Validation שומר על כניסה, לא על אחסון. בגלל זה audits חשובים: אחרי שינוי ב-roster, סורקים את לוג הקמפיינים ל-references יתומים.",
+      explanation: "נכון. Validation שומר על הכניסה, לא על האחסון. בגלל זה audits חשובים: אחרי שינוי ב-roster, סורקים את לוג הקמפיינים אחרי הפניות יתומות.",
     },
     {
       id: "c",
       label: "Sheets זורק #REF! בכל תא שמפנה לשם שנמחק",
       correct: false,
-      explanation: "Validation לא מפיץ #REF!. ערך התא עדיין טקסט חוקי; הוא פשוט כבר לא מתאים ל-dropdown.",
+      explanation: "Validation לא מפיץ #REF!. ערך התא הוא עדיין טקסט חוקי; הוא פשוט כבר לא מתאים ל-dropdown.",
     },
   ]}
 />
 
 ## Custom formula: פתח המילוט
 
-כשאף צורה של dropdown לא מתאימה, custom formula מטפלת בשאר. הכלל מחשב את הנוסחה בהקשר של התא שנמצא ב-validation; הנוסחה מחזירה `TRUE` (לאשר) או `FALSE` (לדחות).
+כשאף צורה של dropdown לא מתאימה, custom formula מטפלת בכל השאר. הכלל מחשב את הנוסחה בהקשר של התא שעובר validation; הנוסחה מחזירה `TRUE` (לאשר) או `FALSE` (לדחות).
 
 דפוסים אמיתיים מ-workbooks של הצוות:
 
@@ -173,9 +173,9 @@ Range: Buyers!A2:A1000
 | Vertical חייב להסתיים ב-" PR" | `=RIGHT(B3,3)=" PR"` |
 | Campaign id חייב להתאים לפורמט | `=REGEXMATCH(B3,"^[a-z]{2}-[a-z]{2}-[mda]-[a-z]{4}\d{4}[a-z]{2}-[a-z]{3}-\d+-\d{6}-")` |
 
-השורה האחרונה משתמשת ב-`REGEXMATCH` משיעור 1.16 כדי לאכוף את קונבנציית שמות ה-campaign-id של הצוות בכניסה. כל דבר שלא מתאים לתבנית נדחה לפני שה-id הגרוע מגיע ללוג, אז כל פרסר במורד הזרם (ה-dashboards שמפצלים את ה-id ל-buyer / מדינה / vertical) יכול לסמוך על הצורה. Validation עם regex היא הדרך הזולה ביותר להפוך קונבנציה לכלל קשיח.
+השורה האחרונה משתמשת ב-`REGEXMATCH` משיעור 1.16 כדי לאכוף את קונבנציית שמות ה-campaign-id של הצוות בכניסה. כל דבר שלא מתאים לתבנית נדחה לפני שה-id הפגום מגיע ללוג, ככה שכל פרסר במורד הזרם (ה-dashboards שמפצלים את ה-id ל-buyer / מדינה / vertical) יכול לסמוך על הצורה. Validation עם regex היא הדרך הזולה ביותר להפוך קונבנציה לכלל קשיח.
 
-ה-reference לתא (`B3`) בתוך נוסחה מותאמת מפנה ל-*תא שמאמתים*. כשמעתיקים את ה-validation על פני `B3:B100`, הנוסחה אוטומטית הופכת ל-`B4>0`, `B5>0`, וכן הלאה, בדיוק כמו reference יחסי רגיל.
+ה-reference לתא (`B3`) בתוך נוסחה מותאמת מפנה ל-*תא שעובר אימות*. כשמעתיקים את ה-validation על פני `B3:B100`, הנוסחה הופכת אוטומטית ל-`B4>0`, `B5>0`, וכן הלאה, בדיוק כמו reference יחסי רגיל.
 
 <Compare>
   <ComparePanel label="שבור: reference מעוגן absolute" tone="negative">
@@ -185,7 +185,7 @@ Formula: =$F$3>0
 כל תא מחשב F3>0.
 אם F3 חיובי, כל תא עובר,
 גם אם F50 הוא -200.`}</code></pre>
-    <p className="mt-2 text-sm">שני העוגנים נעולים. הכלל מחושב פעם אחת על F3 ומחיל את התוצאה על כל תא. F50 = -200 עובר חופשי.</p>
+    <p className="mt-2 text-sm">שני העוגנים נעולים. הכלל מחושב פעם אחת על F3 ומחיל את התוצאה על כל תא. F50 = -200 עובר בלי לעצור.</p>
   </ComparePanel>
   <ComparePanel label="עובד: reference יחסי" tone="positive">
     <pre className="font-mono text-xs"><code>{`כלל חל על F3:F100
@@ -196,12 +196,12 @@ Formula: =F3>0
 תא F50 מחשב F50>0.
 
 כל תא בודק את הערך שלו.`}</code></pre>
-    <p className="mt-2 text-sm">ה-reference מתנהג כמו נוסחה גרורה. מורידים את סימני הדולר כך שכל תא מאמת את עצמו.</p>
+    <p className="mt-2 text-sm">ה-reference מתנהג כמו נוסחה גרורה. מורידים את סימני הדולר כדי שכל תא יאמת את עצמו.</p>
   </ComparePanel>
 </Compare>
 
 <QuickCheck
-  question="כותבים validation עם custom formula על F3:F100 עם =F3>0, אז מעתיקים את העמודה ל-tab חדש דרך Paste special → Values only. מה קורה ל-validation ב-tab החדש?"
+  question="כותבים validation עם custom formula על F3:F100 עם =F3>0, ואז מעתיקים את העמודה ל-tab חדש דרך Paste special → Values only. מה קורה ל-validation ב-tab החדש?"
   options={[
     {
       id: "a",
@@ -213,7 +213,7 @@ Formula: =F3>0
       id: "b",
       label: "בעמודת היעד אין validation; צריך להחיל אותו מחדש ידנית",
       correct: true,
-      explanation: "Paste-values-only הוא פיצ'ר, לא באג, אבל הוא נושך כאן. הדבקה רגילה (Ctrl+V) שומרת validation. אם בונים workbooks דרך values-paste, יש להחיל validation מחדש על היעד.",
+      explanation: "Paste-values-only הוא פיצ'ר, לא באג, אבל הוא נושך כאן. הדבקה רגילה (Ctrl+V) משמרת validation. אם בונים workbooks דרך values-paste, יש להחיל validation מחדש על היעד.",
     },
     {
       id: "c",
@@ -228,12 +228,12 @@ Formula: =F3>0
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="Campaigns חי ב-A1:G61. תוסיפו tab נפרד Inputs לשדות כניסה מאומתים."
+  caption="Campaigns יושב ב-A1:G61. תוסיפו tab נפרד Inputs לשדות כניסה מאומתים."
 />
 
-לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. ואז צרו tab בשם `Inputs` והוסיפו שלושה תאים מאומתים:
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. אחר כך צרו tab בשם `Inputs` והוסיפו שלושה תאים מאומתים:
 
-- **`B1`**: dropdown ממקור `Campaigns!B2:B61` (roster ה-buyers), strict.
+- **`B1`**: dropdown ממקור `Campaigns!B2:B61` (ה-roster של ה-buyers), strict.
 - **`B2`**: dropdown inline שמפרט את כל 7 הפלטפורמות, strict.
 - **`B3`**: כלל custom-formula `=B3>0` ל-spend, strict.
 
@@ -243,14 +243,14 @@ Formula: =F3>0
 
 ב-workbooks האמיתיים של הצוות:
 
-- **כל tab של config הוא מקור האמת ל-dropdown איפשהו.** ה-tab של `Buyers` מזין את ה-dropdown של buyer בכל dashboard. הוספת buyer חדש זו עריכה אחת, לא 14.
-- **כללי validation מתועדים ב-cell notes.** הערת תא שאומרת "must match Buyers!A:A" נקראת על ידי האדם הבא שיורש את ה-workbook ומסבירה למה הכלל הוא כפי שהוא.
-- **תאי Spend / revenue יש בהם validation `>0` כברירת מחדל.** מספרים שליליים מטעות הקלדה או טעות copy-paste הופכים בשקט כל חישוב ROI; כלל ה-validation תופס אותם בכניסה.
+- **כל tab של config הוא מקור האמת ל-dropdown איפשהו.** ה-tab של `Buyers` מזין את ה-dropdown של buyer בכל dashboard. הוספת buyer חדש היא עריכה אחת, לא 14.
+- **כללי validation מתועדים ב-cell notes.** הערת תא שאומרת "must match Buyers!A:A" נקראת על ידי האדם הבא שיורש את ה-workbook ומסבירה למה הכלל כפי שהוא.
+- **לתאי Spend / revenue יש validation `>0` כברירת מחדל.** מספרים שליליים מטעות הקלדה או מטעות copy-paste הופכים בשקט כל חישוב ROI; כלל ה-validation תופס אותם בכניסה.
 
 ## מלכודות מקצועיות
 
 - **`ONE_OF_RANGE` על טווח צר מדי.** `Buyers!A2:A9` מכסה 8 buyers. Buyer 9 לא יופיע. או להשתמש בגבול נדיב או להצביע על named range.
-- **Validation שלא נדבק כשמעתיקים נוסחה.** Validation מועתק עם הדבקה, אבל `Paste special → Values only` מסיר אותו. אם בונים workbook על ידי הדבקה ממקום אחר, יש להחיל validation מחדש על טווח היעד.
-- **Strict mode שלא באמת חוסם `IMPORTRANGE`** (שיעור 1.27). Validation דוחה הקלדה ידנית אבל מקבל מה ש-`IMPORTRANGE` כותב. אם נתונים מיובאים צריכים אימות, עושים את זה ב-tab של `Cleaned` עם נוסחאות, לא דרך כללי validation.
+- **Validation שלא עוברת כשמעתיקים נוסחה.** Validation מועתקת עם הדבקה רגילה, אבל `Paste special → Values only` מסיר אותה. אם בונים workbook על ידי הדבקה ממקום אחר, יש להחיל validation מחדש על טווח היעד.
+- **Strict mode שלא באמת חוסם `IMPORTRANGE`** (שיעור 1.27). Validation דוחה הקלדה ידנית אבל מקבלת את מה ש-`IMPORTRANGE` כותב. אם נתונים מיובאים צריכים אימות, עושים את זה ב-tab של `Cleaned` עם נוסחאות, לא דרך כללי validation.
 - **נוסחאות מותאמות שמפנות לתא הלא נכון.** `=$B$3>0` נעול לשורה 3 גם כשה-validation מוחל על `B3:B100`. מורידים את סימני הדולר.
-- **`ONE_OF_RANGE` שמצביע על workbook מרוחק דרך `IMPORTRANGE`** (שיעור 1.27). ה-validation יודע רק על טווחים מקומיים. גם אם ה-tab של ה-`Buyers` שלכם הוא בעצמו `IMPORTRANGE`, ה-validation קורא את התאים המקומיים, אז כשהייבוא מתעדכן ה-dropdown נעקב. אבל אם תנסו להצביע על ה-validation ישירות על `=IMPORTRANGE(...)`, זה ייכשל. תמיד ממממשים את הרשימה המיובאת בטווח מקומי קודם.
+- **`ONE_OF_RANGE` שמצביע על workbook מרוחק דרך `IMPORTRANGE`** (שיעור 1.27). ה-validation יודע רק על טווחים מקומיים. גם אם ה-tab של ה-`Buyers` שלכם הוא בעצמו `IMPORTRANGE`, ה-validation קורא את התאים המקומיים, אז כשהייבוא מתעדכן ה-dropdown מתעדכן בעקבותיו. אבל אם תנסו להצביע ב-validation ישירות על `=IMPORTRANGE(...)`, זה ייכשל. תמיד מממשים את הרשימה המיובאת בטווח מקומי קודם.

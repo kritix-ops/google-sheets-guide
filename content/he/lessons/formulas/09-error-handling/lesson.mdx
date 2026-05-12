@@ -2,7 +2,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # טיפול בשגיאות: IFERROR, IFNA, ISNA, ISERROR
 
-ב-spreadsheet שמוחזק ביחד על ידי IMPORTRANGE, lookups דינמיים וחלוקה ב-spend, שגיאות הן לא חריגה. הן שגרה. שם vertical שצוות אחר הוסיף שובר XLOOKUP. קמפיין עם spend אפס שובר חישוב ROI מסוג `revenue/spend`. שגיאת הקלדה בשם media buyer שוברת קריטריון של SUMIFS. פונקציות הטיפול בשגיאות מאפשרות לתפוס את המקרים האלה בעדינות, לספק חלופה, או לדגל את השורה לבדיקה בלי להפיל את ה-dashboard.
+ב-spreadsheet שמוחזק ביחד על ידי IMPORTRANGE, lookups דינמיים וחלוקה ב-spend, שגיאות הן לא חריגה: הן שגרה. שם vertical שצוות אחר הוסיף שובר XLOOKUP. קמפיין עם spend אפס שובר חישוב ROI מסוג `revenue/spend`. שגיאת הקלדה בשם media buyer שוברת קריטריון של SUMIFS. פונקציות הטיפול בשגיאות מאפשרות לתפוס את המקרים האלה בעדינות, לספק חלופה, או לדגל את השורה לבדיקה בלי להפיל את ה-dashboard.
 
 ## השגיאות שתפגשו
 
@@ -10,19 +10,19 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 | שגיאה | מה המשמעות | סיבה נפוצה |
 |---|---|---|
-| `#N/A` | "Not available", lookup לא מצא התאמה | XLOOKUP/VLOOKUP בלי fallback, MATCH בלי תוצאה |
+| `#N/A` | "Not available": lookup לא מצא התאמה | XLOOKUP/VLOOKUP בלי fallback, MATCH בלי תוצאה |
 | `#REF!` | reference שבור | עמודה נמחקה, הרשאת IMPORTRANGE נשללה, נוסחה מפנה אל מחוץ לגיליון |
-| `#DIV/0!` | חלוקה באפס | `revenue/spend` כשה-spend הוא 0, `AVERAGE` על טווח ריק |
+| `#DIV/0!` | חלוקה באפס | `revenue/spend` כשה-spend הוא 0; `AVERAGE` על טווח ריק |
 | `#VALUE!` | סוג שגוי | חשבון על תא טקסט, או פונקציה שקיבלה מחרוזת במקום מספר |
 | `#NAME?` | פונקציה לא ידועה או named range לא ידוע | טעות הקלדה בשם פונקציה, או named range שכבר לא קיים |
-| `#NUM!` | מספרי מחוץ לטווח | `SQRT(-1)`, תאריכים מחוץ לטווח הנתמך של Sheets, או מספרים גדולים מדי |
-| `#NULL!` | חיתוך טווחים ריק | נדיר, בעיקר תחביר טווחים ישן |
+| `#NUM!` | מספר מחוץ לטווח | `SQRT(-1)`, תאריכים מחוץ לטווח הנתמך של Sheets, או מספרים גדולים מדי |
+| `#NULL!` | חיתוך טווחים ריק | נדיר; בעיקר תחביר טווחים ישן |
 
 ## IFERROR: לתפוס הכל
 
-`IFERROR(formula, fallback)` מריץ את הנוסחה. אם היא משגה, מחזיר את ה-fallback במקום. מטפל השגיאות שהכי משתמשים בו. הוא גם הקהה ביותר: הוא תופס כל סוג שגיאה עם fallback אחד, וזה נוח ולעיתים קרובות הבחירה הלא נכונה.
+`IFERROR(formula, fallback)` מריץ את הנוסחה. אם היא נכשלת בשגיאה, מחזיר את ה-fallback במקום. מטפל השגיאות שהכי משתמשים בו. הוא גם הכי בוטה: הוא תופס כל סוג שגיאה עם fallback אחד, וזה נוח ולעיתים קרובות הבחירה הלא נכונה.
 
-המקרה הקלאסי באדטק: חישוב ROI. `=F2/E2` משגה כש-spend הוא אפס. עוטפים ב-IFERROR כדי להחזיר 0 (או "no spend" או מה שהגיוני ל-dashboard שלכם).
+המקרה הקלאסי באדטק: חישוב ROI. `=F2/E2` נכשל כש-spend הוא אפס. עוטפים ב-IFERROR כדי להחזיר 0 (או "no spend" או מה שהגיוני ל-dashboard שלכם).
 
 <FunctionRef name="IFERROR" />
 
@@ -36,14 +36,14 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula='=IFERROR(C2/B2,"no spend")'
   task={<>חשבו ROI לשורה הראשונה (revenue חלקי spend), אבל החזירו <code>"no spend"</code> במקום <code>#DIV/0!</code> כש-spend הוא אפס. התוצאה ב-<code>D2</code> אמורה להיות <code>"no spend"</code>.</>}
   hint={<>עטפו את החלוקה <code>C2/B2</code> ב-<code>IFERROR(..., "no spend")</code>.</>}
-  answer={<>IFERROR מחליף כל שגיאה ב-fallback. שני הארגומנטים חובה: הנוסחה וערך ה-fallback. ה-fallback יכול להיות מחרוזת ("no spend"), מספר (0), או נוסחה אחרת. הטרייד-אוף: IFERROR הוא פטיש, הוא תופס כל שגיאה, כולל כאלה שאולי הייתם רוצים לדעת עליהן. אם נוסחה נשברת מסיבה שחשובה, IFERROR יסתיר אותה. השתמשו ב-IFNA כשרוצים ספציפית לטפל במקרים של lookup שלא נמצא בלי להסתיר שגיאות אחרות.</>}
+  answer={<>IFERROR מחליף כל שגיאה ב-fallback. שני הארגומנטים חובה: הנוסחה וערך ה-fallback. ה-fallback יכול להיות מחרוזת ("no spend"), מספר (0), או נוסחה אחרת. ה-tradeoff: IFERROR הוא פטיש, הוא תופס כל שגיאה, כולל כאלה שאולי הייתם רוצים לדעת עליהן. אם נוסחה נשברת מסיבה שחשובה, IFERROR יסתיר אותה. השתמשו ב-IFNA כשרוצים ספציפית לטפל במקרים של lookup שלא נמצא בלי להסתיר שגיאות אחרות.</>}
 />
 
 ## IFNA: לתפוס רק #N/A
 
 `IFNA(formula, fallback)` הוא האח הצר של IFERROR. הוא תופס את `#N/A` (השגיאה של "לא נמצא") ומאפשר לכל שגיאה אחרת לעבור.
 
-זה משנה ל-XLOOKUPs באדטק. אם ה-vertical של קמפיין לא נמצא בטבלת ה-lookup של Verticals, מקבלים `#N/A`, וזה בסדר, מספקים fallback כמו "Unknown". אבל אם טבלת ה-Verticals שמיובאת ב-IMPORTRANGE עצמה שבורה (`#REF!` מהרשאות שנשללו), רוצים שהשגיאה הזאת תצוף ככה שיהיה אפשר לתקן אותה. IFERROR היה מסתיר את שתיהן באותה מידה, IFNA מסתיר רק את מקרה ההתאמה החסרה.
+זה חשוב ל-XLOOKUPs באדטק. אם ה-vertical של קמפיין לא נמצא בטבלת ה-lookup של Verticals, מקבלים `#N/A`, וזה בסדר: מספקים fallback כמו "Unknown". אבל אם טבלת ה-Verticals שמיובאת ב-IMPORTRANGE עצמה שבורה (`#REF!` מהרשאות שנשללו), רוצים שהשגיאה הזאת תצוף ככה שיהיה אפשר לתקן אותה. IFERROR היה מסתיר את שתיהן באותה מידה; IFNA מסתיר רק את מקרה ההתאמה החסרה.
 
 <FunctionRef name="IFNA" />
 
@@ -57,12 +57,12 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula='=IFNA(VLOOKUP(A3,A2:B2,2,FALSE),"Uncategorized")'
   task={<>מצאו את הקטגוריה ל-"Crypto Trading PR" (שלא קיים בטבלת ה-lookup). החזירו <code>"Uncategorized"</code> במקום <code>#N/A</code>. התוצאה אמורה להיות <code>Uncategorized</code>.</>}
   hint={<>עטפו את ה-VLOOKUP ב-<code>IFNA(..., "Uncategorized")</code>.</>}
-  answer={<>IFNA תופס רק #N/A, השגיאה של "חיפשתי ולא מצאתי". שגיאות אחרות (#REF!, #VALUE!, #DIV/0!) עוברות. זה עדיף על IFERROR כעטיפה ל-lookups כי זה מאפשר לכשלים אמיתיים (IMPORTRANGE שבור, אות עמודה שגויה) לצוץ כשגיאות נראות במקום להיבלע. בפרודקשן: IFNA מסביב לכל lookup, IFERROR רק כשחשבתם היטב אם באמת רוצים לבלוע הכל.</>}
+  answer={<>IFNA תופס רק #N/A: השגיאה של "חיפשתי ולא מצאתי". שגיאות אחרות (#REF!, #VALUE!, #DIV/0!) עוברות. זה עדיף על IFERROR כעטיפה ל-lookups, כי זה מאפשר לכשלים אמיתיים (IMPORTRANGE שבור, אות עמודה שגויה) לצוץ כשגיאות נראות במקום להיבלע. בפרודקשן: IFNA מסביב לכל lookup, IFERROR רק כשחשבתם היטב אם באמת רוצים לבלוע הכל.</>}
 />
 
 ## ISNA, ISERROR, בני הדודים של IFERROR מבית IF
 
-לפעמים רוצים *לבדוק* אם ערך הוא שגיאה, לא להחליף אותו. `ISNA(value)` מחזיר TRUE אם הערך הוא `#N/A`. `ISERROR(value)` מחזיר TRUE לכל שגיאה. שימושי בתוך `IF` ללוגיקה מותנית, "אם ה-lookup הצליח, עשה X, אם לא, עשה Y".
+לפעמים רוצים *לבדוק* אם ערך הוא שגיאה, לא להחליף אותו. `ISNA(value)` מחזיר TRUE אם הערך הוא `#N/A`. `ISERROR(value)` מחזיר TRUE לכל שגיאה. שימושי בתוך `IF` ללוגיקה מותנית: "אם ה-lookup הצליח, עשה X; אם לא, עשה Y".
 
 <FunctionRef name="ISERROR" />
 
@@ -79,13 +79,13 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
       id: "a",
       label: <code>=IFERROR(XLOOKUP(...), "Unknown")</code>,
       correct: false,
-      explanation: "IFERROR תופס הכל, כולל #REF! כשההרשאה של ה-IMPORTRANGE נשללת. לא תדעו שהמקור שבור, ה-dashboard פשוט יראה 'Unknown' לכל שורה.",
+      explanation: "IFERROR תופס הכל, כולל #REF! כשההרשאה של ה-IMPORTRANGE נשללת. לא תדעו שהמקור שבור; ה-dashboard פשוט יראה 'Unknown' לכל שורה.",
     },
     {
       id: "b",
       label: <code>=IFNA(XLOOKUP(...), "Unknown")</code>,
       correct: true,
-      explanation: "IFNA תופס את מקרה 'לא נמצא' (media buyer שלא בטאב Buyers) אבל מאפשר ל-#REF! לצוף לעין כדי שתדעו שהמקור במעלה הזרם שבור.",
+      explanation: "IFNA תופס את מקרה 'לא נמצא' (media buyer שלא בטאב Buyers) אבל מאפשר ל-#REF! לצוף לעין כדי שתדעו שהמקור שבור.",
     },
     {
       id: "c",
@@ -101,7 +101,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=IFERROR(XLOOKUP(B2, Verticals!A:A, Verticals!B:B), "Unknown")`}</code></pre>
-    <p className="mt-2 text-sm"><code>IFERROR</code> תופס כל שגיאה כולל <code>#REF!</code> מ-IMPORTRANGE שהרשאה נשללה ממנו. ה-dashboard מציג "Unknown" לכל שורה ואין מושג שהמעלה הזרם שבור. הבאג הגרוע ביותר: שקט.</p>
+    <p className="mt-2 text-sm"><code>IFERROR</code> תופס כל שגיאה כולל <code>#REF!</code> מ-IMPORTRANGE שהרשאה נשללה ממנו. ה-dashboard מציג "Unknown" לכל שורה ואין מושג שהמקור שבור. הבאג הגרוע ביותר: שקט.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=IFNA(XLOOKUP(B2, Verticals!A:A, Verticals!B:B), "Unknown")`}</code></pre>
@@ -112,11 +112,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>=IFERROR(A2 + B2/C2, 0)</code></pre>
-    <p className="mt-2 text-sm">עטיפת הביטוי השלם מסתירה שלוש דרכי כשל שונות (טקסט ב-A2, חלוקה באפס וכו') מאחורי fallback אחד. אם A2 הופך לטקסט בגלל סחיפת IMPORTRANGE, מקבלים <code>0</code> במקום שגיאה: וה-dashboard מדווח פחות עד שמישהו ישים לב.</p>
+    <p className="mt-2 text-sm">עטיפת הביטוי השלם מסתירה שלוש דרכי כשל שונות (טקסט ב-A2, חלוקה באפס וכו') מאחורי fallback אחד. אם A2 הופך לטקסט בגלל שינוי ב-IMPORTRANGE, מקבלים <code>0</code> במקום שגיאה, וה-dashboard מדווח על פחות עד שמישהו ישים לב.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>=A2 + IFERROR(B2/C2, 0)</code></pre>
-    <p className="mt-2 text-sm">עוטפים רק את החלק שיודעים שיכול לשגות (החלוקה). שגיאות אחרות עדיין מבעבעות כשגיאות כדי שיקבלו תשומת לב. עטיפה צרה היא תבנית הפרודקשן.</p>
+    <p className="mt-2 text-sm">עוטפים רק את החלק שאתם יודעים שיכול להיכשל (החלוקה). שגיאות אחרות עדיין צצות כשגיאות ומקבלות תשומת לב. עטיפה צרה היא תבנית הפרודקשן.</p>
   </ComparePanel>
 </Compare>
 
@@ -140,7 +140,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ### דוגמה: נתוני אדטק
 
-סוג עטיפת השגיאות שכל dashboard בפרודקשן צריך.
+סוג עטיפת השגיאות שצריך לכל dashboard בפרודקשן.
 
 <TryIt
   data={CAMPAIGNS}
@@ -148,7 +148,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula='=IFERROR((F2-E2)/E2,0)'
   task={<>חשבו ROI לקמפיין הראשון בתור <code>(Revenue - Spend) / Spend</code>, החזירו <code>0</code> אם יש שגיאה. התוצאה אמורה להיות בערך <code>0.424</code>.</>}
   hint={<>עטפו את חשבון ה-ROI ב-<code>IFERROR(..., 0)</code>.</>}
-  answer={<>לקמפיין הראשון יש spend של 342.18 ו-revenue של 487.30, אז ה-ROI הוא בערך 0.424. IFERROR היא רשת הביטחון: אם שורה עתידית תגיע עם spend אפס (או עם טקסט ממעלה זרם שבור), התוצאה תהפוך ל-0 במקום לקרוס לכל aggregate במורד הזרם. הכלל של הצוות: כל עמודת ROI/EPC/CPM בגיליון פרודקשן עוטפת את החלוקה שלה ב-IFERROR עם fallback מספרי של 0.</>}
+  answer={<>לקמפיין הראשון יש spend של 342.18 ו-revenue של 487.30, אז ה-ROI הוא בערך 0.424. IFERROR היא רשת הביטחון: אם שורה עתידית תגיע עם spend אפס (או עם טקסט ממקור שבור), התוצאה תהפוך ל-0 במקום להפיל כל aggregate שמתבסס על הנוסחה. הכלל של הצוות: כל עמודת ROI/EPC/CPM בגיליון פרודקשן עוטפת את החלוקה שלה ב-IFERROR עם fallback מספרי של 0.</>}
 />
 
 ## איך בוחרים
@@ -163,17 +163,17 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## נפוץ בשטח
 
-- **כל XLOOKUP על מידע מ-IMPORTRANGE עטוף ב-IFNA.** ה-fallback הוא "Unknown" או "" תלוי במה שה-dashboard מצפה. אף פעם לא להשתמש ב-IFERROR פה, רוצים ש-#REF! יצרח כשהמקור נשבר.
-- **כל נוסחת ROI/CPC/EPC עטופה ב-IFERROR או מוגנת ב-IF(spend{">"}0,...,...).** חלוקה באפס היא שגיאת ריצה הנפוצה ביותר ב-spreadsheets של אדטק.
+- **כל XLOOKUP על מידע מ-IMPORTRANGE עטוף ב-IFNA.** ה-fallback הוא "Unknown" או "" תלוי במה שה-dashboard מצפה. אף פעם לא להשתמש ב-IFERROR פה: רוצים ש-#REF! יצרח כשהמקור נשבר.
+- **כל נוסחת ROI/CPC/EPC עטופה ב-IFERROR או מוגנת ב-IF(spend{">"}0,...,...).** חלוקה באפס היא שגיאת הריצה הנפוצה ביותר ב-spreadsheets של אדטק.
 - **Conditional formatting שמדגיש שורות שבהן תא כלשהו הוא שגיאה.** מריצים `=COUNTIF(A2:Z2,"#N/A") + COUNTIF(A2:Z2,"#REF!") + ...` על כל שורה, מעצבים באדום אם {">"}0.
 - **תאי בדיקת תקינות בראש כל dashboard.** תא בודד שסופר שגיאות בכל הגיליון, עם "0" גדול כשהכל בסדר וספירה לא אפסית שמושכת תשומת לב. משלבים עם conditional formatting.
 
 ## מלכודות מקצועיות
 
-- **`IFERROR` הוא פטיש כבד.** הוא בולע בשקט שגיאות שאולי הייתם רוצים לתקן. אם נוסחה שבורה מסיבה לא צפויה, IFERROR יסתיר אותה לתמיד. ברירת מחדל זה IFNA, IFERROR רק במודע.
+- **`IFERROR` הוא פטיש כבד.** הוא בולע בשקט שגיאות שאולי הייתם רוצים לתקן. אם נוסחה שבורה מסיבה לא צפויה, IFERROR יסתיר אותה לתמיד. ברירת המחדל היא IFNA, ו-IFERROR רק במודע.
 - **עטיפת ביטוי שלם ב-IFERROR תופסת גם שגיאות באמצע הנוסחה.** `=IFERROR(A2+B2/C2, 0)` מחזיר 0 אם C2 הוא 0 או אם A2 הוא טקסט או אם משהו אחר משתבש. עוטפים בצורה צרה: `=A2 + IFERROR(B2/C2, 0)`.
-- **`IFERROR(..., "")` נוח אבל יוצר שורות "רפאים".** תא ריק נחשב 0 בחשבון אבל "" ב-lookups. הרבה בעיות במורד הזרם נובעות מזה. לעיתים קרובות עדיף להחזיר ערך אינדיקטור מפורש כמו `"-"` ככה שהעין תופסת אותו.
-- **`#N/A` משמעותי, לא תמיד להסתיר.** עמודה שלמה של #N/A מ-XLOOKUP אומרת לכם שה-join נכשל על המון שורות. הסתרה שלהם עם IFERROR הופכת סיגנל ברור לשחיתות שקטה.
+- **`IFERROR(..., "")` נוח אבל יוצר שורות "רפאים".** תא ריק נחשב 0 בחשבון אבל "" ב-lookups. הרבה בעיות שמתבססות על הנוסחה נובעות מזה. לעיתים קרובות עדיף להחזיר ערך אינדיקטור מפורש כמו `"-"` ככה שהעין תופסת אותו.
+- **`#N/A` הוא משמעותי, לא תמיד להסתיר.** עמודה שלמה של #N/A מ-XLOOKUP אומרת לכם שה-join נכשל על המון שורות. הסתרה שלהם עם IFERROR הופכת סיגנל ברור לשחיתות שקטה.
 - **`ISERROR` הוא TRUE לכל סוג שגיאה, כולל #N/A.** אם רק רוצים לטפל במקרה של "לא נמצא", השתמשו ב-`ISNA` במקום.
 
 ## עכשיו לעבודה אמיתית

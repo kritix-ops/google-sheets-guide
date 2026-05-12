@@ -2,21 +2,21 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Installable triggers: מבוססי זמן, מבוססי עריכה עם auth
 
-השיעור הקודם כיסה simple triggers: functions עם שמות שמורים שיורות אוטומטית. יש להם auth context צר: בלי מייל, בלי רשת, בלי מסמכים אחרים, בלי UI. ברגע ש-workflow אמיתי צריך אחד מאלה, simple triggers הם הכלי הלא נכון. הדרך החוצה היא **installable triggers**: triggers שרושמים בקוד באמצעות `ScriptApp.newTrigger(...)`, שרצים עם ה-auth המלא של בעל הפרויקט ויכולים לעשות כל מה ש-function רגילה ב-Apps Script רשאית לעשות.
+השיעור הקודם כיסה simple triggers: functions עם שמות שמורים שמופעלות אוטומטית. יש להם auth context צר: בלי מייל, בלי רשת, בלי מסמכים אחרים, בלי UI. ברגע ש-workflow אמיתי צריך אחד מאלה, simple triggers הם הכלי הלא נכון. הדרך החוצה היא **installable triggers**: triggers שרושמים בקוד באמצעות `ScriptApp.newTrigger(...)`, שרצים עם ה-auth המלא של בעל הפרויקט ויכולים לעשות כל מה ש-function רגילה ב-Apps Script רשאית לעשות.
 
 שלושה דברים ש-installable triggers מוסיפים על גבי מודל ה-simple-trigger:
 
-1. **Auth מלא.** ה-handler יכול לשלוח מייל, fetch URLs, לפתוח spreadsheets אחרים, לקרוא events של calendar, לכתוב ל-Drive.
-2. **תזמון מבוסס-זמן.** דמוי-cron: כל N דקות, כל N שעות, כל N ימים, או בזמן ספציפי.
+1. **Auth מלא.** ה-handler יכול לשלוח מייל, לעשות fetch ל-URLs, לפתוח spreadsheets אחרים, לקרוא events של calendar, לכתוב ל-Drive.
+2. **תזמון מבוסס-זמן.** בסגנון cron: כל N דקות, כל N שעות, כל N ימים, או בזמן ספציפי.
 3. **רישום בקוד.** שורת קוד יוצרת trigger, שורת קוד מוחקת אותו. אין state מוסתר ב-UI של העורך.
 
-אותו event `onEdit` מהשיעור האחרון יכול להיות מחובר כ-installable trigger גם: אותו שם event, אותה צורת `e`, אבל עם ה-auth המלא של installable trigger. אם ה-edit handler שלכם צריך לעשות ping ל-Slack, ככה.
+אותו event `onEdit` מהשיעור האחרון יכול להיות מחובר גם כ-installable trigger: אותו שם event, אותה צורת `e`, אבל עם ה-auth המלא של installable trigger. אם ה-edit handler שלכם צריך לעשות ping ל-Slack, ככה עושים את זה.
 
 ## שרשרת ה-builder
 
-`ScriptApp.newTrigger(handlerName)` מחזיר builder. אתם משרשרים עליו קריאות כדי לתאר איזה סוג של trigger זה ומתי הוא נורה; השרשרת מסתיימת ב-`.create()`, וזה מה שבאמת רושם את ה-trigger.
+`ScriptApp.newTrigger(handlerName)` מחזיר builder. אתם משרשרים עליו קריאות כדי לתאר איזה סוג של trigger זה ומתי הוא יופעל; השרשרת מסתיימת ב-`.create()`, וזה מה שבאמת רושם את ה-trigger.
 
-trigger מבוסס-זמן שיורה כל יום ב-6 בבוקר:
+trigger מבוסס-זמן שמופעל כל יום ב-6 בבוקר:
 
 ```js
 function setupDailyRefresh() {
@@ -28,7 +28,7 @@ function setupDailyRefresh() {
 }
 ```
 
-הארגומנט הראשון ל-`newTrigger` הוא **שם ה-handler כמחרוזת**, לא reference ל-function. Apps Script מחפש את ה-handler לפי שם בזמן ירייה. אם שיניתם את השם של `refreshAggregator` מאוחר יותר ושכחתם לעדכן את המחרוזת, ה-trigger ממשיך לירות: וה-executions log מתמלא בשגיאות "Script function not found". זה ה-gotcha הנפוץ ביותר של installable-trigger.
+הארגומנט הראשון ל-`newTrigger` הוא **שם ה-handler כמחרוזת**, לא reference ל-function. Apps Script מחפש את ה-handler לפי שם בזמן ההפעלה. אם שיניתם אחר כך את השם של `refreshAggregator` ושכחתם לעדכן את המחרוזת, ה-trigger ממשיך להיות מופעל: וה-executions log מתמלא בשגיאות "Script function not found". זה ה-gotcha הנפוץ ביותר של installable-trigger.
 
 installable trigger מבוסס-עריכה שמכוון לאותו workbook:
 
@@ -55,7 +55,7 @@ function notifySpendChange(e) {
   UrlFetchApp.fetch("https://hooks.slack.com/...");
   // נכשל בשקט. אין שגיאה ב-Executions panel.
 }`}</code></pre>
-    <p className="mt-2 text-sm">השם השמור <code>onEdit</code> רץ ב-cell-context auth, שאוסר על קריאות רשת. ה-trigger נראה נורה, ההודעה ל-Slack אף פעם לא יוצאת.</p>
+    <p className="mt-2 text-sm">השם השמור <code>onEdit</code> רץ ב-cell-context auth, שאוסר על קריאות רשת. ה-trigger נראה מופעל, ההודעה ל-Slack אף פעם לא יוצאת.</p>
   </ComparePanel>
   <ComparePanel label="Installable trigger: עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`function setupSpendAlerts() {
@@ -76,20 +76,20 @@ function notifySpendChange(e) {
 
 triggers מבוססי-זמן נופלים לארבעה patterns של תזמון:
 
-| Builder method | נורה |
+| Builder method | מופעל |
 |---|---|
-| `.everyMinutes(n)` | כל n דקות. n חייב להיות 1, 5, 10, 15, או 30. |
-| `.everyHours(n)` | כל n שעות. מקובע לשעת היצירה של ה-trigger. |
+| `.everyMinutes(n)` | כל n דקות. n חייב להיות 1, 5, 10, 15 או 30. |
+| `.everyHours(n)` | כל n שעות. מעוגן לשעת היצירה של ה-trigger. |
 | `.everyDays(n).atHour(h)` | כל n ימים בשעה h (זמן מקומי 24 שעות). |
 | `.atDate(year, month, day).atHour(h)` | פעם אחת ברגע ספציפי. |
 
-ערכי השעות גסים: `atHour(6)` אומר "מתישהו בין 6:00 ל-7:00 ב-timezone של ה-script", לא בדיוק 6:00. אם אתם צריכים ירייה בדיוק שעון, אתם צריכים ארכיטקטורה אחרת: בדרך כלל cron job מחוץ ל-Apps Script שפוגע ב-webhook.
+ערכי השעות גסים: `atHour(6)` אומר "מתישהו בין 6:00 ל-7:00 ב-timezone של ה-script", לא בדיוק 6:00. אם אתם צריכים הפעלה בדיוק שעון, אתם צריכים ארכיטקטורה אחרת: בדרך כלל cron job מחוץ ל-Apps Script שפונה ל-webhook.
 
 ## הענקת auth בריצה הראשונה
 
-בפעם הראשונה שאתם מריצים `setupDailyRefresh()` מעורך Apps Script, תראו auth prompt. אתם מאשרים לפרויקט להשתמש ב-OAuth scopes שה-handler צריך: `script.scriptapp` (לרישום ה-trigger עצמו), וכל מה שה-body של ה-handler צריך (spreadsheets, mail, urlfetch, וכו'). אחרי שאתם מקבלים, ה-trigger נרשם, החשבון שלכם בתיק כבעלים, ומאז ה-handler יורה תחת ה-auth שלכם: גם כשאתם לא ליד השולחן.
+בפעם הראשונה שאתם מריצים `setupDailyRefresh()` מעורך Apps Script, תראו auth prompt. אתם מאשרים לפרויקט להשתמש ב-OAuth scopes שה-handler צריך: `script.scriptapp` (לרישום ה-trigger עצמו), וכל מה שה-body של ה-handler צריך (spreadsheets, mail, urlfetch, וכו'). אחרי שאישרתם, ה-trigger נרשם, החשבון שלכם בתיק כבעלים, ומאז ה-handler מופעל תחת ה-auth שלכם: גם כשאתם לא ליד השולחן.
 
-אם אתם נותנים את ה-workbook שלכם לחבר צוות והוא צריך עותק משלו של ה-trigger, **הוא חייב להריץ `setupDailyRefresh()` בעצמו**. הרישום של ה-trigger הוא פר-משתמש, לא פר-script. זה לוכד צוותים: "אני הגדרתי אותו, למה זה לא יורה לכולם?"
+אם אתם נותנים את ה-workbook שלכם לחבר צוות והוא צריך עותק משלו של ה-trigger, **הוא חייב להריץ `setupDailyRefresh()` בעצמו**. הרישום של ה-trigger הוא פר-משתמש, לא פר-script. זה תופס צוותים לא מוכנים: "אני הגדרתי אותו, למה זה לא מופעל לכולם?"
 
 <StepThrough
   frames={[
@@ -108,9 +108,9 @@ triggers מבוססי-זמן נופלים לארבעה patterns של תזמון:
       caption: "שלב 2: מקבלים את ה-auth prompt",
       body: (
         <>
-          אתם מקבלים. Apps Script כותב את ה-trigger ל-registry הפנימי שלו,
+          אתם מאשרים. Apps Script כותב את ה-trigger ל-registry הפנימי שלו,
           מתויג עם ה-user ID שלכם וה-ID של ה-script project. Edit then
-          Current project's triggers עכשיו מראה שורה אחת.
+          Current project's triggers עכשיו מציג שורה אחת.
         </>
       ),
     },
@@ -120,7 +120,7 @@ triggers מבוססי-זמן נופלים לארבעה patterns של תזמון:
         <>
           ה-scheduler של Apps Script מתעורר, מוצא את ה-trigger שלכם
           ב-registry, וקורא ל-<code>refreshAggregator</code> ב-execution
-          context טרי עם ה-auth שלכם. אתם לא ליד השולחן; זה לא חשוב.
+          context טרי עם ה-auth שלכם. אתם לא ליד השולחן; זה לא משנה.
         </>
       ),
     },
@@ -128,9 +128,9 @@ triggers מבוססי-זמן נופלים לארבעה patterns של תזמון:
       caption: "שלב 4: חבר צוות פותח את ה-workbook",
       body: (
         <>
-          אין לו trigger משלו. הירייה של 06:00 רצה רק פעם אחת, תחת ה-auth
+          אין לו trigger משלו. ההפעלה של 06:00 רצה רק פעם אחת, תחת ה-auth
           שלכם. אם הוא רוצה ריצה יומית משלו, הוא חייב להריץ
-          <code>setupDailyRefresh()</code> בעצמו ולקבל את ה-scopes בעצמו.
+          <code>setupDailyRefresh()</code> בעצמו ולאשר את ה-scopes בעצמו.
         </>
       ),
     },
@@ -139,7 +139,7 @@ triggers מבוססי-זמן נופלים לארבעה patterns של תזמון:
 
 ## בדיקה ומחיקה
 
-עורך Apps Script מציג את כל ה-triggers הרשומים תחת **Edit then Current project's triggers** (או אייקון השעון ברצועת השמאל בעורך החדש). כל שורה מציגה את שם ה-handler, את סוג ה-trigger, את התזמון, ואת ההצלחה או הכישלון של הירייה האחרונה.
+עורך Apps Script מציג את כל ה-triggers הרשומים תחת **Edit then Current project's triggers** (או אייקון השעון ברצועת השמאל בעורך החדש). כל שורה מציגה את שם ה-handler, את סוג ה-trigger, את התזמון ואת ההצלחה או הכישלון של ההפעלה האחרונה.
 
 בקוד:
 
@@ -160,20 +160,20 @@ function deleteAllRefreshTriggers() {
 }
 ```
 
-לכל חשבון script יש **מגבלה פר-חשבון של 20 triggers פר-script**. אם רושמים את `setupDailyRefresh` פעמיים בלי למחוק את הרישום הראשון, תקבלו שתי יריות ביום. רושמים אותו 20 פעמים והקריאה הבאה ל-`.create()` זורקת.
+לכל חשבון script יש **מגבלה פר-חשבון של 20 triggers פר-script**. אם רושמים את `setupDailyRefresh` פעמיים בלי למחוק את הרישום הראשון, תקבלו שתי הפעלות ביום. רושמים אותו 20 פעמים והקריאה הבאה ל-`.create()` זורקת.
 
 <QuickCheck
-  question="הגדרתם trigger יומי על ידי לחיצה על Run ב-setupDailyRefresh. הוא יורה עבורכם ב-6 בבוקר. חבר צוות פותח את ה-workbook למחרת ומריץ גם setupDailyRefresh. עכשיו ה-workbook יורה פעמיים כל בוקר, פעם אחת לכל משתמש. האם זה צפוי?"
+  question="הגדרתם trigger יומי על ידי לחיצה על Run ב-setupDailyRefresh. הוא מופעל עבורכם ב-6 בבוקר. חבר צוות פותח את ה-workbook למחרת ומריץ גם setupDailyRefresh. עכשיו ה-workbook מופעל פעמיים כל בוקר, פעם אחת לכל משתמש. האם זה צפוי?"
   options={[
     {
       id: "a",
       label: "לא, installable triggers הם פר-script. שתי הריצות אמורות לדרוס את ה-trigger היחיד הרשום.",
       correct: false,
-      explanation: "installable triggers הם פר-משתמש. כל משתמש שמריץ setupDailyRefresh רושם trigger משלו, ושניהם יורים תחת ה-auth של כל משתמש בלוח הזמנים שלו.",
+      explanation: "installable triggers הם פר-משתמש. כל משתמש שמריץ setupDailyRefresh רושם trigger משלו, ושניהם מופעלים תחת ה-auth של כל משתמש בלוח הזמנים שלו.",
     },
     {
       id: "b",
-      label: "כן. installable triggers הם פר-משתמש. כל משתמש שמריץ setupDailyRefresh רושם trigger נפרד שיורה תחת ה-auth שלו.",
+      label: "כן. installable triggers הם פר-משתמש. כל משתמש שמריץ setupDailyRefresh רושם trigger נפרד שמופעל תחת ה-auth שלו.",
       correct: true,
       explanation: "נכון. רישום פר-משתמש הוא מעיצוב: זה מאפשר לכל משתמש להעניק את ה-scopes שלו. הצוות צריך להסכים על בעלים יחיד שמריץ setupDailyRefresh, או לשמור את ה-setup function כך שתמחק triggers קיימים לפני יצירת חדש.",
     },
@@ -181,7 +181,7 @@ function deleteAllRefreshTriggers() {
       id: "c",
       label: "לא, ה-workbook נמצא במיקום אחד ב-Google Drive, אז triggers מתחברים ל-workbook ללא קשר למי שרשם אותם.",
       correct: false,
-      explanation: "triggers מתחברים ל-script project, אבל רישום ו-auth הם פר-משתמש. מיקום ה-Drive של ה-workbook לא משפיע על זה.",
+      explanation: "triggers מתחברים ל-script project, אבל הרישום וה-auth הם פר-משתמש. מיקום ה-Drive של ה-workbook לא משפיע על זה.",
     },
   ]}
 />
@@ -190,38 +190,38 @@ function deleteAllRefreshTriggers() {
 
 שני patterns אמיתיים מ-workbooks של הצוות:
 
-- **Pulls לילים של פלטפורמות.** כל רשת מודעות (Taboola, Outbrain, MediaGo) מקבלת `.everyDays(1).atHour(2)` trigger משלה רשום מול handler פר-פלטפורמה. ה-handler פוגע ב-API הדיווח של הפלטפורמה דרך `UrlFetchApp.fetch`, מנתח את ה-JSON, וכותב את ה-spend וה-revenue של היום ל-tab הפלטפורמה-ספציפי. ה-workbook של האגרגטור אז מושך כל tab דרך `IMPORTRANGE` (שיעור 1.27). בלי installable triggers, שום דבר מזה לא עובד: `UrlFetchApp` מחוץ לתחום ל-simple triggers.
-- **התראות Slack מבוססות-עריכה.** ל-workbook של ראשי buyers יש installable edit trigger שצופה בעמודת Profit. כששורה חוצה מתחת ל-`-$500` ליום, ה-handler עושה ping ל-channel `#spend-alerts` ב-Slack עם ה-buyer, ה-vertical, וה-loss הנוכחי של השורה. חייב להיות installable: simple triggers לא יכולים להגיע ל-Slack.
+- **Pulls ליליים של פלטפורמות.** כל רשת מודעות (Taboola, Outbrain, MediaGo) מקבלת `.everyDays(1).atHour(2)` trigger משלה שרשום מול handler פר-פלטפורמה. ה-handler פונה ל-API הדיווח של הפלטפורמה דרך `UrlFetchApp.fetch`, מנתח את ה-JSON, וכותב את ה-spend וה-revenue של היום ל-tab של הפלטפורמה הספציפית. ה-workbook של האגרגטור אז מושך כל tab דרך `IMPORTRANGE` (שיעור 1.27). בלי installable triggers, שום דבר מזה לא עובד: `UrlFetchApp` מחוץ לתחום ל-simple triggers.
+- **התראות Slack מבוססות-עריכה.** ל-workbook של ראשי ה-buyers יש installable edit trigger שצופה בעמודת Profit. כששורה חוצה מתחת ל-`-$500` ליום, ה-handler עושה ping ל-channel `#spend-alerts` ב-Slack עם ה-buyer, ה-vertical וה-loss הנוכחי של השורה. חייב להיות installable: simple triggers לא יכולים להגיע ל-Slack.
 
 ## עכשיו לעבודה אמיתית
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="לוג ה-Campaigns תופס A1:G61. עמודה I יש לה את התווית `Last refresh`; עמודה J היא איפה ה-handler היומי חותם את הזמן. המשימה שלכם: לרשום trigger יומי שיורה handler שכותב `new Date()` לתוך J1."
+  caption="לוג ה-Campaigns תופס A1:G61. לעמודה I יש את התווית `Last refresh`; עמודה J היא איפה ה-handler היומי חותם את הזמן. המשימה שלכם: לרשום trigger יומי שמפעיל handler שכותב `new Date()` לתוך J1."
 />
 
 הקובץ ההתחלתי `Lesson.gs` מצהיר על שני stubs של function:
 
 - `setupDailyRefresh()`: הרישום. ה-body שלו משתמש ב-`ScriptApp.newTrigger(...).timeBased().everyDays(1).atHour(6).create()` ומכוון ל-handler **לפי שם מחרוזת**.
-- `refreshAggregator()`: ה-handler שה-trigger יורה. ה-body שלו כותב את ה-`new Date()` הנוכחי לתא J1 ב-tab של Campaigns.
+- `refreshAggregator()`: ה-handler שה-trigger מפעיל. ה-body שלו כותב את ה-`new Date()` הנוכחי לתא J1 ב-tab של Campaigns.
 
 הזרימה ברגע שמילאתם את שניהם:
 
 1. שומרים את הפרויקט. לוחצים על `setupDailyRefresh` בעורך Apps Script. לוחצים על כפתור **Run**.
-2. מקבלים את ה-auth prompt. (אתם מעניקים ל-script הרשאה לנהל triggers ולכתוב ל-spreadsheets.)
+2. מאשרים את ה-auth prompt. (אתם מעניקים ל-script הרשאה לנהל triggers ולכתוב ל-spreadsheets.)
 3. פותחים **Edit then Current project's triggers**. אתם אמורים לראות שורה אחת: `refreshAggregator`, Time-driven, Day timer, 6am עד 7am.
 4. כדי לאמת שה-handler עובד בלי לחכות 12 שעות, מריצים את `refreshAggregator` ישירות מהעורך. J1 מתמלא ב-timestamp.
-5. אחרי הירייה היומית, ה-executions dashboard מציג שורה אחת ליום עם זמן הריצה וסטטוס היציאה של ה-handler.
+5. אחרי ההפעלה היומית, ה-executions dashboard מציג שורה אחת ליום עם זמן הריצה וסטטוס היציאה של ה-handler.
 
-הבדיקות של השיעור בודקות את המקור של שתי ה-functions. הן לא (ולא יכולות) לבדוק את ה-trigger registry: זה artifact של runtime בצד של Google, ניתן לאשר רק מ-UI של העורך.
+הבדיקות של השיעור בודקות את המקור של שתי ה-functions. הן לא בודקות (ולא יכולות לבדוק) את ה-trigger registry: זה artifact של runtime בצד של Google, וניתן לאשר אותו רק מ-UI של העורך.
 
 ## מלכודות מקצועיות
 
-- **Triggers יתומים מקוד ישן שנכשלים בשקט כל לילה.** אם מחקתם את `refreshAggregator` מהמקור אבל מעולם לא מחקתם את ה-trigger שלו, ה-trigger ממשיך לירות כל יום ב-6 בבוקר, לא מוצא function בשם הזה, ומתעד "Script function not found": בשקט, ב-executions dashboard שאף אחד לא קורא. מריצים את `listTriggers()` (למעלה) מעת לעת כדי לבקר מה רשום מול מה.
-- **Trigger handlers שקורסים בשקט.** handler שזורק exception לא נתפס לא שולח לכם מייל. השגיאה חיה ב-**executions dashboard** (אייקון שעון then Executions) תחת הריצה הכושלת. הגדירו installable failure-notification trigger (Apps Script יש לו אחד מובנה) או עוטפים את ה-handler ב-try/catch ושולחים לעצמכם מייל בכישלון.
-- **`atHour(6)` אינו 6:00 AM בדיוק.** triggers מבוססי-זמן של Apps Script יורים בחלון של שעה סביב השעה המבוקשת. אם ה-handler שלכם תלוי בנתונים שעולים ב-5:55 AM, מתזמנים את ה-trigger ל-`atHour(7)` כדי להשאיר מרווח.
+- **Triggers יתומים מקוד ישן שנכשלים בשקט כל לילה.** אם מחקתם את `refreshAggregator` מהמקור אבל מעולם לא מחקתם את ה-trigger שלו, ה-trigger ממשיך להיות מופעל כל יום ב-6 בבוקר, לא מוצא function בשם הזה, ומתעד "Script function not found": בשקט, ב-executions dashboard שאף אחד לא קורא. מריצים את `listTriggers()` (למעלה) מעת לעת כדי לבקר מה רשום מול מה.
+- **Trigger handlers שקורסים בשקט.** handler שזורק exception לא נתפס לא שולח לכם מייל. השגיאה חיה ב-**executions dashboard** (אייקון שעון then Executions) תחת הריצה הכושלת. הגדירו installable failure-notification trigger (ל-Apps Script יש אחד מובנה) או עוטפים את ה-handler ב-try/catch ושולחים לעצמכם מייל בכישלון.
+- **`atHour(6)` אינו 6:00 AM בדיוק.** triggers מבוססי-זמן של Apps Script מופעלים בחלון של שעה סביב השעה המבוקשת. אם ה-handler שלכם תלוי בנתונים שעולים ב-5:55 AM, מתזמנים את ה-trigger ל-`atHour(7)` כדי להשאיר מרווח.
 - **המגבלה של 20 triggers פר-script.** מוסיפים את `setupDailyRefresh()` לתפריט שלכם ונותנים למשתמש ללחוץ עליו פעמיים ורשמתם שני daily triggers. קוד רישום הגנתי בודק `ScriptApp.getProjectTriggers()` עבור trigger קיים עם אותו שם handler ומוחק אותו לפני יצירת חדש.
-- **מכסות runtime.** חשבונות Google של consumer מקבלים 90 דקות של סך זמן ריצה של triggers ליום; חשבונות Workspace מקבלים 6 שעות. ה-cap פר-ריצה הוא 6 דקות בשניהם. handler שלולאה על spreadsheet של 60,000 שורות אוכל דקות פר-ירייה; שש יריות יומיות של 5 דקות כל אחת כבר שורפות שליש מהמכסה הצרכנית היומית.
-- **בלבול אזור זמן.** השעה של ה-trigger מתפרשת ב-**אזור הזמן של ה-script** (מוגדר במניפסט של הפרויקט תחת `timeZone`). אזור הזמן של ה-script כברירת מחדל הוא של יוצר הפרויקט. אם רשמתם את ה-trigger מהלפטופ שלכם בתל אביב והלפטופ של חבר הצוות בניו יורק, שניכם רואים את אותו זמן ירייה: אבל זמן השעון בכל עיר שונה.
-- **Triggers לא שורדים העתקת פרויקט.** אם אתם File then Make a copy של ה-workbook, לעותק החדש אין triggers רשומים. הבעלים החדש חייב להריץ `setupDailyRefresh()` בעצמו.
-- **הרשאה פר-משתמש שגורמת להפתעות של re-prompts.** הוספת קריאת שירות חדשה ל-body של ה-handler מרחיבה בשקט את סט ה-scopes של ה-trigger. הבוקר הבא ה-trigger יורה תחת ה-auth שלכם (עדיין עובד), אבל trigger רשום בנפרד של חבר צוות נכשל עד שהוא יריץ מחדש את `setupDailyRefresh` ויקבל את ה-scope החדש. מגלגלים שינויי scope בכוונה.
+- **מכסות runtime.** חשבונות Google של consumer מקבלים 90 דקות של סך זמן ריצה של triggers ליום; חשבונות Workspace מקבלים 6 שעות. ה-cap פר-ריצה הוא 6 דקות בשניהם. handler שעובר בלולאה על spreadsheet של 60,000 שורות אוכל דקות בכל הפעלה; שש הפעלות יומיות של 5 דקות כל אחת כבר שורפות שליש מהמכסה הצרכנית היומית.
+- **בלבול אזור זמן.** השעה של ה-trigger מתפרשת ב-**אזור הזמן של ה-script** (מוגדר במניפסט של הפרויקט תחת `timeZone`). אזור הזמן של ה-script כברירת מחדל הוא של יוצר הפרויקט. אם רשמתם את ה-trigger מהלפטופ שלכם בתל אביב והלפטופ של חבר הצוות בניו יורק, שניכם רואים את אותו זמן הפעלה: אבל זמן השעון בכל עיר שונה.
+- **Triggers לא שורדים העתקת פרויקט.** אם אתם עושים File then Make a copy של ה-workbook, לעותק החדש אין triggers רשומים. הבעלים החדש חייב להריץ `setupDailyRefresh()` בעצמו.
+- **הרשאה פר-משתמש שגורמת להפתעות של re-prompts.** הוספת קריאת שירות חדשה ל-body של ה-handler מרחיבה בשקט את סט ה-scopes של ה-trigger. הבוקר הבא ה-trigger מופעל תחת ה-auth שלכם (עדיין עובד), אבל trigger שרשום בנפרד של חבר צוות נכשל עד שהוא יריץ מחדש את `setupDailyRefresh` ויאשר את ה-scope החדש. מגלגלים שינויי scope בכוונה.
