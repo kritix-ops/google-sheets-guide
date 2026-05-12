@@ -82,6 +82,10 @@
     "ai-in-sheets": {
       "label": "AI in Sheets",
       "tagline": "Gemini, =AI(), Fill with Gemini, calibrated trust."
+    },
+    "capstone": {
+      "label": "Capstone",
+      "tagline": "Build a dashboard end-to-end across every track."
     }
   },
   "home": {

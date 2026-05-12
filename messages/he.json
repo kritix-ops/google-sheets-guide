@@ -82,6 +82,10 @@
     "ai-in-sheets": {
       "label": "AI ב-Sheets",
       "tagline": "Gemini, =AI(), Fill with Gemini, אמון מבוסס."
+    },
+    "capstone": {
+      "label": "Capstone",
+      "tagline": "בניית dashboard מקצה לקצה שמשתמש בכל ה-tracks."
     }
   },
   "home": {
