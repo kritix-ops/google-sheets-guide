@@ -55,6 +55,32 @@ Sheets תומך ביותר סוגי chips מאלה, אבל בעבודת אדטק
 
 ה-chip מוצג כ-pill קטן עם שם הישות ותצוגה מקדימה ב-hover. הטקסט הבסיסי של התא הוא רק `@`. טקסט התצוגה ויעד הקישור שניהם חיים ב-metadata של ה-chip, לא בערך התא.
 
+יש נתיב הכנסה שני שלוכד אנשים: מדביקים URL של Drive ישירות לתא. Sheets מציג prompt "Replace with a smart chip?". מאשרים ומקבלים file chip. מסלקים (או מדביקים בזמן ש-ה-prompt נכבה) ומקבלים מחרוזת hyperlink רגילה. שניהם ניתנים ללחיצה; רק אחד מהם ניתן לחיפוש ומובנה.
+
+<QuickCheck
+  question="אתם מדביקים URL של תיקיית Drive לתא B5. Sheets מציג את ה-prompt 'Replace with a smart chip?'. אתם לוחצים Escape ברפלקס. מה יש ב-B5 עכשיו?"
+  options={[
+    {
+      id: "a",
+      label: "file chip שמצביע על התיקייה (Sheets יצר אחד בכל מקרה)",
+      correct: false,
+      explanation: "סילוק ה-prompt הוא 'לא'. Sheets לא יוצר chip כשמסרבים. התא מחזיק מה שההדבקה הכניסה.",
+    },
+    {
+      id: "b",
+      label: "hyperlink רגיל: ה-URL כטקסט, עם קו תחתון ניתן ללחיצה",
+      correct: true,
+      explanation: "ההדבקה משאירה את ה-URL כטקסט. הקו התחתון של ה-hyperlink מגיע מזיהוי קישורים אוטומטי של Sheets על URLs. ניתן ללחיצה אבל אין לו metadata של chip, אז ה-API רואה תא טקסט רגיל. חצי מהעמודות עם chip-and-link מעורבבים אצל הצוות מגיעות מסילוק לא מכוון של ה-prompt הזה.",
+    },
+    {
+      id: "c",
+      label: "תא ריק, כי Sheets מבטל את ההדבקה כשה-prompt מסולק",
+      correct: false,
+      explanation: "Sheets לעולם לא מבטל הדבקה בגלל chip prompt. ההדבקה קורית קודם; ה-chip prompt הוא הצעה משלימה.",
+    },
+  ]}
+/>
+
 ## איך ה-API רואה chip
 
 כל chip הוא `ChipRun` שמוצמד לתא. run נושא `startIndex` (מיקום התו בתא שבו ה-chip יושב) פלוס payload `Chip` שהוא או person chip או rich-link chip:
@@ -157,6 +183,6 @@ Charts מתויגים לפי A, חיפושים קוראים B.`}</code></pre>
 - **Chips לא שורדים `Paste special → Values only`.** מצב הדבקה זה מסיר את ה-chip ומשאיר את ה-`@` החשוף. אם בונים workbook על ידי הדבקה מ-spreadsheet אחר, תצטרכו להזין מחדש כל chip בצד היעד. הדבקה רגילה משמרת chips; values-only לא.
 - **חיפוש שם של אדם עם `FIND` או `REGEXMATCH` לא מתאים.** הטקסט הבסיסי של התא הוא `@`. השם `Yoav Cohen` חי ב-`personProperties` של ה-chip, לא בערך התא. `FIND("Yoav", A2)` מחזיר `#VALUE!`. כדי לחפש על פני chips, צריך את ה-API או Apps Script.
 - **Chips נשברים ל-viewers מחוץ ל-domain של Workspace.** person chip של `@yoav.cohen@flexelent.com` מופיע ל-contractor עם Gmail אישי כ-chip pill, אבל לחיצה מובילה ל-"you don't have access". File chips יש להם אותו מצב כישלון אם קובץ ה-Drive המקושר לא משותף עם ה-viewer.
-- **`IMPORTRANGE` לא מביא chips על פני.** כשה-tab של `Aggregator` שולף מ-`Raw - Taboola` דרך `IMPORTRANGE`, התאים המיובאים מכילים כל טקסט שהמקור היה במיקום ה-chip, שזה רק `@`. צריך לשחזר chips על הגיליון הצורך, או הנתונים במקור צריכים לחיות בעמודות רגילות לצד.
+- **`IMPORTRANGE` לא מביא chips על פני** (שיעור 1.27). כשה-tab של `Aggregator` שולף מ-`Raw - Taboola` דרך `IMPORTRANGE`, התאים המיובאים מכילים כל טקסט שהמקור היה במיקום ה-chip, שזה רק `@`. צריך לשחזר chips על הגיליון הצורך, או הנתונים במקור צריכים לחיות בעמודות רגילות לצד.
 - **מיון עמודת person chips עובד, אבל מפתח המיון הוא שם התצוגה של ה-chip, לא האימייל.** שני buyers עם אותו שם פרטי (`Yoav Cohen` ו-`Yoav Levi`) ממוינים לפי שם תצוגה מלא. אם צריכים מיון בדיוק של אימייל, מוסיפים עמודת עזר מוסתרת עם האימייל שנשלף דרך Apps Script.
 - **chip בטווח מקור של `QUERY` הופך ל-`@` החשוף** בפלט ה-QUERY. QUERY קורא את ערך הטקסט של התא, לא את metadata של ה-chip. אגרגציה של עמודות נושאות-chip משמעה איבוד ה-chip בתוצאה.

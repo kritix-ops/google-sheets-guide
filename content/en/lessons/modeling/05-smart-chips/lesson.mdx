@@ -55,6 +55,32 @@ Inside any cell, type `@` and Sheets opens a chip-picker. The picker filters as 
 
 The chip renders as a small pill with the entity's name and a hover preview. The cell's underlying text is just `@`. The display text and the link target both live in chip metadata, not in the cell value.
 
+There's a second insertion path that catches people out: paste a Drive URL directly into a cell. Sheets shows a prompt "Replace with a smart chip?". Accept and you get a file chip. Dismiss (or paste while the prompt times out) and you get a plain hyperlink string. Both are clickable; only one is searchable and structured.
+
+<QuickCheck
+  question="You paste a Drive folder URL into B5. Sheets shows the prompt 'Replace with a smart chip?'. You hit Escape by reflex. What's in B5 now?"
+  options={[
+    {
+      id: "a",
+      label: "A file chip pointing at the folder (Sheets created one anyway)",
+      correct: false,
+      explanation: "Dismissing the prompt is a 'no'. Sheets does not create a chip when you decline. The cell holds whatever the paste put there.",
+    },
+    {
+      id: "b",
+      label: "A plain hyperlink: the URL as text, with a clickable underline",
+      correct: true,
+      explanation: "Paste leaves the URL as text. The hyperlink underline comes from Sheets's auto-link detection on URLs. It's clickable but has no chip metadata, so the API sees a regular text cell. Half the team's mixed-chip-and-link columns come from accidentally dismissing this prompt.",
+    },
+    {
+      id: "c",
+      label: "An empty cell, because Sheets cancels the paste when the prompt is dismissed",
+      correct: false,
+      explanation: "Sheets never cancels a paste because of a chip prompt. The paste happens first; the chip prompt is a follow-up offer.",
+    },
+  ]}
+/>
+
 ## How the API sees a chip
 
 Each chip is a `ChipRun` attached to the cell. A run carries a `startIndex` (the character position in the cell where the chip sits) plus a `Chip` payload that's either a person chip or a rich-link chip:
@@ -157,6 +183,6 @@ In the team's actual workbooks:
 - **Chips don't survive `Paste special → Values only`.** That paste mode strips the chip and leaves the bare `@`. If you build a workbook by pasting from another spreadsheet, you'll need to re-enter every chip on the destination side. Plain copy-paste preserves chips; values-only doesn't.
 - **Searching for a person's name with `FIND` or `REGEXMATCH` doesn't match.** The cell's underlying text is `@`. The name `Yoav Cohen` lives in the chip's `personProperties`, not in the cell value. `FIND("Yoav", A2)` returns `#VALUE!`. To search across chips, you need the API or an Apps Script.
 - **Chips break for viewers outside the Workspace domain.** A person chip for `@yoav.cohen@flexelent.com` shows up to a contractor with a personal Gmail as a chip pill, but clicking it leads to "you don't have access". File chips have the same failure mode if the linked Drive file isn't shared with the viewer.
-- **`IMPORTRANGE` does not bring chips across.** When the `Aggregator` tab pulls from `Raw - Taboola` via `IMPORTRANGE`, the imported cells contain whatever text the source had at the chip position, which is just `@`. Chips have to be recreated on the consuming sheet, or the source data needs to live in plain columns alongside.
+- **`IMPORTRANGE` does not bring chips across** (lesson 1.27). When the `Aggregator` tab pulls from `Raw - Taboola` via `IMPORTRANGE`, the imported cells contain whatever text the source had at the chip position, which is just `@`. Chips have to be recreated on the consuming sheet, or the source data needs to live in plain columns alongside.
 - **Sorting a column of person chips works, but the sort key is the chip's display name, not the email.** Two buyers with the same first name (`Yoav Cohen` and `Yoav Levi`) sort by full display name. If you need email-precision sort, add a hidden helper column with the email pulled out via Apps Script.
 - **A chip in a `QUERY` source range becomes the bare `@`** in the QUERY output. QUERY reads the cell's text value, not the chip metadata. Aggregating chip-bearing columns means losing the chip in the result.
