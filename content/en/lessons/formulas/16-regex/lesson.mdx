@@ -207,7 +207,7 @@ The team's verticals all end in " PR" by convention (Used Cars PR, Lingerie PR, 
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
     <pre className="font-mono text-xs"><code>{`=REGEXREPLACE("price: $5", "\\\\$", "USD ")`}</code></pre>
-    <p className="mt-2 text-sm"><strong>Double-backslash in the formula text.</strong> <code>{`\\\\$`}</code> in the formula becomes <code>{`\\$`}</code> after Sheets' string parser, which the regex engine reads as "literal dollar sign." Replaces "$" with "USD " correctly: <code>"price: USD 5"</code>. <em>Any</em> regex special character (<code>. * + ? ^ $ ( ) [ ] {`{`} {`}`} | \</code>) needs the double-backslash escape when used literally.</p>
+    <p className="mt-2 text-sm"><strong>Double-backslash in the formula text.</strong> <code>{`\\\\$`}</code> in the formula becomes <code>{`\\$`}</code> after Sheets' string parser, which the regex engine reads as "literal dollar sign." Replaces "$" with "USD " correctly: <code>"price: USD 5"</code>. <em>Any</em> regex special character (<code>{`. * + ? ^ $ ( ) [ ] { } | \\`}</code>) needs the double-backslash escape when used literally.</p>
   </ComparePanel>
 </Compare>
 

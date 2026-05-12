@@ -35,7 +35,12 @@ export function ComparePanel({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-1 flex-col rounded-lg border bg-card p-4 shadow-1",
+        "flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card p-4 shadow-1",
+        // Bound long pre/code/table content to the panel and scroll horizontally
+        // instead of bursting out (RTL would otherwise overlap the sibling panel).
+        "[&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:whitespace-pre",
+        "[&_code]:break-words",
+        "[&_table]:max-w-full [&_table]:overflow-x-auto",
         PANEL_TONE[tone],
         className,
       )}
@@ -57,7 +62,9 @@ export function Compare({ children, className }: CompareProps) {
   return (
     <div
       className={cn(
-        "not-prose my-6 grid gap-4 md:grid-cols-2",
+        // [&>*]:min-w-0 ensures grid children cannot grow past their track
+        // when they contain long unbreakable content (formulas without spaces).
+        "not-prose my-6 grid gap-4 md:grid-cols-2 [&>*]:min-w-0",
         className,
       )}
     >

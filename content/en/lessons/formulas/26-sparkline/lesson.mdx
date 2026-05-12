@@ -120,35 +120,30 @@ For a row of daily ROIs, this becomes a "5 wins, 2 losses" bar pattern at a glan
 
 The options array is where most sparkline formulas die. Two patterns the team has lost time to, side-by-side:
 
-<Compare
-  panels={[
-    {
-      title: "Broken: comma instead of semicolon",
-      formula: '=SPARKLINE(B2:H2, {"charttype","line", "color","blue"})',
-      why: "Inside the options array, `,` is the column separator (between option name and value) and `;` is the row separator (between pairs). Using a comma between pairs collapses everything onto one row, which is not a valid options shape. Result is a parse error.",
-    },
-    {
-      title: "Working: semicolon between pairs",
-      formula: '=SPARKLINE(B2:H2, {"charttype","line"; "color","blue"})',
-      why: "Pairs are separated by `;`. Inside each pair, `,` separates the name from the value. Two pairs → two rows in the array.",
-    },
-  ]}
-/>
+<Compare>
+  <ComparePanel label="Broken: comma instead of semicolon" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SPARKLINE(B2:H2,
+  {"charttype","line", "color","blue"})`}</code></pre>
+    <p className="mt-2 text-sm">Inside the options array, <code>,</code> is the column separator (between option name and value) and <code>;</code> is the row separator (between pairs). Using a comma between pairs collapses everything onto one row, which is not a valid options shape. Result is a parse error.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: semicolon between pairs" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SPARKLINE(B2:H2,
+  {"charttype","line"; "color","blue"})`}</code></pre>
+    <p className="mt-2 text-sm">Pairs are separated by <code>;</code>. Inside each pair, <code>,</code> separates the name from the value. Two pairs → two rows in the array.</p>
+  </ComparePanel>
+</Compare>
 
-<Compare
-  panels={[
-    {
-      title: "Broken: #N/A in the data range",
-      formula: '=SPARKLINE(VLOOKUP_RESULTS)',
-      why: "If even one cell in the range is `#N/A` (from a broken lookup upstream), the entire sparkline returns `#N/A`. The chart does not render at all. Common when the data range pulls from a lookup that has not been resolved yet.",
-    },
-    {
-      title: "Working: wrap with IFERROR",
-      formula: '=SPARKLINE(ARRAYFORMULA(IFERROR(VLOOKUP_RESULTS, 0)))',
-      why: "Coerce missing values to 0 (or to a sentinel like NA() that SPARKLINE will skip) before the chart sees them. From lesson 1.9 on error handling.",
-    },
-  ]}
-/>
+<Compare>
+  <ComparePanel label="Broken: #N/A in the data range" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SPARKLINE(VLOOKUP_RESULTS)`}</code></pre>
+    <p className="mt-2 text-sm">If even one cell in the range is <code>#N/A</code> (from a broken lookup upstream), the entire sparkline returns <code>#N/A</code>. The chart does not render at all. Common when the data range pulls from a lookup that has not been resolved yet.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: wrap with IFERROR" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SPARKLINE(
+  ARRAYFORMULA(IFERROR(VLOOKUP_RESULTS, 0)))`}</code></pre>
+    <p className="mt-2 text-sm">Coerce missing values to 0 (or to a sentinel like NA() that SPARKLINE will skip) before the chart sees them. From lesson 1.9 on error handling.</p>
+  </ComparePanel>
+</Compare>
 
 ## Locking the Y-axis for honest comparison
 

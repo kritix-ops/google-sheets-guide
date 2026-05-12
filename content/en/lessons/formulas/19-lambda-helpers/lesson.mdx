@@ -83,7 +83,7 @@ The conditional aggregation that `SUMIF` is too limited for. Sum only the campai
   expectedFormula="=REDUCE(0,E2:E13,LAMBDA(a,s,IF(s>300,a+s,a)))"
   task={<>Use REDUCE to sum only the campaign Spends greater than 300. Result is a single number in <code>H1</code>.</>}
   hint={<>Pattern: <code>REDUCE(initial, array, LAMBDA(acc, current, body))</code>. The body conditionally adds <code>current</code> to <code>acc</code>.</>}
-  answer={<>This particular case could be `=SUMIF(E2:E13, ">300")`, but REDUCE generalizes to any condition you can express in a LAMBDA, not just SUMIF's limited criteria language. The team uses REDUCE for "weighted average ROI by spend share" and "second-highest revenue across all of Yoav's campaigns": neither of which has a built-in.</>}
+  answer={<>This particular case could be <code>=SUMIF(E2:E13, "{">"}300")</code>, but REDUCE generalizes to any condition you can express in a LAMBDA, not just SUMIF's limited criteria language. The team uses REDUCE for "weighted average ROI by spend share" and "second-highest revenue across all of Yoav's campaigns": neither of which has a built-in.</>}
 />
 
 ## SCAN: REDUCE with every step preserved

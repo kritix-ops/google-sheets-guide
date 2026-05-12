@@ -76,20 +76,24 @@ The `data` is the IMPORTRANGE; `total` and `count` both reference it. Without LE
 
 The pattern below is the one the team has lost the most days to. Both formulas return the same average revenue. One of them works on a 50-row dashboard. The other one melts the workbook.
 
-<Compare
-  panels={[
-    {
-      title: "Slow: IMPORTRANGE called per cell",
-      formula: '=AVERAGE(IMPORTRANGE("...", "Campaigns!E2:E10000"))\n=SUM(IMPORTRANGE("...", "Campaigns!E2:E10000"))\n=COUNT(IMPORTRANGE("...", "Campaigns!E2:E10000"))',
-      why: "Three IMPORTRANGE calls = three network round-trips, three caches, three places to break. Drag this across 50 rows and the dashboard makes hundreds of cold requests on first open.",
-    },
-    {
-      title: "Fast: one IMPORTRANGE, referenced",
-      formula: '=LET(\n  data, IMPORTRANGE("...", "Campaigns!E2:E10000"),\n  avg, AVERAGE(data),\n  total, SUM(data),\n  count, COUNT(data),\n  {avg; total; count}\n)',
-      why: "One IMPORTRANGE call, three reuses via LET. The cache is hit once. The dashboard loads in seconds instead of a minute.",
-    },
-  ]}
-/>
+<Compare>
+  <ComparePanel label="Slow: IMPORTRANGE called per cell" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=AVERAGE(IMPORTRANGE("...", "Campaigns!E2:E10000"))
+=SUM(IMPORTRANGE("...", "Campaigns!E2:E10000"))
+=COUNT(IMPORTRANGE("...", "Campaigns!E2:E10000"))`}</code></pre>
+    <p className="mt-2 text-sm">Three IMPORTRANGE calls = three network round-trips, three caches, three places to break. Drag this across 50 rows and the dashboard makes hundreds of cold requests on first open.</p>
+  </ComparePanel>
+  <ComparePanel label="Fast: one IMPORTRANGE, referenced" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=LET(
+  data, IMPORTRANGE("...", "Campaigns!E2:E10000"),
+  avg, AVERAGE(data),
+  total, SUM(data),
+  count, COUNT(data),
+  {avg; total; count}
+)`}</code></pre>
+    <p className="mt-2 text-sm">One IMPORTRANGE call, three reuses via LET. The cache is hit once. The dashboard loads in seconds instead of a minute.</p>
+  </ComparePanel>
+</Compare>
 
 ## The cache and refresh
 
@@ -107,20 +111,24 @@ The team's "the dashboard is wrong" tickets are 80% stale-cache issues. Build a 
 
 Wrap every load-bearing IMPORTRANGE in IFERROR (lesson 1.9). The fallback message tells the next person what is wrong, instead of showing a bare `#REF!`.
 
-<Compare
-  panels={[
-    {
-      title: "Naked IMPORTRANGE (shows #REF! to stakeholders)",
-      formula: '=IMPORTRANGE("https://...", "Campaigns!A:F")',
-      why: "If the source is renamed, permissions are revoked, or the tab disappears, this returns `#REF!` and the whole dashboard cell shows an error. A CEO sees `#REF!` in a screen-share and trust evaporates.",
-    },
-    {
-      title: "Wrapped with IFERROR + LET safety check",
-      formula: '=LET(\n  data, IFERROR(IMPORTRANGE("...", "Campaigns!A:F"), {""}),\n  IF(ROWS(data) < 2, "No data: check source", QUERY(data, "SELECT *", 1))\n)',
-      why: "Catch the import error to a fallback array, then verify the result has rows before passing to QUERY. Belt-and-suspenders for dashboards that get screen-shared to leadership.",
-    },
-  ]}
-/>
+<Compare>
+  <ComparePanel label="Naked IMPORTRANGE (shows #REF! to stakeholders)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IMPORTRANGE("https://...",
+  "Campaigns!A:F")`}</code></pre>
+    <p className="mt-2 text-sm">If the source is renamed, permissions are revoked, or the tab disappears, this returns <code>#REF!</code> and the whole dashboard cell shows an error. A CEO sees <code>#REF!</code> in a screen-share and trust evaporates.</p>
+  </ComparePanel>
+  <ComparePanel label="Wrapped with IFERROR + LET safety check" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=LET(
+  data, IFERROR(
+    IMPORTRANGE("...", "Campaigns!A:F"),
+    {""}),
+  IF(ROWS(data) < 2,
+     "No data: check source",
+     QUERY(data, "SELECT *", 1))
+)`}</code></pre>
+    <p className="mt-2 text-sm">Catch the import error to a fallback array, then verify the result has rows before passing to QUERY. Belt-and-suspenders for dashboards that get screen-shared to leadership.</p>
+  </ComparePanel>
+</Compare>
 
 ## IMPORTHTML, IMPORTDATA, IMPORTXML
 

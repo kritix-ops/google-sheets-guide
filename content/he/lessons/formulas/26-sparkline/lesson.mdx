@@ -120,35 +120,30 @@ sparkline של winloss מצייר סרגל קטן מעל (חיובי) או מת�
 
 מערך האפשרויות הוא המקום שבו רוב נוסחאות ה-sparkline מתות. שני דפוסים שהצוות איבד עליהם זמן, זה לצד זה:
 
-<Compare
-  panels={[
-    {
-      title: "שבור: פסיק במקום נקודה-פסיק",
-      formula: '=SPARKLINE(B2:H2, {"charttype","line", "color","blue"})',
-      why: "בתוך מערך האפשרויות, `,` הוא מפריד העמודה (בין שם האפשרות לערך) ו-`;` הוא מפריד השורה (בין זוגות). שימוש בפסיק בין זוגות מקפל הכל לשורה אחת, וזה לא צורת אפשרויות חוקית. התוצאה היא parse error.",
-    },
-    {
-      title: "עובד: נקודה-פסיק בין זוגות",
-      formula: '=SPARKLINE(B2:H2, {"charttype","line"; "color","blue"})',
-      why: "זוגות מופרדים ב-`;`. בתוך כל זוג, `,` מפריד את השם מהערך. שני זוגות → שתי שורות במערך.",
-    },
-  ]}
-/>
+<Compare>
+  <ComparePanel label="שבור: פסיק במקום נקודה-פסיק" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SPARKLINE(B2:H2,
+  {"charttype","line", "color","blue"})`}</code></pre>
+    <p className="mt-2 text-sm">בתוך מערך האפשרויות, <code>,</code> הוא מפריד העמודה (בין שם האפשרות לערך) ו-<code>;</code> הוא מפריד השורה (בין זוגות). שימוש בפסיק בין זוגות מקפל הכל לשורה אחת, וזה לא צורת אפשרויות חוקית. התוצאה היא parse error.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד: נקודה-פסיק בין זוגות" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SPARKLINE(B2:H2,
+  {"charttype","line"; "color","blue"})`}</code></pre>
+    <p className="mt-2 text-sm">זוגות מופרדים ב-<code>;</code>. בתוך כל זוג, <code>,</code> מפריד את השם מהערך. שני זוגות → שתי שורות במערך.</p>
+  </ComparePanel>
+</Compare>
 
-<Compare
-  panels={[
-    {
-      title: "שבור: #N/A בטווח הנתונים",
-      formula: '=SPARKLINE(VLOOKUP_RESULTS)',
-      why: "אם אפילו תא אחד בטווח הוא `#N/A` (מ-lookup שבור למעלה), כל ה-sparkline מחזיר `#N/A`. ה-chart לא מצויר כלל. נפוץ כשטווח הנתונים נשען על lookup שעוד לא נפתר.",
-    },
-    {
-      title: "עובד: עוטפים ב-IFERROR",
-      formula: '=SPARKLINE(ARRAYFORMULA(IFERROR(VLOOKUP_RESULTS, 0)))',
-      why: "כופים ערכים חסרים ל-0 (או ל-sentinel כמו NA() שה-SPARKLINE ידלג עליו) לפני שה-chart רואה אותם. משיעור 1.9 על טיפול בשגיאות.",
-    },
-  ]}
-/>
+<Compare>
+  <ComparePanel label="שבור: #N/A בטווח הנתונים" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SPARKLINE(VLOOKUP_RESULTS)`}</code></pre>
+    <p className="mt-2 text-sm">אם אפילו תא אחד בטווח הוא <code>#N/A</code> (מ-lookup שבור למעלה), כל ה-sparkline מחזיר <code>#N/A</code>. ה-chart לא מצויר כלל. נפוץ כשטווח הנתונים נשען על lookup שעוד לא נפתר.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד: עוטפים ב-IFERROR" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SPARKLINE(
+  ARRAYFORMULA(IFERROR(VLOOKUP_RESULTS, 0)))`}</code></pre>
+    <p className="mt-2 text-sm">כופים ערכים חסרים ל-0 (או ל-sentinel כמו NA() שה-SPARKLINE ידלג עליו) לפני שה-chart רואה אותם. משיעור 1.9 על טיפול בשגיאות.</p>
+  </ComparePanel>
+</Compare>
 
 ## נעילת ציר Y להשוואה הוגנת
 

@@ -76,20 +76,24 @@
 
 הדפוס למטה הוא זה שהצוות איבד עליו הכי הרבה ימים. שתי הנוסחאות מחזירות את אותו revenue ממוצע. אחת מהן עובדת על dashboard של 50 שורות. השנייה מתיכה את ה-workbook.
 
-<Compare
-  panels={[
-    {
-      title: "איטי: IMPORTRANGE נקרא פר-תא",
-      formula: '=AVERAGE(IMPORTRANGE("...", "Campaigns!E2:E10000"))\n=SUM(IMPORTRANGE("...", "Campaigns!E2:E10000"))\n=COUNT(IMPORTRANGE("...", "Campaigns!E2:E10000"))',
-      why: "שלוש קריאות IMPORTRANGE = שלושה network round-trips, שלושה caches, שלושה מקומות שיכולים להישבר. גוררים את זה לאורך 50 שורות וה-dashboard עושה מאות בקשות קרות בפתיחה הראשונה.",
-    },
-    {
-      title: "מהיר: IMPORTRANGE אחד, עם הפניה",
-      formula: '=LET(\n  data, IMPORTRANGE("...", "Campaigns!E2:E10000"),\n  avg, AVERAGE(data),\n  total, SUM(data),\n  count, COUNT(data),\n  {avg; total; count}\n)',
-      why: "קריאת IMPORTRANGE אחת, שלושה שימושים חוזרים דרך LET. ה-cache נפגע פעם אחת. ה-dashboard נטען בשניות במקום בדקה.",
-    },
-  ]}
-/>
+<Compare>
+  <ComparePanel label="איטי: IMPORTRANGE נקרא פר-תא" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=AVERAGE(IMPORTRANGE("...", "Campaigns!E2:E10000"))
+=SUM(IMPORTRANGE("...", "Campaigns!E2:E10000"))
+=COUNT(IMPORTRANGE("...", "Campaigns!E2:E10000"))`}</code></pre>
+    <p className="mt-2 text-sm">שלוש קריאות IMPORTRANGE = שלושה network round-trips, שלושה caches, שלושה מקומות שיכולים להישבר. גוררים את זה לאורך 50 שורות וה-dashboard עושה מאות בקשות קרות בפתיחה הראשונה.</p>
+  </ComparePanel>
+  <ComparePanel label="מהיר: IMPORTRANGE אחד, עם הפניה" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=LET(
+  data, IMPORTRANGE("...", "Campaigns!E2:E10000"),
+  avg, AVERAGE(data),
+  total, SUM(data),
+  count, COUNT(data),
+  {avg; total; count}
+)`}</code></pre>
+    <p className="mt-2 text-sm">קריאת IMPORTRANGE אחת, שלושה שימושים חוזרים דרך LET. ה-cache נפגע פעם אחת. ה-dashboard נטען בשניות במקום בדקה.</p>
+  </ComparePanel>
+</Compare>
 
 ## ה-cache וה-refresh
 
@@ -107,20 +111,24 @@ IMPORTRANGE שומרת תוצאות ב-cache כדי להימנע משליפה מ
 
 עוטפים כל IMPORTRANGE קריטי ב-IFERROR (שיעור 1.9). הודעת ה-fallback אומרת לאדם הבא מה לא בסדר, במקום להציג `#REF!` חשוף.
 
-<Compare
-  panels={[
-    {
-      title: "IMPORTRANGE חשוף (מציג #REF! לבעלי עניין)",
-      formula: '=IMPORTRANGE("https://...", "Campaigns!A:F")',
-      why: "אם המקור משונה בשם, הרשאות בוטלו, או הטאב נעלם, זה מחזיר `#REF!` וכל תא ה-dashboard מציג שגיאה. מנכ\"ל רואה `#REF!` בשיתוף מסך ואמון מתאדה.",
-    },
-    {
-      title: "עטוף ב-IFERROR + בדיקת בטיחות LET",
-      formula: '=LET(\n  data, IFERROR(IMPORTRANGE("...", "Campaigns!A:F"), {""}),\n  IF(ROWS(data) < 2, "No data: check source", QUERY(data, "SELECT *", 1))\n)',
-      why: "תופסים את שגיאת ה-import למערך fallback, ואז מאמתים שלתוצאה יש שורות לפני שמעבירים ל-QUERY. חגורה ושלייקס ל-dashboards שמשותפים על מסך לבעלי עניין.",
-    },
-  ]}
-/>
+<Compare>
+  <ComparePanel label="IMPORTRANGE חשוף (מציג #REF! לבעלי עניין)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IMPORTRANGE("https://...",
+  "Campaigns!A:F")`}</code></pre>
+    <p className="mt-2 text-sm">אם המקור משונה בשם, הרשאות בוטלו, או הטאב נעלם, זה מחזיר <code>#REF!</code> וכל תא ה-dashboard מציג שגיאה. מנכ"ל רואה <code>#REF!</code> בשיתוף מסך ואמון מתאדה.</p>
+  </ComparePanel>
+  <ComparePanel label="עטוף ב-IFERROR + בדיקת בטיחות LET" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=LET(
+  data, IFERROR(
+    IMPORTRANGE("...", "Campaigns!A:F"),
+    {""}),
+  IF(ROWS(data) < 2,
+     "No data: check source",
+     QUERY(data, "SELECT *", 1))
+)`}</code></pre>
+    <p className="mt-2 text-sm">תופסים את שגיאת ה-import למערך fallback, ואז מאמתים שלתוצאה יש שורות לפני שמעבירים ל-QUERY. חגורה ושלייקס ל-dashboards שמשותפים על מסך לבעלי עניין.</p>
+  </ComparePanel>
+</Compare>
 
 ## IMPORTHTML, IMPORTDATA, IMPORTXML
 

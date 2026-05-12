@@ -69,7 +69,7 @@ The sandbox engine here resolves cell references but does not have multiple tabs
   formulaCell="D1"
   fillTo="D1"
   expectedFills={['=INDIRECT(B1)']}
-  caption="B1 holds the string 'E2'. INDIRECT(B1) resolves to a reference to E2 (here, 342.18 if E2 had that value). In a real workbook, the same idea works against tab names: INDIRECT(\"'\" & B1 & \"'!E2\") reads E2 from whatever tab B1 names."
+  caption={`B1 holds the string 'E2'. INDIRECT(B1) resolves to a reference to E2 (here, 342.18 if E2 had that value). In a real workbook, the same idea works against tab names: INDIRECT("'" & B1 & "'!E2") reads E2 from whatever tab B1 names.`}
 />
 
 ## Why INDIRECT scares experienced spreadsheet users

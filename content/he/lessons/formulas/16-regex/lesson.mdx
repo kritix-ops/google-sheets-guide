@@ -207,7 +207,7 @@ Sheets משתמש במנוע **RE2** של Google. הוא מהיר, בטוח (א�
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=REGEXREPLACE("price: $5", "\\\\$", "USD ")`}</code></pre>
-    <p className="mt-2 text-sm"><strong>Backslash כפול בטקסט הנוסחה.</strong> <code>{`\\\\$`}</code> בנוסחה הופך ל-<code>{`\\$`}</code> אחרי המנתח של מחרוזות ב-Sheets, שמנוע ה-regex קורא כ"דולר ליטרלי". מחליף "$" ב-"USD " נכון: <code>"price: USD 5"</code>. <em>כל</em> תו מיוחד של regex (<code>. * + ? ^ $ ( ) [ ] {`{`} {`}`} | \</code>) צריך escape של backslash כפול כשמשתמשים בו ליטרלית.</p>
+    <p className="mt-2 text-sm"><strong>Backslash כפול בטקסט הנוסחה.</strong> <code>{`\\\\$`}</code> בנוסחה הופך ל-<code>{`\\$`}</code> אחרי המנתח של מחרוזות ב-Sheets, שמנוע ה-regex קורא כ"דולר ליטרלי". מחליף "$" ב-"USD " נכון: <code>"price: USD 5"</code>. <em>כל</em> תו מיוחד של regex (<code>{`. * + ? ^ $ ( ) [ ] { } | \\`}</code>) צריך escape של backslash כפול כשמשתמשים בו ליטרלית.</p>
   </ComparePanel>
 </Compare>
 

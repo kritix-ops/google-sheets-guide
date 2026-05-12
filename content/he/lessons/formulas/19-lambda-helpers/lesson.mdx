@@ -83,7 +83,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula="=REDUCE(0,E2:E13,LAMBDA(a,s,IF(s>300,a+s,a)))"
   task={<>השתמשו ב-REDUCE כדי לסכם רק את ה-Spends של קמפיינים שגדולים מ-300. התוצאה היא מספר יחיד ב-<code>H1</code>.</>}
   hint={<>תבנית: <code>REDUCE(initial, array, LAMBDA(acc, current, body))</code>. הגוף מוסיף את <code>current</code> ל-<code>acc</code> מותנה.</>}
-  answer={<>המקרה הספציפי הזה היה יכול להיות `=SUMIF(E2:E13, ">300")`, אבל REDUCE מתכלל לכל תנאי שאתם יכולים לבטא ב-LAMBDA, לא רק לשפת הקריטריונים המוגבלת של SUMIF. הצוות משתמש ב-REDUCE ל"ממוצע ROI ממושקל לפי spend share" ול"ה-revenue השני הכי גבוה על פני כל הקמפיינים של Yoav": לאף אחד מהם אין מובנה.</>}
+  answer={<>המקרה הספציפי הזה היה יכול להיות <code>=SUMIF(E2:E13, "{">"}300")</code>, אבל REDUCE מתכלל לכל תנאי שאתם יכולים לבטא ב-LAMBDA, לא רק לשפת הקריטריונים המוגבלת של SUMIF. הצוות משתמש ב-REDUCE ל"ממוצע ROI ממושקל לפי spend share" ול"ה-revenue השני הכי גבוה על פני כל הקמפיינים של Yoav": לאף אחד מהם אין מובנה.</>}
 />
 
 ## SCAN: REDUCE עם כל שלב נשמר
