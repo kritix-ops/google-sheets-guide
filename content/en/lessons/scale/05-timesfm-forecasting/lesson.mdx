@@ -122,7 +122,7 @@ The two formulas are short; the discipline is referencing the right cells. The c
 
 ## Used in the wild
 
-- **Tomorrow's-budget alert.** The team's daily-budget alert reads `Forecast!B2` (tomorrow's predicted spend) plus the upper bound from `Forecast!D2`. If the upper bound exceeds the day's budget by 20%, Apps Script emails the buyer at 9pm. The forecast feeds a decision; the buyer does not read the model.
+- **Tomorrow's-budget alert.** The team's daily-budget alert reads `Forecast!B2` (tomorrow's predicted spend) plus the upper bound from `Forecast!D2`. If the upper bound exceeds the day's budget by 20%, an installable trigger (lesson 3.8) emails the buyer at 9pm. The forecast feeds a decision; the buyer does not read the model.
 - **Launch-day detection.** The 2026-04-15 spike in the seed series is what a new winning campaign looks like: spend jumps 22% overnight, holds. TimesFM rolls the spike into the trend by day 3; a naive 7-day moving average needs a week to catch up. Saving four days of under-budgeted serving on a winning vertical pays for the model many times over.
 - **Weekly close.** Every Sunday, the dashboard generates a fresh 7-day forecast and compares the previous week's predictions against the actuals. Persistent over-prediction on a vertical is a signal that something changed at the platform; persistent under-prediction is a signal that the vertical is scaling and budgets need a bump.
 
