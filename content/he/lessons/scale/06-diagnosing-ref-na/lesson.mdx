@@ -18,7 +18,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 התיקון תמיד באותה צורה: בונים מחדש את ה-reference. אין עקיפת `IFERROR` שעוזרת. עטיפת reference שבור ב-`IFERROR("source unavailable")` מסתירה את התסמין ומבטיחה שלא תשימו לב כשאותו דבר יקרה לעמודה הבאה. `#REF!` הוא מבני; הוא דורש תיקון מבני.
 
 <QuickCheck
-  question="נוסחת `SUMIFS` קוראת `=SUMIFS(#REF!:F100, B2:B100, \"Yoav Cohen\")`. אתמול היא החזירה מספר; היום היא מחזירה `#REF!`. מה הסיבה הסבירה ביותר והתיקון הנכון?"
+  question={"נוסחת `SUMIFS` קוראת `=SUMIFS(#REF!:F100, B2:B100, \"Yoav Cohen\")`. אתמול היא החזירה מספר; היום היא מחזירה `#REF!`. מה הסיבה הסבירה ביותר והתיקון הנכון?"}
   options={[
     {
       id: "a",

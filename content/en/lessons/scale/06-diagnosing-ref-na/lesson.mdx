@@ -18,7 +18,7 @@ The Sheets engine raises `#REF!` whenever a formula references a cell, range, co
 The fix is always the same shape: rebuild the reference. There is no `IFERROR` workaround that helps. Wrapping a broken reference in `IFERROR("source unavailable")` masks the symptom and guarantees you will not notice when the same thing happens to the next column. `#REF!` is structural; it deserves a structural fix.
 
 <QuickCheck
-  question="A `SUMIFS` formula reads `=SUMIFS(#REF!:F100, B2:B100, \"Yoav Cohen\")`. Yesterday it returned a number; today it returns `#REF!`. What is the most likely cause and the right fix?"
+  question={"A `SUMIFS` formula reads `=SUMIFS(#REF!:F100, B2:B100, \"Yoav Cohen\")`. Yesterday it returned a number; today it returns `#REF!`. What is the most likely cause and the right fix?"}
   options={[
     {
       id: "a",
