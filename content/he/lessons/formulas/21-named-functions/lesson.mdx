@@ -2,90 +2,156 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # Named functions: בניית אוצר המילים של הצוות
 
-**Named function** הוא LAMBDA ששמור ל-spreadsheet עם שם, תיאור, ותיעוד parameters. אחרי שמגדירים אותו, כל מי שמשתמש ב-spreadsheet יכול לקרוא לו כמו לפונקציה מובנית:
+**Named function** הוא `LAMBDA` (שיעור 1.18) ששמור לחוברת עם שם, תיאור, ותיעוד parameters. אחרי שמגדירים אותו, כל מי שמשתמש בחוברת יכול לקרוא לו כמו לפונקציה מובנית: `=ROI(E2, F2)` במקום `(F2-E2)/E2` inline, `=BUYER_TIER(buyer)` במקום שלושה `IF` מקוננים, `=NORMALIZE_PLATFORM(raw)` במקום שרשרת של קריאות `SUBSTITUTE`. הגדרת הפונקציה חיה במקום אחד; כל נוסחה שמשתמשת בה נשארת עקבית.
 
-```
-=ROI(E2, F2)
-=ROAS(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue]))
-=EFFECTIVE_CPC(SUM(Campaigns[Spend]), SUM(Campaigns[Clicks]))
-```
+לצוות שמריץ דאשבורדים רבים על אותם נתונים, זה המהלך עם המינוף הגבוה ביותר בכל מסלול הנוסחאות. אתם מפסיקים להעתיק-להדביק ביטויים מסובכים על פני לשוניות. אתם מפסיקים לחפש "איפה הגדרנו את התאמת העמלה?" כשהתעריף משתנה. אתם מפסיקים לתקן את אותו באג בשבע-עשרה מקומות כשהגדרת מטריקה זזה. אוצר המילים של הצוות עובר מידע שבטי בראשי האנשים לפונקציות אמיתיות שניתנות לקריאה בחוברת.
 
-זה המהלך עם מינוף הגבוה ביותר לצוות שמריץ הרבה dashboards. מגדירים את `ROI` פעם אחת, במקום אחד, עם תיעוד. כל נוסחה ב-dashboard שמשתמשת ב-`ROI` נקראת כ-`=ROI(spend, revenue)`. מפורש, עקבי, וניתן לשינוי ממקום אחד.
+## מה צריך לפני השיעור הזה
+
+הגוף של כל named function הוא `LAMBDA`. שיעור 1.18 מכסה את התחביר של `LAMBDA` לעומק; שיעור 1.19 מכסה את משפחת `MAP`/`REDUCE`/`SCAN`/`BYROW`/`BYCOL` שלעיתים קרובות מתחברת ל-named functions. אם לא עשיתם את אלה, השיעור הזה ייקרא כמרק של תחביר; תעשו אותם קודם.
 
 ## יצירת named function
 
-1. **Data → Named functions.** פותח את פאנל הצד.
-2. לוחצים **Add new function**.
+תהליך העבודה:
+
+1. **Data ← Named functions.** פותח את לוח הצד.
+2. לוחצים על **Add new function**.
 3. ממלאים:
-   - **Name**: אותיות גדולות, ללא רווחים. מוסכמה: `ROI`, `EFFECTIVE_CPC`, `BUYER_TIER`.
-   - **Description**: מה הפונקציה עושה. מוצג ב-autocomplete ובעוזר הפונקציות.
-   - **Argument placeholders**: שורה לכל parameter, עם שם ותיאור.
-   - **Formula definition**: הגוף, שנכתב בדיוק כמו גוף LAMBDA אבל מתייחס לשמות ה-parameters ישירות (בלי עטיפת `LAMBDA(...)`).
-4. לוחצים **Next → Create**.
+   - **Name**: אותיות גדולות, ללא רווחים. קונבנציה: `ROI`, `EFFECTIVE_CPC`, `BUYER_TIER`.
+   - **Description**: מה הפונקציה עושה. מופיע ב-autocomplete ובעוזר הפונקציות.
+   - **Argument placeholders**: שורה אחת לכל parameter, עם שם ותיאור.
+   - **Formula definition**: הגוף, נכתב בדיוק כמו גוף `LAMBDA` אבל מפנה לשמות ה-parameters ישירות (ללא עטיפת `LAMBDA(...)`).
+4. לוחצים על **Next ← Create**.
 
-הפונקציה זמינה עכשיו ב-spreadsheet. מקלידים `=ROI(` ו-Sheets משלים אוטומטית כמו לכל פונקציה מובנית.
+הפונקציה זמינה עכשיו בחוברת. הקלידו `=ROI(` ו-Sheets ישלים אותה כמו כל מובנית.
 
-## דוגמה: הגדרת `ROI`
+### דוגמה 1: הגדרת `ROI`
 
-Argument placeholders: `spend`, `revenue`.
-Formula definition: `(revenue - spend) / spend`.
+Argument placeholders: `spend`, `revenue`. Formula definition: `(revenue - spend) / spend`. זאת כל הפונקציה.
 
-זו הפונקציה כולה. עכשיו בכל מקום ב-spreadsheet:
+מנוע ה-sandbox בשיעור הזה לא יכול לפענח named functions ברמת חוברת, אז ההדגמה האינטראקטיבית משתמשת בצורת ה-`LAMBDA + LET` המקבילה inline (שיעור 1.18). ברגע שתעלו גיליון אמיתי בסוף השיעור, תיצרו את ה-named function בפועל ותכתבו `=ROI(E2, F2)` ישירות.
 
-```
-=ROI(342.18, 487.30)        → 0.4241
-=ROI(E2, F2)                → ROI של שורה 2
-=ROI(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue]))   → ROI של התיק
-```
+<RefDemo
+  data={[["Spend", "Revenue"], [342.18, 487.30]]}
+  formula="=LET(roi, LAMBDA(s, r, (r-s)/s), roi(A2, B2))"
+  formulaCell="D2"
+  fillTo="D2"
+  expectedFills={["=LET(roi, LAMBDA(s, r, (r-s)/s), roi(A2, B2))"]}
+  caption="המקבילה הידידותית ל-sandbox. ברגע ש-ROI הוא named function ב-Sheets אמיתי, זה הופך ל-=ROI(A2, B2). אותה מתמטיקה, חצי מספר התווים, וכל תא דאשבורד מסכים על מה זה ROI."
+/>
 
-בלי ה-named function, כל נוסחה מחשבת מחדש את `(revenue - spend) / spend` inline, וכל נוסחה שרוצה להוריד עמלה צריכה להתעדכן באופן עצמאי.
+### דוגמה 2: נתוני אדטק אמיתיים
+
+ה-named function שנקרא מתא דאשבורד אמיתי. מחשב ROI ברמת התיק על פני לוג הקמפיינים.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula="=LET(roi,LAMBDA(s,r,(r-s)/s),roi(SUM(E2:E13),SUM(F2:F13)))"
+  task={<>חשבו את ה-ROI ברמת התיק על פני כל 12 הקמפיינים. ב-Sheets אמיתי זה היה <code>=ROI(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue]))</code>. כאן ה-sandbox צריך את צורת ה-LET-LAMBDA: <code>LET(roi, LAMBDA(s, r, (r-s)/s), roi(SUM(E2:E13), SUM(F2:F13)))</code>.</>}
+  hint={<>תבנית: <code>LET(name, LAMBDA(params, body), expression_using_name)</code>. הביטוי קורא ל-<code>roi</code> מול שני ה-SUMs.</>}
+  answer={<>תוצאה: בערך 0.69 (ה-ROI הכולל של התיק). אותה מתמטיקה בין אם כותבים את ה-LET-LAMBDA inline או משתמשים ב-named function <code>ROI</code> ברמת חוברת. צורת ה-named function משתלמת בפעם השנייה שתא דאשבורד צריך ROI: מגדירים פעם אחת, מפנים מכל מקום, משנים את ההגדרה במקום אחד כשמבנה העמלה זז.</>}
+/>
 
 ## רקורסיה
 
-Named functions יכולים לקרוא לעצמם. הדוגמה הקלאסית היא Fibonacci או עצרת:
+Named functions יכולים לקרוא לעצמם בשם. הדוגמה הקלאסית היא עצרת:
 
 ```
 FACT(n) = IF(n <= 1, 1, n * FACT(n - 1))
 ```
 
-באדטק, רקורסיה נדירה, אבל היא שימושית ל-lookups היררכיים: "מצא את חשבון האב למעלה בעץ הארגון". רק זוכרים את מגבלת העומק (Sheets מגביל רקורסיה כדי למנוע נוסחאות מתפרצות).
+באדטק, רקורסיה נדירה אבל שימושית ל-lookups היררכיים: "מצא את חשבון האב במעלה עץ הארגון", "לך על שרשרת הורים עד שאתה פוגע בעלה". פשוט תזכרו את תקרת העומק (Sheets חותך רקורסיה אחרי כמה מאות רמות כדי למנוע נוסחאות בורחות).
 
-## ייבוא של named functions בין גיליונות
+## ייבוא named functions בין חוברות
 
-Named functions תחומים ל-spreadsheet אחד. כדי להשתמש בפונקציה מ-spreadsheet אחר:
+Named functions מוגדרים בתחום של חוברת אחת. כדי להשתמש בפונקציה שמוגדרת בגיליון אחר:
 
-1. פותחים את ה-spreadsheet היעד.
-2. Data → Named functions → **Import function**.
-3. בוחרים את ה-spreadsheet המקור ואת הפונקציות לייבוא.
+1. פותחים את הגיליון היעד.
+2. **Data ← Named functions ← Import function.**
+3. בוחרים את חוברת המקור ואת הפונקציות לייבוא.
 
-ככה הצוות מתחזק spreadsheet של "definitions". מגדירים את `ROI`, `ROAS`, `BLENDED_CPM`, `MARGIN`, `BUYER_TIER` במקום אחד. מייבאים לכל dashboard. כשמעדכנים את המקור, הייבואים **לא** מתעדכנים אוטומטית. צריך לייבא מחדש כדי לקלוט שינויים. זה במכוון (שינויים בהגדרה משותפת יכולים לשבור גיליונות תלויים) אבל מפיל אנשים.
+ככה הצוות מתחזק חוברת "הגדרות". מגדירים `ROI`, `ROAS`, `BLENDED_CPM`, `MARGIN`, `BUYER_TIER` בחוברת אחת; מייבאים לכל דאשבורד. המלכודת: **ייבואים לא מתעדכנים אוטומטית.** משנים את הגדרת המקור והייבואים הקיימים שומרים על הלוגיקה הישנה עד שמישהו מייבא מחדש. זה במתכוון (שינויים drive-by להגדרה משותפת יכולים לשבור גיליונות תלויים בשקט) אבל זה מפיל אנשים.
 
-## מתי לקדם LAMBDA ל-named function
+ההרגל של הצוות: כשפונקציה משותפת משתנה, שולחים שורה אחת ב-Slack כדי שהתלויים ידעו לייבא מחדש.
 
-- אותו LAMBDA מופיע בשלושה תאים או יותר, או ב-MAP על פני טווח ארוך. לקדם.
-- הגוף ארוך מ-80 תווים בערך. לקדם.
-- כמה אנשים בצוות צריכים להשתמש באותו חישוב. לקדם.
-- החישוב עשוי להשתנות עם הזמן (מבנה עמלות, הגדרת ROI). לקדם.
-- זה חישוב חד פעמי בתא יחיד. לא לקדם, להשאיר inline עם LET + LAMBDA.
+## מתי לקדם `LAMBDA` ל-named function
+
+חוקי האצבע של חמש שניות:
+
+- אותו `LAMBDA` מופיע בשלושה תאים או יותר, או ב-`MAP` על טווח ארוך. תקדמו.
+- הגוף ארוך מ-80 תווים בערך. תקדמו.
+- כמה אנשים בצוות צריכים להשתמש באותו חישוב. תקדמו.
+- החישוב עשוי להשתנות לאורך זמן (מבנה עמלה, הגדרת ROI, סף). תקדמו.
+- זה חישוב חד-פעמי בתא בודד. אל תקדמו: שמרו אותו inline עם `LET + LAMBDA` (שיעור 1.20).
+
+## מלכודות נפוצות
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Definition: =LAMBDA(s, r, (r-s)/s)`}</code></pre>
+    <p className="mt-2 text-sm"><strong>עטפתם את הגוף ב-LAMBDA(...).</strong> בתוך דיאלוג ה-named-function של Sheets, השדה "Formula definition" מצפה לגוף לבד, מפנה לשמות parameters ישירות. עטיפה ב-<code>LAMBDA(...)</code> יוצרת פונקציה-שמחזירה-פונקציה. קריאה ל-<code>=ROI(100, 250)</code> מחזירה פונקציה, לא ערך, והתא מציג <code>#CALC!</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Definition: (revenue - spend) / spend`}</code></pre>
+    <p className="mt-2 text-sm"><strong>גוף בלבד, מפנה לשמות parameters.</strong> צורת ה-named-function היא ה-<em>גוף</em> של LAMBDA משתמע; Sheets מצרף את ה-parameters מה-argument placeholders. הקלידו את הגוף לבד, השתמשו בשמות ה-parameters ישירות.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="שבור" tone="negative">
+    <pre className="font-mono text-xs"><code>Source workbook: הגדרת ROI משתנה</code></pre>
+    <p className="mt-2 text-sm"><strong>ציפייה ל-propagation אוטומטי.</strong> הצוות מעדכן את <code>ROI</code> בחוברת ההגדרות כדי להתחשב בעמלה חדשה. דאשבורדים תלויים ממשיכים להשתמש בהגדרה הישנה עד שמישהו מייבא מחדש ידנית. המספרים על פני הצוות מתפצלים בשקט במשך שבועות לפני שמישהו שם לב.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד" tone="positive">
+    <pre className="font-mono text-xs"><code>Source workbook update → Slack ping → re-import</code></pre>
+    <p className="mt-2 text-sm"><strong>תקשרו כל שינוי.</strong> Named functions ברמת חוברת מבודדים מטבעם. כשאתם משנים הגדרה משותפת, פרסמו ב-Slack כדי שכל בעלים של גיליון תלוי יייבא מחדש. בנו את ההרגל.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question={"אתם מגדירים named function ROI(spend, revenue) עם גוף (revenue - spend) / spend. חבר צוות קורא לו עם =ROI(\"342.18\", \"487.30\") (הערכים הגיעו מעמודת טקסט) ומקבל #VALUE!. מה קורה?"}
+  options={[
+    {
+      id: "a",
+      label: "Named functions לא יכולים לקבל ארגומנטים מתאים אחרים; רק ערכים ליטרליים.",
+      correct: false,
+      explanation: "Named functions מקבלים כל reference לתא או ערך. הבעיה היא סוג, לא מקור.",
+    },
+    {
+      id: "b",
+      label: "הארגומנטים הם מחרוזות טקסט, לא מספרים. Named functions לא ממירים סוגים אוטומטית; החשבון בגוף נכשל. עטפו את הקריאה ב-VALUE() או המירו את עמודת המקור למספרית.",
+      correct: true,
+      explanation: "ל-named functions אין בדיקת סוגים ואין coercion אוטומטי. אם עמודת המקור מפורמטת כטקסט, תקבלו #VALUE! מהחשבון. תקנו את סוג עמודת המקור או תמירו בתוך הקריאה: =ROI(VALUE(A2), VALUE(B2)).",
+    },
+    {
+      id: "c",
+      label: "Named functions לא יכולים להיקרא מנוסחה שמשתמשת בגרשיים.",
+      correct: false,
+      explanation: "גרשיים בסדר. הבעיה היא הסוג של הערכים העטופים.",
+    },
+  ]}
+/>
 
 ## נפוץ בשטח
 
-- **ספריית KPI של הצוות.** מגדירים את `ROI`, `ROAS`, `MARGIN`, `BLENDED_CPM`, `EFFECTIVE_CPC`, `BUYER_TIER`, `IS_PROFITABLE` פעם אחת. מייבאים לכל dashboard. אוצר המילים של הצוות חי בנוסחאות, לא בידע שבטי.
-- **Validators מותאמים אישית.** `IS_VALID_CAMPAIGN_CODE(code)` עוטף REGEXMATCH מול מוסכמת השמות של הצוות. שימוש חוזר ב-conditional formatting, בפילטרי QUERY, בבדיקות dashboard.
-- **נרמלים בין-פלטפורמות.** `NORMALIZE_PLATFORM(raw)` ממפה "TBL", "Taboola", "taboola_native" כולם ל-"Taboola". פונקציה אחת, בשימוש בכל מקום ששמות פלטפורמות מבולגנים מופיעים.
-- **Lookups מודעי-תקופה.** `MTD_SPEND(buyer)` מחזיר spend מתחילת החודש לקונה. עוטף את ה-SUMIFS+חשבון-תאריכים כך ש-dashboards לא ימציאו מחדש את לוגיקת התאריכים.
-- **סיווגי tier.** `BUYER_TIER(spend)` מחזיר "T1" / "T2" / "T3" בהתבסס על spend מתגלגל. הספים חיים בהגדרת הפונקציה. משנים את הספים, כל dashboard מתעדכן.
+- **ספריית KPI של הצוות.** מגדירים `ROI`, `ROAS`, `MARGIN`, `BLENDED_CPM`, `EFFECTIVE_CPC`, `BUYER_TIER`, `IS_PROFITABLE` פעם אחת. מייבאים לכל דאשבורד. אוצר המילים של הצוות חי בנוסחאות, לא בידע שבטי.
+- **Validators מותאמים.** `IS_VALID_CAMPAIGN_CODE(code)` עוטף `REGEXMATCH` מול קונבנציית השמות של הצוות (שיעור 1.16). שימוש חוזר בעיצוב מותנה, ב-`QUERY` filters, בבדיקות דאשבורד.
+- **Normalizers חוצי-פלטפורמות.** `NORMALIZE_PLATFORM(raw)` ממפה את `"TBL"`, `"Taboola"`, `"taboola_native"` כולם ל-`"Taboola"`. פונקציה אחת, בשימוש בכל מקום שיש שמות פלטפורמה מבולגנים.
+- **Lookups מודעי-תקופה.** `MTD_SPEND(buyer)` מחזיר spend מתחילת החודש ל-buyer. עוטף את ה-`SUMIFS` + חישוב תאריך כך שדאשבורדים לא ממציאים מחדש את לוגיקת התאריכים בכל פעם.
+- **סיווגי tier.** `BUYER_TIER(spend)` מחזיר `"T1"` / `"T2"` / `"T3"` בהתבסס על spend מתגלגל. הספים חיים בהגדרת הפונקציה; משנים את הספים פעם אחת, כל דאשבורד מתעדכן.
 
 ## מלכודות מקצועיות
 
-- **Named functions לא עוברים אוטומטית בין spreadsheets אחרים.** או מגדירים מחדש או מייבאים. אין namespace "גלובלי".
-- **פונקציות מיובאות לא מתעדכנות אוטומטית.** מייבאים מחדש כדי לקלוט שינויים מהמקור. בונים הרגל: כשמשנים פונקציה משותפת, מודיעים לצוות לייבא מחדש.
-- **אין ארגומנטים אופציונליים, אין ערכי ברירת מחדל.** כל ארגומנט חייב להיות מועבר. דרך עקיפה: משתמשים ב-sentinel כמו `0` או `""` ומטפלים בו בתוך הגוף עם IF.
-- **אין בדיקת סוגים.** פונקציה שמצפה למספר תקבל טקסט ותפיק תשובה שגויה או `#VALUE!`. אין אכיפת חתימה. מתעדים סוגי parameters בתיאור.
-- **עומק רקורסיה מוגבל.** התקרה הקשיחה היא כמה מאות. מספיק להליכות עץ, חסר תועלת לרקורסיה מספרית עמוקה.
-- **שמות מתנגשים עם מובנות** בשקט. אם מגדירים את `SUM` כ-named function, ה-`SUM` שלכם מסתיר את המובנה בתוך ה-spreadsheet. נמנעים מזה. משתמשים בקידומות ספציפיות (`MY_SUM`) או בשמות נפרדים.
-- **עריכת פונקציה בזמן שנוסחאות מפנות אליה יכולה לשבור דברים.** Sheets מטפל בשינויי שמות וחתימה על ידי הפלת נוסחאות תלויות. מתכננים שינויים. לא עורכים בזמן אמת ביום דיווח עמוס.
+- **Named functions לא עוברים לחוברות אחרות אוטומטית.** או מגדירים מחדש או מייבאים. אין namespace "גלובלי".
+- **פונקציות מיובאות לא מתעדכנות אוטומטית.** מייבאים מחדש כדי לתפוס שינויים מהמקור. בנו הרגל: כשאתם משנים פונקציה משותפת, פינגו את הצוות לייבא מחדש.
+- **אין arguments אופציונליים, אין ערכי ברירת מחדל.** כל argument חייב להיות מועבר. עוקפים: השתמשו ב-sentinel כמו `0` או `""` וטפלו בו בתוך הגוף עם `IF`.
+- **אין בדיקת סוגים.** פונקציה שמצפה למספר תקבל טקסט וגם תפיק תשובה שגויה או `#VALUE!`. אין אכיפת חתימה. תעדו סוגי parameters בתיאור כדי שמי שקורא ידע מה להעביר.
+- **עומק רקורסיה מוגבל.** Hard cap הוא כמה מאות. בסדר ל-tree walks, חסר תועלת לרקורסיה מספרית עמוקה.
+- **שמות מתנגשים עם מובנות בשקט.** אם אתם מגדירים `SUM` כ-named function, ה-`SUM` שלכם מאפיל על המובנית בתוך החוברת. הימנעו מזה עם prefix (`MY_SUM`) או שמות מובחנים.
+- **עריכת פונקציה בזמן שנוסחאות מפנות אליה יכולה לשבור דברים.** Sheets מטפל בשינויי שם וחתימה על ידי כשל של נוסחאות תלויות. תכננו שינויים; אל תערכו פונקציה חיה ביום דיווח עמוס.
+- **הגוף לא יכול להפנות לתאים ישירות.** הוא חייב לעבוד לחלוטין מה-parameters שלו. אם רוצים פונקציה שתלויה בקבוע של חוברת (עמלה, target ROI), העבירו את הקבוע הזה כ-parameter, או השתמשו ב-named range בתוך הגוף, מתוך הבנה שהפונקציה אז ספציפית לחוברת.
 
 ## עכשיו לעבודה אמיתית
 
-לחצו על **Start lesson** כדי לטעון את לוג הקמפיינים. תגדירו named function בשם `ROI(spend, revenue)`, ואז תשתמשו בו בשני תאים: פעם אחת על שורת קמפיין יחידה, ופעם אחת על סכומי התיק המצרפיים. הבודק בודק שהפונקציה קיימת ב-spreadsheet ושהנוסחאות מפנות אליה כמו שצריך.
+לחצו על **Start lesson** כדי להעלות את לוג הקמפיינים. תיצרו named function `ROI(spend, revenue)` ותשתמשו בה בשני מקומות: פעם אחת על שורת קמפיין יחידה, ופעם על הסיכומים המצרפיים של התיק. ה-grader בודק שהפונקציה קיימת בחוברת ושהנוסחאות מפנות אליה נכון.

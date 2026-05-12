@@ -2,90 +2,156 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # Named functions: build your team's vocabulary
 
-A **named function** is a LAMBDA saved to the workbook with a name, a description, and parameter docs. Once defined, anyone using the spreadsheet can call it like a built-in:
+A **named function** is a `LAMBDA` (lesson 1.18) saved to the workbook with a name, a description, and parameter docs. Once defined, anyone using the spreadsheet can call it like a built-in: `=ROI(E2, F2)` instead of an inline `(F2-E2)/E2`, `=BUYER_TIER(buyer)` instead of three nested `IF`s, `=NORMALIZE_PLATFORM(raw)` instead of a chain of `SUBSTITUTE` calls. The function definition lives in one place; every formula that uses it stays consistent.
 
-```
-=ROI(E2, F2)
-=ROAS(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue]))
-=EFFECTIVE_CPC(SUM(Campaigns[Spend]), SUM(Campaigns[Clicks]))
-```
+For a team that runs many dashboards over the same data, this is the single highest-leverage move in the whole formulas track. You stop copy-pasting hairy expressions across tabs. You stop hunting "where did we define the fee adjustment?" when the rate changes. You stop fixing the same bug in seventeen places when a metric definition shifts. The team's vocabulary moves from tribal knowledge in people's heads into actual callable functions in the workbook.
 
-This is the single highest-leverage move for a team that runs a lot of dashboards. You define `ROI` once, in one place, with documentation. Every dashboard formula that uses `ROI` reads as `=ROI(spend, revenue)`: explicit, consistent, and changeable from one location.
+## What you need before this lesson
+
+The body of every named function is a `LAMBDA`. Lesson 1.18 covers `LAMBDA` syntax in depth; lesson 1.19 covers the `MAP`/`REDUCE`/`SCAN`/`BYROW`/`BYCOL` family that often gets composed with named functions. If you have not done those, this lesson will read as syntax soup; do them first.
 
 ## Creating a named function
+
+The workflow:
 
 1. **Data → Named functions.** Opens the side panel.
 2. Click **Add new function**.
 3. Fill in:
    - **Name**: uppercase, no spaces. Convention: `ROI`, `EFFECTIVE_CPC`, `BUYER_TIER`.
-   - **Description**: what the function does. Shows in autocomplete and the function helper.
+   - **Description**: what the function does. Shows up in autocomplete and the function helper.
    - **Argument placeholders**: one row per parameter, with a name and description.
-   - **Formula definition**: the body, written exactly like a LAMBDA body but referring to the parameter names directly (no `LAMBDA(...)` wrapper).
+   - **Formula definition**: the body, written exactly like a `LAMBDA` body but referring to parameter names directly (no `LAMBDA(...)` wrapper).
 4. Click **Next → Create**.
 
 The function is now available in the workbook. Type `=ROI(` and Sheets autocompletes it like any built-in.
 
-## Example: defining `ROI`
+### Worked example 1: defining `ROI`
 
-Argument placeholders: `spend`, `revenue`.
-Formula definition: `(revenue - spend) / spend`.
+Argument placeholders: `spend`, `revenue`. Formula definition: `(revenue - spend) / spend`. That is the whole function.
 
-That's the whole function. Now anywhere in the workbook:
+The sandbox engine in this lesson cannot resolve workbook-level named functions, so the interactive demo uses the equivalent inline `LAMBDA + LET` form (lesson 1.18). Once you provision a real sheet at the end of the lesson, you will create the actual named function and write `=ROI(E2, F2)` directly.
 
-```
-=ROI(342.18, 487.30)        → 0.4241
-=ROI(E2, F2)                → ROI of row 2
-=ROI(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue]))   → portfolio ROI
-```
+<RefDemo
+  data={[["Spend", "Revenue"], [342.18, 487.30]]}
+  formula="=LET(roi, LAMBDA(s, r, (r-s)/s), roi(A2, B2))"
+  formulaCell="D2"
+  fillTo="D2"
+  expectedFills={["=LET(roi, LAMBDA(s, r, (r-s)/s), roi(A2, B2))"]}
+  caption="Sandbox-friendly equivalent. Once ROI is a named function in real Sheets, this becomes =ROI(A2, B2). Same math, half the characters, and every dashboard cell agrees on what ROI means."
+/>
 
-Without the named function, every formula recomputes `(revenue - spend) / spend` inline, and every formula that wants to subtract a fee has to update independently.
+### Worked example 2: real adtech data
+
+The named function called from a real dashboard cell. Computes portfolio-level ROI across the campaign log.
+
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H1"
+  expectedFormula="=LET(roi,LAMBDA(s,r,(r-s)/s),roi(SUM(E2:E13),SUM(F2:F13)))"
+  task={<>Compute the portfolio-level ROI across all 12 campaigns. In real Sheets this would be <code>=ROI(SUM(Campaigns[Spend]), SUM(Campaigns[Revenue]))</code>. Here the sandbox needs the LET-LAMBDA form: <code>LET(roi, LAMBDA(s, r, (r-s)/s), roi(SUM(E2:E13), SUM(F2:F13)))</code>.</>}
+  hint={<>Pattern: <code>LET(name, LAMBDA(params, body), expression_using_name)</code>. The expression calls <code>roi</code> against the two SUMs.</>}
+  answer={<>Result: roughly 0.69 (the portfolio's overall ROI). Same math whether you write the inline LET-LAMBDA or use a workbook-level <code>ROI</code> named function. The named-function form pays off the second time any dashboard cell needs ROI: define once, reference everywhere, change the definition in one place when the fee structure shifts.</>}
+/>
 
 ## Recursion
 
-Named functions can call themselves. The classic example is a Fibonacci or factorial:
+Named functions can call themselves by name. The classic example is a factorial:
 
 ```
 FACT(n) = IF(n <= 1, 1, n * FACT(n - 1))
 ```
 
-In adtech, recursion is rare, but it's useful for hierarchical lookups: "find the ancestor account up the org tree." Just remember the depth limit (Sheets caps recursion to prevent runaway formulas).
+In adtech, recursion is rare but useful for hierarchical lookups: "find the ancestor account up the org tree," "walk a parent chain until you hit a leaf." Just remember the depth cap (Sheets caps recursion at a few hundred levels to prevent runaway formulas).
 
-## Importing named functions across sheets
+## Importing named functions across workbooks
 
-Named functions are scoped to one workbook. To use a function from another sheet:
+Named functions are scoped to one workbook. To use a function defined in another sheet:
 
-1. Open the target sheet.
-2. Data → Named functions → **Import function**.
+1. Open the destination sheet.
+2. **Data → Named functions → Import function.**
 3. Pick the source workbook and the functions to import.
 
-This is how the team maintains a "definitions" workbook. Define `ROI`, `ROAS`, `BLENDED_CPM`, `MARGIN`, `BUYER_TIER` in one place; import into every dashboard. Update the source: the imports do **not** auto-update; you have to re-import to pick up changes. This is intentional (changes to a shared definition could break dependent sheets) but trips people up.
+This is how the team maintains a "definitions" workbook. Define `ROI`, `ROAS`, `BLENDED_CPM`, `MARGIN`, `BUYER_TIER` in one workbook; import into every dashboard. The catch: **imports do not auto-update.** Change the source definition and the existing imports keep the old logic until someone re-imports. This is intentional (drive-by changes to a shared definition could silently break dependent sheets) but it trips people up.
 
-## When to promote a LAMBDA to a named function
+The team's habit: when a shared function changes, send a one-line note in Slack so dependents know to re-import.
 
-- The same LAMBDA appears in three or more cells, or in a MAP across a long range. Promote.
+## When to promote a `LAMBDA` to a named function
+
+The five-second rule of thumb:
+
+- The same `LAMBDA` appears in three or more cells, or in a `MAP` across a long range. Promote.
 - The body is more than ~80 characters. Promote.
 - Multiple people on the team need to use the same calculation. Promote.
-- The calculation might change over time (fee structure, ROI definition). Promote.
-- It's a one-shot calculation in a single cell. Don't promote: keep it inline with LET + LAMBDA.
+- The calculation might change over time (fee structure, ROI definition, threshold). Promote.
+- It is a one-shot calculation in a single cell. Do not promote: keep it inline with `LET + LAMBDA` (lesson 1.20).
+
+## Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Definition: =LAMBDA(s, r, (r-s)/s)`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Wrapped the body in LAMBDA(...).</strong> Inside the Sheets named-function dialog, the "Formula definition" field expects the body alone, referencing parameter names directly. Wrapping in <code>LAMBDA(...)</code> creates a function-that-returns-a-function. Calling <code>=ROI(100, 250)</code> returns a function, not a value, and the cell shows <code>#CALC!</code>.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Definition: (revenue - spend) / spend`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Body only, references parameter names.</strong> The named-function form is the <em>body</em> of an implicit LAMBDA; Sheets attaches the parameters from the argument placeholders. Type the body alone, using the parameter names directly.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>Source workbook: ROI definition changes</code></pre>
+    <p className="mt-2 text-sm"><strong>Expecting auto-propagation.</strong> The team updates <code>ROI</code> in the definitions workbook to account for a new fee. Dependent dashboards keep using the old definition until someone manually re-imports. Numbers across the team diverge silently for weeks before anyone notices.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>Source workbook update → Slack ping → re-import</code></pre>
+    <p className="mt-2 text-sm"><strong>Communicate every change.</strong> Workbook-level named functions are isolated by design. When you change a shared definition, post in Slack so every dependent sheet's owner re-imports. Build the habit.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question={"You define a named function ROI(spend, revenue) with body (revenue - spend) / spend. A teammate calls it with =ROI(\"342.18\", \"487.30\") (the values came from a text column) and gets #VALUE!. What's going on?"}
+  options={[
+    {
+      id: "a",
+      label: "Named functions cannot accept arguments from other cells; only literal values.",
+      correct: false,
+      explanation: "Named functions accept any cell reference or value. The issue is type, not source.",
+    },
+    {
+      id: "b",
+      label: "The arguments are text strings, not numbers. Named functions don't auto-coerce types; the body's arithmetic fails. Wrap the call with VALUE() or coerce the source column to numeric.",
+      correct: true,
+      explanation: "Named functions have no type checking and no auto-coercion. If the source column is text-formatted, you'll get #VALUE! from the arithmetic. Either fix the source column type or coerce inside the call: =ROI(VALUE(A2), VALUE(B2)).",
+    },
+    {
+      id: "c",
+      label: "Named functions can't be called from a formula that uses quotes.",
+      correct: false,
+      explanation: "Quotes are fine. The issue is the type of the wrapped values.",
+    },
+  ]}
+/>
 
 ## Used in the wild
 
-- **Team KPI library.** Define `ROI`, `ROAS`, `MARGIN`, `BLENDED_CPM`, `EFFECTIVE_CPC`, `BUYER_TIER`, `IS_PROFITABLE` once. Import into every dashboard. The team's vocabulary lives in formulas, not in tribal knowledge.
-- **Custom validators.** `IS_VALID_CAMPAIGN_CODE(code)` wraps a REGEXMATCH against the team's naming convention. Reuse in conditional formatting, in QUERY filters, in dashboard checks.
-- **Cross-platform normalizers.** `NORMALIZE_PLATFORM(raw)` maps "TBL", "Taboola", "taboola_native" all to "Taboola". One function, used wherever messy platform names show up.
-- **Period-aware lookups.** `MTD_SPEND(buyer)` returns month-to-date spend for a buyer. Encapsulates the SUMIFS+date-math so dashboards don't reinvent the date logic.
-- **Tier classifications.** `BUYER_TIER(spend)` returns "T1" / "T2" / "T3" based on rolling spend. The thresholds live in the function definition; change the thresholds, every dashboard updates.
+- **Team KPI library.** Define `ROI`, `ROAS`, `MARGIN`, `BLENDED_CPM`, `EFFECTIVE_CPC`, `BUYER_TIER`, `IS_PROFITABLE` once. Import into every dashboard. The team's vocabulary lives in formulas, not tribal knowledge.
+- **Custom validators.** `IS_VALID_CAMPAIGN_CODE(code)` wraps a `REGEXMATCH` against the team's naming convention (lesson 1.16). Reuse in conditional formatting, in `QUERY` filters, in dashboard checks.
+- **Cross-platform normalizers.** `NORMALIZE_PLATFORM(raw)` maps `"TBL"`, `"Taboola"`, `"taboola_native"` all to `"Taboola"`. One function, used wherever messy platform names show up.
+- **Period-aware lookups.** `MTD_SPEND(buyer)` returns month-to-date spend for a buyer. Encapsulates the `SUMIFS` + date-math so dashboards do not reinvent the date logic each time.
+- **Tier classifications.** `BUYER_TIER(spend)` returns `"T1"` / `"T2"` / `"T3"` based on rolling spend. The thresholds live in the function definition; change the thresholds once, every dashboard updates.
 
 ## Pro pitfalls
 
-- **Named functions don't carry over to other workbooks automatically.** Either re-define or import. There's no "global" namespace.
-- **Imported functions don't auto-update.** Re-import to pick up changes from the source. Build a habit: when you change a shared function, ping the team to re-import.
-- **No optional arguments, no default values.** Every argument must be passed. Workaround: use a sentinel like `0` or `""` and handle it inside the body with IF.
-- **No type checking.** A function expecting a number will accept text and produce a wrong answer or `#VALUE!`: there's no signature enforcement. Document parameter types in the description.
-- **Recursion depth is limited.** Hard-cap is several hundred: fine for tree walks, useless for deep numerical recursion.
-- **Names collide with built-ins** silently. If you define `SUM` as a named function, your `SUM` shadows the built-in inside the workbook. Avoid this: use specific prefixes (`MY_SUM`) or distinct names.
-- **Editing a function while formulas reference it can break things.** Sheets handles renames and signature changes by failing dependent formulas. Plan changes; don't edit live during a busy reporting day.
+- **Named functions do not carry over to other workbooks automatically.** Either re-define or import. There is no "global" namespace.
+- **Imported functions do not auto-update.** Re-import to pick up changes from the source. Build a habit: when you change a shared function, ping the team to re-import.
+- **No optional arguments, no default values.** Every argument must be passed. Workaround: use a sentinel like `0` or `""` and handle it inside the body with `IF`.
+- **No type checking.** A function expecting a number will accept text and either produce a wrong answer or `#VALUE!`. There is no signature enforcement. Document parameter types in the description so callers know what to pass.
+- **Recursion depth is limited.** Hard cap is a few hundred. Fine for tree walks, useless for deep numerical recursion.
+- **Names collide with built-ins silently.** If you define `SUM` as a named function, your `SUM` shadows the built-in inside the workbook. Avoid this by using a prefix (`MY_SUM`) or distinct names.
+- **Editing a function while formulas reference it can break things.** Sheets handles renames and signature changes by failing dependent formulas. Plan changes; do not edit a live function during a busy reporting day.
+- **The body cannot reference cells directly.** It must work entirely from its parameters. If you want a function that depends on a workbook constant (a fee, a target ROI), pass that constant in as a parameter, or use a named range inside the body, accepting that the function is then workbook-specific.
 
 ## Now do it for real
 
-Click **Start lesson** to provision the campaign log. You'll define a named function `ROI(spend, revenue)`, then use it in two cells: once on a single campaign row, and once on the aggregated portfolio totals. The grader checks that the function exists in the workbook and that the formulas reference it correctly.
+Click **Start lesson** to provision the campaign log. You will create a named function `ROI(spend, revenue)` and use it in two places: once on a single campaign row, and once on the aggregated portfolio totals. The grader checks that the function exists in the workbook and that the formulas reference it correctly.
