@@ -75,6 +75,30 @@ No corrupt row ever lands`}</code></pre>
   </ComparePanel>
 </Compare>
 
+<QuickCheck
+  question="The team is adding validation to a campaign log. Which of these rules should be strict (Reject input) rather than a warning?"
+  options={[
+    {
+      id: "a",
+      label: "Spend > $1000: 'this is unusually high, are you sure?'",
+      correct: false,
+      explanation: "Unusual is not wrong. A buyer running a big launch legitimately spends $1500 in a day. Warning is right here; rejecting would block real work.",
+    },
+    {
+      id: "b",
+      label: "Buyer must be on the active roster: typing 'Yoav Chen' instead of 'Yoav Cohen' is always a typo",
+      correct: true,
+      explanation: "There's no legitimate case for a buyer name that's not on the roster. Reject. Strict mode catches the typo at entry instead of letting it poison every downstream pivot.",
+    },
+    {
+      id: "c",
+      label: "Date is in the future: 'this campaign is scheduled, are you sure?'",
+      correct: false,
+      explanation: "A scheduled campaign is a normal case for a date in the future. Warn rather than reject; you'd block scheduled launches otherwise.",
+    },
+  ]}
+/>
+
 ## Dropdown from a range vs inline list
 
 Both ways produce the same dropdown UI. The difference is where the list lives.
@@ -148,6 +172,8 @@ Real patterns from the team's workbooks:
 | Buyer-name field can't be blank | `=LEN(TRIM(B3))>0` |
 | Vertical must end with " PR" | `=RIGHT(B3,3)=" PR"` |
 | Campaign id must match the format | `=REGEXMATCH(B3,"^[a-z]{2}-[a-z]{2}-[mda]-[a-z]{4}\d{4}[a-z]{2}-[a-z]{3}-\d+-\d{6}-")` |
+
+The last row uses `REGEXMATCH` from lesson 1.16 to enforce the team's campaign-id naming convention at entry. Anything that doesn't match the pattern is rejected before the bad id reaches the log, so every downstream parser (the dashboards that split the id into buyer / country / vertical) can trust the shape. Validation plus regex is the cheapest way to turn a convention into a hard rule.
 
 The cell reference (`B3`) inside a custom formula refers to the *cell being validated*. When you copy the validation across `B3:B100`, the formula automatically becomes `B4>0`, `B5>0`, and so on, just like a regular relative reference.
 
@@ -225,6 +251,6 @@ In the team's actual workbooks:
 
 - **`ONE_OF_RANGE` on too small a range.** `Buyers!A2:A9` covers 8 buyers. Buyer 9 won't show up. Either use a generous bound or point at a named range.
 - **Validation that doesn't follow when you copy a formula.** Validation copies with paste, but `Paste special → Values only` strips it. If you build a workbook by pasting from somewhere else, re-apply validation on the destination range.
-- **Strict mode that doesn't actually block IMPORTRANGE.** Validation rejects manual entry but accepts whatever IMPORTRANGE writes. If imported data needs validating, do it in a `Cleaned` tab with formulas, not via validation rules.
+- **Strict mode that doesn't actually block `IMPORTRANGE`** (lesson 1.27). Validation rejects manual entry but accepts whatever `IMPORTRANGE` writes. If imported data needs validating, do it in a `Cleaned` tab with formulas, not via validation rules.
 - **Custom formulas that reference the wrong cell.** `=$B$3>0` is locked to row 3 even when the validation is applied to `B3:B100`. Drop the dollar signs.
-- **`ONE_OF_RANGE` pointing at a remote workbook via `IMPORTRANGE`.** The validation only knows about local ranges. Even if your `Buyers` tab is itself an IMPORTRANGE, validation reads the local cells, so when the import refreshes the dropdown follows. But if you tried to point validation directly at `=IMPORTRANGE(...)`, it would fail. Always materialize the imported list in a local range first.
+- **`ONE_OF_RANGE` pointing at a remote workbook via `IMPORTRANGE`** (lesson 1.27). The validation only knows about local ranges. Even if your `Buyers` tab is itself an `IMPORTRANGE`, validation reads the local cells, so when the import refreshes the dropdown follows. But if you tried to point validation directly at `=IMPORTRANGE(...)`, it would fail. Always materialize the imported list in a local range first.

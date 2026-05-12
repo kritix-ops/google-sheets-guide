@@ -75,6 +75,30 @@ Sheets מציג: "Invalid input" + התא מתאפס
   </ComparePanel>
 </Compare>
 
+<QuickCheck
+  question="הצוות מוסיף validation ללוג קמפיינים. איזה מהכללים האלה צריך להיות strict (Reject input) ולא warning?"
+  options={[
+    {
+      id: "a",
+      label: "Spend > $1000: 'זה גבוה באופן לא רגיל, אתם בטוחים?'",
+      correct: false,
+      explanation: "לא רגיל זה לא שגוי. buyer שמריץ launch גדול לגיטימית מוציא $1500 ביום. Warning נכון כאן; דחייה תחסום עבודה אמיתית.",
+    },
+    {
+      id: "b",
+      label: "Buyer חייב להיות ב-roster הפעיל: הקלדת 'Yoav Chen' במקום 'Yoav Cohen' היא תמיד טעות הקלדה",
+      correct: true,
+      explanation: "אין מקרה לגיטימי לשם buyer שלא ב-roster. דוחים. Strict תופס את הטעות בכניסה במקום לתת לה להרעיל כל pivot במורד הזרם.",
+    },
+    {
+      id: "c",
+      label: "תאריך בעתיד: 'הקמפיין הזה מתוזמן, אתם בטוחים?'",
+      correct: false,
+      explanation: "קמפיין מתוזמן הוא מקרה רגיל לתאריך בעתיד. מזהירים במקום לדחות; אחרת הייתם חוסמים launches מתוזמנים.",
+    },
+  ]}
+/>
+
 ## Dropdown מטווח לעומק רשימה inline
 
 שתי הדרכים מייצרות אותו UI של dropdown. ההבדל הוא היכן הרשימה חיה.
@@ -148,6 +172,8 @@ Range: Buyers!A2:A1000
 | שדה Buyer-name לא יכול להיות ריק | `=LEN(TRIM(B3))>0` |
 | Vertical חייב להסתיים ב-" PR" | `=RIGHT(B3,3)=" PR"` |
 | Campaign id חייב להתאים לפורמט | `=REGEXMATCH(B3,"^[a-z]{2}-[a-z]{2}-[mda]-[a-z]{4}\d{4}[a-z]{2}-[a-z]{3}-\d+-\d{6}-")` |
+
+השורה האחרונה משתמשת ב-`REGEXMATCH` משיעור 1.16 כדי לאכוף את קונבנציית שמות ה-campaign-id של הצוות בכניסה. כל דבר שלא מתאים לתבנית נדחה לפני שה-id הגרוע מגיע ללוג, אז כל פרסר במורד הזרם (ה-dashboards שמפצלים את ה-id ל-buyer / מדינה / vertical) יכול לסמוך על הצורה. Validation עם regex היא הדרך הזולה ביותר להפוך קונבנציה לכלל קשיח.
 
 ה-reference לתא (`B3`) בתוך נוסחה מותאמת מפנה ל-*תא שמאמתים*. כשמעתיקים את ה-validation על פני `B3:B100`, הנוסחה אוטומטית הופכת ל-`B4>0`, `B5>0`, וכן הלאה, בדיוק כמו reference יחסי רגיל.
 
@@ -225,6 +251,6 @@ Formula: =F3>0
 
 - **`ONE_OF_RANGE` על טווח צר מדי.** `Buyers!A2:A9` מכסה 8 buyers. Buyer 9 לא יופיע. או להשתמש בגבול נדיב או להצביע על named range.
 - **Validation שלא נדבק כשמעתיקים נוסחה.** Validation מועתק עם הדבקה, אבל `Paste special → Values only` מסיר אותו. אם בונים workbook על ידי הדבקה ממקום אחר, יש להחיל validation מחדש על טווח היעד.
-- **Strict mode שלא באמת חוסם IMPORTRANGE.** Validation דוחה הקלדה ידנית אבל מקבל מה ש-IMPORTRANGE כותב. אם נתונים מיובאים צריכים אימות, עושים את זה ב-tab של `Cleaned` עם נוסחאות, לא דרך כללי validation.
+- **Strict mode שלא באמת חוסם `IMPORTRANGE`** (שיעור 1.27). Validation דוחה הקלדה ידנית אבל מקבל מה ש-`IMPORTRANGE` כותב. אם נתונים מיובאים צריכים אימות, עושים את זה ב-tab של `Cleaned` עם נוסחאות, לא דרך כללי validation.
 - **נוסחאות מותאמות שמפנות לתא הלא נכון.** `=$B$3>0` נעול לשורה 3 גם כשה-validation מוחל על `B3:B100`. מורידים את סימני הדולר.
-- **`ONE_OF_RANGE` שמצביע על workbook מרוחק דרך `IMPORTRANGE`.** ה-validation יודע רק על טווחים מקומיים. גם אם ה-tab של ה-`Buyers` שלכם הוא בעצמו IMPORTRANGE, ה-validation קורא את התאים המקומיים, אז כשהייבוא מתעדכן ה-dropdown נעקב. אבל אם תנסו להצביע על ה-validation ישירות על `=IMPORTRANGE(...)`, זה ייכשל. תמיד ממממשים את הרשימה המיובאת בטווח מקומי קודם.
+- **`ONE_OF_RANGE` שמצביע על workbook מרוחק דרך `IMPORTRANGE`** (שיעור 1.27). ה-validation יודע רק על טווחים מקומיים. גם אם ה-tab של ה-`Buyers` שלכם הוא בעצמו `IMPORTRANGE`, ה-validation קורא את התאים המקומיים, אז כשהייבוא מתעדכן ה-dropdown נעקב. אבל אם תנסו להצביע על ה-validation ישירות על `=IMPORTRANGE(...)`, זה ייכשל. תמיד ממממשים את הרשימה המיובאת בטווח מקומי קודם.
