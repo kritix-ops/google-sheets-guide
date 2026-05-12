@@ -8,7 +8,7 @@ Used carelessly, `AI()` fills a column with subtle wrong answers nobody catches 
 
 ## The signature
 
-`AI()` has a one-or-two-argument signature: a required prompt and an optional grounding range. Output is always a text string, and the call requires a manual **Generate and insert** click in the cell before the result is committed. Eligible Workspace plans and Workspace Experiments access are prerequisites; ask your admin if the function does not appear in your environment.
+`AI()` has a one-or-two-argument signature: a required prompt and an optional grounding range. Output is always a text string, and the call requires a manual **Generate and insert** click in the cell before the result is committed. Eligible Workspace plans and Workspace Experiments access are prerequisites; ask your admin if the function does not appear in your environment. When you do pass a range, bound it (`A1:G61`, not `A:G`) per the discipline from lesson 2.1 (Track 4 lesson 2) so you don't ship a million empty cells of context to the model.
 
 <FunctionRef name="AI" />
 

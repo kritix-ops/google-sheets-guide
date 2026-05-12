@@ -8,7 +8,7 @@ import { CAMPAIGNS, CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 ## ה-signature
 
-ל-`AI()` יש signature של ארגומנט אחד או שניים: prompt חובה וטווח אופציונלי להתעגנות. ה-output תמיד מחרוזת טקסט, והקריאה דורשת לחיצה ידנית על **Generate and insert** בתא לפני שהתוצאה נכנסת. Workspace plans זכאים וגישה ל-Workspace Experiments הם תנאי מקדים; שואלים את ה-admin אם הפונקציה לא מופיעה אצלכם.
+ל-`AI()` יש signature של ארגומנט אחד או שניים: prompt חובה וטווח אופציונלי להתעגנות. ה-output תמיד מחרוזת טקסט, והקריאה דורשת לחיצה ידנית על **Generate and insert** בתא לפני שהתוצאה נכנסת. Workspace plans זכאים וגישה ל-Workspace Experiments הם תנאי מקדים; שואלים את ה-admin אם הפונקציה לא מופיעה אצלכם. כשאתם מעבירים טווח, חוסמים אותו (`A1:G61`, לא `A:G`) לפי המשמעת מ-שיעור 2.1 (Track 4 שיעור 2) כדי לא לשלוח למודל מיליון תאים ריקים של הקשר.
 
 <FunctionRef name="AI" />
 
