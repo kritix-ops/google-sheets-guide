@@ -224,9 +224,9 @@ The first time you run it, accept the broader OAuth scope. From then on the adva
 
 ## Used in the wild
 
-- **Programmatic pivot generator.** The team needs a per-buyer-per-platform pivot regenerated every Monday on the current week's data. `SpreadsheetApp` has no pivot-create method; `Sheets.Spreadsheets.batchUpdate` with an `updateCells` request that supplies a `pivotTable` field does. One Monday-morning trigger, one batchUpdate call, fresh pivot.
+- **Programmatic pivot generator** (lessons 2.2 and 2.3 cover the same pivot mechanics from the UI side). The team needs a per-buyer-per-platform pivot regenerated every Monday on the current week's data. `SpreadsheetApp` has no pivot-create method; `Sheets.Spreadsheets.batchUpdate` with an `updateCells` request that supplies a `pivotTable` field does. One Monday-morning trigger, one batchUpdate call, fresh pivot.
 - **Cross-workbook formatting copy.** When a new monthly dashboard sheet is created (from a template), the formatting from last month's sheet has to be copied over: conditional formats, frozen rows, column widths. A single `batchUpdate` with `copyPaste` requests (`pasteType: "PASTE_FORMAT"`) handles all of it; with `SpreadsheetApp` it would be ten separate calls.
-- **Bulk conditional formatting on new monthly columns.** Every month a new spend / revenue / ROI column gets added to the per-buyer sheet. Twenty conditional-format rules to maintain (green if ROI > 1.5, yellow if 1.0-1.5, red below). One `batchUpdate` with twenty `addConditionalFormatRule` entries; takes 2 seconds vs 40 with the per-rule `SpreadsheetApp` path.
+- **Bulk conditional formatting on new monthly columns** (lesson 2.6 covers the UI rule-builder). Every month a new spend / revenue / ROI column gets added to the per-buyer sheet. Twenty conditional-format rules to maintain (green if ROI > 1.5, yellow if 1.0-1.5, red below). One `batchUpdate` with twenty `addConditionalFormatRule` entries; takes 2 seconds vs 40 with the per-rule `SpreadsheetApp` path.
 - **Sheets API pagination on huge ranges.** A 500,000-cell range exceeds Apps Script's response size limit when read via `SpreadsheetApp`. The advanced service supports paging through ranges in chunks (`A1:A50000`, `A50001:A100000`, ...); each call gets a manageable response.
 
 ## Pro pitfalls
