@@ -75,6 +75,30 @@ Smart Fill צריך דוגמאות. Fill with Gemini צריך הוראה. כשה
   ]}
 />
 
+<QuickCheck
+  question="שלוש משימות נחתו על השולחן ביום שני: (A) חילוץ המילה הראשונה מ-600 תאים של שמות קמפיינים, (B) סיווג 600 הערות לקוחות לפי sentiment לדוח חד-פעמי, (C) שמירה של עמודת 'risk' בדשבורד החי עדכנית כשנכנסות שורות חדשות. איזה כלי מתאים לכל אחת?"
+  options={[
+    {
+      id: "a",
+      label: <>כל השלוש הן עבודה ל-Fill with Gemini, זה החדש והחזק ביותר.</>,
+      correct: false,
+      explanation: "חדש יותר זה לא טוב יותר. (A) דטרמיניסטי ו-Smart Fill או נוסחת SPLIT עושים את זה בחינם. (C) צריך לחשב מחדש על שורות חדשות, מה ש-Fill with Gemini לא יכול. שימוש ב-Fill with Gemini לכל דבר מבזבז quota ויוצר literals במקום שצריך נוסחאות.",
+    },
+    {
+      id: "b",
+      label: <>(A) Smart Fill, (B) Fill with Gemini, (C) =AI() עם IFERROR.</>,
+      correct: true,
+      explanation: "שלוש משימות, שלושה כלים, התאמה לדטרמיניזם ולרעננות. (A) חילוץ דטרמיניסטי: Smart Fill או LEFT/SPLIT. (B) סיווג fuzzy חד-פעמי: Fill with Gemini כותב literals והולך הלאה. (C) צריך לעקוב אחרי שורות חדשות: =AI() הוא הכלי החי הנוסחתי.",
+    },
+    {
+      id: "c",
+      label: <>(A) =AI(), (B) Smart Fill, (C) Fill with Gemini.</>,
+      correct: false,
+      explanation: "הפוך בכל השלוש. =AI() הוא overkill וחיוב על חילוץ דטרמיניסטי חינמי. Smart Fill לא יודע sentiment fuzzy. ה-literals של Fill with Gemini קופאים ולא יעקבו אחרי שורות חדשות.",
+    },
+  ]}
+/>
+
 ## שלב סקירת ההצעה
 
 פאנל ההצעה הוא השלב הכי חשוב והכי מדולג. ההצעה מראה לכם את התאים ש-Gemini יכתוב. תמיד בודקים שלושה דברים לפני Apply:

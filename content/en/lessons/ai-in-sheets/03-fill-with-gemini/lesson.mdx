@@ -75,6 +75,30 @@ The rule of thumb: if a formula or Smart Fill can do it, use those. Reserve Fill
   ]}
 />
 
+<QuickCheck
+  question="Three tasks land on your desk on the same Monday: (A) extract the first word from 600 campaign-name cells, (B) classify 600 customer notes by sentiment for a one-time report, (C) keep a 'risk' column on the live dashboard up to date as new rows arrive. Which tool fits each?"
+  options={[
+    {
+      id: "a",
+      label: <>All three are Fill with Gemini jobs, since it's the newest and most powerful.</>,
+      correct: false,
+      explanation: "Newer is not better. (A) is deterministic and Smart Fill or a SPLIT formula nails it for free. (C) needs to recompute on new rows, which Fill with Gemini cannot do. Reaching for Fill with Gemini for everything wastes quota and creates literals where you want formulas.",
+    },
+    {
+      id: "b",
+      label: <>(A) Smart Fill, (B) Fill with Gemini, (C) =AI() with IFERROR.</>,
+      correct: true,
+      explanation: "Three tasks, three tools, matched to determinism and freshness. (A) is a deterministic extract: Smart Fill or LEFT/SPLIT. (B) is one-time fuzzy classification: Fill with Gemini writes literals and walks away. (C) needs to track new rows: =AI() is the live, formulaic tool.",
+    },
+    {
+      id: "c",
+      label: <>(A) =AI(), (B) Smart Fill, (C) Fill with Gemini.</>,
+      correct: false,
+      explanation: "Inverted on all three. =AI() is overkill and billable for a free deterministic extract. Smart Fill cannot do fuzzy sentiment. Fill with Gemini's literals freeze and won't track new rows.",
+    },
+  ]}
+/>
+
 ## The proposal review step
 
 The proposal panel is the most important and most-skipped step. The proposal shows you the cells Gemini would write. Always check three things before applying:

@@ -93,6 +93,30 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
   caption="נתונים קטנים: 6 שורות קמפיינים. קטנים מספיק ש-Gemini רואה כל תא, כל נוסחה, כל header. זה הגודל היחיד שבו אפשר לסמוך על prompts כמו 'הצג את שלושת הראשונים לפי revenue' בלי וידוא."
 />
 
+### מלכודת קלה: ה-tab הפעיל היה הלא נכון
+
+הבאג הכי מדווח של "Gemini נתן לי תשובה מוזרה" בצוות יש לו אותו שורש: tab אחר היה פעיל כש-prompt נשלח. גם prompts ב-side panel וגם קריאות `=AI()` מתעגנים על ה-tab שמוצג ברגע השליחה. החלפת tab *אחרי* שכתבתם את ה-prompt לא משנה בדיעבד את מה ש-Gemini ראה.
+
+<Compare>
+  <ComparePanel label="שבור (tab drift)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`1. אתם עובדים על ה-Aggregator tab.
+2. אתם לוחצים על Daily Summary tab כדי
+   להציץ במספר.
+3. אתם חוזרים ל-side panel ולוחצים Enter על
+   "Summarize this dataset".
+4. Gemini מסכם את Daily Summary, לא את Aggregator.
+
+הסיכום מזכיר 30 שורות ומגמה יומית נקייה.
+ל-Aggregator יש 50,000 שורות והוא הנושא בפועל.
+התשובה נקראת בסדר; התשובה היא על ה-tab הלא נכון.`}</code></pre>
+    <p className="mt-2 text-sm">ה-tab הפעיל בזמן השליחה מנצח. הכוונה שבראש שלכם מפסידה. אין שום אזהרה.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד (טווח מפורש)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=AI("Summarize this dataset", Aggregator!A1:H50001)`}</code></pre>
+    <p className="mt-2 text-sm">ארגומנט הטווח מקבע את הסנפשוט בלי קשר ל-tab הפעיל. תמיד מעבירים טווח חסום כשהתשובה תלויה באילו נתונים Gemini קורא.</p>
+  </ComparePanel>
+</Compare>
+
 ## אי-דטרמיניזם: אותו prompt, שתי תשובות
 
 זו התכונה של AI ששוברת הכי הרבה אינטואיציות מ-spreadsheet. כל פונקציה אחרת בגיליון היא פונקציה טהורה: אותם קלטים, אותו פלט, בכל פעם. `=SUM(F2:F61)` תמיד מחזיר את אותו מספר. `=AI("Categorize: " & C2)` לא.

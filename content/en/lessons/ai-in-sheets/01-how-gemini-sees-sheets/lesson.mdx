@@ -93,6 +93,29 @@ A few categories the team trips on constantly. Surface them in your head every t
   caption="Toy data: 6 campaign rows. Small enough that Gemini sees every cell, every formula, every header. This is the only size where you should trust prompts like 'list the top three by revenue' without verification."
 />
 
+### Easy trap: the wrong tab was active
+
+The single most-reported "Gemini gave me a weird answer" bug on the team has the same root cause: a different tab was active when the prompt fired. Side-panel prompts and `=AI()` calls both anchor on whichever tab is showing when you submit. Switching tabs *after* you typed the prompt does not retroactively change what Gemini saw.
+
+<Compare>
+  <ComparePanel label="Broken (tab drift)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`1. You're working on the Aggregator tab.
+2. You click the Daily Summary tab to glance at a number.
+3. You return to the side panel and hit Enter on
+   "Summarize this dataset".
+4. Gemini summarizes Daily Summary, not Aggregator.
+
+The summary mentions 30 rows and a clean daily trend.
+Aggregator has 50,000 rows and is the actual subject.
+The answer reads fine; the answer is about the wrong tab.`}</code></pre>
+    <p className="mt-2 text-sm">The active tab at submit-time wins. The intent in your head loses. There is no warning.</p>
+  </ComparePanel>
+  <ComparePanel label="Working (explicit range)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=AI("Summarize this dataset", Aggregator!A1:H50001)`}</code></pre>
+    <p className="mt-2 text-sm">The range argument pins the snapshot regardless of which tab is active. Always pass a bounded range when the answer depends on which data Gemini reads.</p>
+  </ComparePanel>
+</Compare>
+
 ## Non-determinism: the same prompt, two answers
 
 This is the property of AI that breaks the most spreadsheet intuitions. Every other function on your sheet is a pure function: same inputs, same output, every time. `=SUM(F2:F61)` always returns the same number. `=AI("Categorize: " & C2)` does not.
