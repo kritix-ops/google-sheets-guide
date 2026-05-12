@@ -44,7 +44,7 @@ You will not fix all five at once. Walk down the list. The first two account for
 
 ## Range scope: the #1 lever
 
-`SUM(F:F)` walks the entire column. In a sheet sized to 60 rows of data, the engine reads 1,000,000 cells (Sheets allocates a large grid even for "small" sheets) and skips empties. Most of the time it does this fast enough that nobody notices. Then someone pastes one stray value into row 90,000 and now the engine is reading 90,000 cells per recalc.
+This is the discipline lesson 2.1 introduced as a workbook-structure rule, now framed through the recalc cost it prevents. `SUM(F:F)` walks the entire column. In a sheet sized to 60 rows of data, the engine reads 1,000,000 cells (Sheets allocates a large grid even for "small" sheets) and skips empties. Most of the time it does this fast enough that nobody notices. Then someone pastes one stray value into row 90,000 and now the engine is reading 90,000 cells per recalc.
 
 `SUM(F2:F61)` walks 60. The cost is the difference. Use bounded ranges everywhere you know the row count.
 
@@ -166,7 +166,7 @@ Three patterns the team relies on every day:
 
 - **Full-column refs in conditional formatting are silently slow.** A custom-formula CF rule on `A:Z` evaluates every cell on every recalc. Scope CF rules to the smallest range that holds your data, and update them when the data grows. The slowdown does not show up in any obvious place; it is just everything-is-laggy.
 - **Naming a range does not fix performance.** A named range pointing at `Sheet1!F:F` is identical, performance-wise, to typing `Sheet1!F:F` directly. The name is for readability, not speed. Bound the underlying range too.
-- **`IMPORTRANGE` refresh triggers a full recalc of every formula that touches it.** When the upstream sheet changes, every consumer recomputes from scratch. Wrap `IMPORTRANGE` in `LET` (or pull it into one cell and read from there) so the import resolves once per formula, not once per reference.
+- **`IMPORTRANGE` refresh triggers a full recalc of every formula that touches it** (lesson 1.27). When the upstream sheet changes, every consumer recomputes from scratch. Wrap `IMPORTRANGE` in `LET` (or pull it into one cell and read from there) so the import resolves once per formula, not once per reference.
 - **"I will come back and bound it later" never happens.** The "TODO: bound this range" comment becomes part of the workbook forever. Either bound it now or pick a deliberate ceiling with `LET + COUNTA + INDEX`. Do not leave a `:F:F` in production.
 
 ## Now do it for real
