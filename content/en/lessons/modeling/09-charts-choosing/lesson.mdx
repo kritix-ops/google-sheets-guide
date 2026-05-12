@@ -116,7 +116,7 @@ without crowding.`}</code></pre>
 
 ## Imported dates and IMPORTRANGE
 
-Charts read straight from cell values. If the date column was pulled in via `IMPORTRANGE` and arrived as text instead of as a real date, your line chart will treat the X-axis as discrete labels and the spacing between days won't reflect actual elapsed time. Symptom: a line chart that looks weirdly compressed where dates are missing. Fix it upstream by converting the date column to real dates (`=DATEVALUE(A2)`), not by changing chart settings.
+Charts read straight from cell values. If the date column was pulled in via `IMPORTRANGE` (lesson 1.27) and arrived as text instead of as a real date, your line chart will treat the X-axis as discrete labels and the spacing between days won't reflect actual elapsed time. Symptom: a line chart that looks weirdly compressed where dates are missing. Fix it upstream by converting the date column to real dates (`=DATEVALUE(A2)`, covered in lesson 1.8), not by changing chart settings.
 
 <QuickCheck
   question="Your line chart of daily revenue looks 'compressed' between days 5 and 8, even though the source has values for every day. What's the most likely cause?"
@@ -154,7 +154,7 @@ Click **Start lesson** to provision the timeseries on a tab named `Trend`. Then 
 - **Chart 1**: a **LINE** chart of `Revenue` (column C) over `Date` (column A). Title it something with the word `Revenue` in it. Anchor it at `H1`.
 - **Chart 2**: a **COLUMN** chart of `Conversions` (column F) over `Date` (column A). Title it something with the word `Conversion` in it. Anchor it at `H20`.
 
-The grader reads each chart's family, basic type, title, and anchor. If you put a BAR chart where the lesson asked for COLUMN, or a chart with a title that doesn't say what it shows, the grader catches it.
+The grader reads each chart's family, basic type, title, and anchor. If you put a BAR chart where the lesson asked for COLUMN, or a chart with a title that doesn't say what it shows, the grader catches it. Formatting (colors, axis labels, gridlines, number formats) lands in lesson 2.10.
 
 ## Used in the wild
 
