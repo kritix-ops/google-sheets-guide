@@ -71,7 +71,32 @@ slicer הוא pivot filter עטוף בקונטרול על הגיליון. אות
 
 מכניסים slicer עם `Data → Slicer`, מצביעים על טווח המקור של ה-pivot, ובוחרים עמודה. הבחירה של ה-slicer היא state משלה, נפרד מהסלוט Filters של ה-pivot. כששניהם מוגדרים, הם נחתכים.
 
-מתי להוסיף slicer: כל dashboard ש-stakeholder יסתכל עליו, שבו אתם רוצים שהוא יחליף את המדינה, ה-buyer, או הפלטפורמה בלי ללמוד את ה-editor. לא להוסיף slicer ל-pivot שרק אתם נוגעים בו. זה רק עומס על הגיליון.
+מתי להוסיף slicer: כל dashboard ש-stakeholder יסתכל עליו, שבו אתם רוצים שהוא יחליף את המדינה, ה-buyer, או הפלטפורמה בלי ללמוד את ה-editor. לא להוסיף slicer ל-pivot שרק אתם נוגעים בו. זה רק עומס על הגיליון. Slicers ו-filter views (שיעור 2.8) הם מנגנונים שונים: slicer הוא קונטרול פומבי המחובר ל-pivot, filter view הוא תצוגה פרטית של עורך על השורות הבסיסיות. השתמשו ב-slicers ל-dashboards ש-stakeholders קוראים; השתמשו ב-filter views לעורכים שעובדים במקביל על אותו לוג גולמי.
+
+<Compare>
+  <ComparePanel label="Filter ב-editor: גישת עורכים בלבד" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Pivot config:
+  Filters: Country = "DE"
+
+ה-CFO פותחת את הגיליון כ-Viewer.
+היא רוצה UK במקום.
+היא לא יכולה לשנות את ה-filter.
+היא שולחת לכם מייל. אתם משנים DE -> UK.
+היא שולחת מייל שוב כדי לחזור.`}</code></pre>
+    <p className="mt-2 text-sm">הסלוט Filters הוא חלק מהגדרת ה-pivot. עריכה שלו דורשת גישת עריכה ל-workbook. כל מי שיש לו גישת view-only רואה את ה-pivot אבל לא יכול לשנות את הפרוסה.</p>
+  </ComparePanel>
+  <ComparePanel label="Slicer: קונטרול על הגיליון" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Slicer ממוקם מעל ה-pivot:
+  Column: Country
+  Dropdown: [DE] UK  US
+
+ה-CFO פותחת את הגיליון כ-Viewer.
+היא לוחצת UK ב-slicer.
+ה-pivot מחושב מחדש ל-UK.
+בלי מיילים.`}</code></pre>
+    <p className="mt-2 text-sm">slicer הוא קונטרול על הגיליון המחובר לטווח המקור של ה-pivot. Viewers יכולים לתקשר איתו בלי לדרוש גישת עריכה, וזו הסיבה ש-slicers הם המשטח הנכון לכל dashboard ש-stakeholder יקרא.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="ה-CFO פותחת את ה-dashboard שלכם כ-viewer. היא רוצה לראות את ה-pivot מסונן רק ל-US, ואז רק ל-UK. איזה דפוס מאפשר לה לעשות את זה בלי לתת לה גישת עריכה?"
@@ -127,6 +152,30 @@ Dina Spend  |    296 |     215 |        0 |
     <p className="mt-2 text-sm">שלוש שורות לכל buyer, 7 עמודות בסך הכל. הערימה נקראת באופן טבעי. הוספת ערך רביעי מוסיפה שורה רביעית, לא קבוצת-עמודה רביעית.</p>
   </ComparePanel>
 </Compare>
+
+<QuickCheck
+  question="ל-pivot של buyer-לפי-פלטפורמה יש 7 פלטפורמות (Columns) ו-4 ערכים בכל תא (SUM Spend, SUM Revenue, COUNTA Date, calculated ROI). HORIZONTAL layout הופך את זה ל-28 עמודות. מה העלות האמיתית של להשאיר את זה אופקי?"
+  options={[
+    {
+      id: "a",
+      label: "Sheets מסרב להציג pivots שרחבים מ-20 עמודות",
+      correct: false,
+      explanation: "Sheets מציג pivots של 28 עמודות בלי להתלונן. העלות אנושית, לא טכנית.",
+    },
+    {
+      id: "b",
+      label: "עמודי הדפסה וצילומי מסך חותכים את הקצה הימני, צילומי Slack חותכים, העין מאבדת את השורה בסריקה כל כך רחוקה",
+      correct: true,
+      explanation: "21+ עמודות פוגעות במשתמשים האמיתיים של ה-pivot. VERTICAL הופך את אותם נתונים ל-7 עמודות על 4-שורות-לכל-buyer, שמתאים למסך ומדפיס נקי. ברירת המחדל של הצוות ל-3+ ערכים היא VERTICAL בדיוק מהסיבות האלה.",
+    },
+    {
+      id: "c",
+      label: "Calculated fields נכשלים מעל 4 ערכים בכל תא",
+      correct: false,
+      explanation: "Calculated fields עובדים ללא קשר ל-layout. Layout הוא רק בחירה של הצגה; הוא לא משפיע על מה שמחושב.",
+    },
+  ]}
+/>
 
 ## קיבוצי תאריך מותאמים: שנים, רבעונים, חודשים בלחיצה אחת
 
@@ -252,8 +301,9 @@ Calculated field:
 
 ## מלכודות מקצועיות
 
-- **Filters שזזים כשעמודות מקור מוכנסות או מוסרות.** ה-`sourceColumn` של ה-filter הוא offset לתוך טווח המקור, לא שם של header. הוסיפו עמודה באמצע המקור וכל filter אחרי נקודת ההכנסה זז בשקט לעמודה הלא נכונה. אותה מלכודת ל-calculated fields שמפנים לכותרות עמודה אם גם משנים את שם הכותרת.
+- **Filters שזזים כשעמודות מקור מוכנסות או מוסרות.** ה-`sourceColumn` של ה-filter הוא offset לתוך טווח המקור, לא שם של header. הוסיפו עמודה באמצע המקור וכל filter אחרי נקודת ההכנסה זז בשקט לעמודה הלא נכונה. אותה מלכודת ל-calculated fields שמפנים לכותרות עמודה אם גם משנים את שם הכותרת. בדיוק לכן המשמעת של "כותרות הן חוזה" משיעור 2.1 משתלמת: מיקומי עמודה יציבים וטקסט כותרת יציב אומרים ששום pivot לא נשבר על עריכות schema.
 - **Calculated fields עם header מקור ששמו שונה.** משנים את `Revenue` ל-`Revenue (USD)` בשורה 1, וכל calculated field שמפנה ל-`'Revenue'` מחזיר `#REF!` עד שעורכים גם את הנוסחה. אין rename-propagation.
 - **VERTICAL layout בלי "Show totals".** ה-pivot נקרא מלמעלה למטה אבל אם ה-totals כבויים, לעין אין שורת עוגן לכל buyer. הופכים את Rows → Show totals למופעל ל-pivots מקובצים; שורת ה-totals היא מה שעושה את ה-layout קריא.
 - **Slicers שלא נראים ל-viewers.** slicer הוא אובייקט צף על הגיליון. אם ה-pivot נכנס ל-frame משובץ קטן, ה-slicer נגלל מחוץ למסך ו-viewers רואים pivot סטטי שהם לא יכולים לשנות. ממקמים את ה-slicer מעל או לצד ה-pivot, אף פעם לא מתחתיו.
 - **סינון by condition עם ערך שלא רלוונטי.** filter "Date is after 2026-04-15" בסדר באפריל. שישה חודשים אחר כך הוא עדיין אומר 2026-04-15 וה-pivot בשקט לא מוציא כלום. לתאריכים דינמיים, השתמשו ב-filter CUSTOM_FORMULA שמפנה ל-`TODAY()`, או העבירו את טווח התאריך ל-slicer שהצוות באמת מתחזק.
+- **מקור שמוזן דרך `IMPORTRANGE`** (שיעור 1.27) **גורם ל-calculated fields להישבר ב-schema drift.** במעלה הזרם משנים את `Spend` ל-`Spend (USD)` וכל calculated field תלוי מחזיר `#REF!` אחרי ה-refresh הבא. אין דרך לנעול שם של header בין `IMPORTRANGE`; ההגנה היחידה היא לתקנן את שמות העמודות עם הצוות במעלה הזרם ולהודיע לפני שינויי שם.

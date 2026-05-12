@@ -71,7 +71,32 @@ A slicer is a pivot filter wrapped in an on-sheet control. Same effect on the pi
 
 Insert a slicer with `Data → Slicer`, point it at the pivot's source range, and pick a column. The slicer's selection is its own state, separate from the pivot's Filters slot. When both are set, they intersect.
 
-When to add a slicer: any dashboard a stakeholder will look at, where you want them to flip the country, the buyer, or the platform without learning the editor. Don't add a slicer to a pivot only you ever touch. It just clutters the sheet.
+When to add a slicer: any dashboard a stakeholder will look at, where you want them to flip the country, the buyer, or the platform without learning the editor. Don't add a slicer to a pivot only you ever touch. It just clutters the sheet. Slicers and filter views (lesson 2.8) are different mechanisms: a slicer is a public control wired to a pivot, a filter view is a private editor-only view of the underlying rows. Use slicers for dashboards stakeholders read; use filter views for editors working in parallel on the same raw log.
+
+<Compare>
+  <ComparePanel label="Editor filter: editor-only access" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Pivot config:
+  Filters: Country = "DE"
+
+CFO opens the sheet as Viewer.
+She wants UK instead.
+She cannot change the filter.
+She emails you. You change DE -> UK.
+She emails you again to go back.`}</code></pre>
+    <p className="mt-2 text-sm">The Filters slot is part of the pivot definition. Editing it requires edit access on the workbook. Anyone with view-only access sees the pivot but cannot change the slice.</p>
+  </ComparePanel>
+  <ComparePanel label="Slicer: a control on the sheet" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Slicer placed above the pivot:
+  Column: Country
+  Dropdown: [DE] UK  US
+
+CFO opens the sheet as Viewer.
+She clicks UK in the slicer.
+The pivot recomputes for UK.
+No emails.`}</code></pre>
+    <p className="mt-2 text-sm">A slicer is an on-sheet control wired to the pivot's source range. Viewers interact with it without needing edit access, which is why slicers are the right surface for any dashboard a stakeholder will read.</p>
+  </ComparePanel>
+</Compare>
 
 <QuickCheck
   question="The CFO opens your dashboard as a viewer. She wants to see the pivot filtered to just the US, then to just the UK. Which pattern lets her do this without giving her edit access?"
@@ -127,6 +152,30 @@ Dina Spend  |    296 |     215 |        0 |
     <p className="mt-2 text-sm">Three rows per buyer, 7 columns total. Stacks read naturally. Adding a fourth value adds a fourth row, not a fourth column-group.</p>
   </ComparePanel>
 </Compare>
+
+<QuickCheck
+  question="A buyer-by-platform pivot has 7 platforms (Columns) and 4 values per cell (SUM Spend, SUM Revenue, COUNTA Date, calculated ROI). HORIZONTAL layout makes this 28 columns. What's the real cost of leaving it horizontal?"
+  options={[
+    {
+      id: "a",
+      label: "Sheets refuses to render pivots wider than 20 columns",
+      correct: false,
+      explanation: "Sheets renders 28-column pivots without complaint. The cost is human, not technical.",
+    },
+    {
+      id: "b",
+      label: "Print and screenshot pages crop the right edge, Slack screenshots cut off, the eye loses the row when scanning that far right",
+      correct: true,
+      explanation: "21+ columns hurt the actual users of the pivot. VERTICAL turns the same data into 7 columns by 4-rows-per-buyer, which fits a screen and prints cleanly. The team default for 3+ values is VERTICAL for exactly these reasons.",
+    },
+    {
+      id: "c",
+      label: "Calculated fields fail above 4 values per cell",
+      correct: false,
+      explanation: "Calculated fields work regardless of layout. Layout is purely a presentation choice; it doesn't affect what gets computed.",
+    },
+  ]}
+/>
 
 ## Custom date groupings: years, quarters, months in one click
 
@@ -252,8 +301,9 @@ In the team's actual workbooks:
 
 ## Pro pitfalls
 
-- **Filters that drift when source columns are inserted or removed.** The filter's `sourceColumn` is an offset into the source range, not a header name. Insert a column in the middle of the source and every filter past the insertion point silently shifts to the wrong column. Same trap for calculated fields that reference column headers if you also rename a header.
+- **Filters that drift when source columns are inserted or removed.** The filter's `sourceColumn` is an offset into the source range, not a header name. Insert a column in the middle of the source and every filter past the insertion point silently shifts to the wrong column. Same trap for calculated fields that reference column headers if you also rename a header. This is why lesson 2.1's "headers are a contract" discipline pays back: stable column positions and stable header text mean no pivots break on schema edits.
 - **Calculated fields with a renamed source header.** Rename `Revenue` to `Revenue (USD)` in row 1, and every calculated field that references `'Revenue'` returns `#REF!` until you also edit the formula. There's no rename-propagation.
 - **VERTICAL layout without "Show totals".** The pivot reads top-to-bottom but if totals are off, the eye has no anchor row per buyer. Flip Rows → Show totals on for grouped pivots; the totals row is what makes the layout legible.
 - **Slicers that aren't visible to viewers.** A slicer is a floating object on the sheet. If the pivot fits in a small embedded frame, the slicer scrolls off-screen and viewers see a static pivot they can't change. Position the slicer above or beside the pivot, never below.
 - **Filtering by condition with a stale value.** A filter "Date is after 2026-04-15" is fine in April. Six months later it still says 2026-04-15 and the pivot quietly excludes nothing. For dynamic dates, use a CUSTOM_FORMULA filter referencing `TODAY()`, or move the date range into a slicer the team actually maintains.
+- **Source pulled via `IMPORTRANGE`** (lesson 1.27) **schema-drifts the calculated fields.** Upstream renames `Spend` to `Spend (USD)` and every dependent calculated field returns `#REF!` after the next refresh. There's no way to lock a header name across `IMPORTRANGE`; the only defense is to standardize column names with the upstream team and notify before renames.
