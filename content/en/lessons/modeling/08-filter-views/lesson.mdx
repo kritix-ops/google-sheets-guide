@@ -16,7 +16,7 @@ This is one of the few features where the right default is the opposite of the o
 | Persists by name | No, there's only ever one regular filter | Yes, saved by name, listed in `Data → Filter views`, switchable in one click |
 | Survives a copy-paste of the data | Filter doesn't transfer | Filter view doesn't transfer either |
 
-The team default is **always use a filter view, never a regular filter** in any shared workbook. Regular filters are for solo workbooks where nobody else is looking. The moment a sheet is shared with one other editor, the regular-filter button is a footgun.
+The team default is **always use a filter view, never a regular filter** in any shared workbook. Regular filters are for solo workbooks where nobody else is looking. The moment a sheet is shared with one other editor, the regular-filter button is a footgun. (Slicers from lesson 2.3 sit in a different niche: a slicer is an on-sheet control wired to one pivot, intended for viewers without edit access. Filter views are editor-side, persistent, and operate on raw rows rather than on a pivot definition.)
 
 <Compare>
   <ComparePanel label="Regular filter: collateral damage" tone="negative">
@@ -159,5 +159,5 @@ In the team's actual workbooks:
 - **Regular filter and filter view active at the same time.** If a regular filter is on, opening a filter view layers them confusingly. Different users see different combinations. Rule: in a shared workbook, remove the regular filter (`Data → Remove filter`) before anyone creates filter views.
 - **Sort inside a filter view reorders for everyone.** The filter is local; the sort is global. If you find yourself reaching for `Sort A→Z` inside a view, stop and use a `SORT(...)` formula in an analysis tab instead.
 - **Filter views don't survive copy-paste to a new sheet.** Duplicate the tab and the filter views go with it. Copy-paste the *cells* into a fresh tab and the filter views stay behind. If you're cloning a tab as a starting point, use `Duplicate` from the tab menu, not paste.
-- **`IMPORTRANGE` breaks filter views silently.** Filter views reference column letters and row counts. When the source workbook adds a column or the destination's `IMPORTRANGE` range expands, the saved filter on column G might now be sitting on the wrong column. The view still loads; the filter just no longer means what you thought. Audit filter views after any `IMPORTRANGE` source change.
+- **`IMPORTRANGE` breaks filter views silently** (lesson 1.27). Filter views reference column letters and row counts. When the source workbook adds a column or the destination's `IMPORTRANGE` range expands, the saved filter on column G might now be sitting on the wrong column. The view still loads; the filter just no longer means what you thought. Audit filter views after any `IMPORTRANGE` source change.
 - **Private codes in view names.** `YC v3 test final FINAL2` is invisible to your team. Rename anything cryptic to a sentence a teammate would recognize.

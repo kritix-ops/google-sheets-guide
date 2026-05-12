@@ -16,7 +16,7 @@ filter רגיל מסדר מחדש את מה ש-*כולם* רואים. ברגע �
 | נשמר בשם | לא, יש רק filter רגיל אחד | כן, נשמר בשם, מופיע ב-`Data → Filter views`, ניתן להחלפה בלחיצה אחת |
 | שורד copy-paste של הנתונים | filter לא מועבר | filter view גם לא מועבר |
 
-ברירת המחדל של הצוות היא **תמיד להשתמש ב-filter view, אף פעם לא ב-filter רגיל** בכל workbook משותף. Filters רגילים מיועדים ל-workbooks סולו שאף אחד אחר לא מסתכל. ברגע שגיליון משותף עם עורך אחד נוסף, כפתור ה-filter הרגיל הוא footgun.
+ברירת המחדל של הצוות היא **תמיד להשתמש ב-filter view, אף פעם לא ב-filter רגיל** בכל workbook משותף. Filters רגילים מיועדים ל-workbooks סולו שאף אחד אחר לא מסתכל. ברגע שגיליון משותף עם עורך אחד נוסף, כפתור ה-filter הרגיל הוא footgun. (Slicers משיעור 2.3 יושבים בנישה אחרת: slicer הוא קונטרול על הגיליון מחובר ל-pivot אחד, מיועד ל-viewers בלי גישת עריכה. Filter views הם בצד-העורך, נשמרים, ופועלים על שורות raw ולא על הגדרת pivot.)
 
 <Compare>
   <ComparePanel label="filter רגיל: נזק עקיף" tone="negative">
@@ -159,5 +159,5 @@ Filtering בתוך filter view הוא מקומי ל-view שלכם. **מיון ב
 - **filter רגיל ו-filter view פעילים באותו זמן.** אם filter רגיל פעיל, פתיחת filter view ערבת אותם באופן מבלבל. משתמשים שונים רואים שילובים שונים. כלל: ב-workbook משותף, מסירים את ה-filter הרגיל (`Data → Remove filter`) לפני שמישהו יוצר filter views.
 - **מיון בתוך filter view מסדר מחדש לכולם.** ה-filter מקומי; המיון גלובלי. אם אתם מוצאים את עצמכם פונים ל-`Sort A→Z` בתוך view, עוצרים ומשתמשים בנוסחת `SORT(...)` ב-tab ניתוח במקום.
 - **Filter views לא שורדים copy-paste ל-sheet חדש.** משכפלים את ה-tab וה-filter views הולכים איתו. Copy-paste של *התאים* ל-tab רענן וה-filter views נשארים מאחור. אם אתם משכפלים tab כנקודת התחלה, השתמשו ב-`Duplicate` מתפריט ה-tab, לא בהדבקה.
-- **`IMPORTRANGE` שובר filter views בשקט.** Filter views מפנים לאותיות עמודות ולספירות שורות. כשה-workbook המקור מוסיף עמודה או טווח ה-`IMPORTRANGE` של היעד מתרחב, ה-filter השמור על עמודה G עשוי כעת לשבת על העמודה הלא נכונה. ה-view עדיין נטען; ה-filter פשוט כבר לא אומר מה שחשבתם. עושים audit ל-filter views אחרי כל שינוי במקור `IMPORTRANGE`.
+- **`IMPORTRANGE` שובר filter views בשקט** (שיעור 1.27). Filter views מפנים לאותיות עמודות ולספירות שורות. כשה-workbook המקור מוסיף עמודה או טווח ה-`IMPORTRANGE` של היעד מתרחב, ה-filter השמור על עמודה G עשוי כעת לשבת על העמודה הלא נכונה. ה-view עדיין נטען; ה-filter פשוט כבר לא אומר מה שחשבתם. עושים audit ל-filter views אחרי כל שינוי במקור `IMPORTRANGE`.
 - **קודים פרטיים בשמות view.** `YC v3 test final FINAL2` בלתי נראה לצוות שלכם. שנו שמות לכל דבר קריפטי למשפט שחבר/ת צוות יזהה.
