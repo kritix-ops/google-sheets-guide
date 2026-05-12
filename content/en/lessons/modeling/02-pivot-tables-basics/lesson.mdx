@@ -54,6 +54,32 @@ The pivot's output is a Rows × Columns grid with the Values aggregated inside e
   ]}
 />
 
+## Pivots vs a wall of formulas
+
+The framing claim, "one pivot delivers a 2-D matrix that would take 50 formulas to assemble by hand", is easy to wave away until you've built that 2-D matrix the long way. Here is the buyer-by-platform revenue matrix done both ways on the same 60-row log.
+
+<Compare>
+  <ComparePanel label="The long way: a wall of SUMIFS" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Hand-maintained labels:
+  J2:J6  = 5 buyer names
+  K1:Q1  = 7 platform names
+
+One formula, copied 5 x 7 = 35 times:
+  K2 = SUMIFS($G$2:$G$61, $B$2:$B$61, $J2,
+              $D$2:$D$61, K$1)`}</code></pre>
+    <p className="mt-2 text-sm">Thirty-five near-identical formulas. New buyer joins the team and the dashboard does not update until you extend the labels and copy the row down. A buyer's name changes and you re-edit every row. Each <code>SUMIFS</code> re-walks the entire 60-row log on every recalc (Track 4 lesson 2 covers the cost when this is scaled to 50,000 rows).</p>
+  </ComparePanel>
+  <ComparePanel label="The pivot way: one definition" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Insert -> Pivot table
+  Source: Campaigns!A1:G61
+  Anchor: K1
+  Rows:    Buyer
+  Columns: Platform
+  Values:  SUM Revenue`}</code></pre>
+    <p className="mt-2 text-sm">One config block. New buyer arrives in the raw log: the pivot grows a row automatically. New platform appears: pivot grows a column. Same exact matrix, one configuration object instead of 35 formulas, and Sheets aggregates the source once instead of 35 times.</p>
+  </ComparePanel>
+</Compare>
+
 ## Anchoring a pivot
 
 `Insert → Pivot table` opens the dialog. Pick "Existing sheet" and choose an empty cell (we use K1 in this lesson) so the pivot sits next to the raw log without overwriting it. The cell you choose becomes the **anchor** (the top-left of the pivot) and the pivot grows down and right from there.
@@ -83,7 +109,7 @@ the source extends the rectangle, not the pivot.`}</code></pre>
 
 ## Summarize functions
 
-The Values slot doesn't just take a column, it takes a column **plus** a function. The function determines what each cell shows. The headline options:
+The Values slot doesn't just take a column, it takes a column **plus** a function. These are the same aggregations from lesson 1.6 (`SUM`, `AVERAGE`, `MEDIAN`, `COUNTA`, `MIN`, `MAX`), now applied inside each pivot cell instead of inside a formula bar. The function determines what each cell shows. The headline options:
 
 | Function | What it does | When to reach for it |
 |---|---|---|
@@ -182,6 +208,53 @@ The gotcha: calculated fields use SUM by default. If you need a different aggreg
   ]}
 />
 
+## Filters: scope before aggregate
+
+The Filters slot does what `WHERE` does in `QUERY` (lesson 1.12) or what a criterion does in `SUMIFS`: it drops source rows before the aggregation runs. With a filter in play, the pivot summarizes a slice of the log, not the whole log. Filters compose: a pivot can carry any number of them and they AND together.
+
+Two filter patterns the team uses constantly:
+
+- **Date window**: `Date is in the last 7 days` for a rolling weekly view that updates automatically as new rows arrive in the raw log.
+- **Categorical exclusion**: `Buyer is not Maya Bar` while Maya is on parental leave, so her carryover campaigns don't distort the team's pivot.
+
+<Compare>
+  <ComparePanel label="Same source, different scopes" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Source: Campaigns!A1:G61 (60 rows)
+
+No filter            -> pivot summarizes all 60 rows
+Country = "DE"       -> pivot summarizes DE rows only
+Country = "DE"  AND  -> pivot summarizes DE rows from
+Date >= TODAY()-7       the last 7 days only`}</code></pre>
+    <p className="mt-2 text-sm">Each filter is either a categorical "Filter by values" list or a "Filter by condition" rule. Filters apply to source rows, not to result cells, so a filter on Country still leaves Country available for use as a Row or Column slot.</p>
+  </ComparePanel>
+</Compare>
+
+The trap: **a filter value that doesn't appear in the current source range silently produces an empty pivot**. No error, no banner, just an empty grid where the matrix used to be. The fastest debug is to clear the filter and confirm the pivot has rows, then add filters back one by one until the empty one is identified.
+
+<QuickCheck
+  question="You set the pivot Filters slot to 'Country is DE' but the pivot output is now empty. The raw log still has 60 rows. What's the most likely cause?"
+  options={[
+    {
+      id: "a",
+      label: "The pivot is broken; recreate it from scratch",
+      correct: false,
+      explanation: "Recreating doesn't diagnose. The pivot mechanism is fine; the issue is either in the filter or in the source's contents.",
+    },
+    {
+      id: "b",
+      label: "The current source range has no rows where Country = 'DE'",
+      correct: true,
+      explanation: "Filters drop rows before aggregation. A filter on a value that's not in the slice returns an empty result. Clear the filter; if rows reappear, the filter value was the problem.",
+    },
+    {
+      id: "c",
+      label: "DE is a two-letter code and pivots only accept three-letter ISO codes",
+      correct: false,
+      explanation: "Pivot filters accept any text. The filter compares values literally against whatever is in the source column.",
+    },
+  ]}
+/>
+
 ## Now do it for real
 
 <MiniGrid
@@ -208,9 +281,9 @@ In the team's actual workbooks:
 
 ## Pro pitfalls
 
-- **Pivot source pointing at the full column** (`Campaigns!A:G`). The pivot recomputes against a million empty rows on every edit. Bound the source: `A1:G61`, `A1:G500`, whatever fits the actual data.
+- **Pivot source pointing at the full column** (`Campaigns!A:G`). The pivot recomputes against a million empty rows on every edit. Bound the source: `A1:G61`, `A1:G500`, whatever fits the actual data. Same recalc cost as the bounded-vs-unbounded discipline from lesson 2.1, applied to pivots instead of formulas.
 - **Editing the raw log under a live pivot** rearranges the pivot's groupings. New buyer names appear as new rows; new platforms appear as new columns. That's usually good, but if the pivot is the basis for a stable downstream report, freeze the source range or copy the pivot's output to a static range.
 - **Calculated fields that reference a column header containing a space** must use the exact spelling and casing. `'Total Spend'` is different from `'Total spend'`.
 - **`AVERAGE` of a ratio is not the ratio of averages**. Calculated `'Revenue'/'Spend'` returns SUM(Revenue) / SUM(Spend) per cell, which is the portfolio ratio. If you want the average of per-row ratios, compute the ratio in a source column first, then SUM or AVERAGE it.
 - **Pivots don't survive copy-paste cleanly**. Copying a range that contains pivot output cells pastes static values; the pivot doesn't re-anchor at the destination. To duplicate a pivot, re-create it from the source.
-- **`IMPORTRANGE`-fed sources expand without warning**. When the upstream sheet adds rows, the pivot's source range may not extend if you bounded it. Either set the source generously (`A1:G5000`) or accept that the pivot's "data area" needs re-checking after every upstream schema change.
+- **`IMPORTRANGE`-fed sources expand without warning** (`IMPORTRANGE` mechanics covered in lesson 1.27). When the upstream sheet adds rows, the pivot's source range may not extend if you bounded it. Either set the source generously (`A1:G5000`) or accept that the pivot's "data area" needs re-checking after every upstream schema change.
