@@ -2,7 +2,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # Why your sheet is slow
 
-A workbook that lagged for half a second yesterday lags for eight today. Nobody touched the formulas. The data grew by a thousand rows and a sleeping problem woke up. Three patterns account for almost every slow Sheets workbook:
+A workbook that lagged for half a second yesterday lags for eight today. Nobody touched the formulas. The data grew by a thousand rows and a sleeping problem woke up. This lesson is the formula-level companion to lesson 2.18's workbook-level hygiene rules; lesson 2.18 was about how the whole workbook ages, this one is about which individual formulas cost the most. Three patterns account for almost every slow Sheets workbook:
 
 1. **Volatile functions** that re-evaluate on every edit and on the minute timer.
 2. **Full-column references** that walk a million empty cells on every recalc.
