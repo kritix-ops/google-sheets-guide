@@ -4,7 +4,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 These two errors look similar in a dashboard: a red cell where a number used to be. They are different bugs, and treating them the same is the fastest way to mask real problems. `#REF!` means a reference broke: the formula points at cells that no longer exist. `#N/A` means a lookup ran cleanly but did not find a match. One is structural; the other is a data question. The fixes have nothing to do with each other.
 
-This lesson is the calibration: how to tell which error you have, which wrapper catches the one you want without swallowing the one you do not, and why the team's standing rule is `IFNA` over `IFERROR` for production lookups.
+This lesson is the calibration: how to tell which error you have, which wrapper catches the one you want without swallowing the one you do not, and why the team's standing rule is `IFNA` over `IFERROR` for production lookups. Lesson 1.9 introduced the error-handling wrappers as functions; this lesson is about applying them correctly under pressure.
 
 ## #REF! means "the cell I was pointing at is gone"
 
