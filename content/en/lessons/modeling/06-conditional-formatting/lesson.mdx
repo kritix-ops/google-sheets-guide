@@ -103,11 +103,35 @@ Whole row gets the same boolean.`}</code></pre>
   </ComparePanel>
 </Compare>
 
+<QuickCheck
+  question="You want to gray out the entire row when Status (column H) equals 'paused', so paused campaigns visually fade. Rule range is A2:G61 (the seven data columns, all rows). Which formula?"
+  options={[
+    {
+      id: "a",
+      label: "=H2=\"paused\" with no anchors",
+      correct: false,
+      explanation: "No column anchor means the column reference shifts as the rule walks A -> B -> ... -> G. Cell A2 reads H2, cell B2 reads I2 (which is empty), and the row coloring scrambles. Lock the column.",
+    },
+    {
+      id: "b",
+      label: "=$H2=\"paused\" with column-locked, row-relative",
+      correct: true,
+      explanation: "Column anchor pins the reference to H regardless of which cell in the row is being painted. Row reference is relative, so each row reads its own H. Every cell in row 2 evaluates $H2, every cell in row 3 evaluates $H3, and the whole row shares one boolean.",
+    },
+    {
+      id: "c",
+      label: "=$H$2=\"paused\" with both anchors",
+      correct: false,
+      explanation: "Both anchors locked means the rule evaluates H2 once and paints the entire range based on that single result. Same trap as the broken Compare above: every row or no row.",
+    },
+  ]}
+/>
+
 ## Performance: cheap by default, expensive when paired with volatile functions
 
 Conditional formatting is fast on its own. Sheets evaluates the rule once per cell when the cell or its dependencies change. The cost goes up when the formula references **volatile functions** like `TODAY`, `NOW`, `OFFSET`, `INDIRECT`, or `RAND`, because those re-fire on every recalculation. A rule like `=A2<TODAY()-30` running on a 60-row range is fine. The same rule running on `A:A` over a 50,000-row aggregator workbook with five other volatile rules will make the whole spreadsheet feel laggy.
 
-Two practical guards: bound the range (`A2:A1000`, not `A:A`) and prefer non-volatile alternatives where possible (a static cutoff date in `J1` is cheaper than `TODAY()`).
+Two practical guards: bound the range (`A2:A1000`, not `A:A`, same discipline as lesson 2.1) and prefer non-volatile alternatives where possible (a static cutoff date in `J1` is cheaper than `TODAY()`). Track 4 lesson 2 covers the full cost model when a workbook accumulates volatile formatting across many sheets.
 
 <QuickCheck
   question="Your aggregator has 30,000 campaign rows and you want to color any row older than 30 days. Which rule is cheaper to recalc?"
