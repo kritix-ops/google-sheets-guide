@@ -180,6 +180,30 @@ if (response.getSelectedButton() === ui.Button.OK) {
 שיעור 9 מכסה sidebars מקצה לקצה. הגרסה הקצרה: `ui.showSidebar(HtmlService.createHtmlOutputFromFile("Sidebar"))` פותח פאנל, ה-HTML בפנים מדבר עם ה-server functions שלכם דרך `google.script.run`. לעת עתה, רק לדעת שפריט תפריט שפותח sidebar הוא ה-pattern הסטנדרטי כש-dialogs של one-shot לא מספיקים.
 
 <QuickCheck
+  question="ה-buyer צריך לבחור 3 verticals וטווח תאריכים, ואז להריץ ניתוח. כל האינטראקציה צריכה להישאר נראית בזמן שהוא מתאים את ההגדרות לפני שהוא לוחץ Run. איזה משטח UI מתאים?"
+  options={[
+    {
+      id: "a",
+      label: "שרשרת של ארבע קריאות ui.prompt() (שלושה בוחרי verticals + טווח תאריכים), כל אחת אחרי הבאה",
+      correct: false,
+      explanation: "Prompts הם modal ואחד-בכל-פעם. ה-buyer לא יכול לראות verticals 1 ו-2 בזמן שהוא בוחר 3, ולא יכול לחזור לשנות vertical 1 בלי להתחיל מחדש. בנוסף, טיימר 6 הדקות סופר בזמן שכל prompt מחכה.",
+    },
+    {
+      id: "b",
+      label: "Sidebar (שיעור 9) עם ה-UI של ה-picker בפנים; כפתור ה-Run שולח את כל ה-state ל-server function",
+      correct: true,
+      explanation: "Sidebars הם פאנלים מתמשכים עם HTML מלא. ה-buyer רואה את כל ה-picker, מתאים בחופשיות, וה-script רץ רק כשהוא לוחץ Run. זה המשטח הנכון לכל אינטראקציה רב-שדות.",
+    },
+    {
+      id: "c",
+      label: "תפריט מותאם עם 12 פריטים נפרדים, אחד לכל צירוף של (vertical, טווח תאריכים)",
+      correct: false,
+      explanation: "תפריטים הם לא state machine. שנים-עשר פריטים לרשת 3x4 גדלה למאות בכל קנה מידה ריאלי. ברגע שצריך state, צריך sidebar.",
+    },
+  ]}
+/>
+
+<QuickCheck
   question="אתם מחברים פריט תפריט: .addItem('Run', 'runCampaign'). ה-function במקור שלכם נקראת runCampaign (r באות קטנה). אתם לוחצים על פריט התפריט וכלום לא קורה, אין שגיאה, אין רשומת לוג. מה לא בסדר?"
   options={[
     {

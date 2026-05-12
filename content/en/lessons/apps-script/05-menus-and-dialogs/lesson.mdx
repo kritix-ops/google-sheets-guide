@@ -182,6 +182,30 @@ Menus and dialogs cover one-shot actions and one-shot inputs. The moment you nee
 Lesson 9 covers sidebars end-to-end. The short version: `ui.showSidebar(HtmlService.createHtmlOutputFromFile("Sidebar"))` opens a panel, the HTML inside it talks to your server functions via `google.script.run`. For now, just know that a menu item that opens a sidebar is the standard pattern when one-shot dialogs are not enough.
 
 <QuickCheck
+  question="The buyer needs to pick 3 verticals and a date range, then run an analysis. The whole interaction should stay visible while they tweak settings before clicking Run. Which UI surface fits?"
+  options={[
+    {
+      id: "a",
+      label: "A chain of four ui.prompt() calls (three vertical pickers + one date range), each followed by the next",
+      correct: false,
+      explanation: "Prompts are modal and one-at-a-time. The buyer can't see verticals 1 and 2 while picking vertical 3, and can't go back to change vertical 1 without restarting. Plus, the 6-minute timer is counting while each prompt waits.",
+    },
+    {
+      id: "b",
+      label: "A sidebar (lesson 9) with the picker UI inside; the Run button submits the full state to a server function",
+      correct: true,
+      explanation: "Sidebars are persistent panels with full HTML. The buyer sees the whole picker, tweaks freely, and the script only runs when they click Run. This is the right surface for any multi-field interaction.",
+    },
+    {
+      id: "c",
+      label: "A custom menu with 12 separate items, one per (vertical, date-range) combination",
+      correct: false,
+      explanation: "Menus aren't a state machine. Twelve items for a 3x4 grid grows to hundreds at any realistic scale. Once you need state, you need a sidebar.",
+    },
+  ]}
+/>
+
+<QuickCheck
   question="You wire a menu item: .addItem('Run', 'runCampaign'). The function in your source is named runCampaign (lowercase r). You click the menu item and nothing happens, no error, no log entry. What is wrong?"
   options={[
     {
