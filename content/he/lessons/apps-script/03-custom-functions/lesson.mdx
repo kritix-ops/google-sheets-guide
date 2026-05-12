@@ -182,7 +182,7 @@ custom functions שמורות ב-cache **לפי רשימת הארגומנטים 
 
 ## function שנייה מעובדת: מנרמל vertical
 
-הדוגמה של USD-to-ILS היא צורת המינימום ההכרחי. הנה זו שהצוות באמת נשען עליה יותר: `normalizeVertical(name)`. המוסכמה של הצוות היא שכל שם vertical מסתיים ב-` PR`, בלי רווחים מובילים או נגררים, ב-title case. נתוני המקור מ-Taboola ומ-Outbrain מפרים את שלושת הכללים כל הזמן: `"used cars pr"`, `" Reverse Mortgage PR "`, `"Lingerie"` (בלי סיומת).
+הדוגמה של USD-to-ILS היא צורת המינימום ההכרחי. הנה זו שהצוות באמת נשען עליה יותר: `normalizeVertical(name)`. המוסכמה של הצוות היא שכל שם vertical מסתיים ב-` PR`, בלי רווחים מובילים או נגררים, ב-title case. נתוני המקור מ-Taboola ומ-Outbrain מפרים את שלושת הכללים כל הזמן: `"used cars pr"`, `" Reverse Mortgage PR "`, `"Lingerie"` (בלי סיומת). זו המקבילה ב-Apps Script למתכוני הניקוי מבוססי-הנוסחה משיעור 2.14: אותה עבודה, גרסה scripted, ניתנת לשימוש חוזר על פני כל workbook שמייבא את ה-library.
 
 ```js
 /**

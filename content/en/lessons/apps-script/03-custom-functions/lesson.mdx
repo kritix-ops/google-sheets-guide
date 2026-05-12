@@ -184,7 +184,7 @@ The rule of thumb: a custom function should be **a pure function of its argument
 
 ## A second worked function: vertical normalizer
 
-The USD-to-ILS example is the bare-minimum shape. Here is the one the team actually leans on more: `normalizeVertical(name)`. The team's convention is that every vertical name ends in ` PR`, with no leading or trailing whitespace, in title case. Source data from Taboola and Outbrain violates all three constantly: `"used cars pr"`, `" Reverse Mortgage PR "`, `"Lingerie"` (no suffix).
+The USD-to-ILS example is the bare-minimum shape. Here is the one the team actually leans on more: `normalizeVertical(name)`. The team's convention is that every vertical name ends in ` PR`, with no leading or trailing whitespace, in title case. Source data from Taboola and Outbrain violates all three constantly: `"used cars pr"`, `" Reverse Mortgage PR "`, `"Lingerie"` (no suffix). This is the Apps Script counterpart to the formula-based cleanup recipes in lesson 2.14: same job, scripted version, reusable across every workbook that imports the library.
 
 ```js
 /**
