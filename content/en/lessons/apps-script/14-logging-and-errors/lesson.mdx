@@ -218,7 +218,7 @@ The starter file `Lesson.gs` declares `function processSpendSafely()` with an em
 2. Add a `catch (e)` block. Log the failure with `console.error("Failed to read spend: " + e.toString())` and write the string `"error"` to J1.
 3. Run the function once in the Apps Script editor. Open the Executions panel and confirm both the log line and the function status.
 
-The `spend * 1` looks pointless, and on a clean sheet it is. The reason it is there is the realistic case where F2 holds the string `"412.5"` instead of the number `412.5` (a common shape when data comes in via IMPORTRANGE from a CSV-backed sheet). `spend * 1` coerces the string to a number; an absent multiplication would write the text into J1 and the dashboard formulas downstream would break silently.
+The `spend * 1` looks pointless, and on a clean sheet it is. The reason it is there is the realistic case where F2 holds the string `"412.5"` instead of the number `412.5` (a common shape when data comes in via `IMPORTRANGE` from a CSV-backed sheet, lesson 1.27). `spend * 1` coerces the string to a number; an absent multiplication would write the text into J1 and the dashboard formulas downstream would break silently.
 
 ## Used in the wild
 
