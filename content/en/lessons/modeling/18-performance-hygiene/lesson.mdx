@@ -154,6 +154,8 @@ Workbooks below 50,000 rows mostly do not care about performance. You will write
 
 The implication: write performant formulas from day one, even on small data, because workbooks grow. The cost of the discipline is one extra `COUNTA + INDEX` pattern per aggregate. The cost of skipping the discipline is rewriting the whole sheet at 60,000 rows when somebody finally complains.
 
+When you've applied every formula-level lever and the workbook is still slow, the next move is to leave the formula engine entirely. Apps Script (Track 3) is the escape hatch: a time-driven trigger (lesson 3.8) can pre-aggregate 80,000 raw rows into a 200-row daily summary tab once a night, and the dashboard then reads static values that recompute in milliseconds. The trade-off is freshness (the summary is yesterday's, not real-time) for performance and reliability. Most "live" dashboards do not actually need second-by-second freshness; the team's monthly review reads from a nightly-rebuilt summary tab without anyone noticing.
+
 ## Used in the wild
 
 Three patterns the team relies on every day:

@@ -150,7 +150,7 @@ The point of cells 3 and 5 is the muscle memory. When the next break hits at 4 P
 
 ## Used in the wild
 
-The team's monthly ritual: on the first of every month, the buyer who owns the master aggregator opens the workbook, makes one tiny edit (a comment in a never-touched cell does the job), then names the version `PreMonthEnd-2026-04` (with the prior month's date). The named version sits in the history forever as the canonical "everything looked right at the end of April" snapshot.
+The team's monthly ritual: on the first of every month, the buyer who owns the master aggregator opens the workbook, makes one tiny edit (a comment in a never-touched cell does the job), then names the version `PreMonthEnd-2026-04` (with the prior month's date). The named version sits in the history forever as the canonical "everything looked right at the end of April" snapshot. Teams that want to remove the human-forgets-to-do-it risk move the ritual to an Apps Script time-driven trigger (Track 3 lesson 8): a monthly job that touches a cell and writes a versioned label via the Drive API. The principle is the same; only the hand changes.
 
 The actual recovery story that made the team adopt this: someone was tidying the Buyer-Vertical dashboard and deleted column F (a hidden helper column with the `SUMIFS` denominators). The dashboard's ROI cells started reading `#REF!`. The fix took three minutes because the prior `PreMonthEnd-2026-03` version had the helper column intact: the recovering buyer opened the version, copied column F's formulas across, pasted them into the live workbook, and the dashboard recomputed. Without a named version, the same fix would have started with five minutes of "which 4:00 PM was it?"
 

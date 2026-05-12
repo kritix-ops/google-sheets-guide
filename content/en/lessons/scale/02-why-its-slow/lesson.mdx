@@ -26,7 +26,7 @@ The dangerous shapes to spot in a slow workbook:
 - **`OFFSET(A1, 0, 0, COUNTA(A:A), 1)`** is the "find the last row" trick. It is volatile, and the `COUNTA(A:A)` inside is also a full-column ref. Two slow things in one formula.
 - **`TODAY()` inside `ARRAYFORMULA`** is the worst one. A single `TODAY` is cheap; `ARRAYFORMULA(TODAY()-A2:A1000)` is a thousand volatile cells.
 
-The cure is usually the same: replace the volatile call with a static value (a hardcoded date string), a cell reference to a date the user updates manually, or a non-volatile alternative (use `INDEX(A:A, n)` instead of `OFFSET`).
+The cure is usually the same: replace the volatile call with a static value (a hardcoded date string), a cell reference to a date the user updates manually, or a non-volatile alternative (use `INDEX(A:A, n)` instead of `OFFSET`). When the workbook genuinely needs periodic refresh (a "data as of" timestamp, a nightly snapshot of an aggregated tab), the right tool is an Apps Script time-driven trigger (Track 3 lesson 8) that writes the value once on a schedule, not a volatile formula that recomputes on every keystroke.
 
 <Compare>
   <ComparePanel label="Volatile, slow, fragile" tone="negative">
