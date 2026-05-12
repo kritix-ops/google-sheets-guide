@@ -77,6 +77,30 @@ There are two scopes you can protect.
 
 The decision rule the team uses: **if the whole tab is one logical unit, protect the sheet.** If the tab has a mix of read-only data and editable inputs (a config tab with a `Buyers` list at the top and a `Notes` column at the bottom that's allowed to grow), use range-level protection so the editable part stays editable.
 
+<QuickCheck
+  question="The team has a Config tab with three sections: a Buyers roster (top, owned by HR), a Verticals list (middle, owned by media-strategy), and a Notes column (bottom, anyone can add comments). What's the right protection shape?"
+  options={[
+    {
+      id: "a",
+      label: "Sheet-level strict protection on the whole tab",
+      correct: false,
+      explanation: "Sheet-level strict blocks every section equally. The Notes column needs to stay editable for the team. Sheet-level would either lock Notes (and break the workflow) or require an Except-certain-cells exception (which is fragile when columns shift).",
+    },
+    {
+      id: "b",
+      label: "Three range-level protections, one per section, each with its own editor allowlist",
+      correct: true,
+      explanation: "Range-level is the right tool when one tab has multiple ownership domains. The Buyers range is HR-only, the Verticals range is media-strategy-only, the Notes range stays unprotected. Each rule explains itself via its description, and each can change owners without touching the other two.",
+    },
+    {
+      id: "c",
+      label: "No protection; rely on people to follow conventions",
+      correct: false,
+      explanation: "Conventions are a hope, not a control. Once the tab is opened by someone unfamiliar with the conventions, the wrong cell gets edited. The cost of three range protections is one one-time setup; the cost of an unenforced convention is recurring.",
+    },
+  ]}
+/>
+
 ## Editor allowlists
 
 Strict protection accepts an explicit list of editor emails. The owner is always in the list; you can add specific teammates by email. Anyone not on the list sees the edit rejected.
@@ -154,7 +178,7 @@ In the team's actual workbooks:
 
 ## Pro pitfalls
 
-- **`IMPORTRANGE` writes through protection.** Protection blocks human edits, not server writes. If you're worried about the imported data being wrong, the fix is in the upstream sheet, not in adding more protection on the destination.
+- **`IMPORTRANGE` writes through protection** (lesson 1.27). Protection blocks human edits, not server writes. If you're worried about the imported data being wrong, the fix is in the upstream sheet, not in adding more protection on the destination.
 - **Copy-paste loses protection on paste.** When somebody copies a protected cell and pastes it into a new tab, the destination is unprotected. The protection is a property of the range, not a property of the value. Re-apply protection on the destination if it matters.
 - **Warning-only is just a warning.** Anyone can click through it. If a rule actually matters for data integrity, it has to be strict; warning-only is a speed bump, not a wall.
 - **Sheet-level protection plus `Except certain cells` is fragile.** When somebody adds a column to the tab, the "except" range doesn't expand. Either re-edit the protection when the schema changes or split the tab so the unprotected region is its own range.
