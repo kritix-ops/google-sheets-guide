@@ -20,7 +20,7 @@ spreadsheet שמציית לכלל הזה נקרא כמו אפליקציה קטנ
 | `Aggregator` | מאחד את גיליונות ה-raw ללוג מנורמל אחד דרך QUERY. פלט לקריאה בלבד. |
 | `Dashboard` | כל ה-SUMIFS, ה-pivot של media buyer מול פלטפורמה, סיכום ה-ROI. קורא מ-`Aggregator`. |
 
-הגבול בין "raw" ל-"derived" הוא גבול של גיליון, וגיליונות מקבלים שם עם prefix של `Raw -` כדי שכל מי שפותח את ה-spreadsheet יידע איזה משטח בטוח לגעת בו.
+הגבול בין "raw" ל-"derived" הוא גבול של גיליון, וגיליונות מקבלים שם עם prefix של `Raw -` כדי שכל מי שפותח את ה-spreadsheet יידע איזה משטח בטוח לגעת בו. הגיליונות עם `Raw -` נמלאים על ידי `IMPORTRANGE` (שיעור 1.27) מגיליון ה-export של כל פלטפורמה; הם נעולים לכתיבה לפי הקונבנציה כדי שעריכה מקרית ב-dashboard לא תרעיל את המקור.
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
@@ -124,6 +124,25 @@ Date      Buyer            Revenue        Total Spend    =SUM(F2:F61)
     },
   ]}
 />
+
+## טווחים חסומים מנצחים עמודות מלאות
+
+המשמעת השנייה שמשתלמת על פני כל נוסחה ב-spreadsheet: לכתוב טווחים שמסתיימים בשורת הנתונים האחרונה, לא בעמודה עצמה. `SUM(F2:F61)` חסום; `SUM(F:F)` לא חסום. שניהם מחזירים את אותו מספר היום. הם מתנהגים שונה לחלוטין ככל שה-spreadsheet גדל.
+
+<Compare>
+  <ComparePanel label="לא חסום: SUM(F:F)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUM(F:F)
+=AVERAGEIF(B:B, "Yoav Cohen", F:F)
+=COUNTIF(D:D, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">נראה עמיד לעתיד: הוספת שורות "פשוט עובדת". אבל כל חישוב מחדש עובר על כל העמודה (Sheets מקצה מקום למאות אלפי תאים). ב-spreadsheet של 50,000 שורות עם 30 נוסחאות כאלה, זה הופך לעיכוב של שניות לכל עריכה. Track 4 שיעור 2 מכסה את העלות לעומק.</p>
+  </ComparePanel>
+  <ComparePanel label="חסום: SUM(F2:F61)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUM(F2:F61)
+=AVERAGEIF(B2:B61, "Yoav Cohen", F2:F61)
+=COUNTIF(D2:D61, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">חסום לנתונים בפועל. חישוב מחדש נוגע רק ב-60 השורות שקיימות. כשהלוג גדל, מעדכנים את הגבול בשני תאי הסיכום (ה-<code>LET</code> משיעור 1.20 עם גבול נקוב הופך את זה לעריכה של שורה אחת). ה-dashboard נשאר מהיר.</p>
+  </ComparePanel>
+</Compare>
 
 ## שורת כותרת: שורה אחת, בלי merge
 

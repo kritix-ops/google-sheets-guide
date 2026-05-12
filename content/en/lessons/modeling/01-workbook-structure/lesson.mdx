@@ -20,7 +20,7 @@ The team's actual workbook pattern looks like this in the wild:
 | `Aggregator` | Joins the raw tabs into one normalized log via QUERY. Read-only output. |
 | `Dashboard` | All the SUMIFS, the buyer-vs-platform pivot, the ROI summary. Reads from `Aggregator`. |
 
-The boundary between "raw" and "derived" is a tab boundary, and tabs are renamed with a `Raw -` prefix so anyone who opens the workbook knows which surface is safe to touch.
+The boundary between "raw" and "derived" is a tab boundary, and tabs are renamed with a `Raw -` prefix so anyone who opens the workbook knows which surface is safe to touch. The `Raw -` tabs are filled by `IMPORTRANGE` (lesson 1.27) from each platform's export sheet; they are write-locked by convention so an accidental edit on the dashboard cannot poison the source.
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
@@ -124,6 +124,25 @@ Two reasons this layout is worth the discipline:
     },
   ]}
 />
+
+## Bounded ranges beat full columns
+
+The other discipline that pays back across every formula in the workbook: write ranges that end at the last data row, not at the column itself. `SUM(F2:F61)` is bounded; `SUM(F:F)` is unbounded. Both return the same number today. They behave very differently as the workbook grows.
+
+<Compare>
+  <ComparePanel label="Unbounded: SUM(F:F)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUM(F:F)
+=AVERAGEIF(B:B, "Yoav Cohen", F:F)
+=COUNTIF(D:D, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">Looks future-proof: adding rows "just works". But every recalc walks the entire column (Sheets allocates room for hundreds of thousands of cells). On a 50,000-row workbook with 30 such formulas, this turns into seconds of lag per edit. Track 4 lesson 2 covers the cost in depth.</p>
+  </ComparePanel>
+  <ComparePanel label="Bounded: SUM(F2:F61)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUM(F2:F61)
+=AVERAGEIF(B2:B61, "Yoav Cohen", F2:F61)
+=COUNTIF(D2:D61, "Taboola")`}</code></pre>
+    <p className="mt-2 text-sm">Bounded to the actual data. Recalc only touches the 60 rows that exist. When the log grows, you bump the bound in two summary cells (lesson 1.20's <code>LET</code> with a named bound makes this a one-line edit). The dashboard stays fast.</p>
+  </ComparePanel>
+</Compare>
 
 ## Header rows: one row, no merges
 
