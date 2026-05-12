@@ -2,7 +2,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # PropertiesService ו-CacheService: אחסון קבוע ואחסון קצר-טווח
 
-Apps Script רץ ב-sandbox בלי disk מקומי. כל מה שה-script שלכם רוצה לזכור בין ריצות חייב לחיות איפשהו ש-Google מנהלת. שני ה-surfaces לזה הם **`PropertiesService`** (אחסון key/value עמיד שנשאר לתמיד) ו-**`CacheService`** (אחסון מהיר קצר-טווח שמתפנה אחרי שש שעות לכל היותר). כל trigger ב-production שהצוות כותב משתמש באחד או באחר: API tokens ב-Properties כך שה-trigger לא ישלח אותם במקור, שער החליפין היומי ב-Cache כך ש-200 תאים לא יפגעו כולם ב-FX API.
+Apps Script רץ ב-sandbox בלי disk מקומי. כל מה שה-script שלכם רוצה לזכור בין ריצות חייב לחיות איפשהו ש-Google מנהלת. שני ה-surfaces לזה הם **`PropertiesService`** (אחסון key/value עמיד שנשאר לתמיד) ו-**`CacheService`** (אחסון מהיר קצר-טווח שמתפנה אחרי שש שעות לכל היותר). כל trigger ב-production (שיעור 8) שהצוות כותב משתמש באחד או באחר: API tokens ב-Properties כך שה-trigger לא ישלח אותם במקור, שער החליפין היומי ב-Cache כך ש-200 תאים לא יפגעו כולם ב-FX API.
 
 השיעור הזה מכסה את שלושת ה-scopes ששני השירותים חושפים (Script, Document, User), משטח ה-API ב-60 שניות, ה-pattern של קריאה תלת-שכבתית שכל trigger של הצוות משתמש בו, מגבלות הגודל ששווה לזכור, הכלל "Properties אינו לסודות", וה-LockService ששומר על writers מקבילים מלהיכנס למרוץ. עד הסוף תוכלו בביטחון לאחסן כל דבר משער FX של 5 bytes לרשימת buyer של 200 שורות.
 

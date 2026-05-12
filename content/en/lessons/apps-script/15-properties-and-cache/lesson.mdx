@@ -2,7 +2,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # PropertiesService and CacheService: persistent and short-lived storage
 
-Apps Script runs in a sandbox without a local disk. Anything your script wants to remember across runs has to live somewhere managed by Google. The two surfaces for that are **`PropertiesService`** (durable key/value storage that persists forever) and **`CacheService`** (fast short-lived storage that evicts after up to six hours). Every production trigger the team writes uses one or the other: API tokens in Properties so the trigger does not ship them in the source, the daily exchange rate in Cache so 200 cells do not all hit the FX API.
+Apps Script runs in a sandbox without a local disk. Anything your script wants to remember across runs has to live somewhere managed by Google. The two surfaces for that are **`PropertiesService`** (durable key/value storage that persists forever) and **`CacheService`** (fast short-lived storage that evicts after up to six hours). Every production trigger (lesson 8) the team writes uses one or the other: API tokens in Properties so the trigger does not ship them in the source, the daily exchange rate in Cache so 200 cells do not all hit the FX API.
 
 This lesson covers the three scopes both services expose (Script, Document, User), the API surface in 60 seconds, the three-tier read pattern that every team trigger uses, the size limits worth remembering, the "Properties is NOT for secrets" rule, and the LockService that keeps concurrent writers from racing. By the end you can confidently store anything from a 5-byte FX rate to a 200-row buyer list.
 
