@@ -2,102 +2,133 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 # MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY
 
-These six functions each take a LAMBDA and apply it across an array: element by element, row by row, or with an accumulator. They're the bridge between LAMBDA (last lesson) and array-aware spreadsheets. Once these click, you stop dragging formulas down columns; one cell becomes a whole transformation.
+These six functions are what `LAMBDA` (lesson 1.18) actually exists for. Each one takes a LAMBDA and applies it across an array in a specific shape: cell by cell (`MAP`), folded into one value (`REDUCE`), folded with intermediate steps preserved (`SCAN`), once per row (`BYROW`), once per column (`BYCOL`), or generated from nothing (`MAKEARRAY`). Together they replace every "drag this formula down 1000 rows" workflow with a single cell that emits the whole transformation.
+
+In adtech terms: every per-row KPI column, every weighted aggregate, every running cumulative spend chart, every per-campaign summary across a wide pivot. Those are the building blocks of the whole calculated-column shelf. The lesson covers all six, with the focus weighted toward `MAP`, `REDUCE`, and `SCAN` because those carry the most pedagogical load. `BYROW`/`BYCOL` are short variants of the same idea; `MAKEARRAY` got its full canonical introduction in lesson 1.11.
 
 ## MAP: apply a LAMBDA to every cell
 
-`MAP(array, LAMBDA)` returns a new array of the same shape, where each cell is the LAMBDA applied to the corresponding input.
+`MAP(array1, [array2, ...], lambda)` returns a new array the same shape as the inputs, where each cell is the LAMBDA applied to the corresponding position in the input arrays. With one array, the LAMBDA takes one parameter; with two arrays, two parameters; and so on.
+
+Reach for `MAP` whenever you would otherwise write a formula in row 2 and drag it down. The point is exactly that: one cell, one formula, the whole transformation. New rows in the source extend the output automatically when paired with open-ended ranges.
 
 <FunctionRef name="MAP" />
 
-```
-=MAP(E2:E13, LAMBDA(spend, spend * 1.1))
-```
+### Worked example 1: toy data
 
-Returns a 12-cell column where every Spend value is multiplied by 1.1. No drag-down needed; one cell, one formula, the whole array updates when the source changes.
+Four prices. Apply a 10% markup to every row. One formula in `D2` spills the four marked-up values.
 
-`MAP` can take multiple arrays (must be the same shape) and pass corresponding values into the LAMBDA:
+<RefDemo
+  data={[
+    ["Item", "Price"],
+    ["A", 100],
+    ["B", 200],
+    ["C", 150],
+    ["D", 80],
+  ]}
+  formula="=MAP(B2:B5, LAMBDA(p, p * 1.1))"
+  formulaCell="D2"
+  fillTo="D5"
+  expectedFills={["=MAP(B2:B5, LAMBDA(p, p * 1.1))", "", "", ""]}
+  caption="MAP calls the LAMBDA once per row, receiving the price, and spills the four marked-up values into D2:D5. Result: 110, 220, 165, 88."
+/>
 
-```
-=MAP(E2:E13, F2:F13, LAMBDA(spend, revenue, (revenue - spend) / spend))
-```
+### Worked example 2: real adtech data
 
-This computes ROI for every campaign in one formula, returning a 12-cell column.
+The dragless ROI column on the campaign log. `MAP` takes both the spend and the revenue columns and threads them into a LAMBDA that returns ROI.
 
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
   expectedFormula="=MAP(E2:E13,F2:F13,LAMBDA(s,r,(r-s)/s))"
-  task={<>Compute ROI for every campaign in one MAP formula. Result spills into <code>H2:H13</code> as 12 ROI values.</>}
+  task={<>Compute ROI for every campaign in one MAP formula. Put it in <code>H2</code> and let it spill into <code>H2:H13</code>.</>}
   hint={<>Pattern: <code>MAP(array1, array2, LAMBDA(a, b, body))</code>. The LAMBDA receives one value from each array, position-matched.</>}
-  answer={<>The dragless way to compute ROI for the whole table. Without MAP, you'd write <code>=(F2-E2)/E2</code> in H2 and drag it down: fine until someone adds row 14 and the formula doesn't extend. MAP is also the basic building block of "I want a calculated column without using a Table": if you're already in tables, this is what gets composed under the hood.</>}
+  answer={<>The dragless way to compute ROI for the whole table. Without MAP, you would write <code>=(F2-E2)/E2</code> in H2 and drag it down: fine until someone adds row 14 and the formula does not extend. MAP composes cleanly with open-ended ranges: <code>MAP(E2:E, F2:F, LAMBDA(s, r, IF(s="", "", (r-s)/s)))</code> keeps growing with the log. The IFERROR/IF-empty guard from lesson 1.10 still applies.</>}
 />
 
 ## REDUCE: fold an array into a single value
 
-`REDUCE(initial_value, array, LAMBDA(accumulator, current, body))` walks the array left-to-right, threading a running accumulator through your LAMBDA.
+`REDUCE(initial_value, array, LAMBDA(accumulator, current, body))` walks the array left-to-right, threading an *accumulator* through your LAMBDA. The accumulator starts at `initial_value` and updates on each step; the function returns the final accumulator after the array is exhausted.
+
+`REDUCE` is the most general aggregation tool in Sheets. `SUM`, `COUNT`, `AVERAGE`, `MAX`, `MIN`, `SUMIF` are all special cases of REDUCE with a particular accumulator type and reduction step. The win shows up the moment your aggregation is too custom for the built-ins: weighted averages, conditional sums with multiple branches, "second-highest value," "first match satisfying a complex condition."
 
 <FunctionRef name="REDUCE" />
 
-```
-=REDUCE(0, E2:E13, LAMBDA(acc, spend, acc + spend))
-```
+### Worked example 1: toy data
 
-Equivalent to `SUM(E2:E13)`. The interesting use cases are when SUM is too dumb:
+Sum a column the hard way. `REDUCE` with `0` as the initial accumulator and `acc + current` as the step is equivalent to `SUM`. The point is that you can see the mechanism.
 
-```
-=REDUCE(0, E2:E13, LAMBDA(acc, spend, IF(spend > 300, acc + spend, acc)))
-```
+<RefDemo
+  data={[
+    ["Value"],
+    [10],
+    [20],
+    [15],
+    [25],
+  ]}
+  formula="=REDUCE(0, A2:A5, LAMBDA(acc, x, acc + x))"
+  formulaCell="C2"
+  fillTo="C2"
+  expectedFills={["=REDUCE(0, A2:A5, LAMBDA(acc, x, acc + x))"]}
+  caption="acc starts at 0. Step 1: acc=0, x=10 → 10. Step 2: acc=10, x=20 → 30. Step 3: acc=30, x=15 → 45. Step 4: acc=45, x=25 → 70. Final: 70. Same as =SUM(A2:A5)."
+/>
 
-Sum only the spends greater than 300. (You could also do this with `SUMIF`, but REDUCE generalizes to "any condition I can express in a LAMBDA," not just the limited SUMIF criteria language.)
+### Worked example 2: real adtech data
+
+The conditional aggregation that `SUMIF` is too limited for. Sum only the campaign spends greater than 300, with the threshold easy to change in one place.
 
 <TryIt
   data={CAMPAIGNS}
-  inputCell="I1"
+  inputCell="H1"
   expectedFormula="=REDUCE(0,E2:E13,LAMBDA(a,s,IF(s>300,a+s,a)))"
-  task={<>Use REDUCE to sum only the campaign Spends greater than 300. Result is a single number.</>}
-  hint={<>Pattern: <code>REDUCE(initial, array, LAMBDA(acc, current, body))</code>. The body conditionally adds current to acc.</>}
-  answer={<>REDUCE is the most general aggregation tool in Sheets. SUM, COUNT, AVERAGE, MAX, MIN are all special cases of REDUCE with a particular accumulator and operation. The win: any conditional or compound aggregation that doesn't fit in SUMIF/COUNTIF/AVERAGEIF can be written as a one-line REDUCE. The team uses this for "weighted average ROI by spend share" and "second-highest revenue": neither has a built-in.</>}
+  task={<>Use REDUCE to sum only the campaign Spends greater than 300. Result is a single number in <code>H1</code>.</>}
+  hint={<>Pattern: <code>REDUCE(initial, array, LAMBDA(acc, current, body))</code>. The body conditionally adds <code>current</code> to <code>acc</code>.</>}
+  answer={<>This particular case could be `=SUMIF(E2:E13, ">300")`, but REDUCE generalizes to any condition you can express in a LAMBDA, not just SUMIF's limited criteria language. The team uses REDUCE for "weighted average ROI by spend share" and "second-highest revenue across all of Yoav's campaigns": neither of which has a built-in.</>}
 />
 
-## SCAN: like REDUCE but keeps every step
+## SCAN: REDUCE with every step preserved
 
-`SCAN` is REDUCE that returns the running accumulator at every step, not just the final value. Same signature, different output shape.
+`SCAN` has the same signature as `REDUCE` but returns the running accumulator at every step, not just the final value. The output is the same shape as the input array.
 
 <FunctionRef name="SCAN" />
+
+The canonical adtech use is the running cumulative spend. Sort the log by date, then `SCAN` produces a column showing how much was spent through each day. Plot it against the date column and you have the team's burn-rate chart.
 
 ```
 =SCAN(0, E2:E13, LAMBDA(acc, spend, acc + spend))
 ```
 
-Returns 12 values: `342.18, 557.68, 1069.68, ...`: running totals of spend.
+On the campaign log this returns twelve values: `342.18, 540.58, 1153.48, ...`. Each row is the cumulative spend through that campaign. The first answers "did we hit $5,000 by mid-month?" without anyone writing a single helper column.
 
-The classic adtech use: cumulative spend over a date-sorted log to find "what day did we cross $5,000?"
+<TryIt
+  data={CAMPAIGNS}
+  inputCell="H2"
+  expectedFormula="=SCAN(0,E2:E13,LAMBDA(a,s,a+s))"
+  task={<>Build a running cumulative Spend column. Put the SCAN formula in <code>H2</code> so it spills into <code>H2:H13</code>.</>}
+  hint={<>Same signature as REDUCE but returns every step. <code>SCAN(initial, array, LAMBDA(acc, current, body))</code>.</>}
+  answer={<>SCAN keeps every accumulator value, not just the last. Pair it with the campaign date column and you have a cumulative-spend chart with one formula. For a smoother weekly-running view, replace the LAMBDA body with a windowed accumulation, or sort the log by date first (lesson 1.14's SORT) so the cumulative reads in chronological order.</>}
+/>
 
 ## BYROW and BYCOL: collapse one dimension
 
-`BYROW(range, LAMBDA(row, body))` applies the LAMBDA to each row and returns a single column of results.
-`BYCOL(range, LAMBDA(col, body))` does the same for columns.
+`BYROW(range, LAMBDA(row, body))` applies the LAMBDA to each row of the range and returns a single column of results. `BYCOL(range, LAMBDA(col, body))` does the same for each column and returns a single row.
+
+These are the right pick when the LAMBDA needs to see a whole row or column at once, typically because the body calls an aggregate like `SUM`, `AVERAGE`, `MAX` on it.
 
 <FunctionRef name="BYROW" />
 
 <FunctionRef name="BYCOL" />
 
 ```
-=BYROW(E2:F13, LAMBDA(row, SUM(row)))
+=BYROW(E2:F13, LAMBDA(row, SUM(row)))   → per-row sum of Spend + Revenue
+=BYCOL(E2:F13, LAMBDA(col, AVERAGE(col))) → average Spend, average Revenue (1×2 row)
 ```
 
-Returns 12 values: per-row `SUM(spend, revenue)`. Mostly useful when you have multiple numeric columns and want a per-row aggregate.
+In adtech, `BYROW` shows up most often for per-row profit margins over a multi-column range: `=BYROW(Campaigns[[Spend]:[Revenue]], LAMBDA(row, (INDEX(row,1,2)-INDEX(row,1,1))/INDEX(row,1,2)))`. `BYCOL` is the column-summary tool for wide pivot tables.
 
-```
-=BYCOL(E2:F13, LAMBDA(col, AVERAGE(col)))
-```
+## MAKEARRAY: build an array from nothing
 
-Returns 2 values: average of Spend, average of Revenue.
-
-## MAKEARRAY: build an array from scratch
-
-`MAKEARRAY(rows, cols, LAMBDA(row_index, col_index, body))` creates a fresh array. The LAMBDA receives the row and column indices and returns the cell value. The full reference card was introduced in lesson 11.
+`MAKEARRAY(rows, cols, LAMBDA(row_index, col_index, body))` creates a fresh array. The LAMBDA receives the 1-indexed row and column and returns the cell value. Full canonical introduction is in lesson 1.11; here it slots into the helper family.
 
 <FunctionRef name="MAKEARRAY" />
 
@@ -105,26 +136,88 @@ Returns 2 values: average of Spend, average of Revenue.
 =MAKEARRAY(10, 10, LAMBDA(r, c, r * c))
 ```
 
-Returns a 10×10 multiplication table. Useful for generating headers, lookup grids, calibration tables, or anything where you want a programmatically-built array without hand-typing values.
+A 10×10 multiplication table. In adtech work, `MAKEARRAY` is mostly used for scenario matrices (cost tier × ROI tier grids), calibration tables, and synthetic test data before a real `IMPORTRANGE` lands.
+
+## Easy traps
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>=MAP(A2:A10, LAMBDA(x, y, x + y))</code></pre>
+    <p className="mt-2 text-sm"><strong>Arg-count mismatch.</strong> The LAMBDA expects two parameters (<code>x</code>, <code>y</code>) but MAP only passes one because there is only one input array. Errors with "Lambda's parameter count is incorrect." Easy mistake when you copy a LAMBDA written for a different MAP and forget to update the array count.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>=MAP(A2:A10, B2:B10, LAMBDA(x, y, x + y))</code></pre>
+    <p className="mt-2 text-sm"><strong>Two arrays, two parameters.</strong> MAP threads one value from each array into the LAMBDA, position-matched. The parameter count must match the array count exactly.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=REDUCE("", E2:E13, LAMBDA(a, s, a + s))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Wrong initial-value type.</strong> The initial accumulator is the empty string <code>""</code>. The first step computes <code>"" + 342.18</code> which Sheets resolves to <code>342.18</code> (auto-coerced), but the result is subtly different and on some inputs throws a type error. The initial value sets the accumulator type for the whole walk.</p>
+  </ComparePanel>
+  <ComparePanel label="Working" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=REDUCE(0, E2:E13, LAMBDA(a, s, a + s))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Numeric initial value for numeric aggregation.</strong> The accumulator starts at <code>0</code> and stays numeric throughout. For string concatenation use <code>""</code> and <code>a &amp; s</code> in the body. For arrays as the accumulator, use the right shape from the start.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question={"You want a per-row profit margin column from a Spend (E) and Revenue (F) range. Which formula does it in one cell?"}
+  options={[
+    {
+      id: "a",
+      label: "=BYROW(E2:F13, LAMBDA(row, SUM(row)))",
+      correct: false,
+      explanation: "This returns SUM(spend + revenue) per row, not the margin (revenue - spend) / revenue. BYROW receives the full row range; you need to index into it.",
+    },
+    {
+      id: "b",
+      label: "=MAP(E2:E13, F2:F13, LAMBDA(s, r, (r-s)/r))",
+      correct: true,
+      explanation: "MAP with two arrays threads paired (s, r) into the LAMBDA. The LAMBDA computes (r-s)/r per row. Result spills into 12 cells. MAP is the right tool when the LAMBDA wants scalars from corresponding cells; BYROW is the right tool when the LAMBDA wants the whole row as a range.",
+    },
+    {
+      id: "c",
+      label: "=REDUCE(0, E2:E13, LAMBDA(acc, s, acc + s))",
+      correct: false,
+      explanation: "REDUCE folds the array into a single value. It does not produce a per-row output.",
+    },
+  ]}
+/>
+
+## When to choose which
+
+| Need | Reach for |
+|---|---|
+| Apply a calc to every cell, same-shape output | `MAP` |
+| Collapse an array into one value | `REDUCE` |
+| Same as REDUCE, but keep every running step | `SCAN` |
+| One value per row across a multi-column range | `BYROW` |
+| One value per column across a multi-row range | `BYCOL` |
+| Build a grid from row/column indices alone | `MAKEARRAY` |
+
+For pure cell-wise math (markup, ROI per row, normalization), `MAP` and `ARRAYFORMULA` (lesson 1.10) do similar work. `ARRAYFORMULA` is older and sometimes a touch faster on very large arrays; `MAP` is more readable and explicit because the LAMBDA names its parameters. Default to `MAP`; reach for `ARRAYFORMULA` only when `MAP` is measurably slow.
 
 ## Used in the wild
 
-- **MAP** for column-wide transformations: bulk markups, normalizations, ROI per campaign. Replaces drag-down formulas that grow stale.
-- **REDUCE** for custom aggregations that don't fit SUMIF/COUNTIF: weighted averages, conditional sums with multiple branches, "the smallest non-zero value," etc.
-- **SCAN** for running totals, cumulative spend, day-by-day budget burn.
-- **BYROW** for "give me a metric per row" calculations across multiple input columns: per-campaign profit margin, per-buyer total, per-day spread.
-- **BYCOL** for "summary across each column": column averages, column variances, column totals across a wide pivot.
-- **MAKEARRAY** for generating calibration grids, percentile lookup tables, and synthetic test data when you need to spike a chart or seed an explanation.
+- **`MAP` for the entire calculated-column shelf.** Bulk markups, normalizations, ROI per campaign, profit per row, cohort key derivation. Replaces drag-down formulas that grow stale on row addition.
+- **`REDUCE` for the aggregations `SUMIFS` cannot do.** Weighted averages by spend share, conditional sums with three-way branches, "smallest non-zero value," "first row matching a complex predicate."
+- **`SCAN` for running totals and burn-rate charts.** Cumulative spend, day-by-day budget burn, rolling revenue, drawdown curves.
+- **`BYROW` for per-campaign aggregates across multiple columns.** Profit margin (Spend, Revenue), spread (Min, Max), composite score across a metric pivot.
+- **`BYCOL` for summary rows across wide pivot tables.** Column averages on a per-buyer-per-vertical revenue grid, column variances for benchmark comparison.
+- **`MAKEARRAY` for scenario matrices.** Sensitivity tables where each cell is computed from `(price_tier_index × roi_tier_index)`, synthetic test rows before the real `IMPORTRANGE` lands.
 
 ## Pro pitfalls
 
-- **The LAMBDA argument count must match.** `MAP(A2:A10, LAMBDA(x, y, x+y))` errors because MAP passes one value but the LAMBDA expects two. With `MAP(A2:A10, B2:B10, LAMBDA(x, y, x+y))` it works.
-- **REDUCE's initial value sets the accumulator's type.** `REDUCE("", E2:E13, LAMBDA(a, s, a & s))` builds a concatenated string. `REDUCE(0, ..., LAMBDA(a, s, a + s))` does math. Get this wrong and you get type errors deep in the LAMBDA.
-- **BYROW/BYCOL return columns/rows even on single-row input.** A 1-row input to BYROW returns a 1-cell column, not a scalar. Wrap in `INDEX(..., 1, 1)` if you need a scalar.
-- **MAKEARRAY rows × cols can blow up.** `MAKEARRAY(1000, 1000, ...)` creates a million cells and a million LAMBDA invocations. Sheets will slow to a crawl. Build only what you need.
-- **No early termination.** REDUCE walks the entire array every time. There's no "stop when condition met": write the early-exit logic in the LAMBDA, but you still pay for the full walk.
-- **Performance vs ARRAYFORMULA.** For pure cell-wise math, MAP and ARRAYFORMULA do similar work. ARRAYFORMULA is older and sometimes faster on large arrays; MAP is more readable and explicit. Default to MAP; reach for ARRAYFORMULA only if MAP is measurably slow.
+- **The LAMBDA's parameter count must match the call shape.** `MAP` with two arrays needs a two-parameter LAMBDA; `REDUCE` and `SCAN` always take two-parameter LAMBDAs (acc, current); `BYROW`/`BYCOL` take one-parameter LAMBDAs (the row or column). Mismatch returns a clear error message; pay attention to it.
+- **`REDUCE`'s initial value sets the accumulator's type for the whole walk.** Use `0` for numeric, `""` for string concatenation, `{}` (an empty array) for array accumulation. Wrong type causes type errors deep inside the LAMBDA.
+- **`BYROW` / `BYCOL` always return a column/row, even on single-row/column inputs.** A 1-row input to `BYROW` returns a 1-cell column, not a scalar. Wrap in `INDEX(..., 1, 1)` if you need a bare scalar.
+- **`MAKEARRAY(rows, cols, ...)` cost is `rows × cols` LAMBDA calls.** `MAKEARRAY(1000, 1000, ...)` invokes the LAMBDA a million times. Sheets will slow to a crawl. Build only what you need.
+- **No early termination.** `REDUCE` walks the entire array every time. There is no "stop when the condition is met." You can short-circuit the LAMBDA body (return `acc` unchanged on a flag), but you still pay for the full walk.
+- **Volatile functions inside helpers recalculate on every change.** `LAMBDA(x, NOW() - x)` inside a `MAP` over a 1000-row range invokes `NOW()` a thousand times per recalc, and `NOW()` is volatile. The whole formula becomes volatile too. Avoid `NOW`/`TODAY`/`RAND`/`RANDARRAY`/`INDIRECT`/`OFFSET` inside helper LAMBDAs unless you really mean it.
+- **Performance vs `ARRAYFORMULA`.** For cell-wise math, `MAP` and `ARRAYFORMULA` are roughly equivalent. `ARRAYFORMULA` can be faster on very large arrays; `MAP` is more explicit. Pick `MAP` for readability and switch only with measurements.
 
 ## Now do it for real
 
-Click **Start lesson** to provision the campaign log. You'll write three formulas: a MAP for per-row ROI, a REDUCE for the sum of Spends above a threshold, and a SCAN for cumulative spend across the campaign list.
+Click **Start lesson** to provision the campaign log. You will write four formulas: a `MAP` that computes per-row ROI, a `REDUCE` that sums only the Spends above a threshold, a `SCAN` that produces a running cumulative-Spend column, and a `BYROW` that computes per-campaign profit margin across the Spend + Revenue columns.
