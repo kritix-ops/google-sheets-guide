@@ -32,7 +32,7 @@ project של Apps Script מסוג bound מכיל קבצים משלושה סוג�
 
 ### מה "Server JS" באמת אומר
 
-תוכן של קובץ `.gs` הוא JavaScript רגיל, אבל ה-runtime **אינו** דפדפן. אין `window`, אין `document`, אין `localStorage`, אין `fetch` (התפקיד הזה ממולא על ידי `UrlFetchApp` במקום, מכוסה בשיעור 11). אין גם `require` בסגנון Node ואין npm. כל dependency מגיע או משירותים מובנים של Apps Script או מספרייה מיובאת דרך ה-manifest (שיעור 12). הקוד רץ על תשתית של Google עם תקציב ביצוע של 6 דקות בחשבונות consumer ו-30 דקות ב-Workspace.
+תוכן של קובץ `.gs` הוא JavaScript רגיל, אבל ה-runtime **אינו** דפדפן. אין `window`, אין `document`, אין `localStorage`, אין `fetch` (התפקיד הזה ממולא על ידי `UrlFetchApp` במקום, מכוסה בשיעור 11). אין גם `require` בסגנון Node ואין npm. כל dependency מגיע או משירותים מובנים של Apps Script או מספרייה מיובאת דרך ה-manifest (שיעור 12). הקוד רץ על תשתית של Google עם תקציב ביצוע של 6 דקות לכל ריצה, אותו דבר בחשבונות consumer ו-Workspace.
 
 כל function declaration ברמת ה-top של כל קובץ `.gs` קריא מה-Run dropdown של העורך, מפריט תפריט, מ-trigger, או (אם הוא מתאים לחוקי custom function משיעור 3) מתא. אין `main()`, אין רישום ב-manifest פר-function. ההצהרה לבדה מספיקה.
 
@@ -79,7 +79,7 @@ manifest מייצג:
 |---|---|---|
 | `timeZone` | מחרוזת IANA zone | איך הפרויקט מפרש תאריכים ובאיזה timezone `new Date()` פועל. ה-manifest של הקורס משתמש ב-`America/New_York` (תואם לדוחות של Taboola). מגדירים ל-`Asia/Jerusalem` עבור projects ש-triggers שלהם צריכים לפעול בשעון ישראל. |
 | `exceptionLogging` | `"STACKDRIVER"` או `"NONE"` | מנתב שגיאות ל-Cloud Logging או בולע אותן. כמעט תמיד `"STACKDRIVER"`. שיעור 14 מכסה את Cloud Logging מקצה לקצה. |
-| `runtimeVersion` | `"V8"` או `"DEPRECATED_ES5"` | בוחר את מנוע ה-JavaScript. **`"V8"` היא הבחירה הנכונה היחידה ל-projects חדשים.** שיעור 2 מכסה את המורשת של Rhino. |
+| `runtimeVersion` | `"V8"` או (מורשת) `"DEPRECATED_ES5"` | בוחר את מנוע ה-JavaScript. **`"V8"` הוא הבחירה היחידה;** Rhino (הערך `DEPRECATED_ES5`) הפסיק להריץ קוד ב-31 בינואר 2026. שיעור 2 מכסה את ה-sunset. |
 | `oauthScopes` | מערך של scope URLs | הרשימה המפורשת של הרשאות שהפרויקט צריך. Apps Script מזהה אותן אוטומטית בהרצה הראשונה כשהשדה ריק; הצהרה מפורשת היא תרגול עדיף. |
 | `dependencies` | object | imports של ספריות והפעלות של advanced services. שיעור 12 מכסה libraries; שיעור 17 מכסה advanced services. |
 | `sheets.macros` | מערך | רישומי המאקרו שעולים תחת Tools → Macros. שיעור 6 מכסה את השדה הזה בפירוט. |
@@ -109,7 +109,7 @@ Apps Script יכול לזהות את ה-scopes שפרויקט צריך על יד
       id: "c",
       label: "להחליף את ה-manifest ל-runtimeVersion DEPRECATED_ES5 כדי לעקוף scopes.",
       correct: false,
-      explanation: "גרסת ה-runtime לא קשורה ל-scopes. Rhino הוא מנוע מורשת; להשתמש בו ישבור כמעט הכל בפרויקט.",
+      explanation: "גרסת ה-runtime לא קשורה ל-scopes. Rhino פוטר ב-31 בינואר 2026; להגדיר היום DEPRECATED_ES5 אומר שה-script פשוט לא רץ.",
     },
   ]}
 />

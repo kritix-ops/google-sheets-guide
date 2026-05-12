@@ -1,0 +1,413 @@
+import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
+
+# The buyer dashboard capstone: building a workbook end-to-end
+
+Eighty lessons in, you have all the parts. Formulas that join, lookup, filter, and aggregate. A modeling vocabulary: pivots, conditional formatting, charts, scorecards. Apps Script for the work formulas cannot do on a schedule. Scale tooling for the day a sheet gets too big and pipes back from upstream sources. AI in the cells when the question is the kind only a model can answer. Until now, every lesson taught one part. This lesson is the part where you snap them together and build something that runs without you watching it.
+
+The team's reality: Maya's group is launching the Q3 native-search blended portfolio. Five buyers, three platforms, twelve verticals. The Monday morning standup needs a dashboard that says, in one screen, what changed this week. Maya does not want to click anything to make that screen current. She wants to open the workbook at 09:00 and read it. Every part of the build below answers one piece of that requirement.
+
+The shape is deliberate. Track 1 builds the math, Track 2 builds the visuals, Track 3 builds the schedule, Track 4 builds the pipes, Track 5 builds the prose. Drop any one of those and the dashboard is incomplete in a way that costs a different person a different hour. The diagnostic capstone in Track 4 lesson 11 is for when this kind of dashboard breaks. This lesson is for getting it right before it breaks.
+
+## The scenario
+
+Two upstream source workbooks contain the raw daily-level campaign data: `Taboola_Raw` and `Outbrain_Raw`. They live on someone else's account. The team's dashboard workbook pulls both via `IMPORTRANGE`, aggregates them into a per-buyer, per-vertical, per-day cube, and renders three views: scorecard tiles comparing this week to last week, a buyer-by-vertical pivot with conditional formatting, and a daily trend chart for spend versus revenue.
+
+An Apps Script time-driven trigger runs every hour. It writes a refresh timestamp into the dashboard footer, alerts Maya by email if either `IMPORTRANGE` is returning `#REF!`, and appends a row to a `_AILog` tab so the audit trail keeps up with the refresh cycle. At the end of the week, a single `=AI()` call grounded on the aggregated table produces a one-paragraph "what changed" summary the trigger paste-as-values into a static cell at the bottom of the dashboard. By 08:55 Monday, when Maya opens the workbook, the numbers are current, the chart is current, the summary paragraph is current, and the audit trail has every step in it.
+
+## Architecture: how the workbook fits together
+
+The dashboard sits on a single workbook with five tabs. Two source workbooks feed it from outside. The arrow direction below is the data direction; the Apps Script trigger pushes against that direction once an hour to refresh values and write logs.
+
+<MiniGrid
+  data={[
+    ["Source workbook", "Tab pulled", "Where it lands"],
+    ["Taboola_Raw", "Taboola_Raw!A1:G500", "Dashboard!L1 (IMPORTRANGE)"],
+    ["Outbrain_Raw", "Outbrain_Raw!A1:G500", "Dashboard!L2 (IMPORTRANGE)"],
+    ["(this workbook)", "Dashboard tab", "QUERY at J1 aggregates both feeds"],
+    ["(this workbook)", "Buyer_Pivot", "Pivot anchored at A1; CF on ROI column"],
+    ["(this workbook)", "_AILog", "Apps Script appends one row per refresh"],
+  ]}
+  caption="The dashboard workbook reads from two upstream feeds and self-aggregates. Three tabs render the views; one tab is infrastructure. The leading underscore on _AILog conventionally marks it as system-internal."
+/>
+
+The Dashboard tab is the operating surface. Column A through G holds the per-row campaign log (Date, Buyer, Vertical, Platform, Country, Spend, Revenue). Column J holds the aggregation. Column L holds the two IMPORTRANGE cells. Column N holds the three scorecard tiles. Column P holds the AI summary and the refresh-timestamp footer. The Buyer_Pivot tab is the per-buyer cross-tab. The `_AILog` tab is the system audit trail.
+
+<MiniGrid
+  data={[
+    ["Cell", "Built in step", "What it holds", "Reads from"],
+    ["L1", "1", "IMPORTRANGE Taboola feed", "Taboola_Raw workbook"],
+    ["L2", "1", "IMPORTRANGE Outbrain feed", "Outbrain_Raw workbook"],
+    ["J1", "2", "QUERY aggregation cube", "A1:G62 on this tab"],
+    ["Buyer_Pivot!A1", "3", "Pivot with ROI calc field", "Dashboard!A1:G62"],
+    ["N1", "4", "This-week Spend", "F2:F62, A2:A62"],
+    ["N2", "4", "This-week Revenue", "G2:G62, A2:A62"],
+    ["N3", "4", "This-week ROI", "N1, N2"],
+    ["P1", "6", "Weekly =AI() summary", "A1:G62 (grounding)"],
+    ["P5", "5 (script)", "Last-refresh timestamp", "Apps Script writes"],
+    ["_AILog", "6", "Audit trail of AI runs", "Apps Script appends"],
+  ]}
+  caption="The ten cells you build. The middle column tells you the step that creates each cell; the right column tells you which other cells (or external sources) it depends on. Build the cells in the listed step order so each output has its inputs ready."
+/>
+
+## Step 1: pull the raw data (IMPORTRANGE)
+
+The first wire is the one you fix first when it breaks. Both IMPORTRANGE cells live on the Dashboard tab in column L. When you first paste an IMPORTRANGE formula referencing a workbook you have not pulled before, the cell shows `#REF!` with an "Allow access" pill. Click the pill, accept the prompt, and the cell resolves. Track 4 lesson 3 covers the full handshake; lesson 4.8 covers the failure modes you will hit later.
+
+```
+L1: =IMPORTRANGE("https://docs.google.com/spreadsheets/d/TABOOLA_RAW_ID/edit", "Taboola_Raw!A1:G500")
+L2: =IMPORTRANGE("https://docs.google.com/spreadsheets/d/OUTBRAIN_RAW_ID/edit", "Outbrain_Raw!A1:G500")
+```
+
+Two things to notice. The range argument names the platform (`Taboola_Raw` vs `Outbrain_Raw`) so anyone reading the formula bar can tell which platform feeds which cell. The bound is `A1:G500` rather than full-column `A:G`; the team works with a few hundred rows of daily data, and a bounded pull is faster to refresh and cheaper on the upstream source. Bare `A:G` works for tiny feeds and starts to slow noticeably past a few thousand rows; lesson 4.1 covered why.
+
+## Step 2: aggregate (QUERY + ARRAYFORMULA)
+
+The aggregation is the heart of the dashboard. One `QUERY` formula at `J1` reads the per-row data and produces the per-buyer, per-vertical, per-day cube the rest of the dashboard reads from. Track 1 lessons 12 and 13 covered the SQL-like dialect; the key clauses for this build are `SELECT`, `GROUP BY`, and `LABEL`.
+
+```
+J1: =QUERY(A1:G62,
+  "SELECT A, B, C, SUM(F), SUM(G)
+   WHERE A IS NOT NULL
+   GROUP BY A, B, C
+   LABEL SUM(F) 'Spend', SUM(G) 'Revenue'", 1)
+```
+
+`SELECT A, B, C, SUM(F), SUM(G)` picks Date, Buyer, Vertical, summed Spend, and summed Revenue. `GROUP BY A, B, C` aggregates by the row dimensions. `LABEL` renames the summed columns so the headers read `Spend` and `Revenue` instead of the default `sum F`. The trailing `1` tells QUERY the source has one header row.
+
+The reason the aggregation lives in one QUERY rather than a column of SUMIFS: one formula spills into a range, recalculates atomically, and reorganizes itself when new buyer-vertical pairs appear in the data. A wall of SUMIFS would require a static buyer-vertical grid you maintain by hand, and would silently miss a new vertical the first day it ships.
+
+## Step 3: pivot and conditional formatting
+
+The Buyer_Pivot tab gives Maya the cross-tab view: each buyer is a row, each vertical is a column, and the cells hold ROI. Insert → Pivot table → New sheet, name the sheet `Buyer_Pivot`, anchor at A1. Source range: `Dashboard!A1:G62`. Track 2 lesson 3 covers calculated fields in depth; the ROI field is the key one.
+
+Pivot editor settings:
+
+| Slot | Field | Notes |
+|---|---|---|
+| Rows | Buyer | One row per media buyer. |
+| Columns | Vertical | One column per vertical (with the " PR" suffix from the team convention). |
+| Values | Spend (SUM) | Track 2 lesson 2 covers the basic SUM aggregation. |
+| Values | Revenue (SUM) | Same shape. |
+| Values | Calculated field | Formula: `=('Revenue' - 'Spend') / 'Spend'`. Names the value `ROI`. |
+
+The calculated field is the part that catches everyone the first time. ROI cannot be computed as an average of per-row ROIs; that would over-weight tiny campaigns. The calculated field uses the summed totals as inputs, so the buyer-vertical ROI cell shows `(SUM(Revenue) - SUM(Spend)) / SUM(Spend)` — the right ROI for the group.
+
+The color scale is what makes the pivot useful at a glance. Format → Conditional formatting → Color scale on the ROI column. Set the mid-point as a number, value `1.0` (break-even). Below the mid-point is unprofitable, above is profitable. Track 2 lesson 6 covered the rule shape; this is the same rule applied to the most consequential column in the workbook.
+
+<Compare>
+  <ComparePanel label="Broken (average-of-ROIs)" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Pivot Values → Add ROI column from data
+ROI computed as AVERAGE of per-row ROI
+... over-weights one $5 campaign at ROI 8.0
+... under-weights ten $500 campaigns at ROI 1.2
+... pivot says buyer's ROI is 2.4 (lies)`}</code></pre>
+    <p className="mt-2 text-sm">A single tiny test campaign pulls the average up. Maya reads "Roni at 2.4" and reallocates spend on the strength of one data point. The buyer-vertical ROI lie is the most common pivot-table failure mode in adtech reports.</p>
+  </ComparePanel>
+  <ComparePanel label="Working (calculated field)" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Pivot Values → Add Calculated field
+Formula: =('Revenue' - 'Spend') / 'Spend'
+... uses summed totals as the inputs
+... per-row weight collapses naturally
+... pivot says buyer's ROI is 1.18 (true)`}</code></pre>
+    <p className="mt-2 text-sm">The summed totals carry the per-row weight automatically. The pivot reports the true buyer-vertical ROI, which is the number Maya can act on.</p>
+  </ComparePanel>
+</Compare>
+
+## Step 4: scorecard tiles and trend chart
+
+Three cells in column N hold the week-over-week scorecard. Track 2 lessons 9 through 11 covered the chart-and-tile pattern; the scorecard tiles are the textual sibling of the same idea.
+
+```
+N1: =SUMIFS(F2:F62, A2:A62, ">="&TODAY()-7)
+N2: =SUMIFS(G2:G62, A2:A62, ">="&TODAY()-7)
+N3: =N2/N1 - 1
+```
+
+`SUMIFS` filters by date range; the criterion `">="&TODAY()-7` includes everything in the last 7 days. Live dashboards do use `TODAY()`, despite the volatility warning from Track 1 lesson 8 — the scorecard is the one place where the cost is worth it because the answer literally has to be "this week." If the workbook gets slow as data piles up, the fix is to bound the range tighter (`F2:F62` here instead of `F:F`), not to drop the date filter.
+
+For the daily trend chart: select `A2:A62` and `F2:F62` and `G2:G62`, Insert → Chart, type Line. Two series (Spend, Revenue), one x-axis (Date). Track 2 lesson 10 covered axis customization; for a dashboard, set the chart title to "This week vs last week" and pin the chart to a fixed position next to the scorecard tiles so the eye can compare numbers and trend in one glance.
+
+<QuickCheck
+  question="The scorecard at N3 reads `=N2/N1 - 1` and shows 0.18. Maya opens the workbook Monday at 09:00 and the cell still says 0.18 — but the IMPORTRANGE at L1 is showing #REF!. What's actually wrong?"
+  options={[
+    {
+      id: "a",
+      label: <>Nothing is wrong; the scorecard reads from the Dashboard tab, not from L1.</>,
+      correct: false,
+      explanation: "The Dashboard tab IS where the data flows in via L1. If L1 is broken, the per-row data is stale. The scorecard might read 0.18 because the dashboard rows still hold last week's pulled values — but those values are no longer being refreshed. The audit trail and trigger flow exist precisely to catch this.",
+    },
+    {
+      id: "b",
+      label: <>The pulled data is stale. The scorecard's number is real but it is real for some previous moment, not "now."</>,
+      correct: true,
+      explanation: "The hourly Apps Script trigger should have detected the #REF! on L1 and emailed Maya, but the number on the dashboard would not auto-clear. Stale values look right and are wrong. The fix order: restore the IMPORTRANGE, force a refresh, re-read the scorecard, then trust it.",
+    },
+    {
+      id: "c",
+      label: <>Everything is fine because Sheets caches IMPORTRANGE values until they refresh.</>,
+      correct: false,
+      explanation: "Sheets does cache IMPORTRANGE between refreshes, but #REF! is not 'caching' — it is 'the link broke and has not been re-authorized'. The cached values are still the last successful pull; new rows the source added since are missing.",
+    },
+  ]}
+/>
+
+## Step 5: auto-refresh (Apps Script)
+
+The hourly refresh is the part of the dashboard that runs without Maya watching. Open Extensions → Apps Script from the workbook to bring up the bound script editor. Track 3 lesson 7 covered simple triggers; lesson 3.8 covered installable ones. A time-driven trigger is an installable trigger; the simple `onEdit` and `onOpen` triggers cannot do it.
+
+You will write two functions. `setupHourlyRefresh()` is the registration step you run once from the editor; it accepts the auth prompt and registers the trigger. `refreshDashboard()` is the handler the trigger fires every hour.
+
+```js
+function setupHourlyRefresh() {
+  ScriptApp.newTrigger("refreshDashboard")
+    .timeBased()
+    .everyHours(1)
+    .create();
+}
+
+function refreshDashboard() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var dash = ss.getSheetByName("Dashboard");
+  // Read the IMPORTRANGE cells; alert Maya if either is broken.
+  var l1 = dash.getRange("L1").getValue();
+  var l2 = dash.getRange("L2").getValue();
+  if (String(l1).indexOf("#REF") !== -1 || String(l2).indexOf("#REF") !== -1) {
+    MailApp.sendEmail(
+      "maya@team.example",
+      "Dashboard IMPORTRANGE broken",
+      "L1 or L2 returned #REF! at " + new Date()
+    );
+  }
+  // Write the refresh timestamp to the footer.
+  dash.getRange("P5").setValue("Last refresh: " + new Date());
+  // Append a row to _AILog so the audit trail keeps up.
+  ss.getSheetByName("_AILog").appendRow([
+    new Date(),
+    "weekly summary",
+    "gemini-2.5-flash",
+    dash.getRange("P1").getValue()
+  ]);
+}
+```
+
+`setupHourlyRefresh` runs once from the editor's Run button. From then on, the trigger fires hourly without anyone touching it. The handler does three things: alerts on broken upstream, writes the timestamp footer, and logs the AI summary that's currently in P1 to the audit tab.
+
+## Step 6: the weekly AI summary (=AI() with audit trail)
+
+The summary cell is the only AI in the build. One call, grounded on the aggregated week, producing one paragraph. Track 5 lesson 2 covered prompt engineering; the patterns from lesson 5.6 (audit-trail-sensitive contexts) explain why the trigger paste-as-values it into a static form.
+
+```
+P1: =AI(
+  "Summarize the week's spend and revenue trend for an exec audience.
+   Name the strongest buyer-vertical combination by ROI.
+   One short paragraph, no bullet points.",
+  A1:G62
+)
+```
+
+The second argument is the grounding range. Without it, Gemini speculates against whatever the active tab snapshot looks like, and the result drifts between calls. Lesson 5.1 covered why that drift is the most common AI-in-Sheets failure mode.
+
+The audit trail is where the build earns its production grade. The trigger reads P1 each hour and appends the model's response to `_AILog` with a timestamp, the prompt name, and the model version. Lesson 5.6 explained the pattern: AI in cells is convenient, AI in cells with no audit trail is irresponsible. The `_AILog` tab is the difference.
+
+```
+_AILog tab columns:
+A: Timestamp        B: Prompt name      C: Model version    D: Response
+```
+
+For the Monday email itself, the team paste-as-values the P1 cell into a static "Monday brief" tab once a week. From that point on, the paragraph cannot drift; the live `=AI()` keeps regenerating in P1 each hour, and the frozen Monday brief sits in its own tab as the historical record.
+
+## The full build, end-to-end
+
+The order matters. Build the inputs before the outputs; build the outputs in order of who reads them first.
+
+<StepThrough
+  frames={[
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Step 1: Create the workbook.
+Five tabs: Dashboard, Buyer_Pivot, _AILog,
+plus the two upstream source workbooks
+(Taboola_Raw, Outbrain_Raw) that already
+exist elsewhere.
+
+State: empty workbook, schemas only.`}</code></pre>
+      ),
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Step 2: Add IMPORTRANGE cells.
+L1, L2 on Dashboard tab.
+Accept the "Allow access" pills.
+Source rows now appear below them.
+
+State: raw data is reaching the dashboard.`}</code></pre>
+      ),
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Step 3: Write the aggregation QUERY at J1.
+One spilled range: per-buyer x vertical x day.
+
+State: cube exists; downstream cells have
+something to read.`}</code></pre>
+      ),
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Step 4: Build the Buyer_Pivot tab.
+Pivot anchored at A1.
+Rows: Buyer. Columns: Vertical.
+Values: SUM Spend, SUM Revenue,
+Calculated ROI = ('Revenue' - 'Spend') / 'Spend'.
+Add the color-scale CF on the ROI column.
+
+State: visual is ready for the standup.`}</code></pre>
+      ),
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Step 5: Write the three scorecard SUMIFS
+at N1, N2, N3. Add the line chart pinned
+next to them showing daily Spend vs Revenue
+for the last 30 days.
+
+State: top-of-screen scorecard is live.`}</code></pre>
+      ),
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Step 6: Apps Script editor.
+Paste setupHourlyRefresh + refreshDashboard.
+Run setupHourlyRefresh once. Accept the
+auth prompt. Confirm in Triggers screen
+that a 1-hour time trigger appears.
+
+State: the dashboard now refreshes itself.`}</code></pre>
+      ),
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Step 7: Write the =AI() summary at P1
+with the grounding range argument.
+Create the _AILog tab with the four
+column headers, seed one example row.
+
+State: Monday morning paragraph is live.
+Trigger logs every refresh to _AILog.`}</code></pre>
+      ),
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Step 8: Verify end-to-end.
+Open the workbook. Read the screen as Maya
+would. Then break one IMPORTRANGE on purpose
+and wait an hour. Confirm: alert email
+arrived, refreshDashboard wrote P5, the
+_AILog tab grew by one row.
+
+State: production-grade.`}</code></pre>
+      ),
+    },
+  ]}
+/>
+
+## What can break, and how to know
+
+The dashboard has three layered failure modes. Each one has a different alert signal. The pattern is the same one Track 4 lesson 11 trained: every layer has its own canary.
+
+<Compare>
+  <ComparePanel label="The three failure modes" tone="negative">
+    <pre className="font-mono text-xs"><code>{`1. Upstream IMPORTRANGE breaks (#REF! at L1/L2)
+   Signal: Apps Script alert email fires
+   within the hour.
+
+2. Aggregation QUERY returns #REF! or #ERROR!
+   Signal: CF on the Dashboard tile flags red;
+   pivot below it is empty.
+
+3. =AI() returns nonsense or off-topic prose
+   Signal: sidecar REGEXMATCH on P1 detects
+   the response missing the required buyer
+   names; flags Maya for manual review.`}</code></pre>
+    <p className="mt-2 text-sm">Three layers, three signals. The signals are the part that turns a fragile dashboard into a dependable one. Without any one of them, the workbook can be silently wrong for a week before someone notices.</p>
+  </ComparePanel>
+  <ComparePanel label="What good monitoring looks like" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Hourly refresh fires.
+- L1 / L2 read clean? Continue.
+- L1 / L2 broken? Email Maya, then continue.
+- P1 response missing a required signal?
+  Set a "needs review" flag in P6.
+- _AILog row appended in all cases.
+- P5 timestamp updated in all cases.
+
+Maya opens the workbook Monday at 09:00.
+She reads P5 first ("last refresh: 08:55").
+If P5 is stale she investigates before
+trusting the numbers.`}</code></pre>
+    <p className="mt-2 text-sm">A dashboard that tells you when to trust it is a dashboard you can act on. The pattern: every output has a freshness indicator the reader can check before relying on the number.</p>
+  </ComparePanel>
+</Compare>
+
+## Used in the wild
+
+Monday morning, 09:00. Maya opens the workbook. Her first glance is at the P5 footer: "Last refresh: 2026-05-12 08:55". Current. She reads the scorecard tiles: this-week Spend is $14,820, this-week Revenue is $19,140, this-week ROI is 0.29. The trend chart shows Wednesday and Thursday well above the prior week's daily average. The buyer-vertical pivot shows Yoav-on-Solar-Systems-PR in deep green; Roni-on-Online-MBA-PR in pale red. The P1 paragraph reads:
+
+> The week's spend was up 12% versus the prior week while revenue grew 18%, driving aggregate ROI from 0.22 to 0.29. The strongest combination by ROI was Yoav Cohen on Solar Systems & Panels PR at 1.36, driven by a Wednesday Outbrain push. The weakest was Roni Levi on Online MBA PR; the day-over-day revenue is decaying despite stable spend, worth a manual review.
+
+Maya now knows what to read in standup. The diagnostic capstone (lesson 4.11) was for when this kind of dashboard breaks; this lesson is for what it looks like when it does not. The build above runs unattended between Monday 09:00 last week and Monday 09:00 this week, with one alert email fired Thursday at 14:15 when Taboola_Raw's owner accidentally renamed the source workbook, and one row appended to `_AILog` every hour without exception.
+
+## Cross-track recap
+
+A dashboard you can build also tells you which lesson teaches the fix when something goes wrong:
+
+| Failure | Track | Lesson |
+|---|---|---|
+| IMPORTRANGE renamed at source | 4 | 8 (broken IMPORTRANGE) |
+| `#REF!` cascade through the aggregation | 4 | 6 (diagnosing `#REF!`/`#N/A`) |
+| Pivot ROI looks too high (over-weighted tiny campaign) | 2 | 3 (calculated fields) |
+| Color scale not flagging the right midpoint | 2 | 6 (conditional formatting) |
+| Scorecard slow as data grows | 1 | 28 (formula performance) |
+| Hourly trigger isn't firing | 3 | 8 (installable triggers) |
+| Apps Script handler timing out | 3 | 14, 16 (logging, batching) |
+| `=AI()` paragraph drifts week to week | 5 | 2 (prompt engineering), 5.6 (audit trail) |
+| Sidebar validator never flags anything | 5 | 5 (AI-assisted analysis) |
+| `_AILog` tab fills up | 5 | 6 (when AI needs audit) |
+
+<QuickCheck
+  question="Your dashboard's L1 IMPORTRANGE was renamed at the source. The hourly trigger fired, you got the alert email, you fixed the URL. The dashboard is back, but Maya asks 'were the numbers wrong in the standup deck I sent Monday?' What's the FIRST place to look, and which Track lesson covered the answer?"
+  options={[
+    {
+      id: "a",
+      label: <>Check `_AILog` for the timestamp of the last clean refresh before the break. Track 5 lesson 6 covered the audit-trail pattern.</>,
+      correct: true,
+      explanation: "The _AILog tab is the audit trail by design. The last clean row's timestamp tells you the most recent moment the dashboard's numbers were trustworthy. If that timestamp is before Monday 09:00, the standup deck was stale; if after, the deck was current and the break happened later. Lesson 5.6 is exactly this pattern.",
+    },
+    {
+      id: "b",
+      label: <>Re-run the QUERY at J1. Track 1 lesson 13 covered QUERY.</>,
+      correct: false,
+      explanation: "Re-running the QUERY tells you what the dashboard reads NOW, not what it read at the time of the standup. The audit trail is the only way to answer 'what did the workbook say on Monday at 09:00?' — that's why the trail exists.",
+    },
+    {
+      id: "c",
+      label: <>Open version history on the workbook. Track 4 lesson 10 covered recovery.</>,
+      correct: false,
+      explanation: "Version history is a recovery tool, not an audit tool. It tells you the workbook's state at any past minute but not which cells had stale IMPORTRANGE values vs fresh ones. The _AILog audit trail is the right primary signal; version history is the secondary recovery path if the audit trail is also missing.",
+    },
+  ]}
+/>
+
+## The assignment
+
+The assignment is the build. You start with the Dashboard tab seeded with the per-row campaign data and column-I labels for the eight target cells. The grader runs eleven rules across the seven file structures: L1, L2, J1, N1, N2, N3, P1, the Buyer_Pivot tab and its calculated field, the color-scale conditional format on Buyer_Pivot, the `_AILog` tab with a header row plus at least one seeded entry, and the Apps Script `refreshDashboard` handler with a productive body that touches `_AILog`.
+
+One rule the grader cannot directly verify: that you registered the time-driven trigger by running `setupHourlyRefresh()` from the Apps Script editor. The grader reads the script source and confirms the function exists, but the trigger registration itself lives in a per-user table the grader cannot see. Run `setupHourlyRefresh()` once from the editor, accept the auth prompt, and confirm in the Triggers screen that a 1-hour time-based trigger appears. The lesson assumes you did that step.
+
+## Pro pitfalls
+
+- **Building outputs before inputs.** Writing the scorecard SUMIFS before the IMPORTRANGE cells are wired up means the tile shows zero until you wire the upstream. The zero looks fine; it is wrong. Build inputs first, outputs second.
+- **Pivoting ROI by averaging.** A pivot that takes the AVERAGE of per-row ROIs is the most common adtech dashboard bug. The calculated field is the only correct pattern; everything else over-weights tiny campaigns.
+- **Forgetting to paste-as-values the AI summary into the Monday brief.** A live `=AI()` cell in a deck you sent to the exec team is a paragraph that can rewrite itself. Paste-as-values into a static tab as soon as the standup deck ships.
+- **No alert on broken IMPORTRANGE.** A dashboard that silently shows stale numbers when an upstream breaks is worse than a dashboard that shows `#REF!`. At least `#REF!` tells you to look. Silent staleness gets sent to execs.
+- **No `_AILog` until the first incident.** The audit trail starts on day one. After-the-fact reconstruction is impossible; the trigger has to log from the first run.
+- **Hourly trigger with a slow handler.** If `refreshDashboard` takes 5 minutes to run, you have not built an hourly refresh, you have built a 5-minute-out-of-every-hour outage. Track 3 lesson 16 covers batching; the handler above is small enough to finish in seconds, but check the Executions dashboard the first week.

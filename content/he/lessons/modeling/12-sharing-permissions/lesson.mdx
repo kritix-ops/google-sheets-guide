@@ -99,6 +99,45 @@ workbook פרטי רק כמו השיתוף החלש שלו. הצוות נשרף 
 
 ההעברה קורית מדיאלוג השיתוף: משנים את התפקיד של האדם שעוזב ל-`Transfer ownership`, מאשרים, סיימנו. אחרי ההעברה, הבעלים הקודם הופך ל-`writer` אוטומטית ואפשר להסיר אותו מתי שרוצים.
 
+## Personal Drive לעומת shared drives
+
+כל מה שתואר למעלה מתאר Drive אישי: לכל קובץ יש בעלים אחד, הבעלות עוברת מאדם לאדם, והגישה חיה על הקובץ. **Shared drives הופכים את המודל הזה**. shared drive הוא container שמנוהל ב-Workspace; ה-drive עצמו מחזיק את ההרשאות, וכל קובץ בתוכו יורש את כללי הגישה של ה-drive. אין בעלים יחיד על קובץ ב-shared drive; ל-*drive* יש managers, וכל manager יכול לנהל כל קובץ בתוכו.
+
+ההבדלים שחשובים כשבוחרים איפה לשים workbook:
+
+<Compare>
+  <ComparePanel label="Personal Drive: בעלות ברמת הקובץ" tone="positive">
+    <pre className="font-mono text-xs"><code>{`ה-workbook חי ב: My Drive (של Yoav)
+בעלים: yoav.cohen@flexelent.com
+הרשאות: פר-קובץ (דיאלוג שיתוף)
+
+Yoav עוזב את החברה.
+IT מבטל את החשבון שלו.
+ה-workbook עכשיו יתום.
+נדרשת העברת בעלות
+לפני הביטול.`}</code></pre>
+    <p className="mt-2 text-sm">בעלות על קובץ קשורה לאדם אחד. עזיבות יוצרות עבודה: כל workbook שהעוזב היה בעלים שלו צריך העברת בעלות לפני שהחשבון שלו מבוטל, אחרת הקובץ הופך ליתום.</p>
+  </ComparePanel>
+  <ComparePanel label="Shared drive: הרשאות ברמת ה-drive" tone="positive">
+    <pre className="font-mono text-xs"><code>{`ה-workbook חי ב: Shared drive "Adtech Team"
+Managers של ה-drive: team leads + IT
+הרשאות: יורשות מה-drive
+
+Yoav עוזב את החברה.
+IT מבטל את החשבון שלו.
+ה-workbook לא מושפע.
+ל-drive עדיין יש managers,
+לקובץ עדיין יש את הגישה שלו.`}</code></pre>
+    <p className="mt-2 text-sm">ההרשאות חיות ברמת ה-drive. הקובץ שורד כל חבר בודד. בלי טקס העברת בעלות כשמישהו עוזב; ה-managers הקיימים של ה-drive ממשיכים לנהל.</p>
+  </ComparePanel>
+</Compare>
+
+מתי לבחור ב-shared drive כברירת מחדל: **כל workbook שהצוות תלוי בו תפעולית**. מאסטר log הקמפיינים, ה-aggregators פר-פלטפורמה, dashboards של ה-buyers. ה-workbook המרכזי של הצוות `Campaigns` חי ב-shared drive בשם `Adtech - Live Workbooks`, כך שכש-media buyer מתחלף החוצה, ה-workbooks שלו לא הופכים ליתומים והתלויות `IMPORTRANGE` שלו לא נשברות. ה-managers של ה-drive הם שני team leads וחשבון IT אחד, אז תמיד יש לפחות מנהל אחד בתורנות.
+
+מתי Drive אישי בסדר: גיליונות scratch, אבי טיפוס של אדם אחד, כל דבר שלא אכפת לכם אם הקובץ ייעלם עם הבעלים. כלל אצבע: אם יותר מאדם אחד יקרא את ה-workbook הזה ליותר משבוע, הוא שייך ל-shared drive.
+
+ההגדרה "Editors can change permissions and share" עדיין חלה בתוך shared drive, אבל שמות התפקידים זזים. חברי Drive הם `Manager`, `Content manager`, `Contributor`, `Commenter`, או `Viewer`, כאשר `Manager` הוא התפקיד היחיד שיכול לנהל את ה-drive עצמו. אדמיני Workspace מאפשרים יצירת shared-drive פר יחידה ארגונית; אם האפשרות לא ב-sidebar של Drive שלכם, פנו ל-IT.
+
 ## מלכודות link-sharing
 
 "Anyone with the link can view" הוא שיתוף-היתר המקרי הכי נפוץ בהיסטוריה של הצוות הזה. הזרימה: מישהו רוצה לשלוח tab במהירות לספק, הם לוחצים "Get link", הקישור ברירת מחדל ל-"Restricted" אבל הם מחליפים אותו ל-"Anyone with the link" כי זה השביל של ההתנגדות הקטנה ביותר, הספק פותח, הקולגה ב-CC של הספק פותח, הקולגה מעביר למנהל שלו, ועכשיו ה-workbook נקרא על ידי שישה אנשים שהמשתף המקורי לא יודע שהם קיימים. ברגע שהקישור בחוץ, אי אפשר להחזיר אותו. התיקון היחיד הוא לשבור את הקישור על ידי מחיקה והחלפת ה-workbook, מה ששובר כל `IMPORTRANGE` במורד הזרם (שיעור 1.27 מכסה איך נראית הרשאה מחודשת של כל אלה).

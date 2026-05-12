@@ -126,6 +126,58 @@ function doGet(e) {
   </ComparePanel>
 </Compare>
 
+## אימות ה-Slack signing secret
+
+ה-pattern של endpoint Slack למעלה נשען על הגנה אחת שהשיעור הזכיר שלוש פעמים בלי להראות: בדיקת חתימת ה-request. Slack חותם כל request יוצא ב-HMAC-SHA256 מעל ה-body וה-timestamp, באמצעות **signing secret** פר-app שרק Slack וה-app config של הצוות יודעים. ה-web app בונה מחדש את אותו HMAC; אם הוא לא תואם, ה-request לא הגיע מ-Slack.
+
+שני חלקים חייבים להסתדר: את ה-HMAC חייבים לחשב מעל ה-basestring המדויק (`v0:<timestamp>:<raw body>`), וה-timestamp חייב להיות עדכני (Slack ממליצים לדחות כל דבר ישן מחמש דקות כדי לחסום replays). Apps Script נותן לכם את שניהם: `Utilities.computeHmacSha256Signature` ל-HMAC, ו-`PropertiesService` (שיעור 15) ל-secret כך שהוא לעולם לא נוחת ב-source control.
+
+<Compare>
+  <ComparePanel label="לא נכון: לקבל כל POST כ-Slack" tone="negative">
+    <pre className="font-mono text-xs"><code>{`function doPost(e) {
+  // אין בדיקת חתימה. כל מי שמוצא את ה-URL
+  // יכול לירות כל "Slack command" עם כל payload.
+  const text = e.parameter.text;
+  return ContentService
+    .createTextOutput(handleSpendCommand(text))
+    .setMimeType(ContentService.MimeType.JSON);
+}`}</code></pre>
+    <p className="mt-2 text-sm">ה-URL ציבורי (Slack עושה POST בלי auth של Google). בלי בדיקת חתימה, תוקף שמנחש או מוצא את ה-URL יכול לפגוע בו עם פרמטרים מבונים וה-script שלכם רץ כמוכם. endpoints של Slack בלי אימות הם פרצת אבטחה, נקודה.</p>
+  </ComparePanel>
+  <ComparePanel label="נכון: לאמת HMAC + timestamp" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function doPost(e) {
+  if (!isFromSlack(e)) {
+    return ContentService.createTextOutput("unauthorized");
+  }
+  const text = e.parameter.text;
+  return ContentService
+    .createTextOutput(handleSpendCommand(text))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function isFromSlack(e) {
+  const secret = PropertiesService.getScriptProperties()
+    .getProperty("SLACK_SIGNING_SECRET");
+  const ts = e.parameter["X-Slack-Request-Timestamp"] ||
+             (e.headers && e.headers["X-Slack-Request-Timestamp"]);
+  const sig = e.parameter["X-Slack-Signature"] ||
+              (e.headers && e.headers["X-Slack-Signature"]);
+  if (!ts || !sig || !secret) return false;
+  // דוחים requests ישנים מ-5 דקות (הגנה מ-replay).
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+  const base = "v0:" + ts + ":" + e.postData.contents;
+  const mac = Utilities.computeHmacSha256Signature(base, secret);
+  const expected = "v0=" + mac.map(function (b) {
+    return ("0" + (b & 0xff).toString(16)).slice(-2);
+  }).join("");
+  return expected === sig;
+}`}</code></pre>
+    <p className="mt-2 text-sm">מושכים את ה-secret מ-Script Properties (שיעור 15), בונים מחדש את ה-basestring בדיוק כמו ש-Slack עושה, משווים ל-header <code>X-Slack-Signature</code>. דוחים כל דבר עם timestamp מיושן כך ש-request שנתפס לא יוכל להישלח מחדש שעה אחר כך.</p>
+  </ComparePanel>
+</Compare>
+
+תזכורת על איפה ה-secret חי: `PropertiesService.getScriptProperties().setProperty("SLACK_SIGNING_SECRET", "...")` הוא setup חד-פעמי דרך ממשק **Project Settings then Script Properties** של העורך. ה-secret אף פעם לא נשלח ב-source של ה-`.gs`, אף פעם לא מופיע ב-commits, אף פעם לא יושב ב-URL ה-deployment. שיעור 15 מכסה את מחזור החיים ואת האזהרה "Properties היא לא לסודות אמיתיים" לעומק; signing secrets ברגישות נמוכה מספיק כך ש-Script Properties היא ברירת המחדל הפרגמטית של הצוות.
+
 ## URLs של deployment משתנים כשעושים deploy מחדש
 
 כל "Deploy then New deployment" מכה URL *חדש*. ה-deployment הקודם ממשיך לעבוד (טוב: האינטגרציות הקיימות שלכם לא נשברות בשנייה ששולחים תיקון bug), אבל ה-URL החדש שונה. כדי לשמור על אותו URL בין עדכוני קוד, משתמשים ב-**Deploy then Manage deployments then (עורכים את ה-deployment הקיים) then New version**. זה מחליף את הקוד תחת אותו URL.

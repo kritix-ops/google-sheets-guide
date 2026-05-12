@@ -12,11 +12,35 @@ Every run of an Apps Script function is recorded in the Executions panel. In the
 
 A few things to read from this panel without instrumenting anything yet:
 
-- **Duration column.** A function under 1 second is fine. A function over 30 seconds is suspect. A function over 60 seconds in a consumer Google account is in the danger zone (the script timeout is 6 minutes for consumer accounts, 30 minutes for Workspace). Anything that times out at the limit is the panel's most expensive signal: it tells you the function isn't just slow, it's exceeding the runtime budget.
+- **Duration column.** A function under 1 second is fine. A function over 30 seconds is suspect. A function over 60 seconds is in the danger zone (the script timeout is 6 minutes per run on both consumer and Workspace accounts). Anything that times out at the limit is the panel's most expensive signal: it tells you the function isn't just slow, it's exceeding the runtime budget.
 - **Trigger column.** A function that's slow when run from the editor (Editor trigger) and fast when run from a time-driven trigger usually means the editor's first auth handshake is dominating. Run it twice from the editor; the second run is the realistic number.
 - **Failed and Timed out rows.** A function that completes for ten runs and times out on the eleventh is hitting a quota wall or a data wall (the source grew). The eleventh run's duration is your ceiling.
 
 The Executions panel is the cheapest first move. Don't profile yet; just look at the panel. Sometimes the answer is "the function isn't slow, the trigger fires every minute and the queue's backed up." That's a configuration fix, not a code fix.
+
+<QuickCheck
+  question="Executions shows your aggregator function ran 6 times today: 0.4s, 0.5s, 0.4s, 0.6s, 0.5s, 360s (Timed out). The last run is the only failure. What does this most likely mean?"
+  options={[
+    {
+      id: "a",
+      label: <>The function is fundamentally too slow and needs a full rewrite.</>,
+      correct: false,
+      explanation: "Five out of six runs finished in under a second. The function is fast on the typical input. The one slow run hit a different data shape, not a different function.",
+    },
+    {
+      id: "b",
+      label: <>One run hit a data shape (a much larger input) that pushed the function past 6 minutes. Profile that run, not the fast ones.</>,
+      correct: true,
+      explanation: "Same code, hugely different durations means the input changed. Open the timed-out run's logs; look at what it was reading from. Once you find the row count or branch that blew up, instrument the slow block with `console.time` and refactor. The five fast runs are not the bug.",
+    },
+    {
+      id: "c",
+      label: <>The 6-minute timeout is too low; upgrade to Workspace for more runtime.</>,
+      correct: false,
+      explanation: "The 6-minute cap is the same on consumer and Workspace accounts. There is no upgrade that grants more per-run runtime; you have to fix the code.",
+    },
+  ]}
+/>
 
 ## console.time and console.timeEnd: the profiling pair
 
@@ -110,16 +134,16 @@ sheet.getRange("J2:J" + (out.length + 1)).setValues(out);
   </ComparePanel>
 </Compare>
 
-## The 6-minute and 30-minute timeouts
+## The 6-minute timeout (both account types)
 
 Apps Script kills functions that take too long. The limit depends on the account type:
 
 | Account | Custom function timeout | Script function timeout |
 |---|---|---|
 | Consumer (gmail.com) | 30 seconds | 6 minutes |
-| Google Workspace | 30 seconds | 30 minutes |
+| Google Workspace | 30 seconds | 6 minutes |
 
-The 6-minute consumer ceiling is the one that surprises adtech teams whose buyers run scripts from their personal account on a side workbook. The fix is a Workspace account on the team's domain or breaking the work into smaller batched pieces that each finish under 6 minutes and resume via state stored in PropertiesService.
+Google's current quotas page lists 6 minutes per script execution for both account types; the older 30-minute Workspace tier was retired. There is no longer a "switch to Workspace to get more runtime" escape hatch. The only durable fix for jobs that can't finish in 6 minutes is breaking the work into smaller batched pieces that each finish under the limit and resume via state stored in PropertiesService.
 
 A timed-out function does not roll back. Any writes it had already made are persisted. If your aggregator times out 80% through a 12,000-row write, you've got 9,600 rows of new data and 2,400 stale rows still showing yesterday's numbers, with no error in the cell to mark the line. Profile before you ship.
 
@@ -137,6 +161,30 @@ Harmful in one common case:
 - **Inside a loop, between writes.** This defeats the batch. Each `flush()` is a round-trip; calling it 12,000 times in a write loop adds twelve thousand round-trips on top of the writes. The whole point of batching is to send the work in one trip.
 
 Default: don't call `flush()`. The runtime flushes on its own at the end of the function. Only add it when one of the two specific cases above bites.
+
+<QuickCheck
+  question="A script writes 12,000 rows via `setValues()` in one call, then immediately calls `SpreadsheetApp.flush()` once on the next line. Another script writes 12,000 rows in a `for` loop, calling `setValue()` and then `flush()` every iteration. Which is the right pattern, and why?"
+  options={[
+    {
+      id: "a",
+      label: <>The looped version. `flush()` between every write guarantees data integrity.</>,
+      correct: false,
+      explanation: "Each `flush()` is a server round-trip. Calling it 12,000 times in a loop adds 12,000 round-trips on top of the writes. The script crawls and may time out. Data integrity is not improved; the runtime would have flushed at function exit anyway.",
+    },
+    {
+      id: "b",
+      label: <>The batch version. One `setValues()` is one round-trip, and the optional trailing `flush()` is harmless. The looped pattern defeats the batch.</>,
+      correct: true,
+      explanation: "Build the output as a 2D array, hand it to `setValues()` once, and let the runtime flush at function exit. A trailing `flush()` is fine if you need a downstream read in the same function. Calling `flush()` inside a write loop is the canonical Apps Script anti-pattern.",
+    },
+    {
+      id: "c",
+      label: <>Neither. Apps Script should never call `flush()`.</>,
+      correct: false,
+      explanation: "There are two narrow cases where `flush()` is correct: when you need a read after a write inside the same function, and when you want progress visible mid-run. The rule is 'don't call it in a write loop,' not 'never call it.'",
+    },
+  ]}
+/>
 
 ## Utilities.sleep: insurance, not optimization
 
@@ -197,7 +245,7 @@ When you re-run after the refactor, the Logs section under the Executions row sh
 
 ## Used in the wild
 
-The team's nightly Taboola pull was the canonical case. The function read 12,000 campaign rows from a `Raw - Taboola` tab, computed daily totals per buyer, and wrote them to a `Daily` tab. Original runtime: 18 minutes. The Executions panel flagged it the first time it crept over the consumer 6-minute timeout (the buyer was running it from her gmail.com personal account; the team's nightly trigger was on her Workspace account, so the trigger version never timed out, but the manual one did, and that's how the slowness surfaced). One `console.time` pair around the read block confirmed 95% of the time was the per-cell loop. The refactor was a thirty-minute edit. The new runtime: 40 seconds. The exact same logic, called the right way.
+The team's nightly Taboola pull was the canonical case. The function read 12,000 campaign rows from a `Raw - Taboola` tab, computed daily totals per buyer, and wrote them to a `Daily` tab. Original runtime: 18 minutes. The Executions panel started flagging "Timed out" on both the manual runs and the nightly trigger once the source grew past a certain size: 6 minutes is the cap regardless of account type, so neither the personal-account run nor the Workspace-account trigger had any extra headroom. One `console.time` pair around the read block confirmed 95% of the time was the per-cell loop. The refactor was a thirty-minute edit. The new runtime: 40 seconds. The exact same logic, called the right way.
 
 Two other places this profiling pattern earns its keep on this team:
 
@@ -210,5 +258,5 @@ Two other places this profiling pattern earns its keep on this team:
 - **`flush()` between every write in a loop.** Kills the batch. Each call is a round-trip on top of the write. Audit your code for `flush()` inside `for` loops; in 9 out of 10 cases it's there because someone copied a snippet and the snippet was wrong.
 - **Profiling the inner loop.** A `console.time` call inside a 12,000-iteration loop adds its own overhead. Profile the loop as a whole, not iteration-by-iteration. If you need per-iteration timing, sample every 100th iteration, not every one.
 - **Assuming the slow part is the obvious culprit.** The slowest line in a function is often the innocent-looking getter chain: `sheet.getActiveRange().getValues()` forces a round-trip to figure out what the active range is, on top of the round-trip for the values. Cache the range object in a `const` once and reuse it.
-- **The 6-minute timeout on a consumer account when the trigger runs on a Workspace account.** Production never sees the timeout because triggers get the longer ceiling. The buyer who tested manually from their personal account hit it. Run the function under the same account that runs the trigger before declaring it fast.
-- **Looking at the Executions panel and seeing the script ran for 5.9 minutes.** That's not "almost made it." That's the runtime budget on a consumer account being burned and the function probably did not complete its last batch. Treat any duration over 80% of the ceiling as a future failure.
+- **Treating a Workspace account as more headroom than a consumer one.** The 6-minute per-run cap is the same on both, so a function that just barely finishes from a personal account will just barely finish from the team Workspace account too. Don't ship "it ran fine on my Workspace login" as evidence the function is safe.
+- **Looking at the Executions panel and seeing the script ran for 5.9 minutes.** That's not "almost made it." That's the runtime budget being burned and the function probably did not complete its last batch. Treat any duration over 80% of the 6-minute ceiling as a future failure.

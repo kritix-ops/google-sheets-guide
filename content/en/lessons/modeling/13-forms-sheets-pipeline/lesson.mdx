@@ -43,15 +43,43 @@ Helper formula at I now reads
   <ComparePanel label="Working: helpers on a Clean tab" tone="positive">
     <pre className="font-mono text-xs"><code>{`Form Responses 1: A:H (raw only)
 Clean:
-  A: =FormResponses1!A2
-  B: =LOWER(TRIM(FormResponses1!B2))
-  C: =FormResponses1!C2
+  A: ='Form Responses 1'!A2
+  B: =LOWER(TRIM('Form Responses 1'!B2))
+  C: ='Form Responses 1'!C2
   ...
 
 Form owner adds a new question.
 Helpers on Clean keep working
 because they reference by column name.`}</code></pre>
     <p className="mt-2 text-sm">Cleanup lives on its own tab. The raw tab stays untouched. Form schema changes touch the raw tab; helpers on Clean adapt explicitly.</p>
+  </ComparePanel>
+</Compare>
+
+### Easy trap: the tab name has spaces, so it must be single-quoted
+
+The tab Sheets creates is named `Form Responses 1` (three words, two spaces). Any cross-tab reference to a tab whose name contains spaces, punctuation, or starts with a digit must be wrapped in single quotes. Drop the quotes and Sheets parses `FormResponses1` as a name it doesn't recognize and returns `#ERROR!` or, worse, silently resolves it to a different range.
+
+<Compare>
+  <ComparePanel label="Broken: unquoted tab name with spaces" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=FormResponses1!A2
+=Form Responses 1!A2
+
+Sheets can't parse either form.
+First: no tab named "FormResponses1".
+Second: spaces break the reference
+right after "Form".
+
+Result: #ERROR! or #REF!`}</code></pre>
+    <p className="mt-2 text-sm">A tab name with spaces is not a valid bare identifier. Sheets needs the quotes to know where the name ends and the `!` begins.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: single-quoted tab name" tone="positive">
+    <pre className="font-mono text-xs"><code>{`='Form Responses 1'!A2
+=LOWER(TRIM('Form Responses 1'!B2))
+
+Single quotes wrap the entire tab name.
+The ! separates the tab from the cell.
+Sheets resolves cleanly.`}</code></pre>
+    <p className="mt-2 text-sm">Single quotes (not double, not backticks) wrap any tab name that isn't a bare alphanumeric word. The rule applies to every cross-tab reference: `IMPORTRANGE`, `QUERY`, `VLOOKUP` lookup ranges, charts pointing at a named range, all of it.</p>
   </ComparePanel>
 </Compare>
 
@@ -155,6 +183,15 @@ For the lesson assignment we keep it simpler: cleanup as count-distinct. Real wo
     },
   ]}
 />
+
+## Beyond the basics: Form features that show up in your Sheet
+
+The Form Responses tab handles more than free-text and multiple-choice answers. Four features change the shape (or content) of the columns you'll be cleaning, and all four show up in the team's actual forms.
+
+- **File upload questions.** A "Upload your invoice" question stores each upload as a Drive URL in the Sheet, one URL per submitter, in the question's column. The Drive file lives in a folder Forms auto-creates next to the form. The cleanup gotcha: the URL is a Drive link, not a file chip (lesson 2.5), so the `Aggregator` tab has to either accept it as a hyperlink string or convert it at read time. Vendor intake forms use file-upload questions for W-9s and signed contracts.
+- **Section logic and branching.** Forms with `Go to section based on answer` (e.g., "Were you on the team that ran this campaign? If yes → section 2, if no → submit") create sparse rows in the Sheet: a respondent who skipped section 2 has blanks across those columns. `COUNTA` over a skipped column under-counts; design downstream formulas to expect blanks, and prefer `COUNTIFS` over a stable column (like the email or team field) that every branch fills.
+- **Quiz mode → Sheets.** If the Form is set to `Quiz`, every response row gets an extra `Score` column at the right of the Sheet, plus a per-question `Points` column for each question that has a correct answer set. The Score column is the total points awarded; partial credit shows up as fractions of the per-question points. Training quizzes for new buyers use this to track who passed the platform-policy refresher.
+- **Response notifications.** In the Form's Responses tab, the three-dot menu has `Get email notifications for new responses`. Turn it on and the form owner gets an email-on-submit for every response. Useful for low-volume forms (vendor intake, post-mortem requests) where you want to know within minutes; noisy for any form with more than a handful of responses a day. Pair this with a Sheet-side Apps Script trigger (Track 3 lesson 8) when you need richer alerts than "a new response arrived".
 
 ## Now do it for real
 

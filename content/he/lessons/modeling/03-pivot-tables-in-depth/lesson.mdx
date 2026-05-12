@@ -230,6 +230,81 @@ Result:
   ]}
 />
 
+## קיבוץ תאריך מעבר ל-year-quarter ול-year-month
+
+Year-quarter ו-year-month מכסים dashboards של פיננסים וטרנדים, אבל `Create pivot group rule` מספק שלושה קיבוצים נוספים שעונים על שאלות אחרות. לוחצים ימני על קבוצת השורה של Date בפלט ה-pivot, בוחרים `Create pivot group rule → Group by date`, והכלל מופיע ב-dropdown.
+
+| קיבוץ | שאלת אדטק שהוא עונה עליה |
+|---|---|
+| **Day of week** | עונתיות שבועית. האם יום שלישי הוא באופן עקבי היום עם הכי הרבה revenue? האם סופי שבוע מבצעים פחות טוב ב-Native? |
+| **Hour of day** | ביצועים בתוך היום. מתי במהלך היום ה-CPC מזנק ב-Google Search? מתי conversions מתקבצים? |
+| **Custom number range** (לעמודות מספריות, לא תאריכים) | דלי spend: `$0-100`, `$100-500`, `$500+`. שימושי לחיתוך "איך קמפיינים בעלי spend נמוך מבצעים מול בעלי spend גבוה". |
+
+Day-of-week ו-hour-of-day הם שניהם אפשרויות סטנדרטיות בתוך `Group by date`. ה-custom number range הוא תפריט נפרד: לוחצים ימני על קבוצת השורה של עמודה *מספרית* ובוחרים `Create pivot group rule`, ואז מזינים את גבולות הדלי. הצוות משתמש בקיבוץ לפי דלי-spend על לוג הקמפיינים כדי לזהות אם התפלגות ה-ROI מזיזה את עצמה עם גודל התקציב.
+
+## "Show as": חלקים, deltas, סכומים מצטברים
+
+עד עכשיו כל ערך ב-pivot היה ה-aggregate הגולמי: `SUM Spend`, `AVERAGE ROI`, `COUNTA Date`. לסלוט Values יש קונטרול שני, **Show as**, שמבטא כל תא מחדש כחלק או כ-delta או כסכום מצטבר בלי לשנות את פונקציית הסיכום הבסיסית. לוחצים על ה-value ב-Pivot editor וה-dropdown של `Show as` נמצא ממש מתחת ל-summarize. ארבעת המצבים שחשובים:
+
+| מצב | מה כל תא מציג | שימוש באדטק |
+|---|---|---|
+| **Default** | ה-aggregate הגולמי | קו הבסיס; כל השאר מוסיף על זה שכבה |
+| **% of grand total** | ערך התא חלקי הסך הכולל של ה-pivot | חלק spend לפי פלטפורמה: "Google = 38% מסך ה-spend החודש הזה" |
+| **% of row total** | ערך התא חלקי הסך הכולל של השורה שלו | המיקס של buyer על פני פלטפורמות: "Yoav מקצה 60% מה-spend שלו ל-Google, 25% ל-Taboola" |
+| **% of column total** | ערך התא חלקי הסך הכולל של העמודה שלו | המיקס של פלטפורמה על פני buyers: "ב-Taboola, Yoav בעלים של 45% מה-spend, Dina בעלים של 30%" |
+| **Running total** | סיכום מצטבר שהולך למטה בשורות (או על פני העמודות) | spend MTD לפי יום, revenue מצטבר רבעוני |
+
+הדפוס המקצועי: pivot יחיד יכול להציג **שני ערכים מעורמים** של אותה עמודת מקור, אחד כ-Default ואחד כ-`% of grand total`. ה-dashboard אז נקרא "Spend: $342, חלק: 12%" באותו זוג תאים, בלי pivot שני.
+
+<Compare>
+  <ComparePanel label="Spend גולמי לפי פלטפורמה" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Platform     | SUM Spend
+Google       |  4,820
+Taboola      |  3,150
+Outbrain     |  2,470
+Facebook     |  1,890
+TikTok       |    760
+Grand Total  | 13,090`}</code></pre>
+    <p className="mt-2 text-sm">מצב Default. דולרים מוחלטים. שימושי לדוחות פיננסים שבהם המספר עצמו הוא התשובה.</p>
+  </ComparePanel>
+  <ComparePanel label="אותו pivot, Show as % of grand total" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Platform     | SUM Spend
+Google       |  36.8%
+Taboola      |  24.1%
+Outbrain     |  18.9%
+Facebook     |  14.4%
+TikTok       |   5.8%
+Grand Total  | 100.0%`}</code></pre>
+    <p className="mt-2 text-sm">אותו מקור, אותו summarize, הצגה שונה. חלק-מיקס היא בדרך כלל השאלה ש-dashboard רוצה לענות עליה; דולרים גולמיים מסתירים אותה.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="ל-pivot של buyer-לפי-פלטפורמה יש Buyer ב-Rows, Platform ב-Columns, ו-SUM Spend ב-Values עם 'Show as: % of row total'. תא ב-(Yoav, Google) קורא 60%. מה אומר ה-60%?"
+  options={[
+    {
+      id: "a",
+      label: "60% מכל Google spend (על פני כל ה-buyers) שייך ל-Yoav",
+      correct: false,
+      explanation: "זה היה '% of column total'. שורה לעומת עמודה משנה: % of row total מחלק בסך הכולל של השורה, לא בסך הכולל של העמודה.",
+    },
+    {
+      id: "b",
+      label: "60% מסך ה-spend של Yoav (על פני כל הפלטפורמות) הלך ל-Google",
+      correct: true,
+      explanation: "'% of row total' מחלק כל תא בסך הכולל של השורה. השורה היא Yoav, סך השורה הוא סך ה-spend של Yoav, והתא מבטא כמה מתוך הסך הזה נחת על Google. זה החיתוך הנכון ל-'איך כל buyer מקצה את התקציב שלו'.",
+    },
+    {
+      id: "c",
+      label: "60% מהסך הכולל של כל ה-spend ב-workbook",
+      correct: false,
+      explanation: "זה היה '% of grand total'. כל מצב Show-as מחלק במכנה שונה; מצב השורה מחלק בסך הכולל של השורה, לא בסך הכולל.",
+    },
+  ]}
+/>
+
+המלכודת שתופסת אנשים: **Show as חל על תאי הערך אבל שורת Grand Total חוזרת לערכים הגולמיים, לא לחלק.** עמודת `% of grand total` מסתיימת ב-`100.0%` בשורת הסך הכולל כי היא חייבת (כל תא כשבר מהסך הכולל מסתכם ל-1). שורת הסך הכולל של עמודת `% of row total` היא האחוז של *כל עמודה* על פני כל השורות, מה שכמעט אף פעם זה לא מה שרציתם לקרוא משורת הסך הכולל. כשה-totals נראים "מוזרים", הסיבה כמעט תמיד היא מצב Show-as שלא מתחבר נקי עם המכנה של שורת ה-totals.
+
 ## Calculated fields, לעומק
 
 לסון 2.2 הציג את ה-calculated fields כפתח המילוט כשאף פונקציית הסיכום הסטנדרטית לא מכסה את מה שצריך. ה-syntax המלא: סלוט Values שה-summarize שלו הוא `CUSTOM`, עם מחרוזת `formula` שמפנה לכותרות מקור במירכאות בודדות:

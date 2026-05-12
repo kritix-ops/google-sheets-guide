@@ -8,7 +8,7 @@ import { CAMPAIGNS, CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 ## ה-signature
 
-ל-`AI()` יש signature של ארגומנט אחד או שניים: prompt חובה וטווח אופציונלי להתעגנות. ה-output תמיד מחרוזת טקסט, והקריאה דורשת לחיצה ידנית על **Generate and insert** בתא לפני שהתוצאה נכנסת. Workspace plans זכאים וגישה ל-Workspace Experiments הם תנאי מקדים; שואלים את ה-admin אם הפונקציה לא מופיעה אצלכם. כשאתם מעבירים טווח, חוסמים אותו (`A1:G61`, לא `A:G`) לפי המשמעת מ-שיעור 2.1 (Track 4 שיעור 2) כדי לא לשלוח למודל מיליון תאים ריקים של הקשר.
+ל-`AI()` יש signature של ארגומנט אחד או שניים: prompt חובה וטווח אופציונלי להתעגנות. ה-output תמיד מחרוזת טקסט, והקריאה הראשונית דורשת לחיצה ידנית על **Generate and insert** בתא לפני שהתוצאה נכנסת. ברגע שהיא נכנסה, הפלט סטטי: טעינה מחדש, חבר צוות שפותח את הקובץ, או recalc upstream לא מריצים את המודל מחדש. כדי לייצר את הפלט מחדש, אדם צריך ללחוץ בכוונה על **Refresh and insert** מתוך תפריט הקליק הימני של התא. זה האירוע היחיד שמריץ את `=AI()` מחדש ומפיק מחרוזת חדשה (אולי שונה). Workspace plans זכאים וגישה ל-Workspace Experiments הם תנאי מקדים; שואלים את ה-admin אם הפונקציה לא מופיעה אצלכם. כשאתם מעבירים טווח, חוסמים אותו (`A1:G61`, לא `A:G`) לפי המשמעת משיעור 2.1 ו-Track 4 שיעור 2 כדי לא לשלוח למודל מיליון תאים ריקים של הקשר.
 
 <FunctionRef name="AI" />
 
@@ -94,7 +94,7 @@ import { CAMPAIGNS, CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 ### דוגמה משולבת: AI() עם TEXT() ומודעות ל-ARRAYFORMULA
 
-לעיתים קרובות תפרמטו מספרים לפני הדבקה שלהם ב-prompt. `TEXT()` (Track 1 שיעור 7) הופך את הפורמט למפורש, מה שעוזר למודל לקרוא אותו. ושימו לב למה שלא ניתן לעשות: `ARRAYFORMULA` (שיעור 1.2 ו-1.10) לא עובדת עם `AI()`. התיעוד אומר ש-AI לא יכולה להיות בתוך פונקציות אחרות, מה שאומר שאין array זורם של קריאות AI. גוררים במקום.
+לעיתים קרובות תפרמטו מספרים לפני הדבקה שלהם ב-prompt. ראו את כרטיס הפונקציה של `TEXT` ב-registry; נפוץ להשתמש בו בתוך prompts של `=AI()` כדי להפוך פורמט מספרים ותאריכים למפורש, מה שעוזר למודל לקרוא את הערך כמו שאדם היה קורא אותו. ושימו לב למה שלא ניתן לעשות: `ARRAYFORMULA` (שיעור 1.2 ו-1.10) לא עובדת עם `AI()`. התיעוד אומר ש-AI לא יכולה להיות בתוך פונקציות אחרות, מה שאומר שאין array זורם של קריאות AI. גוררים במקום.
 
 ```
 =AI("Risk: low, medium, or high. Spend " & TEXT(F2,"$#,##0") & " Revenue " & TEXT(G2,"$#,##0"))
@@ -123,6 +123,22 @@ import { CAMPAIGNS, CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 2. **אל תעמיסו יותר מדי תאים פנימה.** חמישה ערכים זה בסדר; עשרים זה context מבוזבז. המודל מאבד אות ככל שה-prompt מתארך.
 3. **תפרמטו מספרים אם הערך הגולמי מכוער.** `& TEXT(F2, "$#,##0")` הופך את פורמט הדולר למפורש. שימושי ל-prompts שמדברים על כסף.
 
+### דפוסי prompt שעובדים ב-spreadsheets
+
+פלט מצומצם (הנושא המרכזי של השיעור) הוא המנוף הגדול ביותר. הדפוסים למטה הם הניצחונות החוזרים האחרים של הצוות. מיישמים כמה שמתאימים; כל אחד מסיר סוג של שגיאה שקטה. שיעור 5.4 (prompts של build-and-edit) ושיעור 5.3 (prompts של Fill with Gemini) נשענים על אותם דפוסים; זו הפניה הקנונית.
+
+| דפוס | למה זה עובד | דוגמה של שורה אחת |
+|---|---|---|
+| **תייגו כל תא שאתם מדביקים** | Gemini לא רואה את כותרות העמודות כשמשרשרים ערכים; ה-label אומר לו מה המספר. | `"Spend: " & F2 & " Revenue: " & G2` עדיף על `& F2 & " " & G2` |
+| **צמצמו את מרחב הפלט** | סט labels קבוע הופך משימה גנרטיבית למשימת סיווג. המודל מחזיר אחד מה-labels בפועל. | `"Risk: return one of low, medium, high"` |
+| **נקבו בסוג הפלט** | Spreadsheets רוצים צורה. ציון הצורה מסיר עמימות גם כשהטריק של סט-מצומצם לא חל. | `"Return a number, no units, no currency symbol"` |
+| **תנו את מספר השורות** | Contexts ארוכים סוחפים; ציון האורך הצפוי מעגן את התגובה. | `"There are 12 rows; return one classification per row"` |
+| **התייחסו לאות עמודה, לא לכותרת** | Workbooks מתורגמים יש כותרות מתורגמות (מכוסה ל-build prompts בשיעור 5.4); אותיות עמודה שורדות תרגום. | `"based on column E (Spend) and column F (Revenue)"` |
+| **בקשו מ-Gemini להציג את העבודה** | רציונל ליד ה-label הופך drift לבדיק. משתמשים במשורה; הרציונל מכפיל את עלות ה-tokens. | `"Return the label and a one-sentence rationale, comma-separated"` |
+| **"do not guess"** | לנורמליזציה, מחרוזת fallback מפורשת היא חוזה. בלעדיה המודל הוזה ערך סביר. | `"...for anything else, return 'needs review' (do not guess)"` |
+
+ההוראה "do not guess" היא החזקה ביותר בטבלה. היא ממירה הזיות מערכים שגויים שקטים לשורות מסומנות שאדם יכול לפעול עליהן, מה שזו אותה צורה כמו דפוס ה-sidecar-validator למעלה אבל דחוף לתוך ה-prompt עצמו. משתמשים בשניהם: ההוראה בצד ה-prompt תופסת רוב ה-drift לפני שהתא נכתב; ה-sidecar תופס את מה שמחליק.
+
 ### מלכודות נפוצות
 
 <Compare>
@@ -143,13 +159,13 @@ import { CAMPAIGNS, CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=SUMIF(B2:B61, "Yoav Cohen", G2:G61)`}</code></pre>
-    <p className="mt-2 text-sm">דטרמיניסטי, מדויק, חינם, מיידי. משתמשים בנוסחאות למספרים; משתמשים ב-AI למשימות בצורה של טקסט. Track 1 שיעור 11 מכסה SUMIF, COUNTIF, וחבריהם.</p>
+    <p className="mt-2 text-sm">דטרמיניסטי, מדויק, חינם, מיידי. משתמשים בנוסחאות למספרים; משתמשים ב-AI למשימות בצורה של טקסט. Track 1 שיעור 6 מכסה SUMIF, COUNTIF, וחבריהם.</p>
   </ComparePanel>
 </Compare>
 
 ## עטיפה הגנתית עם IFERROR
 
-AI() יכולה להיכשל. הקריאה יכולה לעבור timeout, ה-workbook יכול להגיע למכסה, ה-API יכול לזרוק שגיאה זמנית. בלי `IFERROR`, התא מציג `#ERROR!` וכל נוסחה במורד הזרם שנוגעת בו מפיצה את השגיאה. `IFERROR` מכוסה ב-Track 1 שיעור 14; כאן מיישמים אותה על הפונקציה היחידה בגיליון שיש לה שיעור כישלון פר-שורה מדיד.
+AI() יכולה להיכשל. הקריאה יכולה לעבור timeout, ה-workbook יכול להגיע למכסה, ה-API יכול לזרוק שגיאה זמנית. בלי `IFERROR`, התא מציג `#ERROR!` וכל נוסחה במורד הזרם שנוגעת בו מפיצה את השגיאה. `IFERROR` מכוסה ב-Track 1 שיעור 9; כאן מיישמים אותה על הפונקציה היחידה בגיליון שיש לה שיעור כישלון פר-שורה מדיד.
 
 הדפוס ההגנתי:
 
@@ -210,16 +226,65 @@ Dashboard: =COUNTIF(I2:I61, "high")
        → 10 (נכון)
 Audit:     =COUNTIF(I2:I61, "needs review")
        → 3 (חושף את ה-drift לבדיקה אנושית)`}</code></pre>
-    <p className="mt-2 text-sm">עמודה I היא העותק המבוקר. הדשבורד קורא מ-I, לא מ-H. Drift הופך למדד תפעולי ספיר במקום שגיאה שקטה. `REGEXMATCH` ב-Track 2 שיעור 8.</p>
+    <p className="mt-2 text-sm">עמודה I היא העותק המבוקר. הדשבורד קורא מ-I, לא מ-H. Drift הופך למדד תפעולי ספיר במקום שגיאה שקטה. `REGEXMATCH` ב-Track 1 שיעור 16.</p>
   </ComparePanel>
 </Compare>
+
+השרשרת רצה על פני שתי עמודות וארבע קפיצות הערכה. עוברים שלב-שלב כדי לראות איפה drift של labels נתפס ונספר:
+
+<StepThrough
+  frames={[
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`H2: =IFERROR(
+       AI("Risk: low, medium, or high. " & F2 & " " & G2),
+       "needs review"
+     )
+
+קריאת AI() הפנימית מחזירה: "very high"`}</code></pre>
+      ),
+      caption: <>שלב 1: <code>AI()</code> מייצרת מחרוזת מועמדת. ה-prompt ביקש low/medium/high, אבל המודל הזה <code>very high</code>. המועמדת נראית סבירה; שום דבר בתוך <code>AI()</code> לא מסמן אותה.</>,
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`H2: =IFERROR("very high", "needs review")
+   → "very high"`}</code></pre>
+      ),
+      caption: <>שלב 2: <code>IFERROR</code> לא רואה <code>#ERROR!</code>, אז הוא מעביר את המועמדת ללא שינוי. <code>IFERROR</code> תופס קריאות ש<em>נכשלו</em>; הוא לא תופס קריאות ש<em>שיקרו</em>. <code>H2</code> מחזיק עכשיו <code>very high</code>.</>,
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`I2: =IF(REGEXMATCH(H2, "^(low|medium|high)$"),
+       H2,
+       "needs review"
+     )
+
+REGEXMATCH("very high", "^(low|medium|high)$")
+  → FALSE
+IF(FALSE, "very high", "needs review")
+  → "needs review"`}</code></pre>
+      ),
+      caption: <>שלב 3: ה-sidecar בעמודה I מריץ <code>REGEXMATCH</code> מול סט ה-labels המותר. <code>very high</code> נכשל בתבנית המעוגנת, אז <code>I2</code> מתפרש ל-<code>needs review</code> במקום ה-label המוזה. כאן ה-drift נתפס.</>,
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`תא Dashboard: =COUNTIF(I2:I61, "needs review")
+            → 3
+
+קורא מעמודה I, לא מעמודה H.
+שלוש שורות הוצפו לבדיקה אנושית.`}</code></pre>
+      ),
+      caption: <>שלב 4: ה-dashboard סופר כמה שורות ה-validator סימן. <code>COUNTIF</code> על עמודה I הופך drift שקט למדד בריאות מספרי שאדם יכול לפעול עליו. אותו <code>COUNTIF</code> על עמודה H היה סופר <code>very high</code> כתקין ומדווח אפס בעיות.</>,
+    },
+  ]}
+/>
 
 ## אי-דטרמיניזם בפועל
 
 שתי קריאות של `=AI("Sentiment of: " & A1)` יכולות להחזיר `positive` ו-`neutral` ברצף. המודל אינו דטרמיניסטי בעיצוב. ההשלכות מתגלגלות:
 
-- **עמודה של פלטי AI() היא snapshot, לא פונקציה.** טוענים את הגיליון מחדש שבוע אחר כך וחלק מהתאים יזוזו.
-- **התאמה (reconciliation) בין שני דוחות נכשלת כשהעמודה נוצרה על-ידי AI.** דשבורד שסוכם שורות "high risk" ידווח מספר שונה בשני מאשר בשישי אם הרצתם את נוסחאות ה-AI() בין לבין.
+- **עמודה של פלטי AI() היא snapshot, לא פונקציה.** מריצים מחדש את תא ה-`=AI()` שבוע אחר כך (דרך כפתור **Refresh and insert** בתפריט הקליק הימני של התא) והפלט עשוי לזוז. טעינה פסיבית של הגיליון *לא* מפעילה חישוב מחדש; רק הלחיצה המכוונת הזו מפעילה.
+- **התאמה (reconciliation) בין שני דוחות נכשלת כשהעמודה נוצרה על-ידי AI.** דשבורד שסוכם שורות "high risk" ידווח מספר שונה בשני מאשר בשישי אם מישהו לחץ **Refresh and insert** על התאים האלה בין לבין. שום דבר אחר (טעינה מחדש, פתיחה, recalc) לא מריץ את המודל מחדש.
 - **התשובה ה"נכונה" היא התשובה ש-Gemini נתנה בפעם הראשונה שסמכתם עליה.** ברגע שסומכים על עמודה, מקפיאים אותה: מעתיקים את הערכים ועושים paste-as-values. זה ה-audit trail. שיעור 5.1 מכסה את דפוס ההקפאה; שיעור 5.6 מכסה למה חייבים.
 
 אם צריך reproducibility, paste-as-values זה התיקון הסטנדרטי. אם צריך סיווג מתמשך, מקבלים את הסחיפה ומוודאים שבועית. הכלל בפועל של הצוות: עמודות AI חיות אף פעם לא מופיעות בדוחות לבעלי עניין; רק עותקים מוקפאים.

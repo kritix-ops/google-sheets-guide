@@ -105,11 +105,11 @@ const stripDate: Rule = {
       };
     }
     const value = await sheet.cellValue("B3");
-    if (value !== "Taboola_UsedCarsPR_DesktopUS") {
+    if (value !== "Taboola_CarDealsPR_DesktopUS") {
       return {
         passed: false,
-        detail: `B3 evaluates to \`${value}\` but should be \`Taboola_UsedCarsPR_DesktopUS\`. Anchor the pattern with \`$\` so it only strips the trailing date, and replace with an empty string.`,
-        detailHe: `התא B3 מתוצא ל-\`${value}\` אבל צריך להיות \`Taboola_UsedCarsPR_DesktopUS\`. מעגנים את ה-pattern עם \`$\` כדי שיסיר רק את התאריך שבסוף, ומחליפים במחרוזת ריקה.`,
+        detail: `B3 evaluates to \`${value}\` but should be \`Taboola_CarDealsPR_DesktopUS\`. Anchor the pattern with \`$\` so it only strips the trailing date, and replace with an empty string.`,
+        detailHe: `התא B3 מתוצא ל-\`${value}\` אבל צריך להיות \`Taboola_CarDealsPR_DesktopUS\`. מעגנים את ה-pattern עם \`$\` כדי שיסיר רק את התאריך שבסוף, ומחליפים במחרוזת ריקה.`,
       };
     }
     return { passed: true };
@@ -122,7 +122,7 @@ export const assignment: AssignmentSpec = {
   templateSheetId: null,
   seed: {
     tabTitle: "Regex",
-    cells: [{ a1: "A1", value: "Taboola_UsedCarsPR_DesktopUS_2026-05" }],
+    cells: [{ a1: "A1", value: "Taboola_CarDealsPR_DesktopUS_2026-05" }],
   },
   rules: [validateCode, extractPlatform, stripDate],
 };

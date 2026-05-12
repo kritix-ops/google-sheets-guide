@@ -95,6 +95,30 @@ MailApp.sendEmail({
 
 The options bag matters. The single-argument forms (`MailApp.sendEmail(to, subject, body)`) work but lock you out of features like `htmlBody`, `cc`, `bcc`, `attachments`, `replyTo`, and `name` (the From display name, not the recipient: see the pitfalls below). Default to the object form on day one and you will not have to rewrite the call when the team asks for HTML formatting.
 
+### When GmailApp is actually worth the broader scope
+
+The moment you need to *read* mail (not just send), `MailApp` is out. The team's nightly "save Tonic invoice attachments to Drive" job is the canonical case: search the inbox for the daily invoice thread, walk the messages, pull every PDF attachment, save it into a Drive folder so the finance sheet can pick it up.
+
+```js
+function archiveTonicInvoices() {
+  const threads = GmailApp.search('from:billing@tonic.com has:attachment newer_than:2d');
+  const folder = DriveApp.getFolderById("0folder...");
+  for (const thread of threads) {
+    for (const msg of thread.getMessages()) {
+      for (const att of msg.getAttachments()) {
+        if (att.getContentType() !== "application/pdf") continue;
+        folder.createFile(att.copyBlob()).setName(
+          msg.getDate().toISOString().slice(0, 10) + " " + att.getName()
+        );
+      }
+    }
+    thread.addLabel(GmailApp.getUserLabelByName("archived-to-drive"));
+  }
+}
+```
+
+Three GmailApp capabilities show up here that `MailApp` cannot match: `GmailApp.search` (the same query syntax as the Gmail UI search bar), thread and message iteration, and label mutation on the thread once the work is done. The label step is the cheap idempotency trick: tomorrow's run searches `newer_than:2d -label:archived-to-drive` and skips threads it already processed.
+
 ## Cross-service patterns
 
 The full power of Workspace scripts shows up when one function chains all three:

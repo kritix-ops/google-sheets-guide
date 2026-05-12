@@ -85,8 +85,8 @@ Picture a dashboard with one row per buyer and a 7-day revenue trend in one cell
 | Buyer | Total revenue | 7-day trend |
 |---|---|---|
 | Yoav Cohen | $4,310 | (sparkline of B2:H2) |
-| Sarah Levi | $3,820 | (sparkline of B3:H3) |
-| David Mizrahi | $5,640 | (sparkline of B4:H4) |
+| Maya Bar | $3,820 | (sparkline of B3:H3) |
+| Ben Nahum | $5,640 | (sparkline of B4:H4) |
 
 The formula in the trend column, assuming each buyer's daily revenue is in a row 7 columns wide:
 
@@ -156,12 +156,12 @@ A sparkline of values 95-100 looks identical to one of 5-100 because the Y-axis 
 With `ymin` and `ymax` set to the same bounds across all rows, the sparklines become directly comparable. Sarah's $400-500 line stays small at the bottom while David's $1,000 spike fills the cell. That is the picture you actually want stakeholders to see.
 
 <QuickCheck
-  prompt="A dashboard shows daily revenue sparklines for 50 buyers. Each sparkline auto-scales its Y-axis to its own buyer's data. A stakeholder complains that two buyers with very different revenue look identical. What's the fix?"
+  question="A dashboard shows daily revenue sparklines for 50 buyers. Each sparkline auto-scales its Y-axis to its own buyer's data. A stakeholder complains that two buyers with very different revenue look identical. What's the fix?"
   options={[
-    { id: "a", text: "Change the chart type from line to column", correct: false, explanation: "The chart type doesn't affect Y-axis scaling. Both line and column would auto-scale independently." },
-    { id: "b", text: "Set ymin and ymax to the same fixed values for all rows", correct: true, explanation: "Right. Locking the bounds removes per-row auto-scaling, which is the only way different rows become visually comparable." },
-    { id: "c", text: "Wrap each sparkline in IFERROR", correct: false, explanation: "IFERROR handles missing data; it doesn't affect Y-axis behavior." },
-    { id: "d", text: "Use winloss instead of line", correct: false, explanation: "Winloss removes magnitude entirely, which is the opposite of what the stakeholder is asking for: they want magnitude to be visible across rows." },
+    { id: "a", label: "Change the chart type from line to column", correct: false, explanation: "The chart type doesn't affect Y-axis scaling. Both line and column would auto-scale independently." },
+    { id: "b", label: "Set ymin and ymax to the same fixed values for all rows", correct: true, explanation: "Right. Locking the bounds removes per-row auto-scaling, which is the only way different rows become visually comparable." },
+    { id: "c", label: "Wrap each sparkline in IFERROR", correct: false, explanation: "IFERROR handles missing data; it doesn't affect Y-axis behavior." },
+    { id: "d", label: "Use winloss instead of line", correct: false, explanation: "Winloss removes magnitude entirely, which is the opposite of what the stakeholder is asking for: they want magnitude to be visible across rows." },
   ]}
 />
 

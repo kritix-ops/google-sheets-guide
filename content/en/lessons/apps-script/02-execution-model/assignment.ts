@@ -1,9 +1,12 @@
 import type { AssignmentSpec, Rule, SeedScriptFile } from "@/lib/grading/types";
 
 // Realistic numbers the lesson body cites for free-tier Apps Script:
-//   UrlFetchApp: 20,000 fetches/day (consumer), 600/minute throttle.
+//   UrlFetchApp: 20,000 fetches/day (consumer, documented).
+//   Per-minute target: 300 (no documented throttle exists; the team treats
+//   ~300/min as the safe ceiling under sustained load and prefers
+//   fetchAll past that).
 const PER_DAY = 20000;
-const PER_MINUTE = 600;
+const PER_MINUTE = 300;
 const EXPECTED_SUMMARY = `${PER_DAY} per day, ${PER_MINUTE} per minute`;
 
 const STARTER_LESSON_GS = `/**
@@ -11,7 +14,7 @@ const STARTER_LESSON_GS = `/**
  *
  * @param {number} perDay     Calls allowed per day.
  * @param {number} perMinute  Calls allowed per minute.
- * @return {string} A one-line summary, e.g. "20000 per day, 600 per minute".
+ * @return {string} A one-line summary, e.g. "20000 per day, 300 per minute".
  * @customfunction
  */
 function quotaSummary(perDay, perMinute) {
@@ -117,8 +120,8 @@ const a1CallsQuotaSummary: Rule = {
     if (formula == null) {
       return {
         passed: false,
-        detail: `A1 is empty. Type \`=quotaSummary(${PER_DAY}, ${PER_MINUTE})\`: those are UrlFetchApp's free-tier limits (${PER_DAY} calls per day, ${PER_MINUTE} per minute).`,
-        detailHe: `A1 ריק. מקלידים \`=quotaSummary(${PER_DAY}, ${PER_MINUTE})\`, אלה המגבלות של UrlFetchApp ב-tier החינמי (${PER_DAY} קריאות ביום, ${PER_MINUTE} בדקה).`,
+        detail: `A1 is empty. Type \`=quotaSummary(${PER_DAY}, ${PER_MINUTE})\`: ${PER_DAY} is UrlFetchApp's documented consumer daily cap; ${PER_MINUTE} is the team's safe per-minute target (Google does not publish a per-minute number).`,
+        detailHe: `A1 ריק. מקלידים \`=quotaSummary(${PER_DAY}, ${PER_MINUTE})\`: ${PER_DAY} הוא ה-cap היומי המתועד של UrlFetchApp ב-tier הצרכני; ${PER_MINUTE} הוא היעד הבטוח בדקה שהצוות עובד מולו (Google לא מפרסמת מספר רשמי לדקה).`,
       };
     }
     if (!/\bquotaSummary\s*\(/i.test(formula)) {

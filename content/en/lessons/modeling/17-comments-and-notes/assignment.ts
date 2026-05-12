@@ -9,7 +9,7 @@ import type { AssignmentSpec, Rule } from "@/lib/grading/types";
 //
 // Three rules:
 //   Campaigns!A1 (Date header)    -> note must contain "UTC"
-//   Campaigns!E1 (Spend header)   -> note must contain "IMPORTRANGE"
+//   Campaigns!F1 (Spend header)   -> note must contain "IMPORTRANGE"
 //   Campaigns!G1 (Revenue header) -> note must contain "net"
 //
 // Notes (Insert → Note) are distinct from threaded comments. The Sheets API
@@ -52,28 +52,28 @@ const dateHeaderTimezoneNote: Rule = {
 };
 
 const spendHeaderSourceNote: Rule = {
-  id: "campaigns-e1-spend-source-note",
-  label: "Campaigns!E1 has a note documenting the Spend column's data source",
+  id: "campaigns-f1-spend-source-note",
+  label: "Campaigns!F1 has a note documenting the Spend column's data source",
   labelHe:
-    "התא Campaigns!E1 מחזיק note שמתעדת את מקור הנתונים של עמודת Spend",
+    "התא Campaigns!F1 מחזיק note שמתעדת את מקור הנתונים של עמודת Spend",
   answer:
-    'Insert → Note on Campaigns!E1: "Pulled via IMPORTRANGE from Taboola export, refreshes hourly."',
+    'Insert → Note on Campaigns!F1: "Pulled via IMPORTRANGE from Taboola export, refreshes hourly."',
   async run(sheet) {
-    const note = await sheet.cellNote("Campaigns!E1");
+    const note = await sheet.cellNote("Campaigns!F1");
     if (note == null || note.trim().length === 0) {
       return {
         passed: false,
         detail:
-          "Campaigns!E1 has no note. The Spend column needs a lineage note: where it's pulled from and how often. Open Insert → Note (Ctrl+Alt+M) and write something like \"Pulled via IMPORTRANGE from Taboola export, refreshes hourly.\" The note must include the substring `IMPORTRANGE` so the source pipeline is visible at a glance.",
+          "Campaigns!F1 has no note. The Spend column needs a lineage note: where it's pulled from and how often. Open Insert → Note (Ctrl+Alt+M) and write something like \"Pulled via IMPORTRANGE from Taboola export, refreshes hourly.\" The note must include the substring `IMPORTRANGE` so the source pipeline is visible at a glance.",
         detailHe:
-          "אין note על Campaigns!E1. עמודת Spend צריכה note של מקור: מאיפה היא נמשכת וכל כמה זמן. פותחים Insert → Note (Ctrl+Alt+M) וכותבים משהו כמו \"Pulled via IMPORTRANGE from Taboola export, refreshes hourly.\" ה-note חייבת לכלול את ה-substring `IMPORTRANGE` כדי ש-pipeline המקור יהיה גלוי במבט.",
+          "אין note על Campaigns!F1. עמודת Spend צריכה note של מקור: מאיפה היא נמשכת וכל כמה זמן. פותחים Insert → Note (Ctrl+Alt+M) וכותבים משהו כמו \"Pulled via IMPORTRANGE from Taboola export, refreshes hourly.\" ה-note חייבת לכלול את ה-substring `IMPORTRANGE` כדי ש-pipeline המקור יהיה גלוי במבט.",
       };
     }
     if (!noteContains(note, "IMPORTRANGE")) {
       return {
         passed: false,
-        detail: `Campaigns!E1 has a note (\`${note}\`) but it doesn't mention \`IMPORTRANGE\`. Lineage notes on imported columns name the import mechanism so debugging a broken cell starts in the right place. Add the substring \`IMPORTRANGE\` (any casing) to the note.`,
-        detailHe: `יש note על Campaigns!E1 (\`${note}\`) אבל היא לא מזכירה \`IMPORTRANGE\`. notes של מקור על עמודות מיובאות מציינות את מנגנון הייבוא, כך ש-debug של תא שבור מתחיל במקום הנכון. מוסיפים את ה-substring \`IMPORTRANGE\` (כל casing) ל-note.`,
+        detail: `Campaigns!F1 has a note (\`${note}\`) but it doesn't mention \`IMPORTRANGE\`. Lineage notes on imported columns name the import mechanism so debugging a broken cell starts in the right place. Add the substring \`IMPORTRANGE\` (any casing) to the note.`,
+        detailHe: `יש note על Campaigns!F1 (\`${note}\`) אבל היא לא מזכירה \`IMPORTRANGE\`. notes של מקור על עמודות מיובאות מציינות את מנגנון הייבוא, כך ש-debug של תא שבור מתחיל במקום הנכון. מוסיפים את ה-substring \`IMPORTRANGE\` (כל casing) ל-note.`,
       };
     }
     return { passed: true };
@@ -122,7 +122,7 @@ export const assignment: AssignmentSpec = {
       // mention. The learner removes them once the actual notes are in place.
       { a1: "L1", value: "→ Add notes via Insert → Note (Ctrl+Alt+M):" },
       { a1: "L2", value: "A1 (Date): note must mention UTC (timezone)" },
-      { a1: "L3", value: "E1 (Spend): note must mention IMPORTRANGE (source)" },
+      { a1: "L3", value: "F1 (Spend): note must mention IMPORTRANGE (source)" },
       { a1: "L4", value: "G1 (Revenue): note must mention net (definition)" },
     ],
   },

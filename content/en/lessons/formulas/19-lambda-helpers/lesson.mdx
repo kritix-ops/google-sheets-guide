@@ -153,12 +153,12 @@ A 10×10 multiplication table. In adtech work, `MAKEARRAY` is mostly used for sc
 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=REDUCE("", E2:E13, LAMBDA(a, s, a + s))`}</code></pre>
-    <p className="mt-2 text-sm"><strong>Wrong initial-value type.</strong> The initial accumulator is the empty string <code>""</code>. The first step computes <code>"" + 342.18</code> which Sheets resolves to <code>342.18</code> (auto-coerced), but the result is subtly different and on some inputs throws a type error. The initial value sets the accumulator type for the whole walk.</p>
+    <pre className="font-mono text-xs"><code>{`=REDUCE({}, E2:E13, LAMBDA(acc, s, acc + s))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Accumulator-type mismatch.</strong> The initial accumulator is an empty array (<code>{`{}`}</code>) but the body adds a scalar to it. The first step computes <code>{`{}`} + 342.18</code>, which Sheets cannot resolve cleanly: empty-array plus scalar produces <code>#VALUE!</code> on the first step, and even when the initial array is non-empty the broadcasting semantics will not give you the running total you intended. The initial value silently sets the accumulator's type and shape for the whole walk; pick the wrong one and every step that follows is wrong.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=REDUCE(0, E2:E13, LAMBDA(a, s, a + s))`}</code></pre>
-    <p className="mt-2 text-sm"><strong>Numeric initial value for numeric aggregation.</strong> The accumulator starts at <code>0</code> and stays numeric throughout. For string concatenation use <code>""</code> and <code>a &amp; s</code> in the body. For arrays as the accumulator, use the right shape from the start.</p>
+    <pre className="font-mono text-xs"><code>{`=REDUCE(0, E2:E13, LAMBDA(acc, s, acc + s))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Match the initial value's type to the body's operation.</strong> Numeric accumulator (<code>0</code>) for numeric sums. Use <code>""</code> with <code>acc &amp; s</code> for string concatenation. Use a one-row array literal like <code>{`{0, 0}`}</code> if you genuinely want to fold two parallel totals at once. Always picture the first step's types before you commit.</p>
   </ComparePanel>
 </Compare>
 

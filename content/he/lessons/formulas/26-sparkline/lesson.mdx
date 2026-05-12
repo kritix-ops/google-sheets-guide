@@ -85,8 +85,8 @@ dashboard עובד בדרך כלל מכיל שורה אחת לכל media buyer, 
 | Buyer | Total revenue | מגמה של 7 ימים |
 |---|---|---|
 | Yoav Cohen | $4,310 | (sparkline של B2:H2) |
-| Sarah Levi | $3,820 | (sparkline של B3:H3) |
-| David Mizrahi | $5,640 | (sparkline של B4:H4) |
+| Maya Bar | $3,820 | (sparkline של B3:H3) |
+| Ben Nahum | $5,640 | (sparkline של B4:H4) |
 
 הנוסחה בעמודת המגמה, בהנחה שה-revenue היומי של כל media buyer נמצא בשורה ברוחב 7 עמודות:
 
@@ -156,12 +156,12 @@ sparkline של ערכים 95-100 נראה זהה לאחד של 5-100 כי ציר
 עם `ymin` ו-`ymax` מוגדרים לאותם גבולות בכל השורות, ה-sparklines נעשים בני השוואה ישירה. הקו של $400-500 של Sarah נשאר קטן בתחתית בזמן שהקפיצה ל-$1,000 של David ממלאת את התא. זו התמונה שבאמת רוצים שבעלי העניין יראו.
 
 <QuickCheck
-  prompt="ב-dashboard מוצגים sparklines של revenue יומי ל-50 media buyers. כל sparkline מתאים אוטומטית את ציר Y לנתונים של ה-media buyer שלו. בעל עניין מתלונן ששני media buyers עם revenue שונה מאוד נראים זהים. מה התיקון?"
+  question="ב-dashboard מוצגים sparklines של revenue יומי ל-50 media buyers. כל sparkline מתאים אוטומטית את ציר Y לנתונים של ה-media buyer שלו. בעל עניין מתלונן ששני media buyers עם revenue שונה מאוד נראים זהים. מה התיקון?"
   options={[
-    { id: "a", text: "לשנות את סוג ה-chart מ-line ל-column", correct: false, explanation: "סוג ה-chart לא משפיע על קנה המידה של ציר Y. גם line וגם column היו מתאימים את עצמם בנפרד." },
-    { id: "b", text: "להגדיר ymin ו-ymax לאותם ערכים קבועים בכל השורות", correct: true, explanation: "נכון. נעילת הגבולות מסירה את ההתאמה האוטומטית פר-שורה, וזו הדרך היחידה ששורות שונות יהיו ברות השוואה ויזואלית." },
-    { id: "c", text: "לעטוף כל sparkline ב-IFERROR", correct: false, explanation: "IFERROR מטפל בנתונים חסרים; הוא לא משפיע על התנהגות ציר Y." },
-    { id: "d", text: "להשתמש ב-winloss במקום ב-line", correct: false, explanation: "winloss מסיר את הגודל לחלוטין, וזה ההפך ממה שבעל העניין מבקש: הוא רוצה שהגודל יהיה גלוי בין שורות." },
+    { id: "a", label: "לשנות את סוג ה-chart מ-line ל-column", correct: false, explanation: "סוג ה-chart לא משפיע על קנה המידה של ציר Y. גם line וגם column היו מתאימים את עצמם בנפרד." },
+    { id: "b", label: "להגדיר ymin ו-ymax לאותם ערכים קבועים בכל השורות", correct: true, explanation: "נכון. נעילת הגבולות מסירה את ההתאמה האוטומטית פר-שורה, וזו הדרך היחידה ששורות שונות יהיו ברות השוואה ויזואלית." },
+    { id: "c", label: "לעטוף כל sparkline ב-IFERROR", correct: false, explanation: "IFERROR מטפל בנתונים חסרים; הוא לא משפיע על התנהגות ציר Y." },
+    { id: "d", label: "להשתמש ב-winloss במקום ב-line", correct: false, explanation: "winloss מסיר את הגודל לחלוטין, וזה ההפך ממה שבעל העניין מבקש: הוא רוצה שהגודל יהיה גלוי בין שורות." },
   ]}
 />
 

@@ -30,7 +30,14 @@ function onEdit(e) {
   e.range;     // Range object: the edited cell or range
   e.value;     // The new value (single-cell edits only; undefined otherwise)
   e.oldValue;  // The previous value (single-cell edits only)
-  e.user;      // The User object; e.user.getEmail() is the editor's address
+  e.user;      // Usually EMPTY in a simple onEdit. Per Google's events docs it
+               // is populated only "if available (depending on a complex set
+               // of security restrictions)" — in practice that means the
+               // editor is the script owner, OR the script is bound to a
+               // Workspace document with the right admin policy. Do not
+               // rely on e.user.getEmail() to identify teammates; see the
+               // callout before the worked example and lesson 8 for the
+               // installable-trigger fix.
   e.source;    // The Spreadsheet object the edit happened in
 }
 ```
@@ -100,6 +107,38 @@ A short tour:
 - **`onSelectionChange`**: fires on every arrow-key tap. Cheap things only: update a status bar cell, highlight the active row. A 100ms handler here is fine; a 500ms one feels janky.
 - **`onChange`**: fires on structural changes the others miss. Auto-protect a header row when someone inserts a column. Watch for unintended sheet renames in a workbook where downstream `IMPORTRANGE` formulas (lesson 1.27) depend on tab names.
 
+### Worked example: protect the header row on column insert
+
+`onEdit` does not fire when a buyer right-clicks a column header and picks "Insert 1 column left". The cells move; no edit landed. `onChange` catches it via `e.changeType`. The set of values the field takes is fixed: `INSERT_ROW`, `INSERT_COLUMN`, `REMOVE_ROW`, `REMOVE_COLUMN`, `INSERT_GRID` (new tab), `REMOVE_GRID` (tab deleted), `FORMAT`, `EDIT`, `OTHER`. Most handlers gate on the two or three types they care about and return for everything else.
+
+<Compare>
+  <ComparePanel label="Wrong: try to use onEdit for column inserts" tone="negative">
+    <pre className="font-mono text-xs"><code>{`function onEdit(e) {
+  // Hope this catches "someone inserted a column":
+  const sheet = e.range.getSheet();
+  if (sheet.getName() === "Campaigns") {
+    sheet.getRange("1:1").protect();
+  }
+}`}</code></pre>
+    <p className="mt-2 text-sm">Inserting a column does not fire <code>onEdit</code>: no cell was edited. The handler never runs, the header row is never re-protected, and the next buyer who edits row 1 by accident corrupts the headers.</p>
+  </ComparePanel>
+  <ComparePanel label="Right: onChange + changeType guard" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function onChange(e) {
+  if (e.changeType !== "INSERT_COLUMN" &&
+      e.changeType !== "INSERT_ROW") return;
+  const sheet = SpreadsheetApp.getActive()
+    .getSheetByName("Campaigns");
+  if (!sheet) return;
+  const header = sheet.getRange("1:1");
+  // Re-apply protection: insert may have moved the protected range.
+  header.protect()
+    .setDescription("Header row, auto-protected")
+    .setWarningOnly(true);
+}`}</code></pre>
+    <p className="mt-2 text-sm">Gate on <code>e.changeType</code> first; structural changes are the only ones this handler cares about. Note <code>e.range</code> does not exist on the onChange event, so reach for the sheet by name instead.</p>
+  </ComparePanel>
+</Compare>
+
 <StepThrough
   frames={[
     {
@@ -146,12 +185,24 @@ A short tour:
   ]}
 />
 
+## Read this before you reach for `e.user`
+
+`e.user.getEmail()` is the field every learner reaches for first ("I'll auto-fill the buyer from whoever edited the row"), and it is the field that quietly does not work. Google's events documentation says `e.user` is populated "if available (depending on a complex set of security restrictions)." In a simple `onEdit` trigger that translates to: **`e.user` is usually empty for everyone except the script owner**, plus a narrow set of Workspace-domain cases where the admin policy permits it.
+
+What this means in practice:
+
+- A simple `onEdit` handler that calls `e.user.getEmail()` will return `""` for every teammate who isn't the script owner. The handler appears to work for you in testing (you are the owner) and silently breaks for the rest of the team.
+- An **installable** `onEdit` trigger (lesson 8) runs with full auth, but it runs as the *installer*, not as the editor. `e.user` on an installable trigger tells you who installed the trigger, not who made the edit. So installable triggers don't fix this gap either.
+- The honest paths for "who edited this row?" are: (a) require manual entry of the buyer name, (b) use a dropdown bound to the buyer roster, or (c) maintain a per-user installable trigger that writes the installer's email into a user-properties bucket and reads it back at edit time. Option (b) is the one the team actually uses.
+
+The worked example below keeps the `e.user` shape for the lesson hook (so you see how the field is meant to look), but the "Used in the wild" entry below it has been rewritten to reflect what actually ships.
+
 ## Used in the wild
 
 Two patterns from the team's actual workbooks:
 
-- **Auto-fill the buyer from the editor's email.** When a new campaign row is typed in the daily log, `onEdit` reads `e.user.getEmail()`, looks up the buyer name from the canonical buyer roster sheet, and writes it into the Buyer column. The whole thing is ten lines and saves the team from typo'd buyer attributions in the dashboards.
-- **Auto-mark the Spend column when re-touched.** When a buyer adjusts a spend number mid-week, `onEdit` stamps a small "updated" marker one column over. The weekly review pivots on that column to flag rows that drifted from the upload.
+- **Auto-fill the buyer from a dropdown, not from `e.user`.** The daily-log Buyer column is a data-validation dropdown bound to the canonical buyer roster sheet. An `onEdit` handler watches the row for a newly-typed Vertical and, if Buyer is still blank, sets the cell's validation to "show warning" so the buyer can't move on without picking themselves. The team tried the `e.user.getEmail()` lookup once; it silently failed for every teammate other than the script owner, and the dashboards filled up with blank Buyer attributions. Dropdown won.
+- **Auto-mark the Spend column when re-touched.** When a buyer adjusts a spend number mid-week, `onEdit` stamps a small "updated" marker one column over. The weekly review pivots on that column to flag rows that drifted from the upload. This pattern does NOT depend on `e.user`; it only reads `e.range`, which is always populated. That's why it survives where the buyer-from-email pattern doesn't.
 
 <QuickCheck
   question="Your onEdit handler reads e.value to detect when a cell becomes 'DEAD' and turns the row red. A buyer pastes 20 rows where one of them contains 'DEAD'. The handler does nothing. Why?"
@@ -201,6 +252,6 @@ If nothing happens, open the Apps Script left-rail **Executions** view (the cloc
 - **`onChange` has a different `e` shape.** No `e.range`, no `e.value`. Copying a handler body from `onEdit` to `onChange` and expecting it to work is a 20-minute debugging session.
 - **Reserved names are case-sensitive.** `function onedit` does not fire. `function OnEdit` does not fire. The Apps Script editor does not warn you.
 - **The 30-second timeout is unforgiving.** If your handler needs to iterate over the whole sheet, it is the wrong tool: schedule a time-driven installable trigger that runs nightly with full auth and a longer budget.
-- **Simple triggers cannot email, fetch, or touch other docs.** The call silently fails. If your handler "does not seem to work" and there is an `e.user.getEmail()` or `UrlFetchApp.fetch` inside, that is why. Upgrade to an installable trigger in the next lesson.
-- **`e.user.getEmail()` returning an empty string on Workspace.** On consumer accounts, the field works; on Workspace accounts with strict admin policies, it can return empty for users outside the script owner's domain. If the handler relies on the editor's email, fall back to `Session.getActiveUser().getEmail()` or wire an installable trigger that runs with the script owner's permissions.
+- **Simple triggers cannot email, fetch, or touch other docs.** The call silently fails. If your handler "does not seem to work" and there is a `MailApp.sendEmail` or `UrlFetchApp.fetch` inside, that is why. Upgrade to an installable trigger in the next lesson.
+- **`e.user.getEmail()` returning an empty string for teammates.** Covered in the major callout above the worked example: `e.user` is only reliably populated when the editor is the script owner (or, narrowly, a same-domain Workspace user where the admin policy permits it). For every other teammate the field is empty. `Session.getActiveUser().getEmail()` has the same restriction in a simple-trigger context, so it is not a workaround. The genuine fix is an installable trigger (lesson 8) plus a dropdown for the editor's identity, not a heuristic.
 - **An onEdit handler that recursively edits the same range.** If the handler does `range.setValue(x)` inside, that write does NOT fire `onEdit` again (Google's runtime protects against the loop), but a write to a *different* cell that has a formula referencing the edited cell can cascade. Watch the Executions panel for runaway fires.

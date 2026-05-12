@@ -49,13 +49,13 @@ Sheets משתמש במנוע **RE2** של Google. הוא מהיר, בטוח (א�
 <TryIt
   data={[
     ["Code", "Valid?"],
-    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
+    ["Taboola_CarDealsPR_DesktopUS_2026-05", ""],
   ]}
   inputCell="B2"
   expectedFormula='=REGEXMATCH(A2,"^[A-Za-z]+_[A-Za-z]+PR_[A-Za-z]+_\\d{4}-\\d{2}$")'
   task={<>אמתו שקוד הקמפיין ב-<code>A2</code> מתאים לפורמט הסטנדרטי. החזירו TRUE ב-<code>B2</code> אם הוא מתאים.</>}
   hint={<>התבנית: מתחיל באותיות, אז "_", אז אותיות שמסתיימות ב-"PR", אז "_", אז אותיות, אז "_", אז תאריך YYYY-MM. עגנו עם <code>^</code> ו-<code>$</code>.</>}
-  answer={<>עוגנים קריטיים. <code>^</code> מתאים להתחלה, <code>$</code> מתאים לסוף. בלעדיהם, התבנית יכולה להתאים למחרוזת בתוך טקסט זבל. <code>[A-Za-z]+</code> זה אות אחת או יותר. <code>\\d{`{4}`}</code> זה בדיוק 4 ספרות (ה-backslash מוכפל כי המנתח של מחרוזות ב-Sheets אוכל אחד). בלי עוגנים, "garbageTaboola_UsedCarsPR_DesktopUS_2026-05garbage" גם היה עובר, וזה בדרך כלל לא מה שרוצים.</>}
+  answer={<>עוגנים קריטיים. <code>^</code> מתאים להתחלה, <code>$</code> מתאים לסוף. בלעדיהם, התבנית יכולה להתאים למחרוזת בתוך טקסט זבל. <code>[A-Za-z]+</code> זה אות אחת או יותר. <code>\\d{`{4}`}</code> זה בדיוק 4 ספרות (ה-backslash מוכפל כי המנתח של מחרוזות ב-Sheets אוכל אחד). בלי עוגנים, "garbageTaboola_CarDealsPR_DesktopUS_2026-05garbage" גם היה עובר, וזה בדרך כלל לא מה שרוצים.</>}
 />
 
 ### דוגמה משולבת: REGEXMATCH + FILTER
@@ -73,7 +73,7 @@ Sheets משתמש במנוע **RE2** של Google. הוא מהיר, בטוח (א�
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=REGEXMATCH(A2, "[A-Z]+_[A-Z]+PR")`}</code></pre>
-    <p className="mt-2 text-sm"><strong>אין עוגנים.</strong> מתאים לתבנית <em>בכל מקום</em> בתא. <code>"garbage_TABOOLA_USEDCARSPR_more_garbage"</code> עובר, גם אם זה לא קוד קמפיין תקף. וולידטורים בלי עוגנים משקרים.</p>
+    <p className="mt-2 text-sm"><strong>אין עוגנים.</strong> מתאים לתבנית <em>בכל מקום</em> בתא. <code>"garbage_TABOOLA_CARDEALSPR_more_garbage"</code> עובר, גם אם זה לא קוד קמפיין תקף. וולידטורים בלי עוגנים משקרים.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=REGEXMATCH(A2, "^[A-Z]+_[A-Z]+PR$")`}</code></pre>
@@ -114,7 +114,7 @@ Sheets משתמש במנוע **RE2** של Google. הוא מהיר, בטוח (א�
 <TryIt
   data={[
     ["Code", "Platform"],
-    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
+    ["Taboola_CarDealsPR_DesktopUS_2026-05", ""],
   ]}
   inputCell="B2"
   expectedFormula='=REGEXEXTRACT(A2,"^([A-Za-z]+)_")'
@@ -138,7 +138,7 @@ Sheets משתמש במנוע **RE2** של Google. הוא מהיר, בטוח (א�
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=REGEXEXTRACT(A2, "^.+_(.+)_")`}</code></pre>
-    <p className="mt-2 text-sm"><strong>Quantifier חמדן על ההתאמה החיצונית.</strong> <code>.+</code> תופס כמה שיותר. על <code>"Taboola_UsedCarsPR_DesktopUS_2026-05"</code> ה-<code>.+</code> הראשון בולע את הכל עד הקו התחתון האחרון, אז קבוצת ההתאמה תופסת רק את <code>"DesktopUS"</code>, לא את "UsedCarsPR" שהתכוונתם. החתיכה הלא נכונה, בשקט.</p>
+    <p className="mt-2 text-sm"><strong>Quantifier חמדן על ההתאמה החיצונית.</strong> <code>.+</code> תופס כמה שיותר. על <code>"Taboola_CarDealsPR_DesktopUS_2026-05"</code> ה-<code>.+</code> הראשון בולע את הכל עד הקו התחתון האחרון, אז קבוצת ההתאמה תופסת רק את <code>"DesktopUS"</code>, לא את "CarDealsPR" שהתכוונתם. החתיכה הלא נכונה, בשקט.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
     <pre className="font-mono text-xs"><code>{`=REGEXEXTRACT(A2, "^[^_]+_([^_]+)_")`}</code></pre>
@@ -179,18 +179,18 @@ Sheets משתמש במנוע **RE2** של Google. הוא מהיר, בטוח (א�
 <TryIt
   data={[
     ["Code", "Without date"],
-    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
+    ["Taboola_CarDealsPR_DesktopUS_2026-05", ""],
   ]}
   inputCell="B2"
   expectedFormula='=REGEXREPLACE(A2,"_\\d{4}-\\d{2}$","")'
-  task={<>הורידו את ה-"_YYYY-MM" הסופי מקוד הקמפיין ב-<code>A2</code>. התוצאה אמורה להיות <code>Taboola_UsedCarsPR_DesktopUS</code>.</>}
+  task={<>הורידו את ה-"_YYYY-MM" הסופי מקוד הקמפיין ב-<code>A2</code>. התוצאה אמורה להיות <code>Taboola_CarDealsPR_DesktopUS</code>.</>}
   hint={<>תבנית: קו תחתון, ארבע ספרות, מקף, שתי ספרות, סוף-מחרוזת. החליפו במחרוזת ריקה.</>}
   answer={<>העוגן <code>$</code> בסוף מבטיח שנתפוס רק את התאריך הסופי, לא תאריך באמצע המחרוזת. בלעדיו, REGEXREPLACE היה מוריד גם תאריכים מכל רצף "_YYYY-MM" קודם במחרוזת. <code>\\d{`{4}`}</code> זה בדיוק 4 ספרות; <code>\\d{`{2}`}</code> בדיוק 2. ההחלפה היא מחרוזת ריקה, אז תת-המחרוזת שהותאמה מוסרת לחלוטין.</>}
 />
 
 ### דוגמה משולבת: REGEXREPLACE לנרמול סיומת " PR"
 
-ה-verticals של הצוות כולם מסתיימים ב-" PR" לפי קונבנציה (Used Cars PR, Lingerie PR, Mortgage Refinance PR). כשדוח במורד הזרם רוצה את שם ה-vertical החשוף בלי הסיומת, `REGEXREPLACE` חזק יותר מ-`LEFT(text, LEN(text)-3)` כי הוא לא פוגע בשורות שכבר איבדו את הסיומת.
+ה-verticals של הצוות כולם מסתיימים ב-" PR" לפי קונבנציה (Car Deals PR, Cruises PR, Reverse Mortgage PR). כשדוח במורד הזרם רוצה את שם ה-vertical החשוף בלי הסיומת, `REGEXREPLACE` חזק יותר מ-`LEFT(text, LEN(text)-3)` כי הוא לא פוגע בשורות שכבר איבדו את הסיומת.
 
 ```
 =ARRAYFORMULA(IFERROR(REGEXREPLACE(C2:C, " PR$", ""), ""))
@@ -223,7 +223,7 @@ Sheets משתמש במנוע RE2 של Google, שהוא מהיר ובטוח אב�
 לעבודת אדטק טיפוסית (ולידציה, שליפה, נרמול), RE2 יותר מספיק. המקרים המעטים שבהם באמת צריך תכונות PCRE לרוב יש להם עוקפים שמשתמשים בקבוצות התאמה מרובות או בנוסחה משלימה.
 
 <QuickCheck
-  question={"אתם כותבים =REGEXEXTRACT(A2, \".+_(.+)_\") כדי לשלוף את הקטע השני מקוד קמפיין כמו \"Taboola_UsedCarsPR_DesktopUS_2026-05\". אתם מצפים ל-\"UsedCarsPR\". אתם מקבלים \"DesktopUS\". למה?"}
+  question={"אתם כותבים =REGEXEXTRACT(A2, \".+_(.+)_\") כדי לשלוף את הקטע השני מקוד קמפיין כמו \"Taboola_CarDealsPR_DesktopUS_2026-05\". אתם מצפים ל-\"CarDealsPR\". אתם מקבלים \"DesktopUS\". למה?"}
   options={[
     {
       id: "a",

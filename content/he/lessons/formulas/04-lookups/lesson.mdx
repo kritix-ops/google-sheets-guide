@@ -124,6 +124,36 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
   ]}
 />
 
+<QuickCheck
+  question="טבלת ה-Verticals lookup שלכם מסודרת בסדר הזה: Car Deals PR, Cruises PR, Dental Implants PR, Online MBA PR, Reverse Mortgage PR, Roofing Services PR, SUV Deals PR, Lingerie PR, Prefabricated Homes PR, Mortgage Refinance PR. בגיליון הקמפיינים יש =VLOOKUP(\"SUV Deals PR\", I2:K11, 2) (בלי הארגומנט הרביעי). אתם מצפים ל-'Autos & Vehicles' (הקטגוריה של SUV Deals PR). במקום זה מקבלים 'Education' (הקטגוריה של Online MBA PR). למה?"
+  options={[
+    {
+      id: "a",
+      label: "VLOOKUP מצא את 'SUV Deals PR' אבל קרא מהעמודה הלא נכונה.",
+      correct: false,
+      explanation: "אינדקס העמודה הוא 2, וזה נכון. הבעיה של שורה לא נכונה אינה באג של אינדקס עמודה; היא באג של match-mode.",
+    },
+    {
+      id: "b",
+      label: "בלי הארגומנט הרביעי, is_sorted קיבל ברירת מחדל TRUE. VLOOKUP עשה binary search בהנחה שהעמודה הראשונה ממוינת בסדר עולה, חלף על ההתאמה האמיתית, והחזיר את הערך הגדול ביותר שמצא שהיה <= ל-search key. על נתונים לא ממוינים ה-'binary search' נופל על שורה סבירה-אבל-שגויה ולעולם לא מחזיר שגיאה.",
+      correct: true,
+      explanation: "זאת ה-footgun השקטה: is_sorted=TRUE לא רק מאפשר התאמה מקורבת; הוא מעביר את VLOOKUP לאלגוריתם binary-search שמניח נתונים ממוינים. על עמודות lookup לא ממוינות (שזה רוב טבלאות ה-lookup האמיתיות), ה-binary search נוחת על איזו שורה שהחציה במקרה מוצאת, מחזיר אותה בלי שגיאה, ואתם סומכים על המספר. תמיד תעבירו FALSE כארגומנט הרביעי אלא אם עמודת ה-lookup שלכם באמת ממוינת בסדר עולה וגם אתם באמת רוצים התאמה מקורבת בסגנון bucket.",
+    },
+    {
+      id: "c",
+      label: "צריך למיין את טבלת ה-lookup לפי אלפבית לפני ש-VLOOKUP יכול למצוא משהו.",
+      correct: false,
+      explanation: "VLOOKUP עם is_sorted=FALSE עושה סריקת exact-match לינארית ולא אכפת לו מסדר המיון. הפתרון אינו מיון המקור; הוא העברת FALSE.",
+    },
+    {
+      id: "d",
+      label: "VLOOKUP לא מסתדר עם שמות vertical שמכילים רווחים.",
+      correct: false,
+      explanation: "רווחים ב-search key בסדר. הבעיה היא ה-match mode של ברירת המחדל.",
+    },
+  ]}
+/>
+
 ## HLOOKUP: VLOOKUP מסובב ב-90 מעלות
 
 `HLOOKUP` סורק את **השורה הראשונה** של טווח ומחזיר ערך משורה אחרת באותה עמודה. אותם ארגומנטים כמו ב-VLOOKUP, רק במגמה אופקית. נדיר שתצטרכו אותו כי טבלאות כמעט תמיד אנכיות. המקום היחיד שהוא מופיע באדטק: לוחות סיכום רבעוניים שבהם החודשים מסודרים על פני עמודות, ורוצים lookup של מדד לפי שם חודש. גם שם, `INDEX/MATCH` או `XLOOKUP` (עם המידע transposed) בדרך כלל מנצחים.

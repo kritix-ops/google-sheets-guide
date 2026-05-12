@@ -4,7 +4,7 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 כשהנתונים גדלים מעבר למה ש-Sheet יחיד יכול להחזיק (או למה ש-`IMPORTRANGE` יכול לתפור ביחד, מכוסה בשיעורים 1.27 ו-4.3), השלב הבא הוא BigQuery. Connected Sheets הוא הגשר: הוא מאפשר להצביע עם Google Sheets על טבלת BigQuery ולמשוך לתוך גיליון extract בר-רענון. קוראים מה-extract עם נוסחאות, charts ו-pivot tables רגילים. לא כותבים SQL אלא אם רוצים.
 
-זו הארכיטקטורה ש-workbooks הכבדים יותר של הצוות עברו אליה במהלך 2025 ו-2026. שני דברים שצריך לדעת מראש: זה דורש מהדורת Workspace שכוללת Connected Sheets (Business Plus ומעלה), וכל רענון מריץ query של BigQuery שמחויב מהפרויקט. לשניהם השלכות עלות שתרצו לתכנן סביבן.
+זו הארכיטקטורה ש-workbooks הכבדים יותר של הצוות עברו אליה במהלך 2025 ו-2026. שני דברים שצריך לדעת מראש: Connected Sheets ל-BigQuery דורש Enterprise Standard / Plus / Essentials / Essentials Plus, או Education Standard / Plus. כדאי לאמת את מהדורת ה-Workspace של הצוות מול ה-admin לפני שמתכננים workbook שלם סביב זה; הגדרות הזמינות זזות בין עדכוני Workspace. וכל רענון מריץ query של BigQuery שמחויב מהפרויקט. לשניהם השלכות עלות שתרצו לתכנן סביבן.
 
 ## מה ש"connected" אומר
 

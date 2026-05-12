@@ -43,15 +43,43 @@ H הקיים זז ל-I.
   <ComparePanel label="עובד: עזרים על tab Clean" tone="positive">
     <pre className="font-mono text-xs"><code>{`Form Responses 1: A:H (raw בלבד)
 Clean:
-  A: =FormResponses1!A2
-  B: =LOWER(TRIM(FormResponses1!B2))
-  C: =FormResponses1!C2
+  A: ='Form Responses 1'!A2
+  B: =LOWER(TRIM('Form Responses 1'!B2))
+  C: ='Form Responses 1'!C2
   ...
 
 הבעלים של ה-form מוסיף שאלה חדשה.
 העזרים על Clean ממשיכים לעבוד
 כי הם מפנים לפי שם העמודה.`}</code></pre>
     <p className="mt-2 text-sm">הניקיון חי על ה-tab משלו. ה-tab raw נשאר ללא מגע. שינויי schema של form נוגעים ב-tab raw; עזרים על Clean מתאימים את עצמם במפורש.</p>
+  </ComparePanel>
+</Compare>
+
+### מלכודת קלה: שם ה-tab מכיל רווחים, אז חובה לעטוף במרכאות בודדות
+
+ה-tab ש-Sheets יוצר נקרא `Form Responses 1` (שלוש מילים, שני רווחים). כל reference חוצה-tab לשם tab שמכיל רווחים, פיסוק, או שמתחיל בספרה חייב להיות עטוף במרכאות בודדות. תורידו את המרכאות ו-Sheets ינסה לפרק `FormResponses1` כשם שהוא לא מזהה ויחזיר `#ERROR!`, או גרוע מזה, ישתיק את עצמו ויפתור לטווח אחר.
+
+<Compare>
+  <ComparePanel label="שבור: שם tab עם רווחים בלי מרכאות" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=FormResponses1!A2
+=Form Responses 1!A2
+
+Sheets לא יכול לפרק אף אחת מהצורות.
+ראשונה: אין tab בשם "FormResponses1".
+שנייה: הרווחים שוברים את ה-reference
+מיד אחרי "Form".
+
+תוצאה: #ERROR! או #REF!`}</code></pre>
+    <p className="mt-2 text-sm">שם tab עם רווחים אינו מזהה חשוף תקין. Sheets צריך את המרכאות כדי לדעת איפה השם נגמר ואיפה ה-`!` מתחיל.</p>
+  </ComparePanel>
+  <ComparePanel label="עובד: שם tab עטוף במרכאות בודדות" tone="positive">
+    <pre className="font-mono text-xs"><code>{`='Form Responses 1'!A2
+=LOWER(TRIM('Form Responses 1'!B2))
+
+מרכאות בודדות עוטפות את כל שם ה-tab.
+ה-! מפריד את ה-tab מהתא.
+Sheets פותר נקי.`}</code></pre>
+    <p className="mt-2 text-sm">מרכאות בודדות (לא כפולות, לא backticks) עוטפות כל שם tab שאינו מילה אלפאנומרית חשופה. הכלל חל על כל reference חוצה-tab: `IMPORTRANGE`, `QUERY`, טווחי lookup של `VLOOKUP`, charts שמצביעים על named range, הכל.</p>
   </ComparePanel>
 </Compare>
 
@@ -155,6 +183,15 @@ Forms מאפשרים לעורכים לערוך תגובות (אם איפשרתם
     },
   ]}
 />
+
+## מעבר ליסודות: תכונות Form שמופיעות ב-Sheet שלכם
+
+ה-tab של Form Responses מטפל ביותר מתשובות free-text ו-multiple-choice. ארבע תכונות משנות את הצורה (או התוכן) של העמודות שתנקו, וכל הארבע מופיעות ב-forms האמיתיים של הצוות.
+
+- **שאלות File upload.** שאלה "Upload your invoice" שומרת כל upload כ-URL של Drive ב-Sheet, URL אחד לכל מגיש, בעמודת השאלה. קובץ ה-Drive חי בתיקייה ש-Forms יוצר אוטומטית ליד ה-form. מלכודת הניקיון: ה-URL הוא לינק Drive, לא file chip (שיעור 2.5), אז ה-tab של `Aggregator` חייב או לקבל אותו כמחרוזת hyperlink או להמיר אותו בזמן הקריאה. forms של vendor intake משתמשים בשאלות file-upload ל-W-9 וחוזים חתומים.
+- **לוגיקת sections והסתעפות.** Forms עם `Go to section based on answer` (למשל, "האם הייתם בצוות שהריץ את הקמפיין הזה? אם כן → section 2, אם לא → submit") יוצרים שורות דלילות ב-Sheet: משיב שדילג על section 2 יש לו ריקים על פני העמודות האלה. `COUNTA` על עמודה שדולגה סופר חסר; מתכננים נוסחאות במורד הזרם לצפות לריקים, ומעדיפים `COUNTIFS` על עמודה יציבה (כמו שדה האימייל או הצוות) שכל הסתעפות ממלאת.
+- **Quiz mode → Sheets.** אם ה-Form מוגדר כ-`Quiz`, כל שורת תגובה מקבלת עמודת `Score` נוספת מימין ל-Sheet, פלוס עמודת `Points` לכל שאלה שיש לה תשובה נכונה. עמודת ה-Score היא סך הנקודות שניתנו; ניקוד חלקי מופיע כשברים של הנקודות פר-שאלה. quizzes של אימון ל-buyers חדשים משתמשים בזה כדי לעקוב אחרי מי שעבר את הרענון של מדיניות הפלטפורמה.
+- **התראות תגובה.** ב-tab Responses של ה-Form, לתפריט שלוש הנקודות יש `Get email notifications for new responses`. מפעילים אותו והבעלים של ה-form מקבל אימייל-על-הגשה לכל תגובה. שימושי ל-forms בנפח נמוך (vendor intake, בקשות post-mortem) שבהם רוצים לדעת תוך דקות; רועש לכל form עם יותר מקומץ תגובות ביום. משלבים את זה עם trigger Apps Script בצד ה-Sheet (Track 3 שיעור 8) כשצריך התראות עשירות יותר מ-"תגובה חדשה הגיעה".
 
 ## עכשיו לעבודה אמיתית
 

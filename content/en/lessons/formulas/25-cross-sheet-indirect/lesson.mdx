@@ -97,8 +97,8 @@ Symptoms:
     <p className="mt-2 text-sm"><strong>One volatile INDIRECT per row.</strong> Each row's INDIRECT recalculates on every workbook edit, not just edits to its inputs. Every keystroke triggers 100 INDIRECT evaluations. The dashboard slows to a crawl, and the cause is invisible until you search for INDIRECT in the workbook.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=LET(rng, INDIRECT("'" & $A$1 & "'!E:E"), SUM(rng) + AVG(rng) + COUNTA(rng))`}</code></pre>
-    <p className="mt-2 text-sm"><strong>One INDIRECT per formula via LET.</strong> The volatile call resolves once; the LET binding feeds three downstream aggregates. Lift the INDIRECT into a single helper cell instead if many formulas across the dashboard need the same resolved range.</p>
+    <pre className="font-mono text-xs"><code>{`=LET(rng, INDIRECT("'" & $A$1 & "'!E:E"), SUM(rng) + AVERAGE(rng) + COUNTA(rng))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>One INDIRECT per formula via LET.</strong> The volatile call resolves once; the LET binding feeds three downstream aggregates. Don't confuse QUERY's aggregate keywords (<code>avg</code>, <code>sum</code>, <code>count</code>) with Sheet-level functions (<code>AVERAGE</code>, <code>SUM</code>, <code>COUNT</code>); they share concepts but live in different worlds. Lift the INDIRECT into a single helper cell instead if many formulas across the dashboard need the same resolved range.</p>
   </ComparePanel>
 </Compare>
 

@@ -261,12 +261,12 @@ Sheets ו-Excel זהים ב-90%. ה-10% של ההפתעות הוא בדיוק מ
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=XLOOKUP("yoav cohen", B2:B13, F2:F13)`}</code></pre>
-    <p className="mt-2 text-sm">XLOOKUP רגיש לרישיות (case) על טקסט. בעמודת ה-Buyer יש <code>Yoav Cohen</code>, וזה מחזיר <code>#N/A</code>.</p>
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav Cohen ", B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">רווח עוקב ב-search key. עמודת ה-Buyer מאחסנת <code>Yoav Cohen</code> (בלי רווח בסוף); המחרוזת <code>"Yoav Cohen "</code> לא מתאימה לכלום ו-XLOOKUP מחזיר <code>#N/A</code>. רישיות לא תופסת אתכם כאן (XLOOKUP מתעלם מ-case על טקסט לפי <a href="https://support.google.com/docs/answer/12405947">התיעוד של Google</a>), אבל רווחים בלתי-נראים תופסים, ועוד איך: הם מתגנבים מ-copy-paste, ממפתחות שנבנו עם <code>CONCATENATE</code>, ומתאי IMPORTRANGE שאספו רווח תועה במקור.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav Cohen", B2:B13, F2:F13)`}</code></pre>
-    <p className="mt-2 text-sm">טקסט מדויק, רישיות מדויקת. אם אין שליטה על הרישיות של מקור הנתונים, נרמלו עם <code>LOWER</code> משני הצדדים או עברו ל-<code>match_mode = 2</code> עם דפוס wildcard.</p>
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP(TRIM("Yoav Cohen "), B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm"><code>TRIM</code> מסיר רווחים בהתחלה ובסוף של ה-search key. כשאי אפשר לסמוך על המקור, עוטפים את שני הצדדים: <code>=XLOOKUP(TRIM(G2), ARRAYFORMULA(TRIM(B2:B13)), F2:F13)</code>. ביטוח זול שמחזיק מול מצב הכישלון השקט הנפוץ ביותר בנוסחאות חיפוש.</p>
   </ComparePanel>
 </Compare>
 
@@ -343,11 +343,11 @@ QUERY הוא לא רק סינון. אפשר לקבץ שורות ולצבור א�
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = Used Cars PR")`}</code></pre>
-    <p className="mt-2 text-sm">טקסט חשוף בתוך WHERE נקרא כשם עמודה. Sheets מחזיר שגיאה כי אין עמודה בשם <code>Used Cars PR</code>.</p>
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = Car Deals PR")`}</code></pre>
+    <p className="mt-2 text-sm">טקסט חשוף בתוך WHERE נקרא כשם עמודה. Sheets מחזיר שגיאה כי אין עמודה בשם <code>Car Deals PR</code>.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = 'Used Cars PR'")`}</code></pre>
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = 'Car Deals PR'")`}</code></pre>
     <p className="mt-2 text-sm">עוטפים מחרוזות טקסט במירכאות יחידות בתוך מחרוזת ה-query. מספרים לא צריכים מירכאות, תאריכים משתמשים ב-<code>date 'YYYY-MM-DD'</code>.</p>
   </ComparePanel>
 </Compare>

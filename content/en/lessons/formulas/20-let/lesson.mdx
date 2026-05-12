@@ -75,7 +75,7 @@ With `LET`:
   expectedFormula='=LET(roi,(F2-E2)/E2,IF(roi>0.5,"Scale",IF(roi>0,"Hold",IF(roi>-0.2,"Watch","Kill"))))'
   task={<>Bucket the first campaign into Scale / Hold / Watch / Kill based on ROI. Define <code>roi</code> with LET, then nest IFs against it.</>}
   hint={<>Bindings: <code>roi, (F2-E2)/E2</code>. Body is a nested IF using <code>roi</code>. Thresholds: 0.5 / 0 / -0.2.</>}
-  answer={<>The verdict for row 2 (Yoav, Used Cars PR): spend 342.18, revenue 487.30, ROI ≈ 0.424 → <code>Hold</code> (between 0 and 0.5). Without LET this same logic uses <code>(F2-E2)/E2</code> three times. With LET, it is named once and the rest reads as decision logic, not arithmetic.</>}
+  answer={<>The verdict for row 2 (Yoav, Car Deals PR): spend 342.18, revenue 487.30, ROI ≈ 0.424 → <code>Hold</code> (between 0 and 0.5). Without LET this same logic uses <code>(F2-E2)/E2</code> three times. With LET, it is named once and the rest reads as decision logic, not arithmetic.</>}
 />
 
 ## LET binds in order: pipelines

@@ -21,6 +21,7 @@ import { assignment as advancedSheetsService } from "@/content/en/lessons/apps-s
 import { assignment as cellLimit } from "@/content/en/lessons/scale/01-cell-limit/assignment";
 import { assignment as whyItsSlow } from "@/content/en/lessons/scale/02-why-its-slow/assignment";
 import { assignment as importrangePatterns } from "@/content/en/lessons/scale/03-importrange-patterns/assignment";
+import { assignment as splittingWorkbook } from "@/content/en/lessons/scale/03b-splitting-workbook/assignment";
 import { assignment as connectedSheetsBigquery } from "@/content/en/lessons/scale/04-connected-sheets-bigquery/assignment";
 import { assignment as timesfmForecasting } from "@/content/en/lessons/scale/05-timesfm-forecasting/assignment";
 import { assignment as diagnosingRefNa } from "@/content/en/lessons/scale/06-diagnosing-ref-na/assignment";
@@ -36,6 +37,8 @@ import { assignment as fillWithGemini } from "@/content/en/lessons/ai-in-sheets/
 import { assignment as buildAndEdit } from "@/content/en/lessons/ai-in-sheets/04-build-and-edit/assignment";
 import { assignment as aiAnalysis } from "@/content/en/lessons/ai-in-sheets/05-ai-analysis/assignment";
 import { assignment as whenNotToUseAi } from "@/content/en/lessons/ai-in-sheets/06-when-not-to-use/assignment";
+
+import { assignment as buyerDashboardCapstone } from "@/content/en/lessons/capstone/01-buyer-dashboard/assignment";
 
 import { assignment as advancedLookups } from "@/content/en/lessons/formulas/22-advanced-lookups/assignment";
 import { assignment as aggregation } from "@/content/en/lessons/formulas/06-aggregation/assignment";
@@ -92,7 +95,8 @@ export type Track =
   | "modeling"
   | "apps-script"
   | "scale"
-  | "ai-in-sheets";
+  | "ai-in-sheets"
+  | "capstone";
 
 export const TRACKS: Array<{ id: Track; label: string; tagline: string }> = [
   {
@@ -119,6 +123,11 @@ export const TRACKS: Array<{ id: Track; label: string; tagline: string }> = [
     id: "ai-in-sheets",
     label: "AI in Sheets",
     tagline: "Gemini, =AI(), Fill with Gemini, calibrated trust.",
+  },
+  {
+    id: "capstone",
+    label: "Capstone",
+    tagline: "Build a dashboard end-to-end across every track.",
   },
 ];
 
@@ -527,6 +536,12 @@ const LESSON_INFO: LessonInfo[] = [
     title: "IMPORTRANGE patterns and pitfalls",
   },
   {
+    assignmentId: "scale-03b-splitting-workbook",
+    track: "scale",
+    order: 3.5,
+    title: "Splitting a workbook before it hits the wall",
+  },
+  {
     assignmentId: "scale-04-connected-sheets-bigquery",
     track: "scale",
     order: 4,
@@ -610,6 +625,12 @@ const LESSON_INFO: LessonInfo[] = [
     order: 6,
     title: "When NOT to use AI in Sheets",
   },
+  {
+    assignmentId: "capstone-01-buyer-dashboard",
+    track: "capstone",
+    order: 1,
+    title: "The buyer dashboard capstone: building a workbook end-to-end",
+  },
 ];
 
 const ASSIGNMENTS: Record<string, AssignmentSpec> = {
@@ -679,6 +700,7 @@ const ASSIGNMENTS: Record<string, AssignmentSpec> = {
   [cellLimit.id]: cellLimit,
   [whyItsSlow.id]: whyItsSlow,
   [importrangePatterns.id]: importrangePatterns,
+  [splittingWorkbook.id]: splittingWorkbook,
   [connectedSheetsBigquery.id]: connectedSheetsBigquery,
   [timesfmForecasting.id]: timesfmForecasting,
   [diagnosingRefNa.id]: diagnosingRefNa,
@@ -693,6 +715,7 @@ const ASSIGNMENTS: Record<string, AssignmentSpec> = {
   [buildAndEdit.id]: buildAndEdit,
   [aiAnalysis.id]: aiAnalysis,
   [whenNotToUseAi.id]: whenNotToUseAi,
+  [buyerDashboardCapstone.id]: buyerDashboardCapstone,
 };
 
 type LessonModuleLoader = () => Promise<{ default: ComponentType }>;
@@ -830,6 +853,8 @@ const LESSON_MODULES_EN: Record<string, LessonModuleLoader> = {
     import("@/content/en/lessons/scale/02-why-its-slow/lesson.mdx"),
   "scale-03-importrange-patterns": () =>
     import("@/content/en/lessons/scale/03-importrange-patterns/lesson.mdx"),
+  "scale-03b-splitting-workbook": () =>
+    import("@/content/en/lessons/scale/03b-splitting-workbook/lesson.mdx"),
   "scale-04-connected-sheets-bigquery": () =>
     import("@/content/en/lessons/scale/04-connected-sheets-bigquery/lesson.mdx"),
   "scale-05-timesfm-forecasting": () =>
@@ -858,6 +883,8 @@ const LESSON_MODULES_EN: Record<string, LessonModuleLoader> = {
     import("@/content/en/lessons/ai-in-sheets/05-ai-analysis/lesson.mdx"),
   "ai-06-when-not-to-use": () =>
     import("@/content/en/lessons/ai-in-sheets/06-when-not-to-use/lesson.mdx"),
+  "capstone-01-buyer-dashboard": () =>
+    import("@/content/en/lessons/capstone/01-buyer-dashboard/lesson.mdx"),
 };
 
 // Hebrew lesson modules. Entries get added one at a time as each lesson is
@@ -996,6 +1023,8 @@ const LESSON_MODULES_HE: Record<string, LessonModuleLoader> = {
     import("@/content/he/lessons/scale/02-why-its-slow/lesson.mdx"),
   "scale-03-importrange-patterns": () =>
     import("@/content/he/lessons/scale/03-importrange-patterns/lesson.mdx"),
+  "scale-03b-splitting-workbook": () =>
+    import("@/content/he/lessons/scale/03b-splitting-workbook/lesson.mdx"),
   "scale-04-connected-sheets-bigquery": () =>
     import("@/content/he/lessons/scale/04-connected-sheets-bigquery/lesson.mdx"),
   "scale-05-timesfm-forecasting": () =>
@@ -1024,6 +1053,8 @@ const LESSON_MODULES_HE: Record<string, LessonModuleLoader> = {
     import("@/content/he/lessons/ai-in-sheets/05-ai-analysis/lesson.mdx"),
   "ai-06-when-not-to-use": () =>
     import("@/content/he/lessons/ai-in-sheets/06-when-not-to-use/lesson.mdx"),
+  "capstone-01-buyer-dashboard": () =>
+    import("@/content/he/lessons/capstone/01-buyer-dashboard/lesson.mdx"),
 };
 
 const LESSON_MODULES_BY_LOCALE: Record<Locale, Record<string, LessonModuleLoader>> = {
@@ -1178,6 +1209,8 @@ const LESSON_TITLES_HE: Record<string, string> = {
     "למה ה-spreadsheet שלך איטי",
   "scale-03-importrange-patterns":
     "IMPORTRANGE: דפוסים ומלכודות",
+  "scale-03b-splitting-workbook":
+    "פיצול workbook לפני שהוא פוגע בקיר",
   "scale-04-connected-sheets-bigquery":
     "Connected Sheets ו-BigQuery",
   "scale-05-timesfm-forecasting":
@@ -1206,6 +1239,8 @@ const LESSON_TITLES_HE: Record<string, string> = {
     "ניתוח בעזרת AI",
   "ai-06-when-not-to-use":
     "מתי לא להשתמש ב-AI ב-Sheets",
+  "capstone-01-buyer-dashboard":
+    "Capstone של dashboard לבאיירים: בנייה מקצה לקצה",
 };
 
 export function getLocalizedLessonTitle(

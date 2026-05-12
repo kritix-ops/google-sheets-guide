@@ -186,11 +186,11 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <Compare>
   <ComparePanel label="שבור" tone="negative">
     <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", VLOOKUP(C2:C, X:Y, 2, FALSE), 0))`}</code></pre>
-    <p className="mt-2 text-sm">VLOOKUP לא משדר בתוך ARRAYFORMULA. מקבלים את ה-lookup של התא הראשון משוכפל, לא תוצאה מודעת-לשורה. הבאג של "ערכים שגויים על פני כל העמודה".</p>
+    <p className="mt-2 text-sm">לא <code>VLOOKUP</code> ולא <code>XLOOKUP</code> משדרים באופן אמין search key וקטורי בתוך <code>ARRAYFORMULA</code> ב-Sheets: מקבלים את ה-lookup של התא הראשון משוכפל מטה לכל שורה, לא תוצאה מודעת-לשורה. הבאג של "ערכים שגויים על פני כל העמודה", ואחת הסיבות הכי נפוצות שעמודת XLOOKUPs מחזירה ערך אחד משוכפל שתים-עשרה פעמים.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", XLOOKUP(C2:C, X:X, Y:Y, 0), 0))`}</code></pre>
-    <p className="mt-2 text-sm">XLOOKUP משדר נקי. או זה או MAP עם LAMBDA שעוטף את ה-VLOOKUP (שיעור 19) ל-lookups לכל שורה כש-XLOOKUP אינו אפשרות.</p>
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", INDEX(Y:Y, MATCH(C2:C, X:X, 0)), 0))`}</code></pre>
+    <p className="mt-2 text-sm"><code>INDEX</code> + <code>MATCH</code> משדרים נקי תחת <code>ARRAYFORMULA</code>: <code>MATCH</code> מחזיר מיקום אחד לכל שורה של search key, ו-<code>INDEX</code> קורא את הערך התואם מעמודת ההחזרה לכל אחת. כשצריך lookups פר-שורה ש-<code>INDEX/MATCH</code> לא יכול לטפל בהם (רב-קריטריונים, החזרה מותנית, כל דבר מתוחכם יותר), תושיטו את היד ל-<code>MAP</code> עם <code>LAMBDA</code> שעוטף את ה-lookup, מכוסה בשיעור 1.18.</p>
   </ComparePanel>
 </Compare>
 

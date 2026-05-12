@@ -99,6 +99,45 @@ When a media buyer leaves the company, the team's policy is to transfer ownershi
 
 The transfer happens from the share dialog: change the leaving person's role to `Transfer ownership`, confirm, done. After transfer, the previous owner becomes a `writer` automatically and you can remove them whenever you want.
 
+## Personal Drive vs shared drives
+
+Everything above describes personal Drive: each file has one owner, ownership transfers from person to person, and access lives on the file. **Shared drives flip this model**. A shared drive is a Workspace-managed container; the drive itself holds the permissions, and every file inside it inherits the drive's access rules. There is no single owner on a file in a shared drive; the *drive* has managers, and any manager can administer any file inside.
+
+The differences that matter when you're picking where to put a workbook:
+
+<Compare>
+  <ComparePanel label="Personal Drive: file-level ownership" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Workbook lives in: My Drive (Yoav's)
+Owner: yoav.cohen@flexelent.com
+Permissions: per-file (share dialog)
+
+Yoav leaves the company.
+IT deactivates his account.
+Workbook is now orphaned.
+Transfer of ownership needed
+BEFORE deactivation.`}</code></pre>
+    <p className="mt-2 text-sm">File ownership tied to one person. Departures create a chore: every workbook the leaver owned needs ownership transferred before their account is deactivated, or the file gets orphaned.</p>
+  </ComparePanel>
+  <ComparePanel label="Shared drive: drive-level permissions" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Workbook lives in: Shared drive "Adtech Team"
+Drive managers: team leads + IT
+Permissions: inherited from the drive
+
+Yoav leaves the company.
+IT deactivates his account.
+Workbook is unaffected.
+The drive still has managers,
+the file still has its access.`}</code></pre>
+    <p className="mt-2 text-sm">Permissions live at the drive level. The file outlives any individual member. No ownership transfer ritual when someone leaves; the drive's existing managers keep administering.</p>
+  </ComparePanel>
+</Compare>
+
+When to default to a shared drive: **any workbook the team depends on operationally**. The campaign master log, the per-platform aggregators, the buyer dashboards. The team's central `Campaigns` workbook lives on a shared drive named `Adtech - Live Workbooks`, so when a media buyer rotates out, their workbooks don't get orphaned and their `IMPORTRANGE` dependencies don't snap. The drive's managers are two team leads and one IT account, so there's always at least one administrator on duty.
+
+When personal Drive is fine: scratch sheets, one-person prototypes, anything where you don't care if the file disappears with the owner. The rule of thumb: if more than one person will read this workbook for more than a week, it belongs on a shared drive.
+
+The "Editors can change permissions and share" setting still applies inside a shared drive, but the role names shift. Drive members are `Manager`, `Content manager`, `Contributor`, `Commenter`, or `Viewer`, with `Manager` being the only role that can administer the drive itself. Workspace admins enable shared-drive creation per organizational unit; if the option isn't in your Drive sidebar, ask IT.
+
 ## Link-sharing pitfalls
 
 "Anyone with the link can view" is the single most common accidental over-share in this team's history. The flow is: someone wants to quickly send a tab to a vendor, they click "Get link," the link defaults to "Restricted" but they switch it to "Anyone with the link" because that's the path of least resistance, the vendor opens it, the vendor's CC'd colleague opens it, the colleague forwards it to their manager, and now the workbook is being read by six people the original sharer doesn't know exist. Once the link is out, you cannot put it back. The only fix is to break the link by deleting and replacing the workbook, which breaks every `IMPORTRANGE` downstream (lesson 1.27 covers what re-authorizing all of those looks like).

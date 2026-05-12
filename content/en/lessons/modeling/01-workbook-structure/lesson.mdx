@@ -22,6 +22,8 @@ The team's actual workbook pattern looks like this in the wild:
 
 The boundary between "raw" and "derived" is a tab boundary, and tabs are renamed with a `Raw -` prefix so anyone who opens the workbook knows which surface is safe to touch. The `Raw -` tabs are filled by `IMPORTRANGE` (lesson 1.27) from each platform's export sheet; they are write-locked by convention so an accidental edit on the dashboard cannot poison the source.
 
+This pattern has a name worth knowing: the **single source of truth (SSOT)**. Every fact in the workbook traces back to exactly one cell, range, or sheet, and every other place that needs the fact reads from there. SSOT is foundational not just in spreadsheets but in data engineering generally: dbt's model layering, BigQuery's warehouse design, even Git's commit graph all enforce the same discipline. The tooling changes, the rule does not. Once you internalize SSOT here, the same instincts carry into every data system you touch later.
+
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
   caption="The first six rows of the team's 60-row raw log. A1:G61 is the bounded rectangle; the summary block lives in I:J on the same tab, separated by an empty H column."

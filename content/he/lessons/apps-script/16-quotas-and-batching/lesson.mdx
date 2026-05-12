@@ -157,7 +157,7 @@ toRename.forEach(f => f.setName(f.getName().replace(" pr", " PR")));
 
 | מכסה | Consumer (gmail.com) | Workspace |
 |---|---|---|
-| זמן ריצה פר ריצה | 6 דקות | 30 דקות |
+| זמן ריצה פר ריצה | 6 דקות | 6 דקות |
 | קריאות URL Fetch ליום | 20,000 | 100,000 |
 | גודל URL Fetch payload | 50 MB | 50 MB |
 | נמעני מייל ליום | 100 | 1,500 |
@@ -166,7 +166,7 @@ toRename.forEach(f => f.setName(f.getName().replace(" pr", " PR")));
 
 השניים שעוקצים קודם:
 
-- **timeout של 6 דקות (חשבונות consumer).** ה-pattern פר-תא פוגע בזה על כל דבר מעל ~5,000 שורות. ה-pattern ב-batch לא.
+- **timeout של 6 דקות לכל ריצה.** התקרה ב-consumer וב-Workspace זהה, 6 דקות לכל ריצה (שכבת 30 הדקות הישנה של Workspace פוטרה). ה-pattern פר-תא פוגע בזה על כל דבר מעל ~5,000 שורות; ה-pattern ב-batch לא. כיוון שהתקרה אותו דבר בכל חשבון, מתכון ה-chunk-and-re-trigger הוא ה-pattern האוניברסלי, לא workaround לחשבון consumer בלבד.
 - **20,000 קריאות UrlFetchApp/יום ב-consumer.** trigger שמושך נתונים פר-קמפיין עם קריאה אחת לשורה, רץ פר שעה, עובר את זה ביום רגיל. משתמשים ב-`fetchAll` ועושים batch של ה-requests upstream.
 
 עדין: אין מכסה מתועדת על `SpreadsheetApp.getRange().getValue()` לדקה, אבל בפועל שכבת ה-round-trip מגבילה סביב 600-1,000 קריאות/דקה. מעבר לזה, קריאות מתחילות לחסום, וטיימר ההרצה ממשיך לתקתק נגד תקציב 6 הדקות.
@@ -176,7 +176,7 @@ toRename.forEach(f => f.setName(f.getName().replace(" pr", " PR")));
 כמה primitives שמתחברים ל-pattern ה-batch:
 
 - **`SpreadsheetApp.flush()`** מאלץ כל כתיבה בתור להתחייב מיד. שימושי כשקריאה במורד צריכה לראות את הכתיבות (`setValues(...); flush(); getValues(...);`). Apps Script בדרך כלל עושה batch לכתיבות באופן אופורטוניסטי; `flush` עושה את התפר מפורש.
-- **`Utilities.sleep(ms)`** להכנסת הפסקות מכוונות בין bursts. UrlFetchApp מגביל ב-~600/דקה; `sleep(100)` בין batches של 10 שומר אתכם מתחת למגבלת הקצב על pulls ארוכים.
+- **`Utilities.sleep(ms)`** להכנסת הפסקות מכוונות בין bursts. ל-`UrlFetchApp` יש מגבלת קריאות יומית מתועדת (20,000/יום ב-consumer, 100,000/יום ב-Workspace) אבל אין throttle פר-דקה מתועד; דיווחי קהילה מצביעים על throttle רך סביב כמה מאות לדקה בעומס מתמשך. `sleep(100)` בין batches של 10 שומר אתכם מתחת ל-~300/דקה, היעד הבטוח על pulls ארוכים.
 - **`LockService.getScriptLock()`** כששני triggers יכולים לרוץ באותו זמן ולהתחרות על אותו range. ה-lock עושה להם serialize כך שהכתיבות ב-batch לא יתערבבו.
 - **`fetchAll([{url, method, headers}, ...])`** לקריאות UrlFetch מקביליות. כל המערך יורה במקביל; מערך ה-response שומר על סדר.
 
@@ -232,6 +232,6 @@ toRename.forEach(f => f.setName(f.getName().replace(" pr", " PR")));
 - **`SpreadsheetApp.flush()` הוא לפעמים נושא משא.** trigger שכותב ואז מיד קורא את אותו range יכול לראות את הערכים הישנים כי הכתיבה עדיין בתור. `flush()` ביניהם גורם לקריאה לראות את הכתיבה. בדרך כלל מיותר; כשזה חשוב, הסימפטום הוא bug לסירוגין מסוג "זה לא יכול להיות אפשרי".
 - **ערבוב קריאות batch ופר-תא מבטל את החיסכון.** `getValues` אחד ואז לולאת `for` עם `setValue` לכל שורה היא אותה עלות של 60 round-trips כמו המקורי. או batch מלא בשני הצדדים או לא בכלל.
 - **Triggers שעושים timeout באמצע כתיבה משאירים נתונים חלקיים.** כשכתיבה של 5,000 שורות עושה timeout בנקודת 6 הדקות, השורות שהתחייבו לפני ה-timeout נשארות; השאר לא. ריצה הבאה רואה sheet לא עקבי. עוטפים batches גדולים ב-try/catch וכותבים סימן "last completed row" כך שריצות חוזרות יכולות לחזור.
-- **`UrlFetchApp.fetch` בלולאה פוגע ב-throttle של 600/דקה.** משתמשים ב-`fetchAll` ל-requests מקביליים, או `Utilities.sleep(100)` בין bursts כדי להישאר מתחת למגבלת הקצב על pulls ארוכים. שגיאת ה-throttle שקטה; הקריאה פשוט חוסמת יותר ויותר זמן עד שטיימר ההרצה הורג את הריצה.
+- **`UrlFetchApp.fetch` בלולאה פוגע ב-throttle רך לא מתועד.** דף ה-quotas של Google מפרט מגבלות קריאות יומיות (20,000/יום ב-consumer, 100,000/יום ב-Workspace) אבל לא מספר פר-דקה; בפועל קצב מתמשך מעל כמה מאות לדקה מתחיל לחסום. משתמשים ב-`fetchAll` ל-requests מקביליים, או `Utilities.sleep(100)` בין bursts כדי להישאר מתחת ל-throttle הרך על pulls ארוכים. ה-throttle שקט; הקריאה פשוט חוסמת יותר ויותר זמן עד שטיימר ההרצה הורג את הריצה.
 - **לחץ זיכרון על קריאות `getValues` ענקיות.** קריאה של 100,000 שורות × 20 עמודות זה 2 מיליון תאים, ~50 MB של זיכרון JS. Apps Script לא מתעד מגבלה קשה אבל בפועל scripts יכולים לעשות OOM. עבור datasets גדולים מאוד, מחלקים את הקריאה לבלוקים של 10,000 שורות ומעבדים כל אחד בזה.
 - **`setValues` על ranges מוגנים read-only נכשל בשקט** (שיעור 2.7 מכסה הגנת טווח לעומת הגנת גיליון). אם חלק מה-range היעד מוגן, `setValues` או זורק או מדלג על התאים המוגנים, תלוי בהגדרת "warning only" של ההגנה. תמיד מאשרים את ההגנה ב-tab היעד לפני כתיבה גדולה.

@@ -54,7 +54,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   expectedFormula={"=QUERY(A1:F13,\"SELECT B, C, F WHERE F > 400 ORDER BY F DESC\",1)"}
   task={<>סננו לקמפיינים עם revenue גדול מ-400 ומיינו לפי revenue יורד. הציגו Buyer, Vertical, Revenue.</>}
   hint={<>WHERE בא לפני ORDER BY במחרוזת. השוואות מספריות לא צריכות גרשיים סביב המספר.</>}
-  answer={<>ה-query המשולב: <code>SELECT B, C, F WHERE F {">"} 400 ORDER BY F DESC</code>. WHERE מסנן שורות; ORDER BY ממיין את השורות שנשארו; SELECT משליך אילו עמודות להציג. סדר הסעיפים במחרוזת תואם ל-SQL: SELECT → WHERE → ORDER BY → LIMIT. (אי אפשר לשנות את הסדר. זה מחמיר.) התוצאה כאן היא 7 שורות, ממוינות עם Solar Panels של David Mizrahi בראש (1124.6).</>}
+  answer={<>ה-query המשולב: <code>SELECT B, C, F WHERE F {">"} 400 ORDER BY F DESC</code>. WHERE מסנן שורות; ORDER BY ממיין את השורות שנשארו; SELECT משליך אילו עמודות להציג. סדר הסעיפים במחרוזת תואם ל-SQL: SELECT → WHERE → ORDER BY → LIMIT. (אי אפשר לשנות את הסדר. זה מחמיר.) התוצאה כאן היא 7 שורות, ממוינות עם Cruises PR של Maya Bar בראש (1124.6).</>}
 />
 
 ## ORDER BY ו-LIMIT
@@ -98,12 +98,12 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT b, c WHERE b = 'Yoav Cohen'", 1)`}</code></pre>
-    <p className="mt-2 text-sm">אותיות עמודה קטנות. מזהי העמודות של QUERY רגישים ל-case וחייבים להיות באותיות גדולות. כל ה-query מחזיר שגיאת parsing.</p>
+    <pre className="font-mono text-xs"><code>{`=QUERY(A2:F13, "SELECT B, C WHERE B = 'Yoav Cohen'", 0)`}</code></pre>
+    <p className="mt-2 text-sm">טווח בלי כותרת (<code>A2:F13</code>) מועבר עם <code>headers=0</code>, אבל ה-query עדיין מפנה לעמודות כ-<code>B</code>, <code>C</code>. כש-QUERY מתייחסת לטווח כחסר-כותרת, העמודות נקראות <code>Col1</code>, <code>Col2</code>, ... לא <code>A</code>, <code>B</code>. Sheets מחזיר <code>#VALUE!</code> עם ההודעה "Unable to parse query string." אותה מלכודת תופסת כל דבר שעובר דרך <code>IMPORTRANGE</code>, שמפשיט את הקשר הכותרת.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C WHERE B = 'Yoav Cohen'", 1)`}</code></pre>
-    <p className="mt-2 text-sm">אותיות עמודה גדולות תמיד. עשו את זה הרגל גם כשרצים מהר: אותיות קטנות גרמו ליותר תקלות dashboard ברגע האחרון מכל טעות אחרת ב-QUERY.</p>
+    <pre className="font-mono text-xs"><code>{`=QUERY(A2:F13, "SELECT Col2, Col3 WHERE Col2 = 'Yoav Cohen'", 0)`}</code></pre>
+    <p className="mt-2 text-sm">קלט חסר-כותרת מקבל מזהי <code>Col1..ColN</code> לפי <a href="https://developers.google.com/chart/interactive/docs/querylanguage">שפת ה-Google Visualization API query language</a>. או שכוללים את שורת הכותרת (<code>A1:F13</code> עם <code>1</code>) ומשתמשים ב-<code>B</code>/<code>C</code>, או שומרים על <code>A2:F13</code> עם <code>0</code> ועוברים ל-<code>Col2</code>/<code>Col3</code>. אותיות קטנות <code>b</code>/<code>c</code> עובדות בלי בעיה בשתי הצורות; מזהי עמודות לא רגישים ל-case.</p>
   </ComparePanel>
 </Compare>
 
@@ -169,7 +169,7 @@ QUERY מופיעה בכל מקום ב-dashboards של הצוות. התבניות
 - **השוואות תאריכים צריכות `date 'YYYY-MM-DD'`.** `WHERE A >= '2026-05-01'` מתייחס למחרוזת כטקסט ומשווה לקסיקוגרפית. לפעמים עובד, לעיתים קרובות לא. תמיד: `WHERE A >= date '2026-05-01'`.
 - **`SELECT *` יחד עם `GROUP BY` נותן שגיאה.** GROUP BY (שיעור 13) דורש מ-SELECT לפרט עמודות. אי אפשר ש-`SELECT *` ואגרגציה יהיו ב-query אחד.
 - **QUERY מול נתוני IMPORTRANGE צריכה את ארגומנט הכותרת מפורש.** השתמשו ב-`QUERY(IMPORTRANGE(...), "SELECT ...", 1)` ובדקו שוב את אותיות העמודות. עמודות IMPORTRANGE הן מיקומיות מהטווח שייבאתם, לא מגיליון המקור.
-- **הפניות עמודה ב-query רגישות לאותיות גדולות/קטנות ומשתמשות באותיות גדולות.** `WHERE b = 'Yoav'` נותן שגיאה; `WHERE B = 'Yoav'` עובד.
+- **טווחים בלי כותרת מחליפים את מזהי העמודות מ-`A/B/C` ל-`Col1/Col2/Col3`.** העבירו `A1:F13` עם `headers=1` ותוכלו לכתוב `WHERE B = 'Yoav'`. העבירו `A2:F13` עם `headers=0` (או עטפו `IMPORTRANGE` שמגיע חסר-כותרת) ואותו query חייב לומר `WHERE Col2 = 'Yoav'`. ערבוב של השניים הוא שגיאת ה-parsing הנפוצה ביותר ב-QUERY. (מזהי העמודות עצמם לא רגישים ל-case; `b` קטנה עובדת בכל מקום ש-`B` גדולה עובדת.)
 
 ## עכשיו לעבודה אמיתית
 

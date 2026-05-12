@@ -676,6 +676,55 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/3094215?hl=en",
   },
 
+  REPLACE: {
+    name: "REPLACE",
+    category: "text",
+    summary: {
+      en: "Replaces a fixed slice of a string by position with new text. The position-based cousin of SUBSTITUTE: use SUBSTITUTE when you match on content, REPLACE when you know exactly where the slice sits (e.g. masking the middle 6 digits of a card number).",
+      he: "מחליף פיסה קבועה של מחרוזת לפי מיקום בטקסט חדש. בן-הדוד מבוסס-המיקום של SUBSTITUTE: השתמשו ב-SUBSTITUTE כשמתאימים לפי תוכן, וב-REPLACE כשיודעים בדיוק איפה הפיסה יושבת (למשל מיסוך 6 הספרות האמצעיות של מספר כרטיס).",
+    },
+    syntax: "REPLACE(text, position, length, new_text)",
+    params: [
+      {
+        name: "text",
+        type: "string",
+        description: {
+          en: "The original string. A cell reference or a literal in quotes.",
+          he: "המחרוזת המקורית. reference לתא או ערך מילולי במירכאות.",
+        },
+      },
+      {
+        name: "position",
+        type: "number",
+        description: {
+          en: "Where the replacement starts. 1-indexed (the first character is position 1, not 0). A position past the end of the string appends new_text.",
+          he: "היכן ההחלפה מתחילה. 1-מבוסס (התו הראשון הוא מיקום 1, לא 0). מיקום מעבר לסוף המחרוזת מוסיף את new_text בסוף.",
+        },
+      },
+      {
+        name: "length",
+        type: "number",
+        description: {
+          en: "How many characters to remove starting at position. 0 means insert without deleting (a pure insertion).",
+          he: "כמה תווים להסיר החל מ-position. 0 משמעו הכנסה בלי מחיקה (הכנסה טהורה).",
+        },
+      },
+      {
+        name: "new_text",
+        type: "string",
+        description: {
+          en: "The replacement string. Length can differ from the removed slice; the result re-flows accordingly.",
+          he: "מחרוזת ההחלפה. האורך יכול להיות שונה מהפיסה שהוסרה; התוצאה זורמת בהתאם.",
+        },
+      },
+    ],
+    returns: {
+      en: "A new string with the slice replaced. The original cell is not modified.",
+      he: "מחרוזת חדשה עם הפיסה המוחלפת. התא המקורי לא משתנה.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3098247?hl=en",
+  },
+
   DATE: {
     name: "DATE",
     category: "date",
@@ -1754,6 +1803,282 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/6055612?hl=en",
   },
 
+  YEAR: {
+    name: "YEAR",
+    category: "date",
+    summary: {
+      en: "Returns the year component of a date as a 4-digit integer. The standard tool for grouping campaigns into yearly cohorts or building a YearMonth helper column on top of EDATE.",
+      he: "מחזיר את רכיב השנה של תאריך כמספר שלם בן 4 ספרות. הכלי הסטנדרטי לקיבוץ קמפיינים ל-cohorts שנתיים או לבניית עמודת עזר של YearMonth מעל EDATE.",
+    },
+    syntax: "YEAR(date)",
+    params: [
+      {
+        name: "date",
+        type: "date",
+        description: {
+          en: "A real date value: a cell reference, a date-returning function (DATE, DATEVALUE, TODAY), or a date serial number. A raw text like \"2026-05-01\" needs DATEVALUE first.",
+          he: "ערך תאריך אמיתי: reference לתא, פונקציה שמחזירה תאריך (DATE, DATEVALUE, TODAY), או מספר סידורי של תאריך. טקסט גולמי כמו \"2026-05-01\" דורש DATEVALUE קודם.",
+        },
+      },
+    ],
+    returns: {
+      en: "The 4-digit year as a number. Format the cell as Number; default General format renders it as 2026 fine.",
+      he: "השנה בת 4 הספרות כמספר. עצבו את התא כ-Number; ברירת המחדל General מציגה 2026 כראוי.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093061?hl=en",
+  },
+
+  MONTH: {
+    name: "MONTH",
+    category: "date",
+    summary: {
+      en: "Returns the month component of a date as a number 1-12. Pair with YEAR to build the canonical YYYY-MM bucket every monthly report groups by.",
+      he: "מחזיר את רכיב החודש של תאריך כמספר 1-12. שלבו עם YEAR כדי לבנות את ה-bucket הקנוני YYYY-MM שכל דוח חודשי מקובץ לפיו.",
+    },
+    syntax: "MONTH(date)",
+    params: [
+      {
+        name: "date",
+        type: "date",
+        description: {
+          en: "A real date value. Text strings need DATEVALUE first; otherwise MONTH treats them as 0 and returns 12 (the month of 1899-12-30).",
+          he: "ערך תאריך אמיתי. מחרוזות טקסט דורשות DATEVALUE קודם; אחרת MONTH מתייחס אליהן כ-0 ומחזיר 12 (חודש 30 בדצמבר 1899).",
+        },
+      },
+    ],
+    returns: {
+      en: "A number 1-12. To get a month name, use TEXT(date, \"mmm\") or TEXT(date, \"mmmm\").",
+      he: "מספר 1-12. כדי לקבל שם חודש, השתמשו ב-TEXT(date, \"mmm\") או TEXT(date, \"mmmm\").",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093052?hl=en",
+  },
+
+  DAY: {
+    name: "DAY",
+    category: "date",
+    summary: {
+      en: "Returns the day-of-month component of a date as a number 1-31. The simplest of the YEAR/MONTH/DAY trio; rarely used on its own, often used in combination to test month-end edge cases.",
+      he: "מחזיר את רכיב היום-בחודש של תאריך כמספר 1-31. הפשוט מבין השלישייה YEAR/MONTH/DAY; נדיר בשימוש לבד, נפוץ בשילוב לבדיקת מקרי קצה של סוף-חודש.",
+    },
+    syntax: "DAY(date)",
+    params: [
+      {
+        name: "date",
+        type: "date",
+        description: {
+          en: "A real date value. Like YEAR/MONTH, text dates need DATEVALUE first.",
+          he: "ערך תאריך אמיתי. כמו YEAR/MONTH, תאריכי טקסט דורשים DATEVALUE קודם.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number 1-31: the day-of-month of the input.",
+      he: "מספר 1-31: היום-בחודש של הקלט.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093040?hl=en",
+  },
+
+  WEEKDAY: {
+    name: "WEEKDAY",
+    category: "date",
+    summary: {
+      en: "Returns the day of the week of a date as a number. Type selects the numbering scheme; the right tool for weekend filters and Mon-Fri bucketing without a holiday calendar.",
+      he: "מחזיר את היום-בשבוע של תאריך כמספר. ה-type בוחר את שיטת המספור; הכלי הנכון לסינון סופי שבוע ו-bucketing של שני-שישי בלי לוח חגים.",
+    },
+    syntax: "WEEKDAY(date, [type])",
+    params: [
+      {
+        name: "date",
+        type: "date",
+        description: {
+          en: "A real date value. Text dates need DATEVALUE first.",
+          he: "ערך תאריך אמיתי. תאריכי טקסט דורשים DATEVALUE קודם.",
+        },
+      },
+      {
+        name: "type",
+        type: "number",
+        optional: true,
+        default: "1",
+        accepts: [
+          {
+            value: "1",
+            description: {
+              en: "Sunday = 1, Saturday = 7 (default).",
+              he: "יום ראשון = 1, שבת = 7 (ברירת מחדל).",
+            },
+          },
+          {
+            value: "2",
+            description: {
+              en: "Monday = 1, Sunday = 7. The ISO-friendly choice for Mon-Fri workweek logic.",
+              he: "שני = 1, ראשון = 7. הבחירה ה-ISO-ידידותית ללוגיקת שבוע עבודה שני-שישי.",
+            },
+          },
+          {
+            value: "3",
+            description: {
+              en: "Monday = 0, Sunday = 6. Useful when modular arithmetic on the result is needed.",
+              he: "שני = 0, ראשון = 6. שימושי כשצריך חשבון מודולרי על התוצאה.",
+            },
+          },
+        ],
+        description: {
+          en: "Which numbering scheme to use. The default 1 matches US calendars; pass 2 for Mon-first ISO-style logic.",
+          he: "באיזו שיטת מספור להשתמש. ברירת המחדל 1 תואמת ללוחות אמריקאיים; העבירו 2 ללוגיקה בסגנון ISO שמתחילה ביום שני.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number representing the day of the week, scheme determined by type.",
+      he: "מספר שמייצג את היום-בשבוע, השיטה נקבעת על ידי ה-type.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3092985?hl=en",
+  },
+
+  WEEKNUM: {
+    name: "WEEKNUM",
+    category: "date",
+    summary: {
+      en: "Returns the week number of a date within its year. Type selects which day the week starts on; the standard tool for weekly pacing reports and weekly-cohort joins.",
+      he: "מחזיר את מספר השבוע של תאריך בתוך השנה שלו. ה-type בוחר באיזה יום השבוע מתחיל; הכלי הסטנדרטי לדוחות pacing שבועיים ול-joins של cohorts שבועיים.",
+    },
+    syntax: "WEEKNUM(date, [type])",
+    params: [
+      {
+        name: "date",
+        type: "date",
+        description: {
+          en: "A real date value.",
+          he: "ערך תאריך אמיתי.",
+        },
+      },
+      {
+        name: "type",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "Which day the week starts on. 1 (default) = Sunday; 2 = Monday; 11-17 pick a specific start day; 21 = ISO 8601 (Monday start, week 1 contains the first Thursday). Use 21 when joining against any ISO-week dataset.",
+          he: "באיזה יום השבוע מתחיל. 1 (ברירת מחדל) = ראשון; 2 = שני; 11-17 בוחרים יום התחלה ספציפי; 21 = ISO 8601 (התחלה ביום שני, שבוע 1 מכיל את יום חמישי הראשון). השתמשו ב-21 כשמצרפים עם dataset שעובד עם שבוע ISO.",
+        },
+      },
+    ],
+    returns: {
+      en: "A whole number from 1 to 53 (rarely 54 with type 21). Use TEXT(date, \"yyyy-\\\"W\\\"ww\") only for ISO-week display; format manually for other types.",
+      he: "מספר שלם מ-1 עד 53 (לעתים נדירות 54 ב-type 21). השתמשו ב-TEXT(date, \"yyyy-\\\"W\\\"ww\") רק להצגת שבוע ISO; פרמטו ידנית ל-types אחרים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3294949?hl=en",
+  },
+
+  EDATE: {
+    name: "EDATE",
+    category: "date",
+    summary: {
+      en: "Returns a date that is N whole months before or after a starting date. The right primitive for renewal-date math, anniversary cohorts, and lease/subscription period ends (paired with EOMONTH for billing).",
+      he: "מחזיר תאריך שהוא N חודשים שלמים לפני או אחרי תאריך התחלה. ה-primitive הנכון לחשבון תאריכי חידוש, cohorts של יום שנה, וסופי תקופת lease/subscription (בשילוב עם EOMONTH לחיוב).",
+    },
+    syntax: "EDATE(start_date, months)",
+    params: [
+      {
+        name: "start_date",
+        type: "date",
+        description: {
+          en: "The anchor date. Must be a real date value; text dates need DATEVALUE first.",
+          he: "תאריך העוגן. חייב להיות ערך תאריך אמיתי; תאריכי טקסט דורשים DATEVALUE קודם.",
+        },
+      },
+      {
+        name: "months",
+        type: "number",
+        description: {
+          en: "Whole months to shift. Positive moves forward, negative moves backward, 0 returns the same day. Decimals are truncated. End-of-month inputs roll cleanly (Jan 31 + 1 month = Feb 28/29).",
+          he: "חודשים שלמים להזיז. חיובי קדימה, שלילי אחורה, 0 מחזיר את אותו היום. עשרוניים נחתכים. קלטים של סוף-חודש מתגלגלים נקי (31 בינואר + חודש = 28/29 בפברואר).",
+        },
+      },
+    ],
+    returns: {
+      en: "A date value the same day-of-month as start_date, N months away. Format the cell as Date or you'll see the serial number.",
+      he: "ערך תאריך באותו יום-בחודש כמו start_date, N חודשים משם. עצבו את התא כתאריך או שתראו את המספר הסידורי.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3092974?hl=en",
+  },
+
+  HOUR: {
+    name: "HOUR",
+    category: "date",
+    summary: {
+      en: "Returns the hour component of a time or datetime as a number 0-23. The simplest piece of the time decomposition trio (HOUR/MINUTE/SECOND); useful for hour-of-day pacing reports.",
+      he: "מחזיר את רכיב השעה של זמן או datetime כמספר 0-23. החלק הפשוט מבין שלישיית פירוק הזמן (HOUR/MINUTE/SECOND); שימושי לדוחות pacing לפי שעה-ביום.",
+    },
+    syntax: "HOUR(time)",
+    params: [
+      {
+        name: "time",
+        type: "time | datetime",
+        description: {
+          en: "A real time value: a cell reference, NOW(), or a numeric fraction (0.5 = noon). Text times like \"14:30\" need TIMEVALUE first.",
+          he: "ערך זמן אמיתי: reference לתא, NOW(), או שבר מספרי (0.5 = צהריים). זמני טקסט כמו \"14:30\" דורשים TIMEVALUE קודם.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number 0-23 in 24-hour form. AM/PM is a display format, not a stored value.",
+      he: "מספר 0-23 בצורה של שעון 24 שעות. AM/PM הוא פורמט תצוגה, לא ערך מאוחסן.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093045?hl=en",
+  },
+
+  MINUTE: {
+    name: "MINUTE",
+    category: "date",
+    summary: {
+      en: "Returns the minute component of a time as a number 0-59. Used for minute-level bucketing of timestamped event logs.",
+      he: "מחזיר את רכיב הדקה של זמן כמספר 0-59. בשימוש ל-bucketing ברמת דקה של logs של אירועים עם timestamps.",
+    },
+    syntax: "MINUTE(time)",
+    params: [
+      {
+        name: "time",
+        type: "time | datetime",
+        description: {
+          en: "A real time value. Text times need TIMEVALUE first.",
+          he: "ערך זמן אמיתי. זמני טקסט דורשים TIMEVALUE קודם.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number 0-59: the minute of the input.",
+      he: "מספר 0-59: הדקה של הקלט.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093048?hl=en",
+  },
+
+  SECOND: {
+    name: "SECOND",
+    category: "date",
+    summary: {
+      en: "Returns the second component of a time as a number 0-59. The least-used piece of HOUR/MINUTE/SECOND; reach for it when timestamps need sub-minute resolution.",
+      he: "מחזיר את רכיב השנייה של זמן כמספר 0-59. החלק הכי פחות בשימוש מבין HOUR/MINUTE/SECOND; משתמשים בו כש-timestamps דורשים רזולוציה מתחת לדקה.",
+    },
+    syntax: "SECOND(time)",
+    params: [
+      {
+        name: "time",
+        type: "time | datetime",
+        description: {
+          en: "A real time value. Text times need TIMEVALUE first.",
+          he: "ערך זמן אמיתי. זמני טקסט דורשים TIMEVALUE קודם.",
+        },
+      },
+    ],
+    returns: {
+      en: "A number 0-59: the second of the input. Fractional seconds are truncated.",
+      he: "מספר 0-59: השנייה של הקלט. שברי שנייה נחתכים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093054?hl=en",
+  },
+
   IFERROR: {
     name: "IFERROR",
     category: "logical",
@@ -2294,6 +2619,115 @@ const REGISTRY = {
       he: "עמודה זורמת יחידה שמכילה כל ערך מטווחי הקלט. תאים ריקים נשמרים; עוטפים ב-FILTER כדי להוריד אותם. מודע למערכים: לא צריך ARRAYFORMULA.",
     },
     docsUrl: "https://support.google.com/docs/answer/10307761?hl=en",
+  },
+
+  TRANSPOSE: {
+    name: "TRANSPOSE",
+    category: "array",
+    summary: {
+      en: "Swaps the rows and columns of a range or array. The standard fix when a vendor exports a table the wrong way around (metrics across the top, dates down the side, but you want the inverse).",
+      he: "מחליף שורות ועמודות של טווח או מערך. התיקון הסטנדרטי כש-vendor מייצא טבלה בכיוון ההפוך (מדדים בראש, תאריכים בצד, אבל רוצים את ההיפך).",
+    },
+    syntax: "TRANSPOSE(array_or_range)",
+    params: [
+      {
+        name: "array_or_range",
+        type: "range | array",
+        description: {
+          en: "The range or array to flip. An N×M range becomes M×N. Array-aware: no ARRAYFORMULA wrapper needed.",
+          he: "הטווח או המערך להפוך. טווח N×M הופך ל-M×N. מודע למערכים: לא צריך עטיפה ב-ARRAYFORMULA.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled array with rows and columns swapped. Empty cells in the input render as 0 in the output (a known quirk); wrap with IF(range=\"\", \"\", range) before transposing to preserve blanks.",
+      he: "מערך זורם עם החלפת שורות ועמודות. תאים ריקים בקלט מתרנדרים כ-0 בפלט (תכונה ידועה); עוטפים ב-IF(range=\"\", \"\", range) לפני TRANSPOSE כדי לשמר ריקים.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094262?hl=en",
+  },
+
+  SORTN: {
+    name: "SORTN",
+    category: "filter",
+    summary: {
+      en: "Returns the first N rows of a range after sorting. The top-N companion to SORT: SORTN(data, 10, ...) gives you the 10 highest-ROI campaigns without filling the sheet with an entire sorted copy.",
+      he: "מחזיר את N השורות הראשונות של טווח אחרי מיון. בן-הזוג של top-N ל-SORT: SORTN(data, 10, ...) נותן לכם את 10 הקמפיינים עם ה-ROI הגבוה ביותר בלי למלא את הגיליון בעותק ממוין שלם.",
+    },
+    syntax: "SORTN(range, [n], [display_ties_mode], [sort_column1, is_ascending1], ...)",
+    params: [
+      {
+        name: "range",
+        type: "range",
+        description: {
+          en: "The data to sort and slice.",
+          he: "המידע למיין ולחתוך.",
+        },
+      },
+      {
+        name: "n",
+        type: "number",
+        optional: true,
+        default: "1",
+        description: {
+          en: "How many rows to return. Must be > 0. SORTN(data, 5, ...) returns the top 5.",
+          he: "כמה שורות להחזיר. חייב להיות > 0. SORTN(data, 5, ...) מחזיר את ה-5 העליונים.",
+        },
+      },
+      {
+        name: "display_ties_mode",
+        type: "number",
+        optional: true,
+        default: "0",
+        accepts: [
+          {
+            value: "0",
+            description: {
+              en: "Show at most n rows, even if ties at the boundary get cut (default).",
+              he: "מציג לכל היותר n שורות, גם אם שווי-ערכים בגבול נחתכים (ברירת מחדל).",
+            },
+          },
+          {
+            value: "1",
+            description: {
+              en: "Show n rows, plus any additional rows tied with the nth row.",
+              he: "מציג n שורות, ועוד כל שורה ששווה לערך של שורה ה-n.",
+            },
+          },
+          {
+            value: "2",
+            description: {
+              en: "Show the top n after removing duplicate rows.",
+              he: "מציג את ה-n העליונים אחרי הסרת שורות כפולות.",
+            },
+          },
+          {
+            value: "3",
+            description: {
+              en: "Show the top n unique rows along with every duplicate of them.",
+              he: "מציג את n השורות הייחודיות העליונות יחד עם כל הכפילויות שלהן.",
+            },
+          },
+        ],
+        description: {
+          en: "How to handle ties at the cutoff and duplicate rows.",
+          he: "איך לטפל בשווי-ערכים בנקודת החיתוך ובשורות כפולות.",
+        },
+      },
+      {
+        name: "sort_column1, is_ascending1, ...",
+        type: "number, boolean, ...",
+        optional: true,
+        description: {
+          en: "The column index (1-based) to sort by and whether to sort ascending. Add more pairs for tiebreaker columns. Omit to take the data as already ordered.",
+          he: "אינדקס העמודה (1-מבוסס) שלפיה למיין והאם למיין בסדר עולה. הוסיפו זוגות נוספים לעמודות שוברות-שוויון. השמיטו כדי לקחת את המידע כפי שכבר ממוין.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled array of up to n rows (more under tie modes 1 and 3) from the sorted range.",
+      he: "מערך זורם של עד n שורות (יותר תחת מצבי שוויון 1 ו-3) מהטווח הממוין.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/7354624?hl=en",
   },
 
   REGEXMATCH: {
@@ -2877,6 +3311,274 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/3094054?hl=en",
   },
 
+  MODE: {
+    name: "MODE",
+    category: "aggregation",
+    summary: {
+      en: "Returns the most-frequently-occurring value in a dataset. Useful for finding the typical day-of-week a buyer launches campaigns, or the most-common vertical in a buyer's mix.",
+      he: "מחזיר את הערך השכיח ביותר בדאטה-סט. שימושי למציאת היום-בשבוע הטיפוסי שבו buyer מעלה קמפיינים, או את ה-vertical הנפוץ ביותר ב-mix של buyer.",
+    },
+    syntax: "MODE(value1, [value2, ...])",
+    params: [
+      {
+        name: "value1",
+        type: "number | range",
+        description: {
+          en: "The first value or range to consider. Text values inside a range are skipped.",
+          he: "הערך או הטווח הראשון לשקול. ערכי טקסט בתוך טווח מתעלמים מהם.",
+        },
+      },
+      {
+        name: "value2, ...",
+        type: "number | range",
+        optional: true,
+        description: {
+          en: "Additional values or ranges.",
+          he: "ערכים או טווחים נוספים.",
+        },
+      },
+    ],
+    returns: {
+      en: "The most-frequent value. Returns #N/A if no value repeats; if multiple values are tied for most-frequent, returns the first encountered.",
+      he: "הערך השכיח ביותר. מחזיר #N/A אם אף ערך לא חוזר; אם מספר ערכים שווים בשכיחות, מחזיר את הראשון שנתקלו בו.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094029?hl=en",
+  },
+
+  QUARTILE: {
+    name: "QUARTILE",
+    category: "aggregation",
+    summary: {
+      en: "Returns the value at the requested quartile (0=min, 1=Q1, 2=median, 3=Q3, 4=max) of a dataset. The standard tool for bucketing campaigns into performance quartiles and building box-plot summaries.",
+      he: "מחזיר את הערך ברבעון המבוקש (0=מינימום, 1=Q1, 2=חציון, 3=Q3, 4=מקסימום) של דאטה-סט. הכלי הסטנדרטי ל-bucketing של קמפיינים לרבעוני ביצועים ולבניית סיכומי box-plot.",
+    },
+    syntax: "QUARTILE(data, quartile_number)",
+    params: [
+      {
+        name: "data",
+        type: "range",
+        description: {
+          en: "The dataset to analyze.",
+          he: "הדאטה-סט לניתוח.",
+        },
+      },
+      {
+        name: "quartile_number",
+        type: "number",
+        accepts: [
+          { value: "0", description: { en: "Minimum (0% mark). Equivalent to MIN.", he: "מינימום (0%). שקול ל-MIN." } },
+          { value: "1", description: { en: "First quartile (25% mark).", he: "רבעון ראשון (25%)." } },
+          { value: "2", description: { en: "Median (50% mark). Equivalent to MEDIAN.", he: "חציון (50%). שקול ל-MEDIAN." } },
+          { value: "3", description: { en: "Third quartile (75% mark).", he: "רבעון שלישי (75%)." } },
+          { value: "4", description: { en: "Maximum (100% mark). Equivalent to MAX.", he: "מקסימום (100%). שקול ל-MAX." } },
+        ],
+        description: {
+          en: "Which quartile to return.",
+          he: "איזה רבעון להחזיר.",
+        },
+      },
+    ],
+    returns: {
+      en: "The interpolated value at the requested quartile. PERCENTILE gives finer-grained control if you need percentiles other than 0/25/50/75/100.",
+      he: "הערך עם אינטרפולציה ברבעון המבוקש. PERCENTILE נותן שליטה עדינה יותר אם צריך אחוזונים שאינם 0/25/50/75/100.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094041?hl=en",
+  },
+
+  SMALL: {
+    name: "SMALL",
+    category: "aggregation",
+    summary: {
+      en: "Returns the Nth-smallest value in a dataset. SMALL(range, 1) is the min; SMALL(range, 3) is the third-lowest. The mirror of LARGE; the right tool for bottom-N reports (worst-performing campaigns) without sorting the data.",
+      he: "מחזיר את הערך ה-N הקטן ביותר בדאטה-סט. SMALL(range, 1) הוא המינימום; SMALL(range, 3) הוא השלישי הנמוך ביותר. המראה של LARGE; הכלי הנכון לדוחות bottom-N (הקמפיינים הכי גרועים) בלי למיין את המידע.",
+    },
+    syntax: "SMALL(data, n)",
+    params: [
+      {
+        name: "data",
+        type: "range",
+        description: {
+          en: "The dataset.",
+          he: "הדאטה-סט.",
+        },
+      },
+      {
+        name: "n",
+        type: "number",
+        description: {
+          en: "Which rank to return (1 = smallest, 2 = second-smallest, etc.). #NUM! if n is outside [1, count].",
+          he: "איזה דירוג להחזיר (1 = הקטן ביותר, 2 = השני בקטנו וכו'). #NUM! אם n מחוץ ל-[1, count].",
+        },
+      },
+    ],
+    returns: {
+      en: "The Nth-smallest value. Text inside the range is ignored, not treated as 0.",
+      he: "הערך ה-N הקטן ביותר. טקסט בתוך הטווח מתעלמים ממנו, לא מתייחסים אליו כ-0.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094050?hl=en",
+  },
+
+  FORECAST: {
+    name: "FORECAST",
+    category: "aggregation",
+    summary: {
+      en: "Predicts a y-value at a given x using linear regression on a parallel x/y dataset. Quick way to project next week's spend from the last six weeks' trend; for multiple new x-values at once, reach for TREND.",
+      he: "חוזה y-value ב-x נתון באמצעות רגרסיה ליניארית על דאטה-סט מקביל של x/y. דרך מהירה להעריך את הוצאה של השבוע הבא מהמגמה של ששת השבועות האחרונים; ל-x-values חדשים מרובים במכה אחת, פנו ל-TREND.",
+    },
+    syntax: "FORECAST(x, data_y, data_x)",
+    params: [
+      {
+        name: "x",
+        type: "number",
+        description: {
+          en: "The x-value at which to forecast.",
+          he: "ה-x-value שעבורו לחזות.",
+        },
+      },
+      {
+        name: "data_y",
+        type: "range",
+        description: {
+          en: "The known dependent values (the 'effect').",
+          he: "הערכים התלויים הידועים ('האפקט').",
+        },
+      },
+      {
+        name: "data_x",
+        type: "range",
+        description: {
+          en: "The known independent values (the 'cause'), same length as data_y. Text in either range is ignored.",
+          he: "הערכים הבלתי-תלויים הידועים ('הסיבה'), באותו אורך כמו data_y. טקסט בכל אחד מהטווחים מתעלמים ממנו.",
+        },
+      },
+    ],
+    returns: {
+      en: "The predicted y as a single number. Extrapolating far past the known range degrades quickly; a forecast is only as good as the linearity of the data.",
+      he: "ה-y הצפוי כמספר יחיד. אקסטרפולציה הרחק מעבר לטווח הידוע מתדרדרת מהר; חיזוי טוב רק כמה שהמידע ליניארי.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094000?hl=en",
+  },
+
+  TREND: {
+    name: "TREND",
+    category: "aggregation",
+    summary: {
+      en: "Returns the array of predicted y-values for a list of new x-values, using linear regression on the known data. The array-aware version of FORECAST: project a whole 12-week forecast in one spilled formula.",
+      he: "מחזיר את מערך ה-y-values הצפויים לרשימה של x-values חדשים, באמצעות רגרסיה ליניארית על המידע הידוע. הגרסה מודעת-המערכים של FORECAST: מקרינים תחזית שלמה ל-12 שבועות בנוסחה זורמת אחת.",
+    },
+    syntax: "TREND(known_data_y, [known_data_x], [new_data_x], [b])",
+    params: [
+      {
+        name: "known_data_y",
+        type: "range",
+        description: {
+          en: "The known dependent values to fit.",
+          he: "הערכים התלויים הידועים להתאים אליהם.",
+        },
+      },
+      {
+        name: "known_data_x",
+        type: "range",
+        optional: true,
+        default: "{1, 2, 3, ...}",
+        description: {
+          en: "The known independent values. If omitted, Sheets uses 1, 2, 3, ... matching the length of known_data_y.",
+          he: "הערכים הבלתי-תלויים הידועים. אם מושמטים, Sheets משתמש ב-1, 2, 3, ... באורך של known_data_y.",
+        },
+      },
+      {
+        name: "new_data_x",
+        type: "range",
+        optional: true,
+        description: {
+          en: "The x-values to predict y for. Defaults to known_data_x (returns the fitted values for the input).",
+          he: "ערכי ה-x שעבורם לחזות y. ברירת המחדל היא known_data_x (מחזיר את הערכים המותאמים לקלט).",
+        },
+      },
+      {
+        name: "b",
+        type: "boolean",
+        optional: true,
+        default: "TRUE",
+        description: {
+          en: "Whether to fit the intercept. TRUE = the usual y = m*x + b. FALSE = force the line through the origin (y = m*x). Almost always leave as TRUE.",
+          he: "האם להתאים את ה-intercept. TRUE = ה-y = m*x + b הרגיל. FALSE = כפיית הקו דרך הראשית (y = m*x). כמעט תמיד משאירים TRUE.",
+        },
+      },
+    ],
+    returns: {
+      en: "A spilled array of predicted y-values, one per new_data_x. Length and shape match new_data_x.",
+      he: "מערך זורם של ערכי y צפויים, אחד לכל new_data_x. האורך והצורה תואמים ל-new_data_x.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094263?hl=en",
+  },
+
+  SLOPE: {
+    name: "SLOPE",
+    category: "aggregation",
+    summary: {
+      en: "Returns the slope of the linear regression line through a parallel x/y dataset: how many y-units change per one x-unit. Paired with INTERCEPT it builds the y = SLOPE*x + INTERCEPT line manually.",
+      he: "מחזיר את השיפוע של קו הרגרסיה הליניארית דרך דאטה-סט מקביל של x/y: כמה יחידות y משתנות לכל יחידת x. בשילוב עם INTERCEPT בונה את הקו y = SLOPE*x + INTERCEPT ידנית.",
+    },
+    syntax: "SLOPE(data_y, data_x)",
+    params: [
+      {
+        name: "data_y",
+        type: "range",
+        description: {
+          en: "The dependent values.",
+          he: "הערכים התלויים.",
+        },
+      },
+      {
+        name: "data_x",
+        type: "range",
+        description: {
+          en: "The independent values, same length as data_y.",
+          he: "הערכים הבלתי-תלויים, באותו אורך כמו data_y.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single number: the slope. Sign matches the direction of the relationship.",
+      he: "מספר יחיד: השיפוע. הסימן תואם לכיוון הקשר.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094048?hl=en",
+  },
+
+  INTERCEPT: {
+    name: "INTERCEPT",
+    category: "aggregation",
+    summary: {
+      en: "Returns the y-intercept of the linear regression line through a parallel x/y dataset: the predicted y when x = 0. Pair with SLOPE to assemble the regression line yourself.",
+      he: "מחזיר את ה-y-intercept של קו הרגרסיה הליניארית דרך דאטה-סט מקביל של x/y: ה-y הצפוי כש-x = 0. שלבו עם SLOPE כדי להרכיב את קו הרגרסיה בעצמכם.",
+    },
+    syntax: "INTERCEPT(data_y, data_x)",
+    params: [
+      {
+        name: "data_y",
+        type: "range",
+        description: {
+          en: "The dependent values.",
+          he: "הערכים התלויים.",
+        },
+      },
+      {
+        name: "data_x",
+        type: "range",
+        description: {
+          en: "The independent values, same length as data_y.",
+          he: "הערכים הבלתי-תלויים, באותו אורך כמו data_y.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single number: the y-axis intercept. Combined with SLOPE: y_predicted = SLOPE(...)*x + INTERCEPT(...).",
+      he: "מספר יחיד: ה-intercept של ציר ה-y. בשילוב עם SLOPE: y_predicted = SLOPE(...)*x + INTERCEPT(...).",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093632?hl=en",
+  },
+
   NPV: {
     name: "NPV",
     category: "math",
@@ -2952,6 +3654,155 @@ const REGISTRY = {
       he: "ה-IRR כעשרוני. השוו לקצב הסף שלכם; מעל מקובל, מתחת לא.",
     },
     docsUrl: "https://support.google.com/docs/answer/3093231?hl=en",
+  },
+
+  PMT: {
+    name: "PMT",
+    category: "math",
+    summary: {
+      en: "Returns the constant periodic payment for a loan or annuity at a fixed interest rate. The classic 'monthly mortgage payment' calculator, and the right tool for any equal-installment cashflow plan.",
+      he: "מחזיר את התשלום התקופתי הקבוע להלוואה או annuity בריבית קבועה. המחשבון הקלאסי של 'תשלום משכנתא חודשי', והכלי הנכון לכל תוכנית cashflow של תשלומים שווים.",
+    },
+    syntax: "PMT(rate, number_of_periods, present_value, [future_value], [end_or_beginning])",
+    params: [
+      {
+        name: "rate",
+        type: "number",
+        description: {
+          en: "The per-period interest rate. Critical: must match the period unit of number_of_periods. For a 5% annual loan paid monthly, pass 0.05/12, not 0.05.",
+          he: "ריבית לתקופה. קריטי: חייב להתאים ליחידת התקופה של number_of_periods. להלוואה שנתית 5% שמשולמת חודשית, מעבירים 0.05/12, לא 0.05.",
+        },
+      },
+      {
+        name: "number_of_periods",
+        type: "number",
+        description: {
+          en: "Total number of payments. For a 30-year loan with monthly payments, 30*12 = 360.",
+          he: "מספר התשלומים הכולל. להלוואה ל-30 שנה עם תשלומים חודשיים, 30*12 = 360.",
+        },
+      },
+      {
+        name: "present_value",
+        type: "number",
+        description: {
+          en: "The principal: how much you borrow today (positive) or invest today (often negative). Sign convention matters: pass the loan amount as a positive number to get a negative payment (cash leaving you).",
+          he: "הקרן: כמה לווים היום (חיובי) או משקיעים היום (לרוב שלילי). קונבנציית הסימן חשובה: מעבירים את סכום ההלוואה כחיובי כדי לקבל תשלום שלילי (כסף עוזב אתכם).",
+        },
+      },
+      {
+        name: "future_value",
+        type: "number",
+        optional: true,
+        default: "0",
+        description: {
+          en: "The balance remaining after the last payment. 0 = a fully-amortizing loan (the default). Use a non-zero future_value for balloon loans or savings goals.",
+          he: "היתרה אחרי התשלום האחרון. 0 = הלוואה שמתבטלת לחלוטין (ברירת מחדל). השתמשו ב-future_value שונה מ-0 ל-balloon loans או מטרות חיסכון.",
+        },
+      },
+      {
+        name: "end_or_beginning",
+        type: "number",
+        optional: true,
+        default: "0",
+        accepts: [
+          { value: "0", description: { en: "Payment at the end of each period (default; the standard for loans).", he: "תשלום בסוף כל תקופה (ברירת מחדל; סטנדרט להלוואות)." } },
+          { value: "1", description: { en: "Payment at the beginning of each period (the 'annuity-due' form).", he: "תשלום בתחילת כל תקופה (צורת 'annuity-due')." } },
+        ],
+        description: {
+          en: "When payments are due in each period.",
+          he: "מתי התשלומים חלים בכל תקופה.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single number: the per-period payment. Negative when present_value is positive (cash leaving the borrower) and vice versa.",
+      he: "מספר יחיד: התשלום לתקופה. שלילי כש-present_value חיובי (כסף עוזב את הלווה) ולהפך.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093185?hl=en",
+  },
+
+  XNPV: {
+    name: "XNPV",
+    category: "math",
+    summary: {
+      en: "Computes the net present value of cash flows that fall on irregular dates. The right tool when investment payments and returns don't sit on a clean monthly or annual schedule.",
+      he: "מחשב את ה-net present value של תזרימים שנופלים בתאריכים לא סדירים. הכלי הנכון כשתשלומי השקעה ותשואות לא יושבים על לוח זמנים נקי חודשי או שנתי.",
+    },
+    syntax: "XNPV(discount, cashflows, dates)",
+    params: [
+      {
+        name: "discount",
+        type: "number",
+        description: {
+          en: "The annual discount rate as a decimal (0.10 = 10%/year). Unlike NPV's per-period rate, XNPV always treats this as annual and uses the actual dates to compute fractional-year offsets.",
+          he: "קצב ההיוון השנתי כעשרוני (0.10 = 10% לשנה). בניגוד ל-NPV שמשתמש בקצב לתקופה, XNPV תמיד מתייחס לזה כשנתי ומשתמש בתאריכים בפועל לחישוב offsets של שברי שנה.",
+        },
+      },
+      {
+        name: "cashflows",
+        type: "range",
+        description: {
+          en: "The cash flows. Must include at least one negative (outflow) and one positive (inflow). Period 0 is handled correctly here, unlike with NPV: the first cash flow corresponds to the first date.",
+          he: "התזרימים. חייב לכלול לפחות אחד שלילי (outflow) ואחד חיובי (inflow). תקופה 0 מטופלת נכון כאן, בניגוד ל-NPV: התזרים הראשון תואם לתאריך הראשון.",
+        },
+      },
+      {
+        name: "dates",
+        type: "range",
+        description: {
+          en: "The dates corresponding to each cashflow, same length. The first date is the present (no discounting); later dates are discounted by their actual day-count distance.",
+          he: "התאריכים התואמים לכל cashflow, באותו אורך. התאריך הראשון הוא ההווה (בלי היוון); תאריכים מאוחרים יותר מהוונים לפי מרחק היום-ספירה בפועל.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single number: the present value of all cash flows, discounted to the first date. Compare across investments with different schedules on equal footing.",
+      he: "מספר יחיד: הערך הנוכחי של כל התזרימים, מהוון לתאריך הראשון. השוו בין השקעות עם לוחות שונים על בסיס שווה.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093268?hl=en",
+  },
+
+  XIRR: {
+    name: "XIRR",
+    category: "math",
+    summary: {
+      en: "Returns the annualized internal rate of return on cash flows with irregular dates. The right IRR when investment dates don't fall on equal intervals; for monthly-equal flows, IRR is the cleaner choice.",
+      he: "מחזיר את ה-IRR השנתי של תזרימים בתאריכים לא סדירים. ה-IRR הנכון כשתאריכי השקעה לא נופלים במרווחים שווים; לתזרימים חודשיים שווים, IRR הוא הבחירה הנקייה יותר.",
+    },
+    syntax: "XIRR(cashflows, dates, [rate_guess])",
+    params: [
+      {
+        name: "cashflows",
+        type: "range",
+        description: {
+          en: "The cash flows. Must include at least one negative and one positive value; otherwise XIRR returns #NUM!.",
+          he: "התזרימים. חייב לכלול לפחות ערך שלילי אחד וחיובי אחד; אחרת XIRR מחזיר #NUM!.",
+        },
+      },
+      {
+        name: "dates",
+        type: "range",
+        description: {
+          en: "The dates of each cashflow, same length as cashflows. The first date is the anchor; later dates are measured against it in actual days.",
+          he: "התאריכים של כל cashflow, באותו אורך כמו cashflows. התאריך הראשון הוא העוגן; תאריכים מאוחרים יותר נמדדים מולו בימים אמיתיים.",
+        },
+      },
+      {
+        name: "rate_guess",
+        type: "number",
+        optional: true,
+        default: "0.1",
+        description: {
+          en: "Initial guess for the rate. Tweak when XIRR fails to converge on cashflows with many sign changes.",
+          he: "ניחוש התחלתי לקצב. כווננו כש-XIRR לא מתכנס על תזרימים עם שינויי סימן רבים.",
+        },
+      },
+    ],
+    returns: {
+      en: "The annualized IRR as a decimal. Compare to your hurdle rate; above is acceptable, below is not.",
+      he: "ה-IRR השנתי כעשרוני. השוו לקצב הסף שלכם; מעל מקובל, מתחת לא.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093266?hl=en",
   },
 
   INDIRECT: {
@@ -3193,6 +4044,39 @@ const REGISTRY = {
     docsUrl: "https://support.google.com/docs/answer/3093313?hl=en",
   },
 
+  TEXT: {
+    name: "TEXT",
+    category: "text",
+    summary: {
+      en: "Formats a number, date, or time into a string using a format pattern. The right tool when you need a value displayed a specific way inside a larger string (TEXT(A1, \"$#,##0\") & \" spent this week\"), not just rendered in a cell. For that, set the cell's number format.",
+      he: "מפרמט מספר, תאריך, או זמן למחרוזת באמצעות תבנית פורמט. הכלי הנכון כשצריך להציג ערך בצורה ספציפית בתוך מחרוזת גדולה יותר (TEXT(A1, \"$#,##0\") & \" הוצא השבוע\"), לא רק לרנדר בתא. לזה, הגדירו את פורמט המספר של התא.",
+    },
+    syntax: "TEXT(number, format)",
+    params: [
+      {
+        name: "number",
+        type: "number | date | time",
+        description: {
+          en: "The value to format. Can be a literal, a cell reference, or any expression that returns a number/date/time.",
+          he: "הערך לפרמט. יכול להיות ערך מילולי, reference לתא, או כל ביטוי שמחזיר מספר/תאריך/זמן.",
+        },
+      },
+      {
+        name: "format",
+        type: "string",
+        description: {
+          en: "The pattern string, in quotes. Numbers: 0 = required digit, # = optional digit, , = thousands separator, .00 = two decimal places, % = render as percent. Dates: yyyy/yy = year, mmmm/mmm/mm = month, dddd/ddd/dd = day, hh:mm:ss = time. Combine sections with semicolons for positive/negative/zero/text patterns.",
+          he: "מחרוזת התבנית, במירכאות. מספרים: 0 = ספרה דרושה, # = ספרה אופציונלית, , = מפריד אלפים, .00 = שתי ספרות אחרי הנקודה, % = רנדור כאחוז. תאריכים: yyyy/yy = שנה, mmmm/mmm/mm = חודש, dddd/ddd/dd = יום, hh:mm:ss = זמן. שלבו סעיפים ב-; לתבניות חיובי/שלילי/אפס/טקסט.",
+        },
+      },
+    ],
+    returns: {
+      en: "A formatted string. Critical gotcha: the output is text. SUM, AVERAGE, and chart series ignore it; if you need both a formatted display and a numeric cell, format the cell, don't wrap with TEXT. The inverse operation is VALUE.",
+      he: "מחרוזת מפורמטת. מלכודת קריטית: הפלט הוא טקסט. SUM, AVERAGE, ו-chart series מתעלמים ממנו; אם צריך גם תצוגה מפורמטת וגם תא מספרי, פרמטו את התא, אל תעטפו ב-TEXT. הפעולה ההפוכה היא VALUE.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3094139?hl=en",
+  },
+
   VALUE: {
     name: "VALUE",
     category: "text",
@@ -3276,6 +4160,114 @@ const REGISTRY = {
       he: "מספר יחיד: סכום המכפלות איבר-איבר. דפוסים נפוצים: ממוצע משוקלל (SUMPRODUCT(weights, values) / SUM(weights)), סכום מותנה (SUMPRODUCT((A2:A14=\"DE\") * F2:F14)), וכפיית טקסט-למספר (SUMPRODUCT(IFERROR(VALUE(E2:E14), 0))).",
     },
     docsUrl: "https://support.google.com/docs/answer/3094294?hl=en",
+  },
+
+  GOOGLEFINANCE: {
+    name: "GOOGLEFINANCE",
+    category: "info",
+    summary: {
+      en: "Pulls live or historical quotes from Google Finance for stocks, mutual funds, and currency pairs. Quote refreshes are real-time-ish (delayed up to 20 minutes); historical results spill as a 2D array with headers. The right tool for FX conversion columns when revenue arrives in one currency and you bill in another.",
+      he: "מושך quotes חיים או היסטוריים מ-Google Finance למניות, קרנות נאמנות, וזוגות מטבע. רענוני quote בזמן-אמת-ish (השהיה של עד 20 דקות); תוצאות היסטוריות זורמות כמערך דו-ממדי עם headers. הכלי הנכון לעמודות המרת מטבע כשההכנסה מגיעה במטבע אחד ואתם מחייבים באחר.",
+    },
+    syntax: "GOOGLEFINANCE(ticker, [attribute], [start_date], [end_date|num_days], [interval])",
+    params: [
+      {
+        name: "ticker",
+        type: "string",
+        description: {
+          en: "The security symbol, in quotes. Exchange-prefixed for unambiguity: \"NASDAQ:GOOG\", \"NYSE:F\". Currency pairs use \"CURRENCY:USDEUR\" form.",
+          he: "סמל הנייר, במירכאות. עם prefix של בורסה למניעת דו-משמעות: \"NASDAQ:GOOG\", \"NYSE:F\". זוגות מטבע משתמשים בצורת \"CURRENCY:USDEUR\".",
+        },
+      },
+      {
+        name: "attribute",
+        type: "string",
+        optional: true,
+        default: '"price"',
+        description: {
+          en: "Which data point to return. Real-time: price, priceopen, high, low, volume, marketcap, change, changepct, closeyest, currency. Historical: open, close, high, low, volume, all. Mutual funds: returnytd, netassets, yieldpct, expenseratio.",
+          he: "איזה data point להחזיר. בזמן אמת: price, priceopen, high, low, volume, marketcap, change, changepct, closeyest, currency. היסטורי: open, close, high, low, volume, all. קרנות: returnytd, netassets, yieldpct, expenseratio.",
+        },
+      },
+      {
+        name: "start_date",
+        type: "date",
+        optional: true,
+        description: {
+          en: "Start date for historical pulls. Presence switches the function from a single-cell live quote to a spilled historical table.",
+          he: "תאריך התחלה למשיכת מידע היסטורי. הנוכחות מחליפה את הפונקציה מ-quote חי בתא יחיד לטבלה היסטורית זורמת.",
+        },
+      },
+      {
+        name: "end_date|num_days",
+        type: "date | number",
+        optional: true,
+        description: {
+          en: "Either an end date or a count of days from start_date. Omit to pull only the start_date row.",
+          he: "תאריך סיום או מספר ימים מ-start_date. השמיטו כדי למשוך רק את שורת start_date.",
+        },
+      },
+      {
+        name: "interval",
+        type: "string | number",
+        optional: true,
+        accepts: [
+          { value: '"DAILY"', description: { en: "Daily bars (also accepts 1).", he: "ברים יומיים (מקבל גם 1)." } },
+          { value: '"WEEKLY"', description: { en: "Weekly bars (also accepts 7).", he: "ברים שבועיים (מקבל גם 7)." } },
+        ],
+        description: {
+          en: "Frequency of historical bars.",
+          he: "תדירות הברים ההיסטוריים.",
+        },
+      },
+    ],
+    returns: {
+      en: "A single live value for real-time attributes, or a spilled 2D table (Date plus the requested columns) for historical pulls. Cannot be used inside ARRAYFORMULA. Volatile-ish: refreshes on its own cadence, which makes deterministic snapshots tricky; copy-paste-values when you need a stable record.",
+      he: "ערך חי יחיד ל-attributes בזמן אמת, או טבלה דו-ממדית זורמת (Date ועמודות מבוקשות) לתוצאות היסטוריות. לא ניתן לשימוש בתוך ARRAYFORMULA. חצי-תנודתי: מתרענן בקצב משלו, מה שהופך snapshots דטרמיניסטיים למסובכים; copy-paste-values כשצריך רשומה יציבה.",
+    },
+    docsUrl: "https://support.google.com/docs/answer/3093281?hl=en",
+  },
+
+  SHEET: {
+    name: "SHEET",
+    category: "info",
+    summary: {
+      en: "Returns the sheet's index position (1-based, left-to-right in the tab strip) for a given reference, or for the sheet containing the formula when called without an argument. Recalculates automatically when tabs are added, removed, or reordered; useful for self-aware navigation cells in a TOC sheet.",
+      he: "מחזיר את מיקום האינדקס של הגיליון (1-מבוסס, משמאל לימין ברצועת ה-tabs) ל-reference נתון, או לגיליון שמכיל את הנוסחה אם נקראת בלי ארגומנט. מתחשב מחדש אוטומטית כשגיליונות נוספים, נמחקים, או משנים סדר; שימושי לתאי ניווט מודעי-עצמם בגיליון TOC.",
+    },
+    syntax: "SHEET([reference])",
+    params: [
+      {
+        name: "reference",
+        type: "reference | string",
+        optional: true,
+        description: {
+          en: "A cell reference (Campaigns!A1) or a sheet name as a string (\"Campaigns\"). Omit to return the index of the sheet that holds the formula. Returns #N/A if the named sheet doesn't exist.",
+          he: "reference לתא (Campaigns!A1) או שם גיליון כמחרוזת (\"Campaigns\"). השמיטו כדי להחזיר את האינדקס של הגיליון שמחזיק את הנוסחה. מחזיר #N/A אם הגיליון המבוקש לא קיים.",
+        },
+      },
+    ],
+    returns: {
+      en: "A whole number: the 1-based sheet index. Released Feb 2026.",
+      he: "מספר שלם: אינדקס הגיליון 1-מבוסס. שוחרר בפברואר 2026.",
+    },
+    docsUrl: "https://workspaceupdates.googleblog.com/2026/02/two-new-functions-in-google-sheets.html",
+  },
+
+  SHEETS: {
+    name: "SHEETS",
+    category: "info",
+    summary: {
+      en: "Returns the total number of sheets (tabs) in the workbook. Takes no arguments. Recalculates automatically as tabs are added or removed; pair with SHEET() to build a 'this is sheet N of M' header in a dashboard.",
+      he: "מחזיר את המספר הכולל של גיליונות (tabs) ב-workbook. לא מקבל ארגומנטים. מתחשב מחדש אוטומטית כש-tabs נוספים או מוסרים; שלבו עם SHEET() כדי לבנות header של 'זה גיליון N מתוך M' ב-dashboard.",
+    },
+    syntax: "SHEETS()",
+    params: [],
+    returns: {
+      en: "A whole number: the count of all sheets. Passing any argument returns an error. Released Feb 2026.",
+      he: "מספר שלם: ספירת כל הגיליונות. העברת ארגומנט כלשהו מחזירה שגיאה. שוחרר בפברואר 2026.",
+    },
+    docsUrl: "https://workspaceupdates.googleblog.com/2026/02/two-new-functions-in-google-sheets.html",
   },
 
   AI: {

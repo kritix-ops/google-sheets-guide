@@ -95,6 +95,30 @@ MailApp.sendEmail({
 
 תיק האפשרויות חשוב. הצורות עם ארגומנט יחיד (`MailApp.sendEmail(to, subject, body)`) עובדות אבל נועלות אתכם מ-features כמו `htmlBody`, `cc`, `bcc`, `attachments`, `replyTo`, ו-`name` (שם התצוגה של From, לא הנמען: ראו את המלכודות למטה). ברירת מחדל לצורת ה-object ביום הראשון ולא תצטרכו לכתוב מחדש את הקריאה כשהצוות מבקש פורמט HTML.
 
+### מתי GmailApp באמת שווה את ה-scope הרחב יותר
+
+ברגע שאתם צריכים *לקרוא* מייל (לא רק לשלוח), `MailApp` יוצא מהמשחק. ה-job הלילי של הצוות "שומרים את ה-attachments של חשבוניות Tonic ל-Drive" הוא המקרה הקנוני: מחפשים ב-inbox את ה-thread היומי של החשבונית, עוברים על ההודעות, מושכים כל PDF attachment, שומרים אותו לתיקיית Drive כך שגיליון הפיננסים יוכל להרים אותו.
+
+```js
+function archiveTonicInvoices() {
+  const threads = GmailApp.search('from:billing@tonic.com has:attachment newer_than:2d');
+  const folder = DriveApp.getFolderById("0folder...");
+  for (const thread of threads) {
+    for (const msg of thread.getMessages()) {
+      for (const att of msg.getAttachments()) {
+        if (att.getContentType() !== "application/pdf") continue;
+        folder.createFile(att.copyBlob()).setName(
+          msg.getDate().toISOString().slice(0, 10) + " " + att.getName()
+        );
+      }
+    }
+    thread.addLabel(GmailApp.getUserLabelByName("archived-to-drive"));
+  }
+}
+```
+
+שלוש יכולות GmailApp מופיעות כאן ש-`MailApp` לא יכול להתאים: `GmailApp.search` (אותו syntax של query כמו של סרגל החיפוש של ממשק Gmail), איטרציה על threads והודעות, ושינוי labels על ה-thread ברגע שהעבודה נגמרה. שלב ה-label הוא הטריק הזול ל-idempotency: הריצה של מחר מחפשת `newer_than:2d -label:archived-to-drive` ומדלגת על threads שכבר עיבדה.
+
 ## Patterns בין-שירותיים
 
 הכוח המלא של scripts של Workspace מופיע כש-function אחת משרשרת את כל השלושה:

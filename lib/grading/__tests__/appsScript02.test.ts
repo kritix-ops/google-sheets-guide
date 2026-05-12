@@ -7,7 +7,7 @@ import type { InMemoryFixture } from "../sheetReader";
 import type { AppsScriptFile, AppsScriptProject } from "../types";
 
 const PER_DAY = 20000;
-const PER_MINUTE = 600;
+const PER_MINUTE = 300;
 const EXPECTED = `${PER_DAY} per day, ${PER_MINUTE} per minute`;
 
 function correctProject(): AppsScriptProject {
@@ -88,7 +88,7 @@ describe("Track 3 Lesson 2: execution model", () => {
               ...f,
               source:
                 "function quotaSummary(perDay, perMinute) {\n" +
-                "  return `20000 per day, 600 per minute`;\n" +
+                "  return `20000 per day, 300 per minute`;\n" +
                 "}\n",
             }
           : f,

@@ -2,7 +2,7 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 # בנייה ועריכה של spreadsheets עם Gemini
 
-ה-side panel של Gemini לוקח prompts בשפה טבעית ומייצר שינויים מבניים בגיליון שלכם: scorecards חדשים מעל נתונים קיימים, dashboard של P&L בטאב חדש, ארגון מחדש של pivot של buyer-מול-platform. אתם מתארים את התוצאה; Gemini מנסח את התאים, הנוסחאות, הפורמט, וה-charts; אתם סוקרים את ההצעה ב-diff צד-לצד ואז apply או discard. ההשקה של אפריל 2026 (ההכרזה ב-CLAUDE.md) דיווחה 70.48% ב-SpreadsheetBench, מה שאומר ש-Gemini צודק בערך שבע פעמים מתוך עשר במשימות מורכבות של spreadsheet. שלוש הפעמים האחרות הן הסיבה שהשיעור הזה קיים.
+ה-side panel של Gemini לוקח prompts בשפה טבעית ומייצר שינויים מבניים בגיליון שלכם: scorecards חדשים מעל נתונים קיימים, dashboard של P&L בטאב חדש, ארגון מחדש של pivot של buyer-מול-platform. אתם מתארים את התוצאה; Gemini מנסח את התאים, הנוסחאות, הפורמט, וה-charts; אתם סוקרים את ההצעה ב-diff צד-לצד ואז apply או discard. Gemini ב-Sheets קיבל ציון של **70.48% ב-SpreadsheetBench**, benchmark של משימות spreadsheet מורכבות ([הבלוג של Google, מרץ 2026](https://blog.google/products-and-platforms/products/workspace/gemini-google-sheets-state-of-the-art/)). מספרי benchmark לא מתורגמים ישירות ל-workbook שלכם: ה-prompts שלכם, הנתונים שלכם, ומשמעת האימות שלכם חשובים יותר מהמספר הראשי. משתמשים בציון כדי לקבוע ציפיות גסות, לא כהבטחה. המקרים שה-benchmark מפספס הם בדיוק הסיבה שהשיעור הזה קיים.
 
 כשזה עובד, build-and-edit מחליף אחר צהריים של בנייה ידנית של dashboard בחמש דקות של prompting. כשזה לא עובד, זה מייצר אחר צהריים של דיבוג dashboard עם שלוש נוסחאות שגויות בעדינות. ההבדל בין שתי התוצאות הללו הוא ה-prompt וה-review. השיעור הזה הולך על שניהם, עם דפוסי ה-prompt בפועל של הצוות ו-failure modes שהם הריצו דרכם.
 
@@ -10,7 +10,7 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 לוחצים על הכפתור **Ask Gemini** בפינה הימנית-עליונה של הגיליון (אייקון הניצוץ ליד כפתור ה-Share), או בקיצור `Ctrl+Alt+G` ב-Windows / `Cmd+Ctrl+G` ב-Mac. הפאנל מתעגן בצד ימין. מקלידים את ה-prompt בתחתית; ההצעה של Gemini מופיעה מעליה, עם כפתורי **Apply** ו-**Discard** מתחת לפאנל ההצעה.
 
-ה-side panel הוא אותו פאנל המכוסה בשיעור 5.1 ("מה Gemini רואה"), כך שאותם כללי scoping חלים: גיליון פעיל קודם, ואז התאים שאתם מצביעים עליהם, ואז הכול אחר כלום. אם אתם רוצים build שמשתמש בנתונים מטאב אחר, מחליפים לטאב הזה לפני שליחת ה-prompt או מדביקים את הנתונים פנימה במפורש.
+ה-side panel הוא אותו פאנל המכוסה בשיעור 5.1 ("מה Gemini רואה"), כך שאותם כללי scoping חלים: כברירת מחדל, ה-side panel קורא רק את הגיליון הפעיל, ואז את התאים שאתם מצביעים עליהם, ושום דבר מעבר. ב-Workspace plans עם **Workspace Intelligence** מופעל (Business Standard / Plus, Enterprise Standard / Plus, Google AI Pro / Ultra; [Workspace Updates, אפריל 2026](https://workspaceupdates.googleblog.com/2026/04/build-and-edit-complex-spreadsheets-with-Gemini-in-Google-Sheets.html)), ה-side panel יכול גם למשוך הקשר מ-Gmail, Drive, Docs, ו-Calendar שלכם, שימושי ל-prompts כמו "add a row for the campaign Maya proposed in her email last Tuesday." אם ה-plan שלכם לא כולל Workspace Intelligence, ה-side panel עדיין מתעדכן רק לגיליון הפעיל; מחליפים טאבים לפני שליחת ה-prompt או מדביקים את הנתונים פנימה במפורש כשצריך מקור אחר.
 
 <MiniGrid
   data={CAMPAIGNS.slice(0, 5)}
@@ -50,6 +50,8 @@ On a new "Monthly Summary" tab, build a table grouping campaigns by month with t
 - **שדות שמיים.** "Total spend and total revenue" עדיף על "the totals". Gemini לא מנחש שמות עמודות שלכם טוב.
 - **מיקום שמני.** "Above the data", "to the right", "on a new tab". בלי זה, Gemini מנחש, לרוב לא טוב.
 - **Scope משתמע.** הנתונים של הגיליון הפעיל הם המקור. אם אתם רוצים מקור אחר, אומרים את זה במפורש: "Use the rolled-up monthly summary on the `Daily Summary` tab."
+
+ארבעת אלה הם הצורה הספציפית ל-build. דפוסי ה-prompt-engineering הכלליים (לתייג כל תא, לצמצם את מרחב הפלט, להתייחס לאות עמודה, "do not guess") חלים גם כאן, והם מאוחדים תחת **דפוסי prompt שעובדים ב-spreadsheets** בשיעור 5.2. שולחים יד לטבלה הזו כשכותבים כל prompt שנוגע בתא, לא רק קריאות `=AI()`.
 
 <QuickCheck
   question="איזה build prompt הכי סביר לייצר את ה-artifact שהתכוונתם אליו בניסיון הראשון?"
@@ -165,6 +167,36 @@ The data is in F2:F61 (60 campaign rows)."
 Discard אחרי כל איטרציה חינמי. העלות היא ה-prompt הבא. אל תעשו apply לטיוטה הגסה ותנסו לנקות; הניקוי עולה יותר זמן מה-prompt הבא, וה-undo אחרי apply לא אמין.
 
 <QuickCheck
+  question="ההצעה הראשונה של Gemini ל-pivot של buyer-מול-platform היא בצורה הנכונה אבל עם פילטרים שגויים של verticals (היא כללה verticals שרציתם להוציא). מה הצעד הבא הנכון?"
+  options={[
+    {
+      id: "a",
+      label: <>Apply להצעה, ואז למחוק ידנית את שורות ה-verticals הלא רצויות מה-pivot.</>,
+      correct: false,
+      explanation: "מאבדים את העבודה המבנית של Gemini ברגע שמתחילים לערוך את ה-pivot ביד. הנתיב של apply-ואז-תקן גם שורף את ה-undo הזול: הניקוי כעת קבוע ב-workbook, ו-build prompt עתידי יראה את העריכות שלכם כקו הבסיס החדש.",
+    },
+    {
+      id: "b",
+      label: <>Discard, לחדד את ה-prompt לציין את ה-verticals לכלול או להוציא, ואז להריץ שוב.</>,
+      correct: true,
+      explanation: "Discard-חידוד-ניסיון-חוזר הוא הלולאה הנכונה. ה-side panel שומר את ה-prompt הקודם שלכם כך שהאיטרציה הבאה היא עריכה אחת, לא התחלה חדשה. עלות ה-discard היא אפס, וחידוד ה-prompt זול יותר מתיקון ההצעה אחרי apply. שלוש איטרציות זה הממוצע של הצוות ל-build לא טריוויאלי.",
+    },
+    {
+      id: "c",
+      label: <>Apply להצעה, ואז לבקש מ-Gemini "הסר את השורות של verticals X ו-Y" ב-prompt עריכה שני.</>,
+      correct: false,
+      explanation: "משרשר תוצאה חצי-שגויה לאחרת. כל עריכת side-panel על ה-workbook מצטברת את הסיכוי ל-side effect (נוסחה שזזה, עמודה שעבר לה reformat). ה-prompt המקורי היה במרחק עריכה של שורה אחת מנכון; מתחילים מחדש מה-prompt, לא מה-artifact השבור.",
+    },
+    {
+      id: "d",
+      label: <>נוטשים את Gemini ובונים את ה-pivot ביד.</>,
+      correct: false,
+      explanation: "תיקון יתר. ההצעה הראשונה הייתה נכונה מבנית; חידוד prompt אחד מתקן את הפילטר. נטישת Gemini אחרי הפספוס הראשון זורקת את המקרים שבהם הוא נוחת באיטרציה אחת או שתיים.",
+    },
+  ]}
+/>
+
+<QuickCheck
   question="ההצעה של Gemini מכילה =SUMIFS(F2:F61, B2:B61, 'Yoav'). עמודת ה-Buyer שלכם מכילה 'Yoav Cohen'. מה הצעד הבטוח הבא?"
   options={[
     {
@@ -218,6 +250,6 @@ Discard אחרי כל איטרציה חינמי. העלות היא ה-prompt ה�
 - **שמות עמודות הזויים.** Gemini לפעמים מפנה ל-`Profit` כשהעמודה שלכם היא `Net Revenue`. הנוסחה מתפרשת ל-`#REF!` או אפס, תלוי בוריאנט.
 - **פורמט שמתנגש במוסכמות הצוות.** Currency עם שני עשרוניים, תאריכים בפורמט US, אחוזים בלי דיוק. מתאמנים על ה-prompt לקבע את המוסכמות, או מתקנים אחרי apply.
 - **Build prompt שמייצר 200 תאים שמתוכם 5 שגויים.** קשה לזהות. משתמשים ב-diff view באגרסיביות. ממיינים לפי "modified" קודם אם ה-side panel מציע את זה.
-- **ה-side panel לא רואה טאבים אחרים.** Prompt שאומר "use the data from the Aggregator tab" עובד רק אם Aggregator הוא הטאב הפעיל כששולחים את ה-prompt. החלפת טאבים באמצע session היא מקור שקט ל-builds שגויים.
+- **ה-side panel קורא רק את הטאב הפעיל (אלא אם Workspace Intelligence דלוק).** Prompt שאומר "use the data from the Aggregator tab" עובד רק אם Aggregator הוא הטאב הפעיל כששולחים את ה-prompt. החלפת טאבים באמצע session היא מקור שקט ל-builds שגויים. Workspace Intelligence (Business / Enterprise Standard+, AI Pro / Ultra) מרחיב את ההישג ל-Gmail, Drive, Docs, ו-Calendar, אבל טאבים אחרים באותו workbook עדיין חייבים להיות הטאב הפעיל כדי להיכלל בהקשר.
 - **Apply-then-undo לא תמיד עובד נקי.** פעולות בנייה לרוב הן יחידת undo אחת, אבל builds רב-שלביים מורכבים יכולים להיות חלקיים. שומרים snapshot של ה-workbook לפני builds בסיכון גבוה.
-- **עלות recalc על pivots שנבנו על-ידי Gemini.** Gemini לפעמים מציע layout שמשתמש בפונקציות volatile כמו `OFFSET` או `INDIRECT` (השכנות האיטיות של Track 1 שיעור 24). על מקור של 50K שורות ה-dashboard הופך איטי. קוראים את הנוסחאות המוצעות, לא רק את ה-layout.
+- **עלות recalc על pivots שנבנו על-ידי Gemini.** Gemini לפעמים מציע layout שמשתמש בפונקציות volatile כמו `OFFSET` או `INDIRECT` (מכוסות ב-Track 1 שיעור 25, עם מלכודת הביצועים של פונקציות volatile שמודגשת שם). על מקור של 50K שורות ה-dashboard הופך איטי. קוראים את הנוסחאות המוצעות, לא רק את ה-layout.

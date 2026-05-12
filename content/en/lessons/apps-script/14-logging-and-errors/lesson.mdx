@@ -172,6 +172,12 @@ Every Apps Script run gets an **execution ID**. You see it in the Executions pan
 
 Without execution IDs, debugging a trigger that fires 100 times a day is hunting for one needle in a stack of needles.
 
+### Opening Cloud Logging from your Apps Script project
+
+The Executions panel covers most day-to-day debugging. When you need the full Logs Explorer (longer time ranges, `jsonPayload` field filters, log-based metrics), open it from the same panel: click into a specific execution and follow the **Cloud project** link in the right-hand details pane, which jumps straight to Logs Explorer scoped to that script.
+
+Every Apps Script project ships attached to a **default GCP project**, an auto-created Google Cloud project the editor manages for you. The default project works for `console.log` viewing but locks you out of the better filtering surface and caps retention at the free tier. Linking a **standard GCP project** unlocks `jsonPayload` field filters in the Logs Explorer UI, log-based metrics, log routing to BigQuery, and the 30-day retention covered below. To switch: editor sidebar **Project Settings** (gear icon) then **Google Cloud Platform (GCP) Project** then **Change project**, paste the project number of a GCP project you already own, click **Set project**. The script keeps writing to the same Cloud Logging surface; it just lands in a project you can configure.
+
 ## Log retention
 
 Cloud Logging retains entries for **30 days** by default on a paid project, **7 days** on free tiers. A bug noticed on Monday for a Friday failure has likely lost its Friday context. The pattern the team uses:

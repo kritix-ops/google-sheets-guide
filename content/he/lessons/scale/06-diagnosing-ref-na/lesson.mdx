@@ -17,6 +17,30 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 התיקון תמיד באותה צורה: בונים מחדש את ה-reference. אין עקיפת `IFERROR` שעוזרת. עטיפת reference שבור ב-`IFERROR("source unavailable")` מסתירה את התסמין ומבטיחה שלא תשימו לב כשאותו דבר יקרה לעמודה הבאה. `#REF!` הוא מבני; הוא דורש תיקון מבני.
 
+<QuickCheck
+  question="נוסחת `SUMIFS` קוראת `=SUMIFS(#REF!:F100, B2:B100, \"Yoav Cohen\")`. אתמול היא החזירה מספר; היום היא מחזירה `#REF!`. מה הסיבה הסבירה ביותר והתיקון הנכון?"
+  options={[
+    {
+      id: "a",
+      label: <>media buyer בשם "Yoav Cohen" כבר לא קיים בעמודה B. עוטפים ב-`IFNA`.</>,
+      correct: false,
+      explanation: "התאמה חסרה מחזירה `#N/A`, לא `#REF!`. ה-token `#REF!` בתוך טקסט הנוסחה עצמו אומר ש-reference הושמד, לא ש-lookup פספס. `IFNA` בלאו הכי לא היה נורה כאן.",
+    },
+    {
+      id: "b",
+      label: <>העמודה שהייתה ה-sum_range נמחקה. בונים מחדש את ה-reference כך שיצביע על העמודה הנכונה.</>,
+      correct: true,
+      explanation: "ה-token `#REF!` המילולי בתוך הנוסחה הוא הדרך של המנוע להגיד \"ה-argument הזה הצביע פעם על מקום שנעלם\". עטיפה לא מחזירה את העמודה. התיקון מבני: מוצאים את העמודה שאמורה להחזיק את הערכים, מקלידים את ה-reference שלה בחזרה.",
+    },
+    {
+      id: "c",
+      label: <>מדליקים Iterative calculation תחת Settings.</>,
+      correct: false,
+      explanation: "Iterative calc אין לו שום קשר ל-references שבורים. זו הגדרה ל-cyclic formulas והכלי השגוי כאן.",
+    },
+  ]}
+/>
+
 ## #N/A אומר "חיפשתי, לא מצאתי"
 
 `#N/A` מועלה על ידי פונקציות lookup כשאין התאמה. `VLOOKUP("MissingBuyer", B:C, 2, FALSE)` רץ נקי, הולך על העמודה, לא מוצא כלום, ומחזיר `#N/A`. הנוסחה תקינה. הנתונים לא מכילים את מה שביקשתם. התיקון הוא אחד משלושה:
@@ -69,6 +93,8 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 </Compare>
 
 ## למה `XLOOKUP` מקל
+
+<FunctionRef name="XLOOKUP" />
 
 `XLOOKUP` נוסף ל-Sheets במיוחד כדי לאחד את האקוסיסטם של ה-lookup ולהכניס את מקרה "אין התאמה" לתוך הקריאה. בהשוואה ל-`VLOOKUP`:
 

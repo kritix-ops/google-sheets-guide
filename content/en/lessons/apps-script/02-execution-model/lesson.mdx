@@ -4,16 +4,16 @@ Apps Script looks like JavaScript and most of it is. What is different is the ru
 
 The mental model worth holding in your head from the start: when you press Run in the editor, your code does not execute in your browser. It is shipped to a Google data center, executed there by the Apps Script runtime, and the result is sent back. Every call to a Sheets, Drive, Gmail, or any other Workspace service is another network hop **inside** that data center, but a hop nonetheless. The two consequences (latency and quota) shape the way every realistic Apps Script function is written. Lesson 16 builds on this with the full batching playbook; this lesson is about why batching matters in the first place.
 
-## V8 vs Rhino
+## V8 is the runtime (Rhino is gone)
 
-Apps Script has two engines:
+Apps Script ran on two engines over its lifetime:
 
 | Runtime | Era | What you get |
 |---|---|---|
-| Rhino | 2009-2020 | An old ECMAScript 5.x dialect. No `let`/`const`, no arrow functions, no template literals, no destructuring, no `async`/`await`. |
-| V8 | 2020-today | The same engine that runs Chrome. Modern ECMAScript with everything the rest of the JavaScript ecosystem assumes. |
+| Rhino | 2009-2026 | An old ECMAScript 5.x dialect. No `let`/`const`, no arrow functions, no template literals, no destructuring, no `async`/`await`. Deprecated Feb 20, 2025; **scripts on Rhino stopped executing on January 31, 2026** ([migration guide](https://developers.google.com/apps-script/guides/v8-runtime/migration)). |
+| V8 | 2020-today | The same engine that runs Chrome. Modern ECMAScript with everything the rest of the JavaScript ecosystem assumes. The only runtime now. |
 
-The manifest's `runtimeVersion` field picks. **V8 is the default and the only correct choice for new projects.** The reason Rhino still exists is backward compatibility with workbooks that have decade-old triggers still firing. If you inherit a Rhino project, switching is one manifest edit (`"runtimeVersion": "V8"`) plus testing: the rare incompatibility is around `this` binding inside callbacks and a few legacy global symbols that Rhino exposed (`importPackage`, etc.).
+The manifest's `runtimeVersion` field reads `"V8"` on every live project. **V8 is the only choice, full stop.** If you open an old workbook whose manifest still lists `"DEPRECATED_ES5"`, those triggers no longer fire as of January 31, 2026: the editor accepts the value but the runtime refuses to execute. Switching is one manifest edit (`"runtimeVersion": "V8"`) plus testing: the rare incompatibility is around `this` binding inside callbacks and a few legacy global symbols that Rhino exposed (`importPackage`, etc.).
 
 In practice, V8 means you write Apps Script with the same JavaScript you write everywhere else:
 
@@ -41,7 +41,7 @@ A small but useful inventory of what V8 unlocks that Rhino did not:
 | Nullish coalescing `x ?? y` | `(x === null \|\| x === undefined) ? y : x` |
 | `async/await` | callback chains |
 
-This lesson's assignment makes you use a template literal explicitly: that is the V8-only feature most likely to bite you if you ever land in a Rhino project by accident.
+This lesson's assignment makes you use a template literal explicitly: that is the modern-syntax feature most likely to bite you if you inherit an old Rhino-era project whose manifest still names `DEPRECATED_ES5` (those triggers no longer execute after Jan 31, 2026, but the manifest value lingers and gets pasted around).
 
 ## Services
 
@@ -86,7 +86,7 @@ A toy example of why this matters. The naive way to copy column F into column J:
   const v = sheet.getRange(r, 6).getValue();
   sheet.getRange(r, 10).setValue(v);
 }`}</code></pre>
-    <p className="mt-2 text-sm">100 reads + 100 writes = 200 round-trips. On 5,000 rows: 10,000 round-trips, about 5 minutes, often timing out at the 6-minute consumer cap.</p>
+    <p className="mt-2 text-sm">100 reads + 100 writes = 200 round-trips. On 5,000 rows: 10,000 round-trips, about 5 minutes, often timing out at the 6-minute execution cap.</p>
   </ComparePanel>
   <ComparePanel label="Batched: ~50 ms on 100 rows" tone="positive">
     <pre className="font-mono text-xs"><code>{`const vals = sheet.getRange("F2:F101").getValues();
@@ -104,9 +104,9 @@ Apps Script enforces three kinds of limit:
 | Account type | Maximum execution time |
 |---|---|
 | Consumer (gmail.com) | 6 minutes |
-| Workspace | 30 minutes |
+| Workspace | 6 minutes |
 
-A script that hits this gets killed mid-write. The fix is to break long jobs into chunks and re-trigger via `ScriptApp.newTrigger(...).timeBased().at(...)` (covered in lesson 8): the recipe for processing 200,000 campaign rows is a 50,000-row chunk on a trigger that re-arms itself.
+The 30-minute Workspace tier some older guides mention was retired; Google's current quotas page lists 6 minutes per execution for both account types. A script that hits this gets killed mid-write. The fix is to break long jobs into chunks and re-trigger via `ScriptApp.newTrigger(...).timeBased().at(...)` (covered in lesson 8): the recipe for processing 200,000 campaign rows is a 20,000-row chunk on a trigger that re-arms itself.
 
 **Daily quotas per service.** Each service has its own daily cap. The ones that hurt most:
 
@@ -122,7 +122,7 @@ The numbers shift over time; the current ones live at `developers.google.com/app
 - **One nightly trigger doing 20,000 UrlFetchApp calls saturates the free quota.** If you need more, parallelize across multiple Apps Script projects (each gets its own quota bucket) or move to a paid Workspace account.
 - **MailApp's 100/day limit is per script, not per user.** A single script that emails every team member daily about their campaigns saturates fast. Use `GmailApp.sendEmail` (1,500/day on free, 10,000 on Workspace) for higher-volume mailing.
 
-**Per-minute rate limits.** Most services also have a per-minute burst limit: `UrlFetchApp` allows about 600/minute. Hit it and you get a `Service invoked too many times in a short time` exception. The Apps Script wisdom is `Utilities.sleep(100)` between calls in a batch: cheap insurance.
+**Per-minute rate limits.** `UrlFetchApp` has a documented daily call limit (20,000/day consumer, 100,000/day Workspace) but no documented per-minute throttle. Community reports suggest a soft throttle around a few hundred per minute under sustained load; treat sustained rates above ~300/min as a risk and prefer `fetchAll` with batched payloads. Hit the throttle and you get a `Service invoked too many times in a short time` exception. The Apps Script wisdom is `Utilities.sleep(100)` between calls in a batch: cheap insurance.
 
 <StepThrough
   frames={[
@@ -140,9 +140,11 @@ The numbers shift over time; the current ones live at `developers.google.com/app
       body: (
         <>
           The handler hits the Taboola reports endpoint once per campaign:
-          ~1,200 calls. Per-minute limit is 600. Apps Script throttles after
-          call 600, sleeps, resumes after call 601. The handler still
-          finishes, but it now took 2 minutes instead of 30 seconds.
+          ~1,200 calls. The daily cap (20,000 consumer / 100,000 Workspace)
+          is far away, but a soft per-minute throttle kicks in once the
+          call rate stays high for long. Apps Script begins blocking calls
+          for short windows; the handler still finishes, but it now took
+          2 minutes instead of 30 seconds.
         </>
       ),
     },
@@ -223,25 +225,25 @@ On the first run, the user sees a consent screen listing every scope. They accep
 </Compare>
 
 <QuickCheck
-  question="Your script calls UrlFetchApp.fetch in a loop 1,000 times in 30 seconds. You see no quota error in the Executions panel, but the function takes 90 seconds instead of the 30 you expected. What is most likely happening?"
+  question="You are designing a nightly UrlFetchApp pull on a consumer gmail.com account. The pull will hit one endpoint per campaign row. What is the documented daily call ceiling you must stay under, and what is the same ceiling on a Workspace account?"
   options={[
     {
       id: "a",
-      label: "The daily UrlFetchApp quota of 20,000 calls is being hit.",
-      correct: false,
-      explanation: "1,000 calls is far below the daily 20,000. You would see a hard quota error if you hit it, not silent slowdown.",
+      label: "20,000/day on consumer, 100,000/day on Workspace.",
+      correct: true,
+      explanation: "These are the numbers Google publishes on the Apps Script quotas page. There is no documented per-minute throttle; community reports suggest a soft limit around a few hundred per minute under sustained load, which is a separate concern from the daily cap.",
     },
     {
       id: "b",
-      label: "The per-minute rate limit (~600/min) is throttling you. Apps Script silently sleeps to keep you under the limit.",
-      correct: true,
-      explanation: "The per-minute rate limit kicks in around 600/min and shows up as silent latency, not a thrown exception. Use UrlFetchApp.fetchAll for parallel calls or Utilities.sleep(100) between calls in a batch.",
+      label: "600/minute on both account types; the daily cap is implicit.",
+      correct: false,
+      explanation: "There is no documented per-minute throttle for UrlFetchApp. The documented limits are daily call totals: 20,000/day consumer, 100,000/day Workspace.",
     },
     {
       id: "c",
-      label: "Your code is hitting the 6-minute execution timeout.",
+      label: "Unlimited on Workspace; 1,000/day on consumer.",
       correct: false,
-      explanation: "90 seconds is well under the 6-minute timeout. A timeout would kill the run mid-loop, not let it complete slowly.",
+      explanation: "Workspace gets 100,000/day, not unlimited. Consumer is 20,000/day, not 1,000.",
     },
   ]}
 />
@@ -251,7 +253,7 @@ On the first run, the user sees a consent screen listing every scope. They accep
 The bound project for this lesson has a `Lesson.gs` file with a `quotaSummary(perDay, perMinute)` stub. Two tasks:
 
 1. Edit the body to return the template literal `` `${perDay} per day, ${perMinute} per minute` ``. Template literals are V8-only: that is the lesson hook.
-2. In cell **A1**, call `=quotaSummary(20000, 600)`. Those are UrlFetchApp's consumer-account quota and per-minute rate, so the cell ends up reading "20000 per day, 600 per minute": the actual limits you will be designing around when you write nightly pulls in lesson 11.
+2. In cell **A1**, call `=quotaSummary(20000, 300)`. The first number is UrlFetchApp's documented consumer-account daily quota; the second is the safe per-minute target the team designs nightly pulls around (Google does not publish a per-minute number, so the team treats ~300/min as the ceiling and uses `fetchAll` past that).
 
 ## Used in the wild
 
@@ -271,5 +273,5 @@ Real Apps Script projects in the team's workbooks:
 - **A custom function consuming UrlFetchApp quota.** Lesson 3 covers caching from the cell side; here is the quota side. Every distinct argument tuple to `=fetchSomething(x, y)` is one call. A spreadsheet with 50,000 cells calling a `UrlFetchApp`-based custom function will saturate the daily quota in one open.
 - **Multiple triggers racing on the same data.** Sunday-night trigger A re-runs because the previous run crashed; manual run B fires on Monday morning to backfill. Both write to the Aggregator simultaneously. Use `LockService.getScriptLock().tryLock(30 * 1000)` at the top of any trigger that mutates shared state.
 - **Per-execution timeout interacting with `fetchAll`.** A `fetchAll` batch of 100 requests blocks on the slowest one. If one endpoint is having a bad minute, the whole batch waits. Split into per-service batches; that way one slow service does not block fast ones.
-- **Rhino-style code accidentally shipped into a V8 project.** A teammate pastes a 2014 Stack Overflow answer with `var` and `Array.prototype.forEach.call(...)`. It runs, but it gets weird around `this` binding and gets in the way of grep-able patterns the rest of the codebase uses. Standardize on `const`/`let`, arrow callbacks, and the modern array methods.
+- **Rhino-style code accidentally pasted into a V8 project.** A teammate copies a 2014 Stack Overflow answer with `var` and `Array.prototype.forEach.call(...)`. Now that Rhino itself was retired Jan 31, 2026, those snippets still run under V8, but they get weird around `this` binding and get in the way of grep-able patterns the rest of the codebase uses. Standardize on `const`/`let`, arrow callbacks, and the modern array methods.
 - **Auto-scope expansion as the silent breaker.** Adding `GmailApp.search` to a script previously authorized only for `spreadsheets.currentonly` does not throw; it expands the scope set and the next run shows a new auth prompt. The teammate who runs it before the rollout email arrives sees an unexplained re-prompt and gets nervous.

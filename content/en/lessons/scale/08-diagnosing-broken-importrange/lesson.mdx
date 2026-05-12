@@ -85,6 +85,30 @@ When an `IMPORTRANGE`-fed cell goes red, the order of checks matters because eac
 
 In a workbook with hundreds of `IMPORTRANGE` cells, run this list cell by cell. There is no shortcut. The Drive API can list permissions and the Sheets API can list cells, but neither can tell you whether the *combination* is currently working.
 
+<QuickCheck
+  question="An IMPORTRANGE cell shows `#REF!` with the tooltip 'Did not find sheet'. The URL opens fine in a new tab; the source workbook is alive and you have edit access. What is the single next check?"
+  options={[
+    {
+      id: "a",
+      label: <>Click 'Allow access' on the cell.</>,
+      correct: false,
+      explanation: "'Did not find sheet' is a range-string error, not an auth error. The auth-prompt tooltip is 'You need to connect these sheets'. The two errors are distinct and require different fixes.",
+    },
+    {
+      id: "b",
+      label: <>Open the source workbook and compare every tab name against the range string in your formula. A tab was likely renamed.</>,
+      correct: true,
+      explanation: "'Did not find sheet' is Sheets telling you the literal sheet name in the range argument does not exist in the source. The URL is fine; the tab name in `\"Campaigns!A1:G5000\"` no longer matches a tab. Find the renamed tab and update the range string everywhere in the workbook (find-and-replace across formulas).",
+    },
+    {
+      id: "c",
+      label: <>Wrap the cell in `IFERROR(IMPORTRANGE(...), \"\")` so the dashboard goes green.</>,
+      correct: false,
+      explanation: "Hides the structural break. The cell goes green, the data still does not flow, and the next refresh might break new cells too. Lesson 4.6 covers why `IFERROR` is the wrong reach for structural errors.",
+    },
+  ]}
+/>
+
 ## The auth model nobody documents clearly
 
 `IMPORTRANGE` access uses a separate authorization channel from regular sheet sharing. When you grant access by clicking "Allow access" the first time, you are granting the destination workbook the right to pull from the source on your behalf. Two consequences that trip teams up:
@@ -93,6 +117,30 @@ In a workbook with hundreds of `IMPORTRANGE` cells, run this list cell by cell. 
 - **Auth is invisible per-script-actor.** When Apps Script (or anyone other than you) writes an `IMPORTRANGE` formula, the access has to be granted from *that* actor's auth context, not yours. A trigger that writes an `IMPORTRANGE` to a cell will land a `#REF!` until somebody opens the workbook in a session where the script's owner can click "Allow access".
 
 The "Allow access" button is the entire user interface for this system. There is no settings page that lists which workbooks the current sheet has access to. There is no audit of who granted what when. The only signal is the formula working or not.
+
+<QuickCheck
+  question="Your nightly Apps Script aggregator writes an IMPORTRANGE formula to a cell. The next morning the cell shows `#REF!` even though a manual IMPORTRANGE written by you, in the same workbook, against the same source, works fine. Why?"
+  options={[
+    {
+      id: "a",
+      label: <>The 30-minute cache has not refreshed yet for the new formula.</>,
+      correct: false,
+      explanation: "Cache refresh affects data freshness, not authorization. A `#REF!` from cache staleness would not be different between your cell and the script's cell.",
+    },
+    {
+      id: "b",
+      label: <>Auth grants live per script-actor. The script's owner has not granted the destination workbook access to the source, even though you have.</>,
+      correct: true,
+      explanation: "IMPORTRANGE auth is granted per actor, not per workbook. Your manual formula uses your auth context; the script's formula uses the script owner's auth context. Open the workbook in a session where the script's owner can click 'Allow access' on that cell, and it heals.",
+    },
+    {
+      id: "c",
+      label: <>Apps Script cannot write IMPORTRANGE formulas; they have to be typed by a human.</>,
+      correct: false,
+      explanation: "Apps Script can write any formula to any cell, including IMPORTRANGE. The breakage is auth-shaped, not formula-shaped.",
+    },
+  ]}
+/>
 
 ## Rate limits and the 30-minute cache
 

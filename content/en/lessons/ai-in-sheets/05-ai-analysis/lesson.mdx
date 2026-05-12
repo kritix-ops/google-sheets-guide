@@ -85,7 +85,7 @@ What they share: a specific question with a specific output shape, and a bounded
 The single highest-leverage habit: never paste an AI claim into a report without checking the underlying data. The discipline:
 
 1. Read what AI said.
-2. Sort or filter the data to verify the claim. (`=SORT(B2:C31, 2, FALSE)` to sort by revenue descending, for example. SORT is covered in Track 2 lesson 4.)
+2. Sort or filter the data to verify the claim. (`=SORT(B2:C31, 2, FALSE)` to sort by revenue descending, for example. SORT is covered in Track 1 lesson 14.)
 3. Note the verification in a sibling cell.
 4. Only then put the claim in the dashboard.
 
@@ -107,7 +107,7 @@ J1: =LARGE(Daily!C2:C31, 1)
 K1: =INDEX(Daily!A2:A31, MATCH(J1, Daily!C2:C31, 0))
     → 2026-04-17 (confirmed by formula)
 L1: <paste-into-deck>`}</code></pre>
-    <p className="mt-2 text-sm">AI suggests; formula confirms; the confirmed value is what reaches the deck. The deck is reproducible because the source is `LARGE` + `INDEX/MATCH` (Track 1 lesson 5).</p>
+    <p className="mt-2 text-sm">AI suggests; formula confirms; the confirmed value is what reaches the deck. The deck is reproducible because the source is `LARGE` (Track 1 lesson 23) + `INDEX/MATCH` (Track 1 lesson 4).</p>
   </ComparePanel>
 </Compare>
 

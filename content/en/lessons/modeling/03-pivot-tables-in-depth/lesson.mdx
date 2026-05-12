@@ -230,6 +230,81 @@ Result:
   ]}
 />
 
+## Date grouping beyond year-quarter and year-month
+
+Year-quarter and year-month cover finance and trend dashboards, but `Create pivot group rule` ships three more groupings that solve different questions. Right-click the Date row group in the pivot output, pick `Create pivot group rule → Group by date`, and the rule shows up in the dropdown.
+
+| Grouping | Adtech question it answers |
+|---|---|
+| **Day of week** | Weekly seasonality. Is Tuesday consistently the highest-revenue day? Do weekends underperform on Native? |
+| **Hour of day** | Intraday performance. When during the day does CPC spike on Google Search? When do conversions cluster? |
+| **Custom number range** (for numeric columns, not dates) | Spend buckets: `$0-100`, `$100-500`, `$500+`. Useful for the "how do small-spend campaigns perform vs. large-spend ones" cut. |
+
+Day-of-week and hour-of-day are both standard options inside `Group by date`. The custom number range is a separate menu: right-click a *numeric* column's row group and pick `Create pivot group rule`, then enter the bucket bounds. The team uses spend-bucket grouping on the campaign log to spot whether the ROI distribution shifts with budget size.
+
+## "Show as": shares, deltas, running totals
+
+Up to now every value in the pivot has been the raw aggregate: `SUM Spend`, `AVERAGE ROI`, `COUNTA Date`. The Values slot has a second control, **Show as**, that re-expresses each cell as a share or a delta or a cumulative total without changing the underlying summarize function. Click the value in the Pivot editor and the `Show as` dropdown is right under the summarize. The four modes that matter:
+
+| Mode | What each cell shows | Adtech use case |
+|---|---|---|
+| **Default** | The raw aggregate | The baseline; everything else is layered on this |
+| **% of grand total** | Cell value divided by the pivot's grand total | Spend share by platform: "Google = 38% of total spend this month" |
+| **% of row total** | Cell value divided by its row's total | Buyer's mix across platforms: "Yoav puts 60% of his spend on Google, 25% on Taboola" |
+| **% of column total** | Cell value divided by its column's total | Platform's mix across buyers: "On Taboola, Yoav owns 45% of spend, Dina owns 30%" |
+| **Running total** | Cumulative sum walking down the rows (or across columns) | MTD spend by day, quarterly cumulative revenue |
+
+The pro pattern: a single pivot can show **two stacked values** of the same source column, one as Default and one as `% of grand total`. The dashboard then reads "Spend: $342, share: 12%" in the same cell pair, without a second pivot.
+
+<Compare>
+  <ComparePanel label="Raw Spend by Platform" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Platform     | SUM Spend
+Google       |  4,820
+Taboola      |  3,150
+Outbrain     |  2,470
+Facebook     |  1,890
+TikTok       |    760
+Grand Total  | 13,090`}</code></pre>
+    <p className="mt-2 text-sm">Default mode. Absolute dollars. Useful for finance reports where the number itself is the answer.</p>
+  </ComparePanel>
+  <ComparePanel label="Same pivot, Show as % of grand total" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Platform     | SUM Spend
+Google       |  36.8%
+Taboola      |  24.1%
+Outbrain     |  18.9%
+Facebook     |  14.4%
+TikTok       |   5.8%
+Grand Total  | 100.0%`}</code></pre>
+    <p className="mt-2 text-sm">Same source, same summarize, different presentation. Share-of-mix is the question the dashboard usually wants to answer; raw dollars hide it.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="A buyer-by-platform pivot has Buyer on Rows, Platform on Columns, and SUM Spend in Values with 'Show as: % of row total'. A cell at (Yoav, Google) reads 60%. What does the 60% mean?"
+  options={[
+    {
+      id: "a",
+      label: "60% of all Google spend (across all buyers) belongs to Yoav",
+      correct: false,
+      explanation: "That would be '% of column total'. Row vs column matters: % of row total divides by the row's total, not the column's.",
+    },
+    {
+      id: "b",
+      label: "60% of Yoav's total spend (across all platforms) went to Google",
+      correct: true,
+      explanation: "'% of row total' divides each cell by the row's total. The row is Yoav, the row total is Yoav's total spend, and the cell expresses how much of that total landed on Google. This is the right cut for 'how is each buyer allocating their budget'.",
+    },
+    {
+      id: "c",
+      label: "60% of the grand total of all spend in the workbook",
+      correct: false,
+      explanation: "That would be '% of grand total'. Each Show-as mode divides by a different denominator; the row mode divides by the row's total, not the grand total.",
+    },
+  ]}
+/>
+
+The trap that catches people: **Show as applies to the value cells but the Grand Total row resets to the raw values, not to the share.** A `% of grand total` column ends in `100.0%` in the totals row because it has to (every cell as a fraction of the total sums to 1). A `% of row total` column's grand total row is the percentage of *each column* across all rows, which is rarely what you wanted to read off the totals row. When the totals look "weird", the cause is almost always a Show-as mode that doesn't compose cleanly with the totals row's denominator.
+
 ## Calculated fields, deeper
 
 Lesson 2.2 introduced calculated fields as the escape hatch when none of the standard summarize functions cover what you need. The full syntax: a Values slot whose summarize is `CUSTOM`, with a `formula` string that references source headers in single quotes:

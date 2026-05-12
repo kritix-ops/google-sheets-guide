@@ -1,14 +1,14 @@
 import { BUYERS_DETAIL } from "@/content/datasets/adtech";
 
-# Drop-downs and smart chips: people, file, finance, date, place chips
+# Drop-downs and smart chips: people, file, finance, date, place, YouTube, dropdown chips
 
 Lesson 2.4 covered the drop-down half of `Data → Data validation`: closed lists, ranges, custom formulas. This lesson is about the other half of the controlled-input story: **smart chips**, the rich `@`-mention inserts that pin a person, a file, a place, a finance ticker, or a calendar date into a single cell. A buyer name typed as text is just a string. The same name as a person chip is a link to that person's profile, their email, their availability: hover and you see it. The cell still looks like one cell. Underneath, it's a structured reference to something outside the spreadsheet.
 
 Think of a chip as the cell's superpower mode. The display is still tiny, the semantics are infinitely richer. The team uses chips wherever a piece of data points at something living elsewhere: a person on Slack, a folder in Drive, a calendar event, a vendor's stock ticker. The chip turns a 30-second context switch (open Drive, search, click) into a one-click hover.
 
-## The five chip types you'll actually use
+## The chip types you'll actually use
 
-Sheets supports more chip kinds than this, but in adtech work the same five keep showing up:
+Sheets supports more chip kinds than this, but in adtech work the same handful keep showing up:
 
 | Chip | What it pins | Adtech context |
 |---|---|---|
@@ -17,8 +17,16 @@ Sheets supports more chip kinds than this, but in adtech work the same five keep
 | Finance | A stock ticker, mutual fund, or currency pair | Competitor stock signals tied to weekly budget calls |
 | Place | A Google Maps location | Geo-targeted creative review notes (the city the ad is running in) |
 | Date / Calendar event | A date or an event from your Calendar | Launch dates, freshness markers on dashboards, media-plan milestones |
+| YouTube video | A YouTube URL with thumbnail and hover preview | Pin a creative review URL per row; pin the platform's "best practices" walkthrough next to a media-plan tab |
+| Dropdown | A `Data validation` list rendered as an inline pill (lesson 2.4) | Vertical, country, platform, status, any closed list where the chip styling reads cleaner than the dropdown arrow |
 
-The first two carry almost all the weight in real workbooks. People-attribution and file-pinning are the patterns you'll repeat hundreds of times. The other three appear, but rarely.
+Person and File carry most of the weight in real workbooks. YouTube and Dropdown chips are newer (the dropdown pill rendering shipped in 2024) and worth knowing because they replace patterns the team used to handle with hyperlinks and bare validation cells.
+
+### YouTube and Dropdown chips, in more detail
+
+The **YouTube video chip** is inserted the same way as a file chip: type `@` and paste a YouTube URL (or search by video title) and pick the result. The chip renders as a small pill with the video's thumbnail visible on hover, and clicking the pill opens the video in a side panel without leaving the workbook. The team uses it on the creative-review tracker: each row's `Creative URL` cell holds a YouTube chip pointing at the platform's submitted video asset. Reviewers hover to see the thumbnail and click to watch, all without bouncing into a new tab.
+
+The **Dropdown chip** is what happens when a `Data validation` rule is configured with `Display style: chip` (the 2024 rendering option in the validation dialog, covered in lesson 2.4). The cell no longer shows a dropdown arrow on the right edge; instead the selected value renders as an inline pill, often color-coded. Functionally it is still the same validation list, with the same Reject input and the same valid values. Visually it reads like a status badge, which is why it has taken over from plain validation in dashboards: a `Status: Active`, `Status: Paused`, `Status: Archived` column reads at a glance when each value is its own colored chip. Cross-reference lesson 2.4 for the validation half of the setup; the chip is purely a rendering choice on top of it.
 
 <QuickCheck
   question="Your dashboard has an 'Owner' column that should let any team member ping the on-call buyer from any row. What goes in the cell?"

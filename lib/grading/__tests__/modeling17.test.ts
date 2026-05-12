@@ -17,6 +17,9 @@ const BASE_FIXTURE: InMemoryFixture = {
         note: "Dates in UTC; convert to GMT+3 for the team office hours view.",
       },
       E1: {
+        value: "Country",
+      },
+      F1: {
         value: "Spend",
         note: "Pulled via IMPORTRANGE from Taboola export, refreshes hourly.",
       },
@@ -36,25 +39,25 @@ describe("Track 2 Lesson 17: comments and notes", () => {
     expect(result.score).toBe(100);
   });
 
-  it("flags E1 with no note at all", async () => {
+  it("flags F1 with no note at all", async () => {
     const fixture = freshFixture();
-    delete fixture.sheets.Campaigns.E1.note;
+    delete fixture.sheets.Campaigns.F1.note;
     const reader = new InMemoryReader(fixture);
     const result = await runRules(assignment.rules, reader);
     const c = result.feedback.checks.find(
-      (r) => r.ruleId === "campaigns-e1-spend-source-note",
+      (r) => r.ruleId === "campaigns-f1-spend-source-note",
     );
     expect(c?.passed).toBe(false);
     expect(c?.detail).toContain("no note");
   });
 
-  it("flags E1 with a note that doesn't mention IMPORTRANGE", async () => {
+  it("flags F1 with a note that doesn't mention IMPORTRANGE", async () => {
     const fixture = freshFixture();
-    fixture.sheets.Campaigns.E1.note = "Spend in USD, refreshes hourly.";
+    fixture.sheets.Campaigns.F1.note = "Spend in USD, refreshes hourly.";
     const reader = new InMemoryReader(fixture);
     const result = await runRules(assignment.rules, reader);
     const c = result.feedback.checks.find(
-      (r) => r.ruleId === "campaigns-e1-spend-source-note",
+      (r) => r.ruleId === "campaigns-f1-spend-source-note",
     );
     expect(c?.passed).toBe(false);
     expect(c?.detail).toContain("IMPORTRANGE");
@@ -76,7 +79,7 @@ describe("Track 2 Lesson 17: comments and notes", () => {
   it("accepts case-insensitive matches on the required substrings", async () => {
     const fixture = freshFixture();
     // Lowercase importrange and uppercase NET both pass; UTC stays as-is.
-    fixture.sheets.Campaigns.E1.note =
+    fixture.sheets.Campaigns.F1.note =
       "pulled via importrange from taboola export, refreshes hourly.";
     fixture.sheets.Campaigns.G1.note = "NET revenue after platform fees.";
     const reader = new InMemoryReader(fixture);

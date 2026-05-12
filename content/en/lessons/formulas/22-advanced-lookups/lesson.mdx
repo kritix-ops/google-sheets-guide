@@ -8,36 +8,36 @@ In adtech work these come up constantly. A pivot-style "buyers × verticals → 
 
 ## Two-way lookups: INDEX(MATCH, MATCH)
 
-A pivot has buyers down the rows and verticals across the columns. To find "Yoav Cohen's spend on Used Cars PR" you need to look up *both* the row (by buyer name) and the column (by vertical name) and return the cell at their intersection.
+A pivot has buyers down the rows and verticals across the columns. To find "Yoav Cohen's spend on Car Deals PR" you need to look up *both* the row (by buyer name) and the column (by vertical name) and return the cell at their intersection.
 
 ```
-=INDEX($B$2:$F$10, MATCH("Yoav Cohen", $A$2:$A$10, 0), MATCH("Used Cars PR", $B$1:$F$1, 0))
+=INDEX($B$2:$F$10, MATCH("Yoav Cohen", $A$2:$A$10, 0), MATCH("Car Deals PR", $B$1:$F$1, 0))
 ```
 
 Three pieces:
 
 1. **Data array**: `$B$2:$F$10` (the body of the pivot, no headers).
 2. **Row index**: `MATCH("Yoav Cohen", $A$2:$A$10, 0)` finds Yoav's row in the buyer column.
-3. **Column index**: `MATCH("Used Cars PR", $B$1:$F$1, 0)` finds the vertical's column in the header row.
+3. **Column index**: `MATCH("Car Deals PR", $B$1:$F$1, 0)` finds the vertical's column in the header row.
 
 `INDEX` returns the cell at that intersection. The `0` in each `MATCH` means exact match (covered in lesson 1.4). This pattern is the workhorse of every pivot-vs-pivot comparison report the team builds.
 
 ### Worked example: two-way lookup on a pivot
 
-A small buyer × vertical revenue pivot. Pick David Mizrahi's Solar Panels PR cell.
+A small buyer × vertical revenue pivot. Pick Maya Bar's Solar Systems & Panels PR cell.
 
 <TryIt
   data={[
-    ["Buyer / Vertical", "Used Cars PR", "Solar Panels PR", "Pet Insurance PR"],
+    ["Buyer / Vertical", "Car Deals PR", "Solar Systems & Panels PR", "Pet Insurance PR"],
     ["Yoav Cohen", 660, 0, 0],
-    ["Sarah Levi", 0, 0, 0],
-    ["David Mizrahi", 0, 1124.6, 0],
-    ["Maya Goldberg", 0, 0, 245.8],
+    ["Dina Dayan", 0, 0, 0],
+    ["Maya Bar", 0, 1124.6, 0],
+    ["Ben Nahum", 0, 0, 245.8],
   ]}
   inputCell="F1"
-  expectedFormula='=INDEX(B2:D5,MATCH("David Mizrahi",A2:A5,0),MATCH("Solar Panels PR",B1:D1,0))'
-  task={<>Look up David Mizrahi's Solar Panels PR revenue from the pivot. Use INDEX with two MATCHes (one for the row, one for the column).</>}
-  hint={<>INDEX(array, row_num, col_num). Find David in column A, find Solar Panels PR in row 1.</>}
+  expectedFormula='=INDEX(B2:D5,MATCH("Maya Bar",A2:A5,0),MATCH("Solar Systems & Panels PR",B1:D1,0))'
+  task={<>Look up Maya Bar's Solar Systems & Panels PR revenue from the pivot. Use INDEX with two MATCHes (one for the row, one for the column).</>}
+  hint={<>INDEX(array, row_num, col_num). Find Maya Bar in column A, find Solar Systems & Panels PR in row 1.</>}
   answer={<>The result is 1124.6. INDEX/MATCH/MATCH is the canonical two-way lookup. The same effect with XLOOKUP-of-XLOOKUP is one character shorter and slightly clearer to read; both are fine. Stick with whichever your team uses consistently.</>}
 />
 
@@ -46,10 +46,10 @@ A small buyer × vertical revenue pivot. Pick David Mizrahi's Solar Panels PR ce
 `XLOOKUP` can return a whole row or column, not just a single cell. Compose two `XLOOKUP`s to get a two-way lookup that reads like English:
 
 ```
-=XLOOKUP("Used Cars PR", $B$1:$F$1, XLOOKUP("Yoav Cohen", $A$2:$A$10, $B$2:$F$10))
+=XLOOKUP("Car Deals PR", $B$1:$F$1, XLOOKUP("Yoav Cohen", $A$2:$A$10, $B$2:$F$10))
 ```
 
-The inner `XLOOKUP` finds Yoav's row and returns the entire row as an array. The outer `XLOOKUP` looks for "Used Cars PR" in the column headers and picks the value from that row.
+The inner `XLOOKUP` finds Yoav's row and returns the entire row as an array. The outer `XLOOKUP` looks for "Car Deals PR" in the column headers and picks the value from that row.
 
 Functionally identical to `INDEX/MATCH/MATCH`. Slightly more readable because each step is a "look up" rather than position math. The team mostly uses XLOOKUP-of-XLOOKUP in new sheets and keeps INDEX/MATCH/MATCH in legacy ones.
 

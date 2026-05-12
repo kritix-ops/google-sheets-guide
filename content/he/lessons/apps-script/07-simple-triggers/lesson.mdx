@@ -30,7 +30,13 @@ function onEdit(e) {
   e.range;     // Range object: התא או הטווח שנערכו
   e.value;     // הערך החדש (עריכות תא יחיד בלבד; undefined אחרת)
   e.oldValue;  // הערך הקודם (עריכות תא יחיד בלבד)
-  e.user;      // ה-User object; e.user.getEmail() היא כתובת העורך
+  e.user;      // בדרך כלל ריק ב-onEdit פשוט. לפי docs ה-events של Google
+               // הוא מאוכלס רק "אם זמין (תלוי בקבוצה מורכבת של הגבלות
+               // אבטחה)" — בפועל זה אומר שהעורך הוא בעל ה-script, או
+               // שה-script מקושר למסמך Workspace עם מדיניות admin
+               // מתאימה. אל תסתמכו על e.user.getEmail() לזיהוי חברי
+               // צוות; ראו את הקטע המודגש לפני הדוגמה המעובדת ושיעור 8
+               // לתיקון של installable-trigger.
   e.source;    // ה-Spreadsheet object שבו העריכה קרתה
 }
 ```
@@ -100,6 +106,38 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
 - **`onSelectionChange`**: נורה בכל הקשה על מקש חץ. רק דברים זולים: עדכון תא של status bar, הדגשת השורה הפעילה. handler של 100ms כאן בסדר; של 500ms מרגיש לא יציב.
 - **`onChange`**: נורה על שינויים מבניים שהאחרים מפספסים. הגנה אוטומטית על שורת כותרת כשמישהו מוסיף עמודה. צפייה לשינויי שם sheet לא מכוונים ב-workbook שבו נוסחאות `IMPORTRANGE` (שיעור 1.27) תלויות בשמות tabs.
 
+### דוגמה מעובדת: הגנה על שורת הכותרת כשמוסיפים עמודה
+
+`onEdit` לא נורה כש-buyer לוחץ קליק ימני על כותרת עמודה ובוחר "Insert 1 column left". התאים זזים; אף עריכה לא נחתה. `onChange` תופס את זה דרך `e.changeType`. קבוצת הערכים שהשדה מקבל קבועה: `INSERT_ROW`, `INSERT_COLUMN`, `REMOVE_ROW`, `REMOVE_COLUMN`, `INSERT_GRID` (tab חדש), `REMOVE_GRID` (tab נמחק), `FORMAT`, `EDIT`, `OTHER`. רוב ה-handlers מסננים את השניים-שלושה סוגים שאכפת להם וחוזרים על כל השאר.
+
+<Compare>
+  <ComparePanel label="לא נכון: ניסיון להשתמש ב-onEdit להוספת עמודה" tone="negative">
+    <pre className="font-mono text-xs"><code>{`function onEdit(e) {
+  // מקווים שזה תופס "מישהו הוסיף עמודה":
+  const sheet = e.range.getSheet();
+  if (sheet.getName() === "Campaigns") {
+    sheet.getRange("1:1").protect();
+  }
+}`}</code></pre>
+    <p className="mt-2 text-sm">הוספת עמודה לא מפעילה <code>onEdit</code>: שום תא לא נערך. ה-handler אף פעם לא רץ, שורת הכותרת אף פעם לא מוגנת מחדש, וה-buyer הבא שעורך את שורה 1 בטעות מקלקל את הכותרות.</p>
+  </ComparePanel>
+  <ComparePanel label="נכון: onChange + שומר changeType" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function onChange(e) {
+  if (e.changeType !== "INSERT_COLUMN" &&
+      e.changeType !== "INSERT_ROW") return;
+  const sheet = SpreadsheetApp.getActive()
+    .getSheetByName("Campaigns");
+  if (!sheet) return;
+  const header = sheet.getRange("1:1");
+  // יישום מחדש של הגנה: הוספה אולי הזיזה את ה-range המוגן.
+  header.protect()
+    .setDescription("Header row, auto-protected")
+    .setWarningOnly(true);
+}`}</code></pre>
+    <p className="mt-2 text-sm">שומרים על <code>e.changeType</code> קודם; שינויים מבניים הם היחידים שה-handler הזה מתעניין בהם. שימו לב ש-<code>e.range</code> לא קיים על ה-event של onChange, אז מגיעים ל-sheet לפי שם במקום.</p>
+  </ComparePanel>
+</Compare>
+
 <StepThrough
   frames={[
     {
@@ -146,12 +184,24 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
   ]}
 />
 
+## קוראים את זה לפני שאתם שולחים יד ל-`e.user`
+
+`e.user.getEmail()` הוא השדה שכל לומד שולח אליו יד ראשון ("אני אמלא אוטומטית את ה-buyer ממי שערך את השורה"), והוא השדה שבשקט לא עובד. ה-documentation של ה-events של Google אומר ש-`e.user` מאוכלס "אם זמין (תלוי בקבוצה מורכבת של הגבלות אבטחה)". ב-trigger פשוט של `onEdit` זה מתורגם ל: **`e.user` בדרך כלל ריק עבור כולם חוץ מבעל ה-script**, פלוס קבוצה צרה של מקרים בדומיין Workspace שבהם מדיניות ה-admin מאפשרת את זה.
+
+מה זה אומר בפועל:
+
+- handler של `onEdit` פשוט שקורא ל-`e.user.getEmail()` יחזיר `""` עבור כל חבר צוות שאינו בעל ה-script. ה-handler נראה כאילו הוא עובד עבורכם בבדיקה (אתם הבעלים) ונשבר בשקט עבור שאר הצוות.
+- trigger **installable** של `onEdit` (שיעור 8) רץ עם auth מלא, אבל הוא רץ כ-*מתקין*, לא כעורך. `e.user` ב-installable trigger אומר לכם מי התקין את ה-trigger, לא מי עשה את העריכה. אז installable triggers לא סוגרים את הפער הזה גם.
+- המסלולים הכנים ל-"מי ערך את השורה הזו?" הם: (א) לדרוש הזנה ידנית של שם ה-buyer, (ב) להשתמש ב-dropdown מקושר לרוסטר ה-buyer, או (ג) לתחזק installable trigger פר-משתמש שכותב את כתובת המייל של המתקין ל-bucket של user-properties וקורא אותה בזמן עריכה. אפשרות (ב) היא זו שהצוות באמת משתמש בה.
+
+הדוגמה המעובדת למטה שומרת על צורת `e.user` ל-hook של השיעור (כך שתראו איך השדה אמור להיראות), אבל ערך ה-"נפוץ בשטח" שמתחתיו נכתב מחדש כדי לשקף את מה שבאמת נשלח.
+
 ## נפוץ בשטח
 
 שני patterns מ-workbooks האמיתיים של הצוות:
 
-- **מילוי אוטומטי של ה-buyer ממייל העורך.** כשמקלידים שורת קמפיין חדשה ביומן היומי, `onEdit` קורא את `e.user.getEmail()`, מחפש את שם ה-buyer מגיליון רוסטר ה-buyer הקנוני, וכותב אותו לעמודת Buyer. כל הדבר הוא עשר שורות וחוסך לצוות ייחוסי buyer שגויים ב-dashboards.
-- **סימון אוטומטי של עמודת Spend כשנוגעים בה מחדש.** כש-buyer מתאים מספר spend באמצע השבוע, `onEdit` חותם סימן "updated" קטן עמודה אחת מעבר. הביקורת השבועית עושה pivot על העמודה הזו כדי לסמן שורות שזזו מההעלאה.
+- **מילוי אוטומטי של ה-buyer מ-dropdown, לא מ-`e.user`.** עמודת Buyer ביומן היומי היא dropdown של data-validation מקושר לגיליון רוסטר ה-buyer הקנוני. handler של `onEdit` צופה בשורה לזיהוי Vertical חדש שהוקלד, ואם Buyer עדיין ריק, מגדיר את ה-validation של התא ל-"show warning" כך שה-buyer לא יוכל להמשיך בלי לבחור את עצמו. הצוות ניסה את ה-lookup של `e.user.getEmail()` פעם אחת; הוא נכשל בשקט עבור כל חבר צוות שאינו בעל ה-script, וה-dashboards התמלאו בייחוסי Buyer ריקים. ה-dropdown ניצח.
+- **סימון אוטומטי של עמודת Spend כשנוגעים בה מחדש.** כש-buyer מתאים מספר spend באמצע השבוע, `onEdit` חותם סימן "updated" קטן עמודה אחת מעבר. הביקורת השבועית עושה pivot על העמודה הזו כדי לסמן שורות שזזו מההעלאה. ה-pattern הזה לא תלוי ב-`e.user`; הוא קורא רק את `e.range`, שתמיד מאוכלס. בגלל זה הוא שורד איפה ש-pattern של buyer-from-email לא שורד.
 
 <QuickCheck
   question="ה-onEdit handler שלכם קורא את e.value כדי לזהות כשתא הופך ל-'DEAD' והופך את השורה לאדומה. buyer מדביק 20 שורות שאחת מהן מכילה 'DEAD'. ה-handler לא עושה כלום. למה?"
@@ -201,6 +251,6 @@ simple triggers רצים **כמשתמש שהפעיל את ה-event**, ב-auth sc
 - **ל-`onChange` יש צורת `e` שונה.** אין `e.range`, אין `e.value`. העתקת body של handler מ-`onEdit` ל-`onChange` וציפייה שזה יעבוד היא session של דיבאג של 20 דקות.
 - **שמות שמורים רגישים לרישיות.** `function onedit` לא נורה. `function OnEdit` לא נורה. עורך Apps Script לא מזהיר אתכם.
 - **ה-timeout של 30 שניות לא סולח.** אם ה-handler שלכם צריך לעבור על כל ה-sheet, זה הכלי הלא נכון: מתזמנים installable trigger מבוסס-זמן שרץ בלילה עם auth מלא ותקציב ארוך יותר.
-- **simple triggers לא יכולים לשלוח מייל, fetch, או לגעת במסמכים אחרים.** הקריאה נכשלת בשקט. אם ה-handler שלכם "לא נראה עובד" ויש בו `e.user.getEmail()` או `UrlFetchApp.fetch`, זו הסיבה. שדרגו ל-installable trigger בשיעור הבא.
-- **`e.user.getEmail()` מחזיר מחרוזת ריקה ב-Workspace.** בחשבונות consumer השדה עובד; בחשבונות Workspace עם מדיניות admin קפדנית, הוא יכול לחזור ריק עבור משתמשים מחוץ לדומיין של בעל ה-script. אם ה-handler נשען על המייל של העורך, סבים ל-`Session.getActiveUser().getEmail()` או מחברים installable trigger שרץ עם ההרשאות של בעל ה-script.
+- **simple triggers לא יכולים לשלוח מייל, fetch, או לגעת במסמכים אחרים.** הקריאה נכשלת בשקט. אם ה-handler שלכם "לא נראה עובד" ויש בו `MailApp.sendEmail` או `UrlFetchApp.fetch`, זו הסיבה. שדרגו ל-installable trigger בשיעור הבא.
+- **`e.user.getEmail()` מחזיר מחרוזת ריקה עבור חברי צוות.** מכוסה בקטע המודגש מעל הדוגמה המעובדת: `e.user` מאוכלס באופן אמין רק כשהעורך הוא בעל ה-script (או, באופן צר, משתמש Workspace באותו דומיין שבו מדיניות ה-admin מאפשרת את זה). עבור כל חבר צוות אחר השדה ריק. ל-`Session.getActiveUser().getEmail()` יש את אותה הגבלה ב-context של simple-trigger, אז זה לא workaround. התיקון האמיתי הוא installable trigger (שיעור 8) פלוס dropdown לזהות העורך, לא heuristic.
 - **onEdit handler שעורך באופן רקורסיבי את אותו range.** אם ה-handler עושה `range.setValue(x)` בפנים, הכתיבה הזו לא מפעילה `onEdit` שוב (ה-runtime של Google מגן על הלולאה), אבל כתיבה לתא *אחר* שיש לו נוסחה שמפנה לתא שנערך יכולה להיכנס למפל. צופים ב-Executions panel להפעלות חוזרות.

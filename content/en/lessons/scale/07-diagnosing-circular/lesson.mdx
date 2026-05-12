@@ -15,6 +15,30 @@ Most real cycles fall into one of four patterns:
 3. **Multi-cell loop.** `A1 = B1 + 1`, `B1 = C1 + 1`, `C1 = A1 + 1`. Three or more cells; the cycle is invisible without tracing the graph. Sheets still detects it, but the error is annotated on each cell in the loop, not on the "first" one.
 4. **Hidden cycle through `INDIRECT`.** `A1 = INDIRECT(B1)` where B1 happens to evaluate to "A1". The static dependency graph does not show the loop because the reference is computed at runtime, but the engine resolves the lookup at evaluation time and trips the cycle detector anyway. These are the hardest to diagnose because the cycle is not visible in the formula text on either cell. (Recall from Lesson 4.2 that `INDIRECT` is volatile too: bad on multiple axes.)
 
+<QuickCheck
+  question="Cells A1, B1, and C1 are all flagged 'Circular dependency'. A1 reads `=B1+1`, B1 reads `=C1+1`, C1 reads `=A1+1`. Which cycle shape is this?"
+  options={[
+    {
+      id: "a",
+      label: <>Self-reference. Each cell references itself.</>,
+      correct: false,
+      explanation: "No single formula contains its own address. A self-reference would read like `A1 = A1 + 1`. The cells reference each other across the trio, not themselves.",
+    },
+    {
+      id: "b",
+      label: <>Multi-cell loop. The cycle closes A1 → B1 → C1 → A1.</>,
+      correct: true,
+      explanation: "Three cells, none self-referential, each pointing at the next. This is the multi-cell-loop pattern. The cycle is invisible in any one formula; you have to read all three to see it.",
+    },
+    {
+      id: "c",
+      label: <>Hidden INDIRECT cycle.</>,
+      correct: false,
+      explanation: "There is no `INDIRECT` call in any of the three formulas. The hidden-INDIRECT shape requires a runtime-computed reference. This cycle is fully visible in the static formula text.",
+    },
+  ]}
+/>
+
 ## Walking a multi-cell loop
 
 <StepThrough
@@ -71,6 +95,30 @@ Sheets does not surface a "cycle path" visualization the way a programming IDE s
 4. **For `INDIRECT` cycles, look at what the `INDIRECT` argument resolves to.** Often this is a dropdown or a named range whose value points back into the formula's own neighborhood.
 
 In a workbook with hundreds of formulas, the cycle is almost always near the cells the learner most recently edited. Time of last edit is the strongest signal you have.
+
+<QuickCheck
+  question="You opened a dashboard with two red `#REF!` cells flagged 'Circular dependency'. You have no idea which formula started the loop. Which signal narrows the search fastest?"
+  options={[
+    {
+      id: "a",
+      label: <>Sort all formula cells in the workbook alphabetically and read them in order.</>,
+      correct: false,
+      explanation: "Most formulas in the workbook are unrelated to the cycle. Alphabetical order does not surface dependency graphs. You would read hundreds of innocent formulas before reaching the relevant ones.",
+    },
+    {
+      id: "b",
+      label: <>Look at the version history for cells edited most recently. The cycle almost always lives near the last edit.</>,
+      correct: true,
+      explanation: "Sheets does not visualize the dependency graph, but version history pinpoints what changed. New cycles are introduced by edits, and the edit is usually within the last few revisions. Walk the recent changes first, not the formula list.",
+    },
+    {
+      id: "c",
+      label: <>Turn on Iterative calculation; the cycle will resolve and you can ignore it.</>,
+      correct: false,
+      explanation: "Iterative calc hides the symptom but leaves the bug. It also affects every future cycle in the workbook silently. The next section covers why this is the wrong tool.",
+    },
+  ]}
+/>
 
 ## "Iterative calculation" is almost always wrong
 
@@ -154,15 +202,15 @@ The edit fires `onEdit`, the function writes to J1, the write fires `onEdit` aga
 
 <MiniGrid
   data={CAMPAIGNS_LARGE.slice(0, 6)}
-  caption="A 60-row campaign log lives in A1:G61. Three pre-seeded cycle cells in column J need to be untangled."
+  caption="A 60-row campaign log lives in A1:G61. Two pre-seeded cycles in column J need to be untangled."
 />
 
-Click **Start lesson** to provision the Campaigns tab with three cells in deliberate cycles:
+Click **Start lesson** to provision the Campaigns tab with two deliberate cycles:
 
 - **J1** is `=SUM(F2:F61)+J1`, the classic self-referencing total. Fix it so the cell holds the total spend without referencing itself.
 - **J2** is `=J3+1` and **J3** is `=J2-1`, a two-cell cycle. Break the loop. Easiest fix: hardcode J3 to a concrete number, then point J2 at the now-stable J3.
 
-Two cycle shapes, three fixes. The lesson is identifying which cell needs to stop being a formula.
+Two cycle shapes, two fixes. The lesson is identifying which cell needs to stop being a formula.
 
 ## Used in the wild
 

@@ -14,9 +14,9 @@ When you convert a range, Sheets wraps it in a visual frame: bold header row, al
   data={[
     ["📋 Campaigns", "", "", "", "", ""],
     ["Date", "Buyer", "Vertical", "Platform", "Spend", "Revenue"],
-    ["2026-05-01", "Yoav Cohen", "Used Cars PR", "Taboola", 342.18, 487.30],
-    ["2026-05-02", "Sarah Levi", "Lingerie PR", "Outbrain", 198.40, 312.55],
-    ["2026-05-03", "David Mizrahi", "Solar Panels PR", "Mediago", 612.90, 1124.6],
+    ["2026-05-01", "Yoav Cohen", "Car Deals PR", "Google", 342.18, 487.30],
+    ["2026-05-02", "Maya Bar", "Cruises PR", "Outbrain", 512.00, 1124.60],
+    ["2026-05-05", "Yoav Cohen", "Solar Systems & Panels PR", "Outbrain", 318.45, 401.90],
   ]}
   caption="A converted table named Campaigns. The header row carries typed columns (text, date, currency); the body extends every time a new campaign is added. From outside the table, formulas reference it as Campaigns[Spend], Campaigns[Buyer], etc."
   highlight={["A1", "F1"]}
@@ -110,12 +110,12 @@ The cross-reference pattern that the team's per-buyer dashboards are built on.
 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=SUM('Used Cars'[Spend])`}</code></pre>
+    <pre className="font-mono text-xs"><code>{`=SUM('Car Deals'[Spend])`}</code></pre>
     <p className="mt-2 text-sm"><strong>Quoted table name with the space preserved.</strong> Sheets does not accept spaces inside the table-name part of a structured reference. The single quotes don't help. The formula errors with a parse error and the dashboard cell shows <code>#ERROR!</code>.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>=SUM(Used_Cars[Spend])</code></pre>
-    <p className="mt-2 text-sm"><strong>Underscores replace spaces.</strong> A table named "Used Cars" is referenced as <code>Used_Cars</code> in formulas. Spaces inside *column* names are kept as-is (<code>{`Campaigns[Vertical Name]`}</code> is valid), but spaces in *table* names always become underscores. The team usually skips spaces in both for sanity.</p>
+    <pre className="font-mono text-xs"><code>=SUM(Car_Deals[Spend])</code></pre>
+    <p className="mt-2 text-sm"><strong>Underscores replace spaces.</strong> A table named "Car Deals" is referenced as <code>Car_Deals</code> in formulas. Spaces inside *column* names are kept as-is (<code>{`Campaigns[Vertical Name]`}</code> is valid), but spaces in *table* names always become underscores. The team usually skips spaces in both for sanity.</p>
   </ComparePanel>
 </Compare>
 
@@ -178,14 +178,15 @@ Tables are *not* the right shape for:
 
 - **Master campaign log as a table.** The team's main campaign sheet becomes `Campaigns`. Every dashboard pivot, `SUMIFS`, and chart references `Campaigns[Revenue]` instead of `Sheet1!F:F`. Pasted-in rows flow into every downstream formula automatically.
 - **Verticals lookup table.** A small table with vertical → category → benchmark CPC. Lookup formulas read `=VLOOKUP(B2, Verticals[#ALL], 2, FALSE)` and survive new-vertical additions without edits.
-- **Per-buyer dashboards.** `=SUMIFS(Campaigns[Spend], Campaigns[Buyer], $A2)` filled across Yoav, Sarah, David, Maya, Tom: readable and stable.
+- **Per-buyer dashboards.** `=SUMIFS(Campaigns[Spend], Campaigns[Buyer], $A2)` filled across Yoav, Maya, Ben, Dina, Roni: readable and stable.
 - **Chart sources.** Point a chart at `Campaigns[Date]` and `Campaigns[Revenue]`. The chart updates as the table grows; no need to re-edit chart ranges every Friday.
 - **Conditional formatting with structured refs.** Rules like "highlight rows where Revenue < Spend" written against `Campaigns[Revenue]` and `Campaigns[Spend]` extend with the data automatically.
+- **Paste-and-convert to table with Gemini (April 2026).** When you paste unstructured text into a sheet (a bullet list, freeform notes, a JSON dump from a partner), Sheets now surfaces a **Convert to table** prompt powered by Gemini ([Workspace Updates, April 2026](https://workspaceupdates.googleblog.com/2026/04/paste-and-convert-unformatted-text-into-Google-Sheets-tables-with-Gemini.html)). Click it and Gemini infers headers, splits fields, and writes a proper table you can name, type, and reference with structured syntax. The team uses this when a buyer pastes the previous week's results from Slack and the rows arrive as one wall of text. Track 5 covers the Gemini-in-Sheets surface in depth: lesson 5.3 (Fill with Gemini) is the closest cousin, and lesson 5.4 (build-and-edit side panel) is the next step up. Same review discipline applies in both directions: read what Gemini produced before you point a dashboard at it.
 
 ## Pro pitfalls
 
 - **No `[@col]` current-row syntax.** Per-row formulas inside a table use plain cell references (`=E2*1.1`), not `=[@Spend]*1.1`. Excel-trained users get this wrong constantly.
-- **Spaces in table names become underscores in formulas.** A table named "Used Cars" is `Used_Cars[Spend]`, not `'Used Cars'[Spend]` or `Used Cars[Spend]`. The team usually avoids spaces entirely.
+- **Spaces in table names become underscores in formulas.** A table named "Car Deals" is `Car_Deals[Spend]`, not `'Car Deals'[Spend]` or `Car Deals[Spend]`. The team usually avoids spaces entirely.
 - **Tables don't carry through `IMPORTRANGE`.** A table in workbook A becomes plain values when imported into workbook B. Either convert the imported range to a new local table in B, or operate on the import with `QUERY` (lesson 1.12).
 - **Column type inference can mis-read.** One stray text entry in a "Date" column makes Sheets infer the whole column as text. Fix the source data, then set the column type explicitly from the header dropdown.
 - **You can't easily un-table.** "Convert back to range" exists in the table dropdown but it strips formatting and column types. Plan the table boundaries deliberately before converting.

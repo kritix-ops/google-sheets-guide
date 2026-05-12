@@ -85,6 +85,30 @@
 
 ב-workbook עם מאות תאי `IMPORTRANGE`, מריצים את הרשימה תא אחר תא. אין קיצור דרך. Drive API יכול לרשום הרשאות ו-Sheets API יכול לרשום תאים, אבל אף אחד מהם לא יכול להגיד אם ה-*שילוב* בפועל עובד.
 
+<QuickCheck
+  question="תא IMPORTRANGE מציג `#REF!` עם ה-tooltip 'Did not find sheet'. ה-URL נפתח בסדר בטאב חדש; ה-workbook המקור חי ויש לכם גישת עריכה. מה הבדיקה הבאה היחידה?"
+  options={[
+    {
+      id: "a",
+      label: <>לוחצים 'Allow access' על התא.</>,
+      correct: false,
+      explanation: "'Did not find sheet' זו שגיאת מחרוזת טווח, לא שגיאת auth. ה-tooltip של בקשת ה-auth הוא 'You need to connect these sheets'. שתי השגיאות נבדלות ודורשות תיקונים שונים.",
+    },
+    {
+      id: "b",
+      label: <>פותחים את ה-workbook המקור ומשווים כל שם טאב מול מחרוזת הטווח בנוסחה שלכם. סביר שטאב קיבל שם חדש.</>,
+      correct: true,
+      explanation: "'Did not find sheet' זה Sheets שאומר לכם שהשם המילולי של הגיליון ב-argument הטווח לא קיים במקור. ה-URL בסדר; שם הטאב ב-`\"Campaigns!A1:G5000\"` כבר לא תואם טאב. מוצאים את הטאב ששמו שונה ומעדכנים את מחרוזת הטווח בכל ה-workbook (find-and-replace על פני נוסחאות).",
+    },
+    {
+      id: "c",
+      label: <>עוטפים את התא ב-`IFERROR(IMPORTRANGE(...), \"\")` כך שה-dashboard יהפוך לירוק.</>,
+      correct: false,
+      explanation: "מסתיר את השבירה המבנית. התא הופך לירוק, הנתונים עדיין לא זורמים, והרענון הבא עלול לשבור גם תאים חדשים. שיעור 4.6 מכסה למה `IFERROR` היא הושטת היד הלא נכונה לשגיאות מבניות.",
+    },
+  ]}
+/>
+
 ## מודל ה-auth שאף אחד לא מתעד בבירור
 
 גישת `IMPORTRANGE` משתמשת בערוץ הרשאה נפרד משיתוף גיליון רגיל. כשמאשרים גישה בלחיצה על "Allow access" בפעם הראשונה, מעניקים ל-workbook היעד את הזכות למשוך מהמקור בשמכם. שתי השלכות שמטריפות צוותים:
@@ -93,6 +117,30 @@
 - **ה-auth בלתי נראה לפי script-actor.** כש-Apps Script (או כל אחד אחר חוץ מכם) כותב נוסחת `IMPORTRANGE`, הגישה חייבת להיות מאושרת מקונטקסט ה-auth של *אותו* actor, לא שלכם. trigger שכותב `IMPORTRANGE` לתא ינחית `#REF!` עד שמישהו פותח את ה-workbook בסשן שבו בעל הסקריפט יכול ללחוץ "Allow access".
 
 הכפתור "Allow access" הוא כל ה-user interface למערכת הזו. אין דף הגדרות שמרשים אילו workbooks לגיליון הנוכחי יש גישה. אין audit של מי אישר מה ומתי. הסיגנל היחיד הוא הנוסחה עובדת או לא.
+
+<QuickCheck
+  question="ה-aggregator הלילי שלכם ב-Apps Script כותב נוסחת IMPORTRANGE לתא. בבוקר שלמחרת התא מציג `#REF!` למרות ש-IMPORTRANGE ידני שכתבתם אתם, באותו workbook, מול אותו מקור, עובד בסדר. למה?"
+  options={[
+    {
+      id: "a",
+      label: <>ה-cache של 30 דקות עדיין לא התרענן לנוסחה החדשה.</>,
+      correct: false,
+      explanation: "רענון cache משפיע על טריות הנתונים, לא על הרשאה. `#REF!` מ-cache stale לא היה שונה בין התא שלכם לתא של הסקריפט.",
+    },
+    {
+      id: "b",
+      label: <>הרשאות auth חיות לפי script-actor. לבעל הסקריפט לא ניתנה גישה ל-workbook היעד מול המקור, גם אם לכם כן.</>,
+      correct: true,
+      explanation: "auth של IMPORTRANGE מוענק לפי actor, לא לפי workbook. הנוסחה הידנית שלכם משתמשת בקונטקסט ה-auth שלכם; הנוסחה של הסקריפט משתמשת בקונטקסט ה-auth של בעל הסקריפט. פותחים את ה-workbook בסשן שבו בעל הסקריפט יכול ללחוץ 'Allow access' על אותו תא, וזה מתרפא.",
+    },
+    {
+      id: "c",
+      label: <>Apps Script לא יכול לכתוב נוסחאות IMPORTRANGE; הן חייבות להיות מוקלדות בידי בן אדם.</>,
+      correct: false,
+      explanation: "Apps Script יכול לכתוב כל נוסחה לכל תא, כולל IMPORTRANGE. השבירה היא בצורת auth, לא בצורת נוסחה.",
+    },
+  ]}
+/>
 
 ## תקרות שיעור ו-cache של 30 דקות
 

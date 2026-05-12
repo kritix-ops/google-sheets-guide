@@ -84,7 +84,7 @@ export async function runClaudeJudge(
   ctx: JudgeContext,
   options: JudgeRunOptions = {},
 ): Promise<JudgeRunResult> {
-  const { assignment, rulesResult } = ctx;
+  const { assignment } = ctx;
   if (!assignment.judge) {
     throw new Error(
       `assignment ${assignment.id} has no judge spec; gate the call with assignment.judge before invoking runClaudeJudge`,

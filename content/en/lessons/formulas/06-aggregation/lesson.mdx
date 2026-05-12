@@ -177,12 +177,12 @@ A typical adtech use: total revenue from Yoav's campaigns on Taboola only. Two c
 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen", D2:D14, "Taboola")`}</code></pre>
-    <p className="mt-2 text-sm">The sum range (F2:F13) and the second criteria range (D2:D14) have different sizes. SUMIFS returns <code>#VALUE!</code> or, worse, the wrong number with no error if the size mismatch lines up "accidentally."</p>
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen", E2:E13, >400)`}</code></pre>
+    <p className="mt-2 text-sm">Comparison criterion written as a bare expression (<code>{">"}400</code>) instead of a quoted string. SUMIFS only recognises operators when the criterion is a text literal: <code>"{">"}400"</code>. The unquoted version is parsed as a reference (or errors), and the team's most common silent-bug pattern is the variant <code>=SUMIFS(F:F, F:F, 400)</code> meant as "{">"}=400"; it matches only the exact value 400 and quietly returns 0 most of the time.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen", D2:D13, "Taboola")`}</code></pre>
-    <p className="mt-2 text-sm">Every range, sum and criteria alike, the same number of rows (and columns). Use bounded matched ranges, or switch to a table (lesson 17) so the auto-expanding column references always line up.</p>
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(F2:F13, B2:B13, "Yoav Cohen", E2:E13, ">400")`}</code></pre>
+    <p className="mt-2 text-sm">Operator and value together inside the quotes. For criteria that reference a cell, concatenate: <code>"{">"}=" {"&"} G1</code> builds <code>"{">"}=400"</code> from <code>G1</code>. Same rule for dates: <code>"{">"}=" {"&"} DATE(2026,1,1)</code>. Bare expressions silently misbehave; quoted-string criteria are the safe form.</p>
   </ComparePanel>
 </Compare>
 
@@ -209,6 +209,14 @@ A typical adtech use: total revenue from Yoav's campaigns on Taboola only. Two c
     },
   ]}
 />
+
+## AVERAGEIFS: conditional averages
+
+The third member of the plural-aggregator family. Same argument shape as `SUMIFS`: average range first, then alternating criterion-range and criterion pairs. The right tool for "average ROI for Yoav's TikTok campaigns over the last 14 days" without an `=SUMIFS(...) / COUNTIFS(...)` ratio that double-evaluates the same conditions.
+
+<FunctionRef name="AVERAGEIFS" />
+
+Critical gotcha shared with `AVERAGE`: cells that hold text or are blank inside the average range are skipped, not counted as 0. So if a buyer has 8 campaigns but 2 of them have blank revenue cells (still pending), `AVERAGEIFS` returns the mean of 6, not 8. That's almost always what you want for a per-buyer dashboard; it's almost never what you want for a pacing alert (where blanks should count as zero spend). When in doubt, build it manually as `=SUMIFS(...) / 8` so the denominator is explicit.
 
 ## How to choose
 
@@ -239,7 +247,7 @@ In the team's actual workbooks:
 - **The SUMIFS argument-order trap.** Sum range first. Wrong order returns wrong numbers without erroring. Always always always.
 - **Criteria strings need explicit comparison operators.** `SUMIFS(F:F, F:F, ">400")` works. `SUMIFS(F:F, F:F, 400)` matches only exact 400. `SUMIFS(F:F, F:F, "400")` is the same as exact match.
 - **`SUMIFS(..., date_range, ">=2026-01-01")` doesn't always work.** Date strings as criteria are unreliable. Better: <code>SUMIFS(..., date_range, "{">"}=" {"&"} DATE(2026,1,1))</code> with concatenation.
-- **Ranges of different sizes break SUMIFS silently.** Sum range and every criteria range must have the same dimensions. If one is `F2:F13` and another is `B2:B14`, SUMIFS returns wrong results without erroring.
+- **Ranges of different sizes raise `#VALUE!`, not a wrong number.** Sum range and every criteria range must have the same dimensions. `F2:F13` paired with `B2:B14` errors out loudly. Reliable but disruptive: a single oversized range in one criterion blows up the whole cell. Match ranges exactly, or convert to a table (lesson 17) so column references auto-expand together.
 - **Empty cells count as 0 in SUMIFS for numeric criteria.** If you have empty rows from IMPORTRANGE that haven't been populated yet, `SUMIFS(..., F:F, "{">"}0")` skips them; `SUMIFS(..., F:F, "{"<"}{">"}1000")` includes them as zeros. Watch for this in date-range filters too.
 
 ## Now do it for real

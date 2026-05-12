@@ -97,8 +97,8 @@ Spreadsheet מפסיק להיות בגודל צעצוע ברגע שיש יותר
     <p className="mt-2 text-sm"><strong>INDIRECT תנודתי אחד פר שורה.</strong> ה-INDIRECT של כל שורה מחושב מחדש בכל עריכה בחוברת, לא רק בעריכות לקלטים שלה. כל הקשה מפעילה 100 הערכות INDIRECT. הדאשבורד מאט לזחילה, והסיבה לא נראית עד שמחפשים INDIRECT בחוברת.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=LET(rng, INDIRECT("'" & $A$1 & "'!E:E"), SUM(rng) + AVG(rng) + COUNTA(rng))`}</code></pre>
-    <p className="mt-2 text-sm"><strong>INDIRECT אחד פר נוסחה דרך LET.</strong> הקריאה התנודתית נפתרת פעם אחת; קישור ה-LET מזין שלוש אגרגציות במורד הזרם. הרימו את ה-INDIRECT לתא עזר יחיד במקום אם נוסחאות רבות על פני הדאשבורד צריכות את אותו טווח פתור.</p>
+    <pre className="font-mono text-xs"><code>{`=LET(rng, INDIRECT("'" & $A$1 & "'!E:E"), SUM(rng) + AVERAGE(rng) + COUNTA(rng))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>INDIRECT אחד פר נוסחה דרך LET.</strong> הקריאה התנודתית נפתרת פעם אחת; קישור ה-LET מזין שלוש אגרגציות במורד הזרם. אל תבלבלו בין מילות המפתח של אגרגציה ב-QUERY (<code>avg</code>, <code>sum</code>, <code>count</code>) לבין פונקציות ברמת ה-Sheet (<code>AVERAGE</code>, <code>SUM</code>, <code>COUNT</code>); הן חולקות מושגים אבל חיות בעולמות שונים. הרימו את ה-INDIRECT לתא עזר יחיד במקום אם נוסחאות רבות על פני הדאשבורד צריכות את אותו טווח פתור.</p>
   </ComparePanel>
 </Compare>
 

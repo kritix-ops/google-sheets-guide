@@ -111,7 +111,7 @@ export const assignment: AssignmentSpec = {
   seed: {
     tabTitle: "Text",
     cells: [
-      { a1: "A1", value: "Taboola_UsedCarsPR_DesktopUS_2026-05" },
+      { a1: "A1", value: "Taboola_CarDealsPR_DesktopUS_2026-05" },
       { a1: "A3", value: "Yoav Cohen" },
       { a1: "A4", value: "Dina Dayan" },
       { a1: "A5", value: "Maya Bar" },

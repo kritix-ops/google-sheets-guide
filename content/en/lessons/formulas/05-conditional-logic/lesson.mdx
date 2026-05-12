@@ -65,7 +65,12 @@ The classic adtech use: translate platform names into broader categories so dash
 
 ## AND, OR, NOT: composing conditions
 
-A condition can be more than one comparison. `AND(...)` is true if every argument is true. `OR(...)` is true if any one is. `NOT(x)` flips a boolean. The reference cards were introduced in lesson 3; here we focus on composing them inside `IF` and `IFS` to express the actual scaling rules the team uses.
+A condition can be more than one comparison. `AND(...)` is true if every argument is true. `OR(...)` is true if any one is. `NOT(x)` flips a boolean. `AND` was introduced in lesson 3 alongside `IF`; the canonical cards for `OR` and `NOT` are below. Here we focus on composing them inside `IF` and `IFS` to express the actual scaling rules the team uses.
+
+<FunctionRef name="OR" />
+
+<FunctionRef name="NOT" />
+
 
 ### Easy traps
 
@@ -155,7 +160,7 @@ In the team's actual workbooks:
 - **`#N/A` from SWITCH** means no match and no default supplied. Always pass a default as the last argument.
 - **Order matters in IFS.** Strictest condition first, loosest last (or use `TRUE` catch-all). Reversed order silently returns the wrong bucket.
 - **Comparing imported text to a number** does not error but always returns FALSE. If revenue comes in via IMPORTRANGE as a string ("487.30" not 487.30), `F2 > E2` never matches. Coerce with `VALUE(F2)` or `F2*1`.
-- **`AND` and `OR` short-circuit differently inside `ARRAYFORMULA`.** Per-row, `AND(A2:A, B2:B)` reduces to a single scalar (all rows combined), not a per-row array. For per-row boolean arrays, use `*` (AND) and `+` (OR) between the conditions; lesson 1.14 covers the trick in depth.
+- **`AND` and `OR` short-circuit differently inside `ARRAYFORMULA`.** Per-row, `AND(A2:A, B2:B)` reduces to a single scalar (all rows combined), not a per-row array. For per-row boolean arrays, use `*` (AND) and `+` (OR) between the conditions; lesson 1.10 covers the boolean-arithmetic trick when it introduces ARRAYFORMULA, and lesson 1.14 revisits it for FILTER.
 - **SWITCH growing past ~10 branches becomes unmaintainable.** Move it to a config sheet and `XLOOKUP` against the map. The mapping then becomes data, not code, and non-coders can edit it.
 
 ## Now do it for real

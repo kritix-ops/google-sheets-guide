@@ -8,6 +8,8 @@ This lesson is the workbook-level companion to Track 1 lesson 28 (which covered 
 
 ## The big rocks, in rough order of cost
 
+Before fixing anything, see what's actually in the workbook. `File → Settings → Spreadsheet stats` is the built-in diagnostic UI: it reports total cell count, total formula count, and the count of `IMPORTRANGE` references. Track 4 lesson 1 covers the cell-limit numbers in depth (the 10M-cell ceiling and the 50,000-row threshold where formula performance starts to bite), but the panel is the right first stop any time the workbook feels slow. The numbers tell you whether you're optimizing the workbook you have, or whether you're past a structural limit and need to archive or split.
+
 When the team profiles a slow workbook, the same handful of patterns explain the bill:
 
 1. **Full-column references inside volatile or expensive functions.** `INDIRECT("Sheet!"&A1)` over `A:A` is the worst offender. `OFFSET(B1,...,COUNTA(B:B))` is right behind it.

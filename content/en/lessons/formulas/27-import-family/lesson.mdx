@@ -161,12 +161,12 @@ XPath is verbose but powerful when you need a single element rather than a whole
 All three of these only work on **public** URLs (no auth). For private data sources, you would use Apps Script with `UrlFetchApp` instead.
 
 <QuickCheck
-  prompt="A dashboard pulls campaign data from a source sheet via IMPORTRANGE. The source owner shares the dashboard externally with a partner agency. The partner needs to see the dashboard numbers but is not supposed to access the underlying campaign log. Is the source data exposed?"
+  question="A dashboard pulls campaign data from a source sheet via IMPORTRANGE. The source owner shares the dashboard externally with a partner agency. The partner needs to see the dashboard numbers but is not supposed to access the underlying campaign log. Is the source data exposed?"
   options={[
-    { id: "a", text: "No, because IMPORTRANGE requires explicit per-user authorization on the source.", correct: false, explanation: "Wrong. IMPORTRANGE auth is per source-destination *sheet* pair, not per user. Once the dashboard owner authorized the connection, anyone with view access to the destination sees the imported cells." },
-    { id: "b", text: "Yes. Anyone with view access on the destination can see whatever the IMPORTRANGE pulled.", correct: true, explanation: "Correct. The imported range is visible to all destination viewers, regardless of whether they have access to the source. This is the load-bearing detail when handling sensitive data: importing leaks downstream." },
-    { id: "c", text: "No, only the columns selected by an inner QUERY are visible to the partner.", correct: false, explanation: "QUERY filters what's spilled, but the IMPORTRANGE itself still surfaces those cells. Anything that lands in the destination is visible to destination viewers." },
-    { id: "d", text: "Yes, but only if the partner is signed in with a Google account.", correct: false, explanation: "Sign-in state of the viewer doesn't gate the imported cells. Whatever IMPORTRANGE spilled is part of the destination sheet now." },
+    { id: "a", label: "No, because IMPORTRANGE requires explicit per-user authorization on the source.", correct: false, explanation: "Wrong. IMPORTRANGE auth is per source-destination *sheet* pair, not per user. Once the dashboard owner authorized the connection, anyone with view access to the destination sees the imported cells." },
+    { id: "b", label: "Yes. Anyone with view access on the destination can see whatever the IMPORTRANGE pulled.", correct: true, explanation: "Correct. The imported range is visible to all destination viewers, regardless of whether they have access to the source. This is the load-bearing detail when handling sensitive data: importing leaks downstream." },
+    { id: "c", label: "No, only the columns selected by an inner QUERY are visible to the partner.", correct: false, explanation: "QUERY filters what's spilled, but the IMPORTRANGE itself still surfaces those cells. Anything that lands in the destination is visible to destination viewers." },
+    { id: "d", label: "Yes, but only if the partner is signed in with a Google account.", correct: false, explanation: "Sign-in state of the viewer doesn't gate the imported cells. Whatever IMPORTRANGE spilled is part of the destination sheet now." },
   ]}
 />
 

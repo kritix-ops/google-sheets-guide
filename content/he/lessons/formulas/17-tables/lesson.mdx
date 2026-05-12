@@ -14,9 +14,9 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
   data={[
     ["📋 Campaigns", "", "", "", "", ""],
     ["Date", "Buyer", "Vertical", "Platform", "Spend", "Revenue"],
-    ["2026-05-01", "Yoav Cohen", "Used Cars PR", "Taboola", 342.18, 487.30],
-    ["2026-05-02", "Sarah Levi", "Lingerie PR", "Outbrain", 198.40, 312.55],
-    ["2026-05-03", "David Mizrahi", "Solar Panels PR", "Mediago", 612.90, 1124.6],
+    ["2026-05-01", "Yoav Cohen", "Car Deals PR", "Google", 342.18, 487.30],
+    ["2026-05-02", "Maya Bar", "Cruises PR", "Outbrain", 512.00, 1124.60],
+    ["2026-05-05", "Yoav Cohen", "Solar Systems & Panels PR", "Outbrain", 318.45, 401.90],
   ]}
   caption="טבלה מומרת בשם Campaigns. שורת הכותרת נושאת עמודות מוטיפסות (טקסט, תאריך, מטבע); הגוף מתרחב בכל פעם שמוסיפים קמפיין חדש. מחוץ לטבלה, נוסחאות מפנות אליה כ-Campaigns[Spend], Campaigns[Buyer] וכו'."
   highlight={["A1", "F1"]}
@@ -110,12 +110,12 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=SUM('Used Cars'[Spend])`}</code></pre>
+    <pre className="font-mono text-xs"><code>{`=SUM('Car Deals'[Spend])`}</code></pre>
     <p className="mt-2 text-sm"><strong>שם טבלה מצוטט עם הרווח שמור.</strong> Sheets לא מקבל רווחים בתוך החלק של שם הטבלה בהפניה מבנית. הגרשיים הבודדים לא עוזרים. הנוסחה שוגה עם שגיאת parse והתא של הדאשבורד מציג <code>#ERROR!</code>.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
-    <pre className="font-mono text-xs"><code>=SUM(Used_Cars[Spend])</code></pre>
-    <p className="mt-2 text-sm"><strong>קווים תחתונים מחליפים רווחים.</strong> טבלה בשם "Used Cars" מוזכרת כ-<code>Used_Cars</code> בנוסחאות. רווחים בתוך *שמות עמודות* נשמרים כפי שהם (<code>{`Campaigns[Vertical Name]`}</code> תקף), אבל רווחים ב*שמות טבלה* תמיד הופכים לקווים תחתונים. הצוות בדרך כלל מדלג על רווחים בשניהם לשמירת שפיות.</p>
+    <pre className="font-mono text-xs"><code>=SUM(Car_Deals[Spend])</code></pre>
+    <p className="mt-2 text-sm"><strong>קווים תחתונים מחליפים רווחים.</strong> טבלה בשם "Car Deals" מוזכרת כ-<code>Car_Deals</code> בנוסחאות. רווחים בתוך *שמות עמודות* נשמרים כפי שהם (<code>{`Campaigns[Vertical Name]`}</code> תקף), אבל רווחים ב*שמות טבלה* תמיד הופכים לקווים תחתונים. הצוות בדרך כלל מדלג על רווחים בשניהם לשמירת שפיות.</p>
   </ComparePanel>
 </Compare>
 
@@ -178,14 +178,15 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 - **לוג קמפיינים ראשי כטבלה.** הגיליון הראשי של הצוות הופך ל-`Campaigns`. כל טבלת ציר של דאשבורד, `SUMIFS` וגרף מפנים ל-`Campaigns[Revenue]` במקום ל-`Sheet1!F:F`. שורות שמודבקות זורמות לכל נוסחה במורד הזרם אוטומטית.
 - **טבלת lookup של verticals.** טבלה קטנה עם vertical, קטגוריה, CPC benchmark. נוסחאות lookup נקראות `=VLOOKUP(B2, Verticals[#ALL], 2, FALSE)` ושורדות הוספות של vertical חדש בלי עריכות.
-- **דאשבורדים פר-buyer.** `=SUMIFS(Campaigns[Spend], Campaigns[Buyer], $A2)` ממולאים על פני Yoav, Sarah, David, Maya, Tom: קריא ויציב.
+- **דאשבורדים פר-buyer.** `=SUMIFS(Campaigns[Spend], Campaigns[Buyer], $A2)` ממולאים על פני Yoav, Maya, Ben, Dina, Roni: קריא ויציב.
 - **מקורות גרף.** הצביעו על גרף ל-`Campaigns[Date]` ו-`Campaigns[Revenue]`. הגרף מתעדכן ככל שהטבלה גדלה; לא צריך לערוך מחדש טווחי גרף בכל שישי.
 - **עיצוב מותנה עם הפניות מבניות.** כללים כמו "הדגישו שורות שבהן Revenue < Spend" שנכתבים מול `Campaigns[Revenue]` ו-`Campaigns[Spend]` מתרחבים עם הנתונים אוטומטית.
+- **Paste-and-convert לטבלה עם Gemini (אפריל 2026).** כשמדביקים טקסט לא מובנה לגיליון (bullet list, הערות חופשיות, dump של JSON מפרטנר), Sheets עכשיו מציג prompt **Convert to table** מופעל על-ידי Gemini ([Workspace Updates, אפריל 2026](https://workspaceupdates.googleblog.com/2026/04/paste-and-convert-unformatted-text-into-Google-Sheets-tables-with-Gemini.html)). לוחצים עליו ו-Gemini מסיק כותרות, מפריד שדות, וכותב טבלה תקינה שאפשר לתת לה שם, סוג, ולהפנות אליה ב-syntax מבני. הצוות משתמש בזה כש-buyer מדביק את תוצאות השבוע הקודם מ-Slack והשורות מגיעות כקיר טקסט אחד. Track 5 מכסה לעומק את משטח ה-Gemini-in-Sheets: שיעור 5.3 (Fill with Gemini) הוא בן הדוד הקרוב, ושיעור 5.4 (side panel של build-and-edit) הוא השלב הבא. אותה משמעת סקירה חלה בשני הכיוונים: קוראים מה ש-Gemini ייצר לפני שמכוונים dashboard למקור הזה.
 
 ## מלכודות מקצועיות
 
 - **אין תחביר `[@col]` של שורה נוכחית.** נוסחאות פר-שורה בתוך טבלה משתמשות בהפניות תאים רגילות (`=E2*1.1`), לא ב-`=[@Spend]*1.1`. משתמשים שאומנו ב-Excel טועים בזה כל הזמן.
-- **רווחים בשמות טבלה הופכים לקווים תחתונים בנוסחאות.** טבלה בשם "Used Cars" היא `Used_Cars[Spend]`, לא `'Used Cars'[Spend]` או `Used Cars[Spend]`. הצוות בדרך כלל מדלג על רווחים לגמרי.
+- **רווחים בשמות טבלה הופכים לקווים תחתונים בנוסחאות.** טבלה בשם "Car Deals" היא `Car_Deals[Spend]`, לא `'Car Deals'[Spend]` או `Car Deals[Spend]`. הצוות בדרך כלל מדלג על רווחים לגמרי.
 - **טבלאות לא חוצות `IMPORTRANGE`.** טבלה בחוברת A הופכת לערכים פשוטים כשמייבאים לחוברת B. או להמיר את הטווח המיובא לטבלה מקומית חדשה ב-B, או לעבוד על הייבוא עם `QUERY` (שיעור 1.12).
 - **הסקת סוג עמודה יכולה לטעות בקריאה.** רשומת טקסט שגויה אחת בעמודת "Date" גורמת ל-Sheets להסיק את כל העמודה כטקסט. תקנו את נתוני המקור, ואז הגדירו את סוג העמודה במפורש מה-dropdown של הכותרת.
 - **לא קל לבטל-טבלה.** "Convert back to range" קיים ב-dropdown של הטבלה אבל מסיר עיצוב וסוגי עמודות. תכננו את גבולות הטבלה במודע לפני ההמרה.

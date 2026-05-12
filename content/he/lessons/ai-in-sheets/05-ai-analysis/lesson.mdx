@@ -85,7 +85,7 @@ import { CAMPAIGNS_TIMESERIES, CAMPAIGNS } from "@/content/datasets/adtech";
 ההרגל בעל המנוף הגבוה ביותר: אף פעם לא להדביק טענת AI לדוח בלי לבדוק את הנתונים הבסיסיים. הדיסציפלינה:
 
 1. קוראים מה AI אמר.
-2. ממיינים או מסננים את הנתונים כדי לאמת את הטענה. (`=SORT(B2:C31, 2, FALSE)` למיון לפי revenue יורד, למשל. SORT מכוסה ב-Track 2 שיעור 4.)
+2. ממיינים או מסננים את הנתונים כדי לאמת את הטענה. (`=SORT(B2:C31, 2, FALSE)` למיון לפי revenue יורד, למשל. SORT מכוסה ב-Track 1 שיעור 14.)
 3. מציינים את האימות בתא אחות.
 4. רק אז שמים את הטענה ב-dashboard.
 
@@ -107,7 +107,7 @@ J1: =LARGE(Daily!C2:C31, 1)
 K1: =INDEX(Daily!A2:A31, MATCH(J1, Daily!C2:C31, 0))
     → 2026-04-17 (מאומת על-ידי נוסחה)
 L1: <paste-into-deck>`}</code></pre>
-    <p className="mt-2 text-sm">AI מציע; נוסחה מאשרת; הערך המאומת הוא מה שמגיע ל-deck. ה-deck reproducible כי המקור הוא `LARGE` + `INDEX/MATCH` (Track 1 שיעור 5).</p>
+    <p className="mt-2 text-sm">AI מציע; נוסחה מאשרת; הערך המאומת הוא מה שמגיע ל-deck. ה-deck reproducible כי המקור הוא `LARGE` (Track 1 שיעור 23) + `INDEX/MATCH` (Track 1 שיעור 4).</p>
   </ComparePanel>
 </Compare>
 

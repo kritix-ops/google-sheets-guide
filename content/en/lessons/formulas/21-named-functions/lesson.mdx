@@ -150,7 +150,7 @@ The five-second rule of thumb:
 - **Recursion depth is limited.** Hard cap is a few hundred. Fine for tree walks, useless for deep numerical recursion.
 - **Names collide with built-ins silently.** If you define `SUM` as a named function, your `SUM` shadows the built-in inside the workbook. Avoid this by using a prefix (`MY_SUM`) or distinct names.
 - **Editing a function while formulas reference it can break things.** Sheets handles renames and signature changes by failing dependent formulas. Plan changes; do not edit a live function during a busy reporting day.
-- **The body cannot reference cells directly.** It must work entirely from its parameters. If you want a function that depends on a workbook constant (a fee, a target ROI), pass that constant in as a parameter, or use a named range inside the body, accepting that the function is then workbook-specific.
+- **The body CAN reference cells and named ranges directly, but treat that as a strong code smell.** Sheets lets a named-function body read `$A$1`, `Settings!B2`, or a named range like `fee_rate`, but doing so locks the function to a specific workbook layout. The moment someone imports the function into another workbook (or even renames the sheet the function reads from), the body breaks or returns wrong numbers with no obvious cause. Prefer parameters: pass workbook constants in as arguments so the function stays portable. Reach for embedded cell references only when the named function is intentionally workbook-specific (for example, it wraps a workbook-level constant that has no meaning outside that book), and document that constraint in the function's description so future importers do not trip over it.
 
 ## Now do it for real
 

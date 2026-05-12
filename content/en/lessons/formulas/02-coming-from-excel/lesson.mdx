@@ -262,12 +262,12 @@ Three small variations on the same idea show what the optional parameters buy yo
 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=XLOOKUP("yoav cohen", B2:B13, F2:F13)`}</code></pre>
-    <p className="mt-2 text-sm">XLOOKUP is case-sensitive on text. The Buyer column has <code>Yoav Cohen</code>; this returns <code>#N/A</code>.</p>
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav Cohen ", B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm">Trailing space in the search key. The Buyer column stores <code>Yoav Cohen</code> (no trailing space); the literal <code>"Yoav Cohen "</code> doesn't match anything and XLOOKUP returns <code>#N/A</code>. Casing doesn't bite here (XLOOKUP is case-insensitive on text per the <a href="https://support.google.com/docs/answer/12405947">Google docs</a>), but invisible whitespace does, constantly: it sneaks in from copy-paste, from <code>CONCATENATE</code>d keys, and from IMPORTRANGE'd cells that pick up a stray space upstream.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=XLOOKUP("Yoav Cohen", B2:B13, F2:F13)`}</code></pre>
-    <p className="mt-2 text-sm">Exact text, exact case. If you can't control the casing of the source data, normalize first with <code>LOWER</code> on both sides or switch to <code>match_mode = 2</code> with a wildcard pattern.</p>
+    <pre className="font-mono text-xs"><code>{`=XLOOKUP(TRIM("Yoav Cohen "), B2:B13, F2:F13)`}</code></pre>
+    <p className="mt-2 text-sm"><code>TRIM</code> strips leading/trailing spaces from the search key. When you can't trust the source, wrap both sides: <code>=XLOOKUP(TRIM(G2), ARRAYFORMULA(TRIM(B2:B13)), F2:F13)</code>. Cheap belt-and-suspenders that survives the most common silent-failure mode in lookup formulas.</p>
   </ComparePanel>
 </Compare>
 
@@ -344,11 +344,11 @@ QUERY isn't just filter. Group rows and aggregate them in the same formula. The 
 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = Used Cars PR")`}</code></pre>
-    <p className="mt-2 text-sm">Bare text in the WHERE clause is read as a column name. Sheets returns an error because there's no column named <code>Used Cars PR</code>.</p>
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = Car Deals PR")`}</code></pre>
+    <p className="mt-2 text-sm">Bare text in the WHERE clause is read as a column name. Sheets returns an error because there's no column named <code>Car Deals PR</code>.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = 'Used Cars PR'")`}</code></pre>
+    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C, F WHERE C = 'Car Deals PR'")`}</code></pre>
     <p className="mt-2 text-sm">Wrap string literals in single quotes inside the query string. Numbers don't need quoting, dates use <code>date 'YYYY-MM-DD'</code>.</p>
   </ComparePanel>
 </Compare>

@@ -101,7 +101,7 @@ Promote these to **named functions** (lesson 1.21) the moment more than one dash
 <TryIt
   data={CAMPAIGNS}
   inputCell="H2"
-  expectedFormula="=B2-A2"
+  expectedFormula="=F2-E2"
   task={<>The campaign log has Spend in E and Revenue in F. Compute Profit for the first campaign in <code>H2</code> as <code>=F2-E2</code>.</>}
   hint={<>Spend is column E, Revenue is column F. <code>=F2-E2</code> gives Profit.</>}
   answer={<>Profit for row 2 is 487.30 − 342.18 = 145.12. The ROI would be that profit divided by spend: 145.12 / 342.18 ≈ 0.424. In real workbooks, you would compute Profit, ROI, and ROAS as ARRAYFORMULA columns across the whole log (lesson 1.10) or promote ROI/ROAS to named functions (lesson 1.21) so every dashboard cell agrees on the definition.</>}
@@ -132,25 +132,31 @@ Promote these to **named functions** (lesson 1.21) the moment more than one dash
 </Compare>
 
 <QuickCheck
-  question={"You're comparing two acquisition channels. Channel A: $1,000 today, $300 in year 1, $300 in year 2, $300 in year 3. Channel B: $1,000 today, $900 in year 1, $0 thereafter. At an 8% hurdle rate, which is better?"}
+  question={"You're comparing two acquisition channels. Channel A: $1,000 today, $300 in year 1, $300 in year 2, $300 in year 3. Channel B: $1,000 today, $900 in year 1, $0 thereafter. The team's hurdle rate is 8%. What's the right call?"}
   options={[
     {
       id: "a",
       label: "Channel A has higher total cash ($900 vs $900), so they tie.",
       correct: false,
-      explanation: "Total cash is the same, but time-value of money makes Channel B's $900 in year 1 worth more than Channel A's $900 spread over three years. Use NPV to decide.",
+      explanation: "Total cash is the same, but time-value of money makes Channel B's $900 in year 1 worth more than Channel A's $900 spread over three years. Use NPV at the hurdle rate to decide.",
     },
     {
       id: "b",
-      label: "Channel B: =NPV(0.08, 900) - 1000 = -167. Channel A: =NPV(0.08, 300, 300, 300) - 1000 = -227. Channel B has the higher (less negative) NPV at this hurdle rate, so Channel B is better.",
-      correct: true,
-      explanation: "Right answer, right method. Both channels have negative NPV at 8%, meaning neither clears the hurdle, but B is closer to breakeven because the cash arrives sooner. The discount on year-2 and year-3 cash flows in Channel A pulls its NPV down further than B's single year-1 flow.",
+      label: "Channel B wins because its NPV (-167) is less negative than Channel A's (-227).",
+      correct: false,
+      explanation: "The arithmetic is right but the decision is wrong. Both channels have NEGATIVE NPV at the 8% hurdle, which means both fail the team's required return. Picking the less-bad option is one of the most expensive traps in adtech budgeting: you scale a channel that quietly destroys value because it lost by less than the alternative. The hurdle rate is the bar; below it is below it.",
     },
     {
       id: "c",
-      label: "Channel A: longer tail is always better.",
+      label: "Reject both. Channel A NPV = =NPV(0.08, 300, 300, 300) - 1000 = -227. Channel B NPV = =NPV(0.08, 900) - 1000 = -167. Both are negative at the 8% hurdle, so neither acquisition channel is acceptable. Take the budget elsewhere, renegotiate terms, or wait until the cash-flow profile improves.",
+      correct: true,
+      explanation: "The hurdle is a pass/fail line, not a ranking. Negative NPV means the channel does not earn the team's required return; you decline at the hurdle, not below it. If you must spend the budget somewhere, find a channel with positive NPV; if there isn't one, that is the real signal. The 'less-bad option' framing is what kills portfolios slowly.",
+    },
+    {
+      id: "d",
+      label: "Channel A wins because longer-tail revenue is always better.",
       correct: false,
-      explanation: "Longer tails aren't always better; they depend on the discount rate. Higher hurdle rates penalize long tails; lower rates favor them. Run the NPV with your actual hurdle rate.",
+      explanation: "Longer tails aren't always better; they depend on the discount rate. At an 8% hurdle, the time-value penalty on year-2 and year-3 cash flows pulls Channel A's NPV further below zero than B's. But even if A's NPV were higher, the right answer is still 'both fail the hurdle' if both are negative.",
     },
   ]}
 />

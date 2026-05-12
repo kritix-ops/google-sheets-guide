@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -9,23 +9,58 @@ const STORAGE_KEY = "sheets-guide-theme";
 
 type Theme = "dark" | "light";
 
-function readActiveTheme(): Theme {
-  if (typeof document === "undefined") return "dark";
+// The active theme lives in `document.documentElement.classList`. React doesn't
+// know when we mutate it from `toggle()`, so we run an in-module notifier set
+// that `toggle()` fires after each DOM mutation. Cross-tab updates come in via
+// the `storage` event.
+const themeListeners = new Set<() => void>();
+
+function notifyThemeChange(): void {
+  themeListeners.forEach((cb) => cb());
+}
+
+function subscribeTheme(cb: () => void): () => void {
+  themeListeners.add(cb);
+  function onStorage(e: StorageEvent) {
+    if (e.key === STORAGE_KEY) cb();
+  }
+  window.addEventListener("storage", onStorage);
+  return () => {
+    themeListeners.delete(cb);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function getThemeSnapshot(): Theme {
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
-export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [mounted, setMounted] = useState(false);
+function getThemeServerSnapshot(): Theme {
+  return "dark";
+}
 
-  useEffect(() => {
-    setMounted(true);
-    setTheme(readActiveTheme());
-  }, []);
+// `useSyncExternalStore` returns `false` during SSR (via the server snapshot)
+// and flips to `true` after hydration. Components that branch on mount-state
+// use this to avoid the hydration mismatch warning when the visual differs
+// between SSR and the client (icon choice here).
+function useMounted(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
+
+export function ThemeToggle() {
+  const theme = useSyncExternalStore(
+    subscribeTheme,
+    getThemeSnapshot,
+    getThemeServerSnapshot,
+  );
+  const mounted = useMounted();
 
   function toggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
     if (next === "dark") {
       document.documentElement.classList.add("dark");
     } else {
@@ -36,6 +71,7 @@ export function ThemeToggle() {
     } catch {
       // ignore storage errors (incognito, etc.)
     }
+    notifyThemeChange();
   }
 
   return (

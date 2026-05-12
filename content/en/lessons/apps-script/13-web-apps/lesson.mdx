@@ -126,6 +126,58 @@ function doGet(e) {
   </ComparePanel>
 </Compare>
 
+## Verifying the Slack signing secret
+
+The Slack-endpoint pattern above hinges on one defense the lesson has named three times without showing: the request signature check. Slack signs every outgoing request with HMAC-SHA256 over the body and a timestamp, using a per-app **signing secret** that only Slack and the team's app config know. The web app rebuilds the same HMAC; if it does not match, the request did not come from Slack.
+
+Two pieces have to line up: the HMAC has to be computed over the exact basestring (`v0:<timestamp>:<raw body>`), and the timestamp has to be recent (Slack recommends rejecting anything older than five minutes to block replays). Apps Script gives you both: `Utilities.computeHmacSha256Signature` for the HMAC, and `PropertiesService` (lesson 15) for the secret so it never lands in source control.
+
+<Compare>
+  <ComparePanel label="Wrong: accept any POST as Slack" tone="negative">
+    <pre className="font-mono text-xs"><code>{`function doPost(e) {
+  // No signature check. Anyone who finds the URL
+  // can fire any "Slack command" with any payload.
+  const text = e.parameter.text;
+  return ContentService
+    .createTextOutput(handleSpendCommand(text))
+    .setMimeType(ContentService.MimeType.JSON);
+}`}</code></pre>
+    <p className="mt-2 text-sm">The URL is public (Slack POSTs with no Google auth). Without a signature check, an attacker who guesses or finds the URL can hit it with crafted parameters and your script runs as you. Slack endpoints without verification are a security hole, full stop.</p>
+  </ComparePanel>
+  <ComparePanel label="Right: verify HMAC + timestamp" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function doPost(e) {
+  if (!isFromSlack(e)) {
+    return ContentService.createTextOutput("unauthorized");
+  }
+  const text = e.parameter.text;
+  return ContentService
+    .createTextOutput(handleSpendCommand(text))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function isFromSlack(e) {
+  const secret = PropertiesService.getScriptProperties()
+    .getProperty("SLACK_SIGNING_SECRET");
+  const ts = e.parameter["X-Slack-Request-Timestamp"] ||
+             (e.headers && e.headers["X-Slack-Request-Timestamp"]);
+  const sig = e.parameter["X-Slack-Signature"] ||
+              (e.headers && e.headers["X-Slack-Signature"]);
+  if (!ts || !sig || !secret) return false;
+  // Reject requests older than 5 minutes (replay defense).
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+  const base = "v0:" + ts + ":" + e.postData.contents;
+  const mac = Utilities.computeHmacSha256Signature(base, secret);
+  const expected = "v0=" + mac.map(function (b) {
+    return ("0" + (b & 0xff).toString(16)).slice(-2);
+  }).join("");
+  return expected === sig;
+}`}</code></pre>
+    <p className="mt-2 text-sm">Pull the secret from Script Properties (lesson 15), rebuild the basestring exactly as Slack does, compare to the <code>X-Slack-Signature</code> header. Reject anything with a stale timestamp so a captured request cannot be replayed an hour later.</p>
+  </ComparePanel>
+</Compare>
+
+A reminder on where the secret lives: `PropertiesService.getScriptProperties().setProperty("SLACK_SIGNING_SECRET", "...")` is a one-time setup via the editor's **Project Settings then Script Properties** UI. The secret never ships in the `.gs` source, never appears in commits, never sits in the deployment URL. Lesson 15 covers the lifecycle and the "Properties is NOT for real secrets" caveat in depth; signing secrets are low enough sensitivity that Script Properties is the team's pragmatic default.
+
 ## Deployment URLs change when you redeploy
 
 Every "Deploy then New deployment" mints a NEW URL. The previous deployment keeps working (good: your existing integrations do not break the second you ship a bug fix), but the new URL is different. To keep the same URL across code updates, use **Deploy then Manage deployments then (edit the existing deployment) then New version**. That swaps the code under the same URL.

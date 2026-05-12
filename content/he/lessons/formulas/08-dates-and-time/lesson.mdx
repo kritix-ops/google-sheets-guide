@@ -122,12 +122,12 @@ export const DATE_NUMBERS = [
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "m")`}</code></pre>
-    <p className="mt-2 text-sm">קוד יחידה באותיות קטנות. <code>DATEDIF</code> רגיש: רוב הגרסאות מקבלות אותיות קטנות אבל חלק קטן שוגה. הצוות ראה את זה נכשל בצורה שונה בשני workbooks סמוכים.</p>
+    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "MD")`}</code></pre>
+    <p className="mt-2 text-sm"><strong>הסתמכות על היחידה <code>"MD"</code> של <code>DATEDIF</code> על קלטי סוף-חודש.</strong> Google לא מציגה את <code>DATEDIF</code> ב-function picker של Sheets ורשימת הפונקציות הרשמית לא מתעדת אותה; היא ייבוא legacy מ-Excel ש-Sheets ממשיך להריץ אבל לא תומך רשמית. ליחידה <code>"MD"</code> (ימים בלי לספור חודשים ושנים) יש תוצאות שגויות מוכרות כשיום הסיום מוקדם בחודש שלו מיום ההתחלה, ו-Google לא תיקנה את זה. כל מה שתבנו על <code>"MD"</code> בנוי על יסוד שהופסקה תמיכה בו בשקט.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "M")`}</code></pre>
-    <p className="mt-2 text-sm">אותיות גדולות. עשו הרגל מאותיות גדולות: <code>"Y"</code>, <code>"M"</code>, <code>"D"</code>, <code>"YM"</code>, <code>"YD"</code>, <code>"MD"</code>. הימנעו מ-<code>"MD"</code> לגמרי; יש לו edge cases מוכרים בגבולות חודש.</p>
+    <pre className="font-mono text-xs"><code>{`=B2 - EDATE(A2, DATEDIF(A2,B2,"M"))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>חשבו את ימי השארית בעצמכם.</strong> קחו את הפרש החודשים המלאים, קפצו קדימה אותו מספר חודשים מההתחלה עם <code>EDATE</code>, ואז חסרו מתאריך הסוף כדי לקבל ספירה אמיתית של "ימים שעברו את החודש השלם האחרון". לקוד חדש, העדיפו פונקציות מתועדות למתמטיקה שמתחת: <code>YEARFRAC</code> לשנים שבריריות, חיסור פשוט או <code>DAYS</code> לספירת ימים, <code>EDATE</code> לקפיצות חודשיות, ושלפו את <code>DATEDIF</code> רק כשאתם מקבלים אותו כ-legacy ונצמדים ל-<code>"Y"</code>, <code>"M"</code>, <code>"D"</code>, <code>"YM"</code>.</p>
   </ComparePanel>
 </Compare>
 
@@ -179,7 +179,7 @@ export const DATE_NUMBERS = [
 
 ## מלכודות מקצועיות
 
-- **`TODAY()` גורם לגיליון לעשות חישוב מחדש כל יום.** בסדר ל-dashboards. יקר לגיליונות עם 50,000 שורות שכולן מפנות בעקיפין ל-TODAY. מעבירים אותה לתא בעל שם בודד בראש, ומפנים לתא הזה, ככה ש-TODAY רץ רק פעם אחת.
+- **`TODAY()` תנודתי ומחושב מחדש בכל עריכה של ה-workbook.** לא פעם ביום, כפי שזה עלול להיראות מהערך המוצג: בכל עריכה, בכל trigger של recalc, בכל פתיחה. בסדר ל-dashboards עם חופן הפניות; יקר לגיליונות עם 50,000 שורות שכולן מפנות ל-`TODAY()` בעקיפין, כי בכל עריכה כל גרף התלויות רץ מחדש. העבירו אותו לתא בעל שם יחיד בראש והפנו לתא הזה, ככה ש-`TODAY()` רץ רק פעם אחת בכל recalc; שיעור 2 ב-Track 4 (`why-its-slow`) מכסה את השפעת הביצועים של פונקציות תנודתיות לעומק.
 - **תאריכים שמיובאים ב-IMPORTRANGE לעיתים קרובות מגיעים כמחרוזות טקסט, לא כמספרים.** תא שמציג "2026-05-01" יכול להיות מספר התאריך האמיתי 46143 או המחרוזת המילולית "2026-05-01". חשבון תאריכים נכשל בשקט בגרסת המחרוזת. כופים עם `DATEVALUE(A2)` או עוטפים ב-`+0` כדי לאלץ מספרי.
 - **`EOMONTH` מחזיר תאריכים סדרתיים שצריך לעצב.** הנוסחה מחזירה 46173 לסוף מאי 2026, מעצבים את התא כ-Date אחרת רואים מספר.
 - **ליחידה `"MD"` של `DATEDIF` יש edge cases מוזרים מוכרים.** נצמדים ל-`"Y"`, `"M"`, `"D"`, `"YM"` בקוד פרודקשן.

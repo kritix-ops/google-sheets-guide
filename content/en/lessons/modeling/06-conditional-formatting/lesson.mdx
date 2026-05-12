@@ -127,6 +127,142 @@ Whole row gets the same boolean.`}</code></pre>
   ]}
 />
 
+## Color scales: gradients that say "compared to what"
+
+Flip the panel's top toggle from **Single color** to **Color scale** and the rule type changes shape. Instead of "fire the format when the condition is true", a color scale paints *every* cell in the range with a color interpolated from its value's position between a Min, an optional Mid, and a Max. The output is a gradient. The reader's eye reads relative magnitude before reading any number.
+
+Three things pros use color scales for: ROI heatmaps (where breakeven is the visual axis), week-over-week delta tables (positive vs negative deltas pop on opposite sides of zero), and percentile rankings across a metric column (which campaigns are top decile this week). The team's "Pacing" tab and "Weekly ROI" tab are both color-scale dashboards.
+
+### The five ways to anchor Min, Mid, and Max
+
+The dropdown next to each of Min / Mid / Max controls *what number that endpoint snaps to*. Picking the wrong anchor is how a heatmap turns into a washed-out smear.
+
+| Type | Behavior | When to use |
+|---|---|---|
+| Min/Max value (default) | Min snaps to the lowest cell value in the range, Max to the highest | Relative comparison across the range. "Show me the spread, whatever the spread is." |
+| Number | You pin Min and Max to literal numbers (e.g., Min=0, Max=10) | Absolute thresholds you actually care about. ROI > 1 is profitable, full stop. |
+| Percent | Min and Max are positions along the range as a percent (e.g., 10% and 90%) | Smoothing out outliers. Anything below the 10% mark is solid red, above the 90% mark is solid green. |
+| Percentile | Min and Max are percentile ranks of the values (e.g., 10th and 90th percentile) | Robust against a few outlier rows. The hot vertical doesn't dominate the palette. |
+| Formula | You compute Min or Max with a formula (e.g., `=AVERAGE(B:B)-STDEV(B:B)`) | Statistical thresholds. Color any cell more than one standard deviation from the mean. |
+
+The Mid setting is optional and changes everything. Leave it blank and you get a two-stop gradient (red to green, washed through whatever the linear interpolation is). Set it to a Number and you get a three-stop *diverging* palette: red below Mid, white at Mid, green above Mid. For ROI, the obvious Mid is `1.0` (breakeven). Now the visual axis matches the business axis: red is losing money, green is making money, white is the line.
+
+### Worked example: ROI heatmap on the campaign log
+
+Picture the campaign log with an extra ROI column computed as `=G2/F2` (revenue over spend). The values land roughly between `0` (total loss) and `3` (a great day). With Min/Max = Min/Max value, a single `5.0` row dominates the gradient and everything else looks washed out. Pin the endpoints to numbers and the heatmap becomes legible:
+
+| Setting | Value | Meaning |
+|---|---|---|
+| Min | Number `0` | Total loss anchors solid red |
+| Mid | Number `1.0` | Breakeven is the white visual axis |
+| Max | Number `3.0` | A 3x ROI day anchors solid green |
+
+A reviewer scrolling the ROI column now reads the column in two seconds: blocks of green are the buyer's good days, blocks of red are the bad days, white rows are roughly breakeven. No number-squinting required.
+
+<MiniGrid
+  data={[
+    ["Date", "Buyer", "Vertical", "Spend", "Revenue", "ROI"],
+    ["Apr 12", "Mor", "Used Cars PR", 480, 1320, 2.75],
+    ["Apr 12", "Mor", "Lingerie PR", 620, 540, 0.87],
+    ["Apr 13", "Tal", "Mortgage Refinance PR", 920, 410, 0.45],
+    ["Apr 13", "Tal", "Car Deals PR", 540, 1180, 2.19],
+    ["Apr 14", "Yael", "Used Cars PR", 380, 380, 1.00],
+    ["Apr 14", "Yael", "Prefabricated Homes PR", 1100, 230, 0.21],
+  ]}
+  caption="A 6-row slice of the campaign log with a computed ROI column. With Min=0, Mid=1.0, Max=3.0 on column F, each ROI cell encodes profit/loss visually. The MiniGrid here doesn't render the gradient itself, but in Sheets that column reads green for ROI>1, white near 1, and red for ROI<1."
+/>
+
+The MiniGrid above is a static reference for the data shape. The gradient lives in Sheets once you apply `Format → Conditional formatting → Color scale` to the ROI column with the three Number anchors above. Steps:
+
+1. Select column F (the computed ROI range, e.g., `F2:F61`).
+2. Open `Format → Conditional formatting`. The panel opens with **Single color** selected; switch to **Color scale**.
+3. Set Min to `Number` `0`, Mid to `Number` `1.0`, Max to `Number` `3.0`.
+4. Pick the default red→white→green palette or customize the three colors. Click `Done`.
+
+### The two traps that ruin color scales
+
+<Compare>
+  <ComparePanel label="Broken: default Min/Max with one outlier" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Range: F2:F61 (Spend column)
+Min: Min value  (snaps to ~80)
+Max: Max value  (snaps to ~10,000)
+
+One $10,000 stress-test day exists.
+The other 59 rows range $80-$1,400.
+
+Result: $10,000 is solid green,
+every other day is identical pale red.
+The gradient is useless.`}</code></pre>
+    <p className="mt-2 text-sm">A single outlier dominates the linear interpolation and washes out the rest of the range. The heatmap stops conveying information.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: Percentile or Number cap" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Range: F2:F61 (Spend column)
+Min: Percentile 10
+Max: Percentile 90
+
+Anchors snap to the 10th and 90th
+percentile of the column's values.
+The $10,000 outlier sits past Max
+and reads solid green, but the
+59 normal rows now share the full
+gradient and the spread is visible.`}</code></pre>
+    <p className="mt-2 text-sm">Percentile 10/90 is the canonical fix for outlier-heavy columns. Number caps (e.g., Max=1500) work the same way when you know the realistic ceiling.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Broken: color scale over a column with errors" tone="negative">
+    <pre className="font-mono text-xs"><code>{`Range: H2:H61 (ROI = G/F)
+Some rows have Spend = 0.
+Their ROI cells return #DIV/0!.
+
+Color scale treats #DIV/0! as
+non-numeric and either skips
+those cells or, worse, sorts
+them above the Max and paints
+them as the "highest" green.`}</code></pre>
+    <p className="mt-2 text-sm">Errors inside a color-scale range are silently misrepresented. The reviewer sees green where the formula failed.</p>
+  </ComparePanel>
+  <ComparePanel label="Working: wrap the source in IFERROR" tone="positive">
+    <pre className="font-mono text-xs"><code>{`Range: H2:H61 (ROI = IFERROR(G/F,""))
+Rows with Spend = 0 now hold "".
+
+Color scale ignores blanks cleanly.
+The gradient only spans real numbers.
+
+Alternative: a formula-based Single
+color rule that paints error cells
+gray so the eye doesn't miss them.`}</code></pre>
+    <p className="mt-2 text-sm">Wrap upstream formulas in `IFERROR` to keep error cells out of the gradient, or layer a Single-color formula-based rule that explicitly paints `ISERROR(...)` cells a neutral color.</p>
+  </ComparePanel>
+</Compare>
+
+<QuickCheck
+  question="You apply a color scale to the Spend column (F2:F61) using Min=Min value, Max=Max value. Most of the cells look identical pale red, except one row that's solid green. You check the data: 59 rows are between $80 and $1,400, and one row is $10,000 (a stress-test day someone forgot to delete). You want every normal-spend row to show contrast across the gradient. Best fix?"
+  options={[
+    {
+      id: "a",
+      label: "Switch Min and Max to Percentile 10 / Percentile 90",
+      correct: true,
+      explanation: "Percentile anchors snap to the 10th and 90th percentile of the actual values, ignoring outliers. The $10,000 row reads solid green (past Max), and the 59 normal rows share the full gradient. This is the standard fix for outlier-dominated heatmaps and what the team's Weekly ROI tab uses.",
+    },
+    {
+      id: "b",
+      label: "Add a Single-color rule on top that paints the $10,000 row gray",
+      correct: false,
+      explanation: "Hiding the outlier with a second rule doesn't fix the underlying problem: the color scale's Min/Max are still anchored to 80 and 10,000, so the gradient stays washed out. You'd need to fix the anchors themselves.",
+    },
+    {
+      id: "c",
+      label: "Delete the $10,000 row",
+      correct: false,
+      explanation: "Editing the data to make the chart look right is the wrong direction. The data is the truth; the visualization should adapt to it. Percentile or Number-capped anchors handle outliers without touching the source.",
+    },
+  ]}
+/>
+
+In the team's actual workbooks, color scales show up in two specific places. The **Pacing** dashboard runs a three-color scale (red-white-green) on the Spend column with `Number` Min=`0`, Mid=daily-target, Max=2x daily-target. Buyers eyeball the tab and see at a glance who is under-pacing (red) versus over-pacing (green) versus on-target (white). The **Weekly ROI** tab uses `Percentile 10 / Percentile 90` on the ROI column so that one hot vertical doesn't dominate the palette and wash out the rest of the week's results. Track 4 lesson 2 covers the recalc cost of color scales over large ranges (they scale sublinearly with row count but linearly with the number of rules, so five color scales on a 30k-row tab is real overhead). If you want to understand what "10th percentile" actually means, Track 1 lesson 23 covers the statistical functions that produce the same number.
+
 ## Performance: cheap by default, expensive when paired with volatile functions
 
 Conditional formatting is fast on its own. Sheets evaluates the rule once per cell when the cell or its dependencies change. The cost goes up when the formula references **volatile functions** like `TODAY`, `NOW`, `OFFSET`, `INDIRECT`, or `RAND`, because those re-fire on every recalculation. A rule like `=A2<TODAY()-30` running on a 60-row range is fine. The same rule running on `A:A` over a 50,000-row aggregator workbook with five other volatile rules will make the whole spreadsheet feel laggy.

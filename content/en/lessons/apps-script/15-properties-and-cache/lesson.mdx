@@ -175,6 +175,44 @@ try {
 
 Two triggers can both try to grab the lock; one waits up to five seconds for the other to release. The increment is now safe. Same lock pattern works for Cache, the spreadsheet itself, or any other shared store.
 
+### `waitLock` vs `tryLock`: queue or skip?
+
+`waitLock(ms)` is one of two shapes. The other is `tryLock(ms)`, which returns a boolean instead of throwing. The choice depends on what the trigger should do when another instance is mid-flight: queue up behind it or skip this run entirely.
+
+<Compare>
+  <ComparePanel label="waitLock(5000): queue and run" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function incrementRunCount() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000); // throws if not acquired in 5s
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const n = Number(props.getProperty("runCount") || 0);
+    props.setProperty("runCount", String(n + 1));
+  } finally {
+    lock.releaseLock();
+  }
+}`}</code></pre>
+    <p className="mt-2 text-sm">Use when the operation MUST eventually run. Each caller waits up to 5 seconds for the previous one to release. Increment-by-one counters, append-to-log writes, any "every call counts" mutation.</p>
+  </ComparePanel>
+  <ComparePanel label="tryLock(0): skip if busy" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function nightlyTaboolaPull() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) {
+    console.log("Another pull is mid-flight; skipping.");
+    return;
+  }
+  try {
+    pullAndWriteTaboolaCsv();
+  } finally {
+    lock.releaseLock();
+  }
+}`}</code></pre>
+    <p className="mt-2 text-sm">Use when "if another instance is running, just skip this one." Periodic Cron that can also be triggered manually: a manual click while the Cron is still working should not queue behind it. <code>tryLock(0)</code> returns immediately: <code>true</code> if acquired, <code>false</code> if not.</p>
+  </ComparePanel>
+</Compare>
+
+The team's "nightly Taboola pull, also runnable from the Reports menu" is the clearest case for `tryLock`. The Cron fires at 02:00 and usually finishes in 90 seconds. A buyer who clicks **Reports then Pull Taboola** at 02:01 should see "already running, try again in a minute", not have their manual click queue behind a stuck pull and time out the menu UI. With `waitLock`, the buyer waits; with `tryLock(0)`, the buyer gets an answer immediately.
+
 <QuickCheck
   question="Two users open the workbook at the same time. Each runs a function that does PropertiesService.getScriptProperties().setProperty('runCount', String(Number(props.getProperty('runCount') || 0) + 1)). The counter ends up at 1 instead of 2. What is wrong?"
   options={[

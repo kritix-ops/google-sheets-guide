@@ -12,7 +12,7 @@ You need to be able to recognize each one in formula text. Once you can spot the
 
 ## Volatile functions: the silent recalc tax
 
-Six functions in Sheets are volatile: `TODAY`, `NOW`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`. "Volatile" means Sheets recomputes them every time *any* cell anywhere in the workbook changes, plus on a one-minute timer for the time-based ones. A workbook with one `TODAY()` is fine. A workbook with `TODAY()` inside an `ARRAYFORMULA` over 50,000 rows is 50,000 volatile cells, each pulling its dependents into the recalc on every keystroke.
+Seven functions in Sheets are volatile: `TODAY`, `NOW`, `RAND`, `RANDBETWEEN`, `RANDARRAY`, `OFFSET`, `INDIRECT`. "Volatile" means Sheets recomputes them every time *any* cell anywhere in the workbook changes, plus on a one-minute timer for the time-based ones. A workbook with one `TODAY()` is fine. A workbook with `TODAY()` inside an `ARRAYFORMULA` over 50,000 rows is 50,000 volatile cells, each pulling its dependents into the recalc on every keystroke.
 
 The two volatile lookups in particular are the ones that turn an aggregator workbook from snappy to sluggish without warning: `INDIRECT` is how teams glue dynamic tab names onto formulas, and `OFFSET` is how the older guides taught "find the last row." Both feel innocent in the formula bar.
 
@@ -24,7 +24,8 @@ The dangerous shapes to spot in a slow workbook:
 
 - **`INDIRECT("Sheet1!A1")`** is volatile AND breaks the moment Sheet1 is renamed. Use a direct reference when you can.
 - **`OFFSET(A1, 0, 0, COUNTA(A:A), 1)`** is the "find the last row" trick. It is volatile, and the `COUNTA(A:A)` inside is also a full-column ref. Two slow things in one formula.
-- **`TODAY()` inside `ARRAYFORMULA`** is the worst one. A single `TODAY` is cheap; `ARRAYFORMULA(TODAY()-A2:A1000)` is a thousand volatile cells.
+- **`TODAY()` inside `ARRAYFORMULA`** is brutal. A single `TODAY` is cheap; `ARRAYFORMULA(TODAY()-A2:A1000)` is a thousand volatile cells.
+- **`RANDARRAY(n, m)`** is the worst offender of the bunch. By definition it returns an N×M array of fresh random numbers, and every one of those cells is volatile. A single `=RANDARRAY(1000, 5)` is 5,000 volatile cells redrawn on every workbook edit. Use it for one-off sampling, then paste-values immediately.
 
 The cure is usually the same: replace the volatile call with a static value (a hardcoded date string), a cell reference to a date the user updates manually, or a non-volatile alternative (use `INDEX(A:A, n)` instead of `OFFSET`). When the workbook genuinely needs periodic refresh (a "data as of" timestamp, a nightly snapshot of an aggregated tab), the right tool is an Apps Script time-driven trigger (Track 3 lesson 8) that writes the value once on a schedule, not a volatile formula that recomputes on every keystroke.
 
@@ -137,7 +138,7 @@ Recalc dropped from 8s to 0.6s. The workbook did not get smaller; the work per e
 ## Pro pitfalls
 
 - **`INDIRECT("Sheet1!A1")` is the silent assassin.** Volatile, breaks on rename, and looks innocent in a formula bar. If you find one in a workbook that lags, it is almost certainly part of the cause. Lesson 4.7 covers the cycle case where `INDIRECT` hides a circular reference.
-- **A volatile function inside `ARRAYFORMULA` is N volatile cells.** `ARRAYFORMULA(TODAY()-A2:A1000)` is 999 volatile cells.
+- **A volatile function inside `ARRAYFORMULA` is N volatile cells.** `ARRAYFORMULA(TODAY()-A2:A1000)` is 999 volatile cells. `RANDARRAY` is the same shape but built in: a single `RANDARRAY(n, m)` call is N×M volatile cells that redraw on every workbook edit. Paste-values it the moment the sample is taken.
 - **"`OFFSET` to find the last row" is the old guide answer.** It is also volatile and slow. Use `INDEX(A:A, COUNTA(A:A))` or, better, name a range and grow it manually.
 - **`File > Settings > Spreadsheet stats` is your friend.** It tells you the cell count, formula count, IMPORTRANGE count, and how many of those are volatile. Look at it whenever a workbook feels sluggish.
 - **A formula bar full of nested IFs is fine.** The slow thing is not formula complexity; it is range size and volatility. Do not refactor a clean `IFS` chain; refactor the `SUM(F:F)` two rows down.

@@ -32,7 +32,7 @@ The file tree shows files in the order they were created. Drag to reorder. **The
 
 ### What "Server JS" really means
 
-A `.gs` file's contents are plain JavaScript, but the runtime is **not** a browser. There is no `window`, no `document`, no `localStorage`, no `fetch` (that role is played by `UrlFetchApp` instead, covered in lesson 11). There is also no Node-style `require` and no npm. Every dependency comes either from Apps Script's built-in services or from a library imported through the manifest (lesson 12). Code runs on Google infrastructure with a 6-minute execution budget on consumer accounts and 30 minutes on Workspace.
+A `.gs` file's contents are plain JavaScript, but the runtime is **not** a browser. There is no `window`, no `document`, no `localStorage`, no `fetch` (that role is played by `UrlFetchApp` instead, covered in lesson 11). There is also no Node-style `require` and no npm. Every dependency comes either from Apps Script's built-in services or from a library imported through the manifest (lesson 12). Code runs on Google infrastructure with a 6-minute execution budget per run, the same on consumer and Workspace accounts.
 
 Every top-level function declaration in any `.gs` file is callable from the editor's Run dropdown, from a menu item, from a trigger, or (if it matches the custom-function rules in lesson 3) from a cell. There is no `main()`, no manifest entry to register functions individually: declaring them is enough.
 
@@ -79,7 +79,7 @@ The fields:
 |---|---|---|
 | `timeZone` | IANA zone string | How the project interprets dates and what timezone `new Date()` operates in. The course's manifest uses `America/New_York` (matches the team's Taboola reports). Set to `Asia/Jerusalem` for projects whose triggers should fire on Israel time. |
 | `exceptionLogging` | `"STACKDRIVER"` or `"NONE"` | Routes errors to Cloud Logging or swallows them. Almost always `"STACKDRIVER"`. Lesson 14 covers Cloud Logging end to end. |
-| `runtimeVersion` | `"V8"` or `"DEPRECATED_ES5"` | Picks the JavaScript engine. **`"V8"` is the only correct choice for new projects.** Lesson 2 covers the Rhino legacy. |
+| `runtimeVersion` | `"V8"` or (legacy) `"DEPRECATED_ES5"` | Picks the JavaScript engine. **`"V8"` is the only choice;** Rhino (the `DEPRECATED_ES5` value) stopped executing on January 31, 2026. Lesson 2 covers the sunset. |
 | `oauthScopes` | array of scope URLs | The explicit list of permissions the project needs. Apps Script auto-detects these on first run when the field is empty; explicit declaration is the better practice. |
 | `dependencies` | object | Library imports and advanced-service activations. Lesson 12 covers libraries; lesson 17 covers advanced services. |
 | `sheets.macros` | array | The macro registrations that surface in Tools → Macros. Lesson 6 covers this field in detail. |
@@ -109,7 +109,7 @@ Two reasons. First, an explicit `oauthScopes` array documents what the project t
       id: "c",
       label: "Switch the manifest to runtimeVersion DEPRECATED_ES5 to bypass scopes.",
       correct: false,
-      explanation: "The runtime version has nothing to do with scopes. Rhino is a legacy engine; using it would break almost everything else in the project.",
+      explanation: "The runtime version has nothing to do with scopes. Rhino was retired on January 31, 2026; setting DEPRECATED_ES5 today means the script does not execute at all.",
     },
   ]}
 />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import {
   discardDraft,
@@ -108,19 +108,23 @@ function LangPane({
 }) {
   const initial = data.draft?.content ?? data.publishedSource ?? "";
   const [content, setContent] = useState(initial);
+  // When the server-side draft state updates (after a save or publish),
+  // the parent re-renders this pane with a new `initial` value. We sync
+  // local state to it by comparing previous and current `initial` during
+  // render — the React-recommended pattern for resetting state from a
+  // prop, without an effect-driven setState. This blows away unsaved
+  // local edits if `initial` shifts mid-typing, but that only happens
+  // after a successful save round-trip on our own action, so it's the
+  // right behavior.
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (initial !== prevInitial) {
+    setPrevInitial(initial);
+    setContent(initial);
+  }
   const [pending, startTransition] = useTransition();
   const [publishResult, setPublishResult] =
     useState<PublishActionResult | null>(null);
   const isDirty = content !== initial;
-
-  // When the server-side draft state updates (after a save or publish),
-  // the parent re-renders this pane with a new initial value. Sync local
-  // state to it. This blows away unsaved local edits if `initial` shifts
-  // mid-typing, but that only happens after a successful save round-trip
-  // on our own action, so it's the right behavior.
-  useEffect(() => {
-    setContent(initial);
-  }, [initial]);
 
   function handleSave() {
     setPublishResult(null);

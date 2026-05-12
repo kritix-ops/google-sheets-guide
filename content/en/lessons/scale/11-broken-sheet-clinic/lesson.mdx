@@ -19,7 +19,7 @@ The clinic below collapses this flow into one workbook. Five cells, five differe
 |---|---|---|---|
 | `J1` | `=SUM(F:F)` | Full-column reference makes Sheets walk a million empty cells on every recalc. The number is correct, the performance is not. | Replace with bounded `=SUM(F2:F61)`. |
 | `J2` | `=VLOOKUP("NonExistentBuyer", B:F, 5, FALSE)` | Returns `#N/A`. A dashboard cell that shows `#N/A` cascades to every downstream cell. | Wrap with `IFNA` (or `IFERROR`) and provide a fallback: `=IFNA(VLOOKUP(...), 0)`. |
-| `J3` | `=TODAY()-1` | Volatile. Recomputes on every edit anywhere in the workbook. On a busy dashboard that's recalc lag for nothing. | Hardcode a date or reference a non-volatile source like `=A2` (the first date in the log). |
+| `J3` | `=IMPORTRANGE("https://docs.google.com/spreadsheets/d/abc123/edit", "Raw - Taboola!A1:G5000")` | Returns `#REF!`. The source workbook was renamed and the auth grant did not survive; the "Allow access" pill is showing on the cell. | Click the cell, click **Allow access**, and re-establish the connection. If access is gone for good, update the URL to the renamed workbook's id. |
 | `J4` | `=J4+1` | Circular reference: the cell points at itself. Sheets either flags it or holds a stale value. | Remove the self-reference: use a literal value like `0` or a formula that points at another cell. |
 | `J5` | (empty) | The summary block is missing the count of distinct media buyers; downstream dashboards need it. | Write `=COUNTA(UNIQUE(B2:B61))`. |
 
@@ -27,7 +27,7 @@ Each bug maps to a Track 4 lesson:
 
 - **J1** → lesson 2 (slow sheets and full-column references).
 - **J2** → lesson 6 (`#N/A` handling and the IFNA wrapper).
-- **J3** → lesson 2 (volatile functions and recalc cost).
+- **J3** → lesson 8 (broken IMPORTRANGE and the "Allow access" diagnostic flow).
 - **J4** → lesson 7 (circular references and how to break them).
 - **J5** → the "what's missing" prompt: pulling a needed summary value from raw data.
 
@@ -35,9 +35,9 @@ The dashboard is broken until all five cells are right. The grader passes only w
 
 ## Why this clinic looks like real life
 
-Workbooks in the wild rarely have one bug. They have several, each from a different mistake, layered on top of each other. The full-column SUM was put in two years ago by someone who didn't know about the recalc cost. The VLOOKUP-without-IFNA was added last month by a buyer who tested with valid input. The TODAY() was a debugging artifact left in by accident. The circular reference happened when someone moved a row. The missing UNIQUE count is just a forgotten line item.
+Workbooks in the wild rarely have one bug. They have several, each from a different mistake, layered on top of each other. The full-column SUM was put in two years ago by someone who didn't know about the recalc cost. The VLOOKUP-without-IFNA was added last month by a buyer who tested with valid input. The IMPORTRANGE went red overnight because the upstream owner renamed the source workbook and the auth grant did not survive. The circular reference happened when someone moved a row. The missing UNIQUE count is just a forgotten line item.
 
-A learner who fixes one bug at a time and tests after each is doing the right thing. A learner who tries to fix all five and check at the end will spend twice as long because the failure modes interact: J4's circular reference might mask J3's volatility, J2's `#N/A` might propagate into J1 if you'd referenced J2 there.
+A learner who fixes one bug at a time and tests after each is doing the right thing. A learner who tries to fix all five and check at the end will spend twice as long because the failure modes interact: J4's circular reference might mask J3's `#REF!`, J2's `#N/A` might propagate into J1 if you'd referenced J2 there.
 
 The diagnostic order matters. Start with the cells that do not depend on others (J1, J3, J4, J5). Save J2 for last if it references other dashboard cells in your spreadsheet (in this clinic it does not, but in real life this pattern is common).
 
@@ -46,7 +46,7 @@ The diagnostic order matters. Start with the cells that do not depend on others 
     <pre className="font-mono text-xs"><code>{`1. Edit J1, J2, J3, J4, J5 in one pass.
 2. Hit Run grader.
 3. Two rules fail. Which?`}</code></pre>
-    <p className="mt-2 text-sm">Failure modes interact. J4's circular reference can mask J3's volatility; J2's #N/A can leak into J1 if you happen to reference J2. When the grader fails, you do not know which of your five edits introduced the regression.</p>
+    <p className="mt-2 text-sm">Failure modes interact. J4's circular reference can mask J3's `#REF!`; J2's #N/A can leak into J1 if you happen to reference J2. When the grader fails, you do not know which of your five edits introduced the regression.</p>
   </ComparePanel>
   <ComparePanel label="Fix-one, verify, repeat" tone="positive">
     <pre className="font-mono text-xs"><code>{`1. Fix J1. Re-read every cell that referenced J1.
@@ -88,11 +88,11 @@ Once you've fixed the five cells, the column J block should look like this:
 |---|---|---|
 | `J1` | `=SUM(F2:F61)` | total Spend |
 | `J2` | `=IFNA(VLOOKUP("NonExistentBuyer", B2:G61, 5, FALSE), 0)` | `0` (the fallback fires) |
-| `J3` | `=A2` or `2026-05-10` (literal) | a stable date |
+| `J3` | `=IMPORTRANGE(url, "Raw - Taboola!A1:G5000")` after re-granting access | live data from the source tab |
 | `J4` | `0` (or any non-self-referencing formula) | a finite number |
 | `J5` | `=COUNTA(UNIQUE(B2:B61))` | the distinct buyer count |
 
-Every cell now has a value, no cell shows an error, no formula is volatile, no formula references itself, no formula reads a full column. The dashboard is recoverable from this state. Add a named version (`PostFix-2026-05-11-clinic`) and the workbook is back in operating shape.
+Every cell now has a value, no cell shows an error, no formula references itself, no formula reads a full column, and the cross-workbook pull is bounded and authorized. The dashboard is recoverable from this state. Add a named version (`PostFix-2026-05-11-clinic`) and the workbook is back in operating shape.
 
 ## Now do it for real
 
@@ -105,7 +105,7 @@ Click **Start lesson** to provision the workbook. Five tasks:
 
 1. **J1**: replace `=SUM(F:F)` with `=SUM(F2:F61)`.
 2. **J2**: wrap the VLOOKUP in IFNA (or IFERROR) with a fallback like `0`.
-3. **J3**: remove the volatile `TODAY()`. Use a literal date or `=A2`.
+3. **J3**: re-establish the IMPORTRANGE connection. Click the cell, click **Allow access** on the pill that appears, or update the URL if the source workbook was renamed.
 4. **J4**: break the circular reference. A literal `0` works.
 5. **J5**: write `=COUNTA(UNIQUE(B2:B61))` for the unique buyer count.
 

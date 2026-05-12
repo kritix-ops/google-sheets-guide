@@ -153,12 +153,12 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=REDUCE("", E2:E13, LAMBDA(a, s, a + s))`}</code></pre>
-    <p className="mt-2 text-sm"><strong>סוג initial-value שגוי.</strong> ה-accumulator ההתחלתי הוא המחרוזת הריקה <code>""</code>. השלב הראשון מחשב <code>"" + 342.18</code> ש-Sheets פותר ל-<code>342.18</code> (auto-coerced), אבל התוצאה שונה בעדינות וב-inputs מסוימים זורקת שגיאת סוג. ה-initial value קובע את סוג ה-accumulator לכל ההליכה.</p>
+    <pre className="font-mono text-xs"><code>{`=REDUCE({}, E2:E13, LAMBDA(acc, s, acc + s))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>אי-התאמה בסוג ה-accumulator.</strong> ה-accumulator ההתחלתי הוא מערך ריק (<code>{`{}`}</code>) אבל הגוף מוסיף סקלר אליו. השלב הראשון מחשב <code>{`{}`} + 342.18</code>, ש-Sheets לא יכול לפתור נקי: מערך-ריק פלוס סקלר מפיק <code>#VALUE!</code> בשלב הראשון, וגם כשהמערך ההתחלתי לא ריק סמנטיקת ה-broadcasting לא תיתן לכם את הסכום הרץ שהתכוונתם אליו. ה-initial value קובע בשקט את סוג וצורת ה-accumulator לכל ההליכה; בחרו את הלא נכון וכל שלב שאחריו שגוי.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=REDUCE(0, E2:E13, LAMBDA(a, s, a + s))`}</code></pre>
-    <p className="mt-2 text-sm"><strong>ערך התחלתי מספרי לאגרגציה מספרית.</strong> ה-accumulator מתחיל ב-<code>0</code> ונשאר מספרי לאורך כל הדרך. לשרשור מחרוזות השתמשו ב-<code>""</code> וב-<code>a &amp; s</code> בגוף. למערכים כ-accumulator, השתמשו בצורה הנכונה מההתחלה.</p>
+    <pre className="font-mono text-xs"><code>{`=REDUCE(0, E2:E13, LAMBDA(acc, s, acc + s))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>התאימו את סוג ה-initial value לפעולה של הגוף.</strong> accumulator מספרי (<code>0</code>) לסכומים מספריים. השתמשו ב-<code>""</code> עם <code>acc &amp; s</code> לשרשור מחרוזות. השתמשו ב-array literal של שורה אחת כמו <code>{`{0, 0}`}</code> אם אתם באמת רוצים לקפל שני סכומים מקבילים בבת אחת. תמיד תדמיינו את הסוגים של השלב הראשון לפני שאתם מתחייבים.</p>
   </ComparePanel>
 </Compare>
 

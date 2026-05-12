@@ -2,18 +2,18 @@ import { MESSY_CAMPAIGNS, CAMPAIGNS } from "@/content/datasets/adtech";
 
 # Fill with Gemini
 
-Fill with Gemini is a UI action, not a formula. You select a range, click the **Fill** entry point (drag-from-corner if at least one cell is filled, or the one-click Fill button if the selection is empty), type a natural-language instruction, and Gemini proposes a column of literal values. You review the proposal, then apply or discard. There's no formula, no `=AI()`, no spilling array. The cells are populated with plain values, the same way as if you'd typed them yourself.
+Fill with Gemini is **UI sugar over the `=AI()` function** (covered in lesson 5.2): the same underlying model and the same data-handling surface, dressed as a one-click action instead of a formula. You select a range, trigger Fill (drag-fill or prompt-fill, the next paragraph spells out which is which), type a natural-language instruction, and Gemini proposes a column of literal values. You review the proposal, then apply or discard. The difference from `=AI()` is what lands in the cells: Fill writes static values, `=AI()` leaves a live formula.
 
 It feels magic the first time. It also disagrees with itself between runs, occasionally fills cells outside your selection, and leaves no audit trail of what it changed. The Workspace Updates announcement claims 9x faster than manual entry on 100-cell tasks, and on a clean cleanup task that's the right ballpark. Used carelessly it introduces silent bugs the team finds two weeks later. This lesson is how to use it deliberately and where it beats both Smart Fill and an `=AI()` column.
 
 ## How it works in practice
 
-Fill with Gemini has two invocation modes. Knowing which mode the team is in is half the lesson, because the prompt shape changes.
+Fill with Gemini has two invocation modes, and the entry point is different in each. Knowing which mode the team is in is half the lesson, because the prompt shape changes too.
 
-| Mode | When | Trigger |
+| Mode | When | Entry point |
 |---|---|---|
-| Drag-fill | At least one example cell in the column is filled | Hover the bottom-right corner of the seed cell, drag down. Gemini infers a pattern from the seed plus neighboring columns. |
-| Prompt-fill | The selection is empty | Click the Fill entry point above the selection, type a natural-language instruction. |
+| **Drag-fill** | The column already has at least one completed seed cell | Hover the **bottom-right corner of the seed cell** and drag down. Gemini infers a pattern from the seed plus neighboring columns; no prompt typed. |
+| **Prompt-fill** | The selection is empty | The **Fill button appears above the selection**. Click it, type a natural-language instruction, Gemini reads neighboring columns for context and fills the empty cells. |
 
 Either way, the steps that follow are the same:
 
@@ -34,7 +34,7 @@ Smart Fill (the older Sheets feature) learns from two or three example rows you 
 
 Fill with Gemini wins when the transformation is fuzzy:
 
-- **Normalizing inconsistent text.** `"used cars pr"`, `"Used Cars PR"`, `"USEDCARSPR"` all collapse to `"Used Cars PR"` with a single instruction.
+- **Normalizing inconsistent text.** `"car deals pr"`, `"Car Deals PR"`, `"CARDEALSPR"` all collapse to `"Car Deals PR"` with a single instruction.
 - **Classification of free text.** "Categorize this customer note as: complaint, question, compliment, other."
 - **Multi-step transformations.** "Pull the city out, capitalize it, and standardize country codes to 2 letters."
 
@@ -44,7 +44,7 @@ Smart Fill needs examples. Fill with Gemini needs an instruction. When the rule 
 |---|---|---|---|
 | Extract first name | Wins. Deterministic, free. | Overkill. | Overkill and billable. |
 | Capitalize column | Wins. | Overkill. | Overkill. |
-| Standardize 12 variants of "Used Cars PR" | Slow (needs many examples) and fragile. | **Wins.** One instruction, literal output. | Works but leaves a live formula that recomputes. |
+| Standardize 12 variants of "Car Deals PR" | Slow (needs many examples) and fragile. | **Wins.** One instruction, literal output. | Works but leaves a live formula that recomputes. |
 | Classify customer notes (one-time clean) | Cannot do it. | **Wins.** | Works but the column drifts on each refresh. |
 | Classify customer notes (ongoing) | Cannot do it. | Loses: literals freeze, won't update. | **Wins.** Live formulas track new rows. |
 | Extract `card9999` from campaign name | Wins if format is consistent. | Wins too, but costs a Gemini call per row. | Same. |
@@ -137,6 +137,15 @@ Reviewer sees H10 flagged, opens the row, fixes manually.`}</code></pre>
   </ComparePanel>
 </Compare>
 
+<TryIt
+  data={MESSY_CAMPAIGNS.slice(0, 7)}
+  inputCell="H2"
+  expectedFormula={`=AI("Standardize the vertical to canonical Title Case. Allowed values: Car Deals PR, Bathroom Remodeling PR, Hearing Aids PR, Senior Living PR. For anything else, return 'needs review' (do not guess). Preserve the trailing PR suffix. Vertical: " & C2)`}
+  task={<>The Vertical column has casing and spacing drift (<code>"car deals pr"</code>, <code>"Car Deals"</code>, <code>"CarDealsPR"</code>, <code>"Car Deals PR"</code>). Write the <code>=AI()</code> call in <code>H2</code> that would Fill the canonical name. It must include (a) an explicit allowed list, (b) a "do not guess" rule, and (c) a "preserve trailing PR suffix" instruction.</>}
+  hint={<>Start with <code>=AI("Standardize the vertical to canonical Title Case. Allowed values: ..."</code>. Then add the canonical list. Then the "do not guess" clause: <code>"For anything else, return 'needs review' (do not guess)."</code> Then the suffix rule: <code>"Preserve the trailing PR suffix."</code> Concatenate the row's vertical with <code>&amp; C2</code> at the end.</>}
+  answer={<>The three ingredients each kill a specific failure mode. The <strong>allowed list</strong> turns a generative task into a classification task: the model returns one of the listed strings in practice. The <strong>"do not guess" clause</strong> converts hallucinations into flagged rows so a human catches them instead of a dashboard. The <strong>"preserve trailing PR suffix" rule</strong> is team-specific: the convention is that vertical names always end in PR, and Gemini's defaults will sometimes strip it during normalization. Without all three, the proposal looks confident and is silently wrong on a handful of rows.</>}
+/>
+
 ## Schema and column-mismatch traps
 
 Fill with Gemini reads neighboring columns to infer context. When the header text is ambiguous or wrong, the inference is wrong. The team has hit two specific failure modes worth surfacing:
@@ -164,7 +173,7 @@ Revenue (column F) only."`}</code></pre>
 
 ## Cost, quota, and the privacy surface
 
-Fill with Gemini is metered per Workspace plan, with the same promo window through July 15 2026 mentioned in lesson 5.1, and the same per-plan limits afterward. Each Apply step counts against the quota. A 100-cell apply is one quota event in practice; a 600-cell apply is a bigger one. The 9x speed claim from the Workspace announcement is real for clean tasks, but the bill is real too. Watch it for high-volume cleanup runs.
+Fill with Gemini is metered per Workspace plan. Some Workspace plans include promotional access windows with higher per-user quotas during the Gemini-in-Sheets rollout (also mentioned in lesson 5.1); verify with your admin which tier your team is on and what limits apply, since the gating shifts as features GA. Each Apply step counts against the quota. A 100-cell apply is one quota event in practice; a 600-cell apply is a bigger one. The 9x speed claim from the Workspace announcement is real for clean tasks, but the bill is real too. Watch it for high-volume cleanup runs.
 
 PII has the same surface as `=AI()`: neighbor columns get read into Gemini's context, so if your selection sits next to a customer-email column, those emails are in the snapshot. Lesson 5.6 covers the PII policy in detail. The short version: if you wouldn't paste a column into an external vendor's web form, don't trigger Fill with Gemini on it without checking your plan's data-handling terms first.
 

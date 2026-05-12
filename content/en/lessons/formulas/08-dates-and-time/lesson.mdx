@@ -122,12 +122,12 @@ In adtech: "ad-days remaining in the month" = `NETWORKDAYS(TODAY(), EOMONTH(TODA
 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "m")`}</code></pre>
-    <p className="mt-2 text-sm">Lowercase unit code. <code>DATEDIF</code> is finicky: most versions accept lowercase but a small subset error out. The team has seen this fail differently across two adjacent workbooks.</p>
+    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "MD")`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Trusting <code>DATEDIF</code>'s <code>"MD"</code> unit on month-end inputs.</strong> Google does not surface <code>DATEDIF</code> in the Sheets function picker and the official function list does not document it; it is a legacy import from Excel that Sheets keeps working but does not formally support. The <code>"MD"</code> unit (days ignoring months and years) has well-known incorrect results when the end day is earlier in its month than the start day, and Google has not fixed it. Anything you build on top of <code>"MD"</code> is built on a quietly-deprecated foundation.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=DATEDIF(A2, B2, "M")`}</code></pre>
-    <p className="mt-2 text-sm">Uppercase unit. Make uppercase a habit: <code>"Y"</code>, <code>"M"</code>, <code>"D"</code>, <code>"YM"</code>, <code>"YD"</code>, <code>"MD"</code>. Avoid <code>"MD"</code> entirely; it has known edge cases at month boundaries.</p>
+    <pre className="font-mono text-xs"><code>{`=B2 - EDATE(A2, DATEDIF(A2,B2,"M"))`}</code></pre>
+    <p className="mt-2 text-sm"><strong>Compute the residual days yourself.</strong> Take the full-months difference, jump forward that many months from the start with <code>EDATE</code>, then subtract from the end date to get a real "days past the last whole month" count. For new code, prefer documented functions for the underlying math: <code>YEARFRAC</code> for fractional years, plain subtraction or <code>DAYS</code> for day counts, <code>EDATE</code> for month jumps, and reach for <code>DATEDIF</code> only when you accept it as legacy and stick to <code>"Y"</code>, <code>"M"</code>, <code>"D"</code>, <code>"YM"</code>.</p>
   </ComparePanel>
 </Compare>
 
@@ -179,7 +179,7 @@ In adtech: "ad-days remaining in the month" = `NETWORKDAYS(TODAY(), EOMONTH(TODA
 
 ## Pro pitfalls
 
-- **`TODAY()` makes a sheet recalculate every day.** Fine for dashboards. Expensive for sheets with 50,000 rows that all reference TODAY indirectly. Move it to a single named cell at the top and reference that cell, so TODAY only fires once.
+- **`TODAY()` is volatile and recomputes on every workbook edit.** Not once a day, as it might look from the displayed value: every edit, every recalc trigger, every open. Fine for dashboards with a handful of references; expensive for sheets with 50,000 rows that all reference `TODAY()` indirectly, because every edit re-runs the whole dependency graph. Move it to a single named cell at the top and reference that cell, so `TODAY()` only fires once per recalc; track 4 lesson 2 (`why-its-slow`) covers the volatile-function performance impact in depth.
 - **IMPORTRANGE'd dates often arrive as text strings, not numbers.** A cell that displays "2026-05-01" might be the actual date number 46143 OR the literal string "2026-05-01". Date math fails silently on the string version. Coerce with `DATEVALUE(A2)` or wrap in `+0` to force numeric.
 - **`EOMONTH` returns serial dates that need formatting.** The formula returns 46173 for end of May 2026; format the cell as Date or you'll see a number.
 - **`DATEDIF`'s `"MD"` unit has known quirky edge cases.** Stick to `"Y"`, `"M"`, `"D"`, `"YM"` for production code.

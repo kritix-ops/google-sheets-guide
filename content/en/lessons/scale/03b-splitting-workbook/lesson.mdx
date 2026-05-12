@@ -1,0 +1,243 @@
+# Splitting a workbook before it hits the wall
+
+Aggregator workbooks die two ways. The first is sudden: somebody pastes 200,000 rows onto the wrong tab and Sheets refuses the next insert with "would exceed the workbook limit." The second is slow: recalc gets sluggish, then painful, then nobody opens the dashboard before their first coffee anymore. The fix for both is the same architectural move: stop carrying every campaign you've ever run inside one file. Split the workbook. Move the cold data into an Archive workbook, keep the Live workbook lean, and stitch them back together with `IMPORTRANGE` so the dashboards keep working through the migration.
+
+This lesson is the recipe. Lesson 4.1 explained the 10M-cell ceiling (20M on the April 2026 opt-in beta) and why even empty grids burn cells; lesson 4.3 codified the `IMPORTRANGE` patterns that make cross-workbook references survive in production. This lesson sits between them on purpose: it's the move you make *before* the team has to migrate to Connected Sheets and BigQuery (lesson 4.4). For most adtech aggregators, splitting buys eighteen to twenty-four months of runway. Some teams never need to go further.
+
+## When you actually need to split
+
+Splitting a workbook is not free. Every cross-workbook reference is a new failure mode (see the `IMPORTRANGE` failure catalog in lesson 4.3 and the diagnostic flow in lesson 4.8). Do it when the signals are real, not because the file feels chunky.
+
+The three signals that mean "split now":
+
+1. **Cell count above ~7M.** You're three quarters of a million cells from the wall on the standard cap, or 13M from the wall on the beta cap. Add the row count of one big monthly export and you can trip it on the next paste. The audit from lesson 4.1 (`=COLUMNS(A:Z)*ROWS(A1:A1000)` per tab, summed) is the number you check first.
+2. **Open time past 20 seconds, recalc past 5.** A workbook that takes 25 seconds to open and 8 seconds to recalc on a formula edit isn't getting better with another platform tab. The April 2026 platform speedups help, but they don't reverse the curve: a 9M-cell workbook is still a 9M-cell workbook.
+3. **Multi-purpose tab cluster.** One file is doing four jobs: current-month tracking, prior-quarter analysis, trailing-12-month dashboards, and ad-hoc cohort pulls. Each new job piles tabs onto the file. The natural break is between "things the team edits every day" and "things we read but never touch."
+
+If only one signal is firing, you can usually buy time by trimming allocations (lesson 4.1's grid-shrinking moves) or moving to bounded `IMPORTRANGE` (lesson 4.3). When two signals fire together, split.
+
+<QuickCheck
+  question="Which of these is the strongest signal that it is time to split the aggregator?"
+  options={[
+    {
+      id: "a",
+      label: <>A single tab has grown to 80,000 rows but the rest of the workbook is small and recalc is still fast.</>,
+      correct: false,
+      explanation: "One fat tab is a grid problem, not a workbook problem. Bounded ranges and a grid trim from lesson 4.1 handle this without the cross-workbook overhead.",
+    },
+    {
+      id: "b",
+      label: <>The workbook is at 7.4M cells, opens in 28 seconds, and now carries three quarters of historical campaign data plus the current month.</>,
+      correct: true,
+      explanation: "Two signals — cell count near the cap and slow open time — combined with a clear cold-data layer (the historical quarters) is the canonical split moment. The Archive workbook absorbs the cold layers; the Live workbook keeps the current month responsive.",
+    },
+    {
+      id: "c",
+      label: <>The workbook has 47 IMPORTRANGE calls and one of them broke yesterday.</>,
+      correct: false,
+      explanation: "A broken IMPORTRANGE is a lesson 4.8 problem (diagnose the source), not a splitting problem. Splitting would add IMPORTRANGEs, not remove them.",
+    },
+  ]}
+/>
+
+## The archive-and-link pattern
+
+The canonical structure is two workbooks that play different roles:
+
+- **Live workbook.** Current month or current quarter only. Editors write here. Apps Script triggers (lesson 3.8) fire here. The dashboards that the team checks before 9am read primarily from this file. Lean enough to open fast.
+- **Archive workbook.** Every closed period before the Live cutoff. Read-only by team convention (not by Sheets permissions — protected ranges from lesson 2.18 enforce that). The Apps Script that moves data at month-end (more on this in "Used in the wild") is the only writer.
+
+The bridge is `IMPORTRANGE`. The Live workbook's dashboard tabs pull historical aggregates from the Archive via bounded `IMPORTRANGE` calls, exactly the way lesson 4.3 codifies. The Archive does not reference the Live workbook — the dependency arrow goes one way, so there's no circular-IMPORTRANGE risk (the trap from lesson 4.7).
+
+<MiniGrid
+  data={[
+    ["File", "Role", "Tabs", "Writers", "Reads from"],
+    ["Live - 2026 Aggregator", "Current month", "Raw - Taboola, Raw - Outbrain, Raw - MediaGo, Campaigns, Dashboard", "Media buyers, month-end script", "Archive (via IMPORTRANGE)"],
+    ["Archive - 2026 Aggregator", "Closed months", "Campaigns 2025, Campaigns Q1, Campaigns Q2, Campaigns Q3", "Month-end script only", "(nothing)"],
+    ["Dashboard Q-over-Q", "Reads both", "Current, Trailing, Compare", "(read-only)", "Live + Archive"],
+  ]}
+  highlight={["A1", "B1", "C1", "D1", "E1"]}
+  highlightTone="primary"
+  caption="The two-workbook layout. The Live workbook is the writable, fast file the team edits every day. The Archive workbook holds closed periods and only receives writes from the month-end Apps Script trigger. The dependency arrow goes from Live to Archive, not the other way around."
+/>
+
+The naming convention matters more than people expect. `Live - 2026 Aggregator` and `Archive - 2026 Aggregator` makes the role obvious from the Drive picker. Names like `Aggregator` and `Aggregator (old)` are how the team ends up reading from the wrong file at 11pm.
+
+## The migration playbook
+
+The migration runs in six steps, in order. Skipping any one of them either breaks the dashboards mid-flight or leaves both files referencing the same rows (the parity check in step 5 is the trap that catches this).
+
+<StepThrough
+  frames={[
+    {
+      caption: "Step 1: audit the current workbook",
+      body: (
+        <>
+          Run the lesson 4.1 grid count on every tab. Identify the cold layer
+          you're about to move (typically: everything older than the current
+          quarter). Also list every place outside this workbook that reads from
+          it — other dashboards, other aggregators, Apps Script triggers. The
+          audit becomes the cutover checklist in step 4.
+        </>
+      ),
+    },
+    {
+      caption: "Step 2: build the Archive workbook (copy-and-prune)",
+      body: (
+        <>
+          Right-click the source file in Drive → <em>Make a copy</em>. Rename it
+          to <code>Archive - 2026 Aggregator</code>. Delete the tabs that
+          belong in Live (current month, dashboards). What remains is your cold
+          layer. Verify row counts on each kept tab match the original — this
+          is your "before" number for the parity check.
+        </>
+      ),
+    },
+    {
+      caption: "Step 3: add the IMPORTRANGE bridge",
+      body: (
+        <>
+          In the Live workbook, build a hidden tab named <code>_archive_pull</code>.
+          Add bounded <code>IMPORTRANGE</code> calls against the Archive — one
+          per archived tab you'll need in dashboards. Use the
+          <code>IFERROR(IMPORTRANGE(...), "data unavailable")</code> wrapper from
+          lesson 4.3. Grant access once; verify the pulls populate. The
+          dashboards do not read from <code>_archive_pull</code> yet — that's
+          step 4.
+        </>
+      ),
+    },
+    {
+      caption: "Step 4: update dashboards to read the merged view",
+      body: (
+        <>
+          For each dashboard formula that aggregated across the full
+          (Live + cold) data, rewrite it to combine the local Live range with
+          the <code>_archive_pull</code> range. Trailing-12-month
+          <code>SUMIFS</code> become a sum of two <code>SUMIFS</code> calls —
+          one over local, one over the archive pull. Commit one dashboard at a
+          time and eyeball the totals.
+        </>
+      ),
+    },
+    {
+      caption: "Step 5: parity check",
+      body: (
+        <>
+          For every metric that should be unchanged by the split (trailing-12
+          spend, trailing-12 revenue, lifetime row count by buyer), capture the
+          number from the original workbook and the number from the new
+          Live + Archive setup. They must match exactly. A drift here means
+          either step 2 dropped rows or step 4 double-counted them.
+        </>
+      ),
+    },
+    {
+      caption: "Step 6: drop the cold data from Live",
+      body: (
+        <>
+          Only after parity check passes. Delete the archived tabs from the
+          Live workbook. Then <em>delete the rows</em> (not just clear) so the
+          grid allocation shrinks — clearing leaves the cells on your cap, see
+          lesson 4.1. Final audit: rerun the lesson 4.1 grid count. The Live
+          workbook should now be a fraction of its prior size. If it is not,
+          step 6 was incomplete.
+        </>
+      ),
+    },
+  ]}
+/>
+
+The hidden `_archive_pull` tab in step 3 is the discipline that prevents the trap where every dashboard formula carries its own `IMPORTRANGE`. One pull tab, many readers. Same pattern as lesson 4.3's fan-out: one `IMPORTRANGE`, many references.
+
+## Easy traps
+
+Three failure modes that account for almost every botched split the team has ever shipped.
+
+<Compare>
+  <ComparePanel label="IMPORTRANGE by URL with a Drive-visible name" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IMPORTRANGE(
+  "https://docs.google.com/spreadsheets/d/abc.../edit",
+  "Campaigns Q1!A1:G5000"
+)`}</code></pre>
+    <p className="mt-2 text-sm">Looks fine. The trap is what happens when somebody renames the Archive workbook from <code>Archive - 2026 Aggregator</code> to <code>Archive 2026 (old)</code>. The URL keeps working because Drive uses the file ID, not the name. But the next person who debugs a stale dashboard cannot tell which file the URL points at without opening it. Half the team's IMPORTRANGE incidents start with "I renamed it, didn't think it mattered."</p>
+  </ComparePanel>
+  <ComparePanel label="IMPORTRANGE by URL with a documented name cell" tone="positive">
+    <pre className="font-mono text-xs"><code>{`A1: =IMPORTRANGE(SOURCE_URL, "Campaigns Q1!A1:G5000")
+B1: "Source: Archive - 2026 Aggregator"
+C1: SOURCE_URL  (named range)`}</code></pre>
+    <p className="mt-2 text-sm">Same URL-based pull (the URL form is the right choice — Sheets keys on the file ID inside the URL, so the link survives renames). The difference is the human signal: a named range for the URL and a sibling label cell that documents the source's current Drive name. When somebody renames the source, the named range still works; you update the label cell in one place.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Dashboard references explicit rows" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUM(_archive_pull!F100:F500)`}</code></pre>
+    <p className="mt-2 text-sm">The dashboard hard-codes row numbers from the pull tab. When the Archive grows by a month and the IMPORTRANGE shifts what lands in rows 100–500, the dashboard silently summarizes a different slice. No error, just a wrong number.</p>
+  </ComparePanel>
+  <ComparePanel label="Dashboard references structured ranges" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(
+  _archive_pull!F:F,
+  _archive_pull!A:A, ">="&DATE(2025,1,1),
+  _archive_pull!A:A, "<"&DATE(2026,1,1)
+)`}</code></pre>
+    <p className="mt-2 text-sm">The filter is by date, not by row number. When the Archive grows, the dashboard automatically picks up the new rows that fall inside the date window. The trade-off is full-column scans, which are fine on the pull tab (bounded by the IMPORTRANGE itself) but would be a problem on raw imports.</p>
+  </ComparePanel>
+</Compare>
+
+The third trap is more subtle: **splitting too aggressively.**
+
+- Splitting the moment Q2 starts (creating an Archive for Q1 while Q2 is still warm) means every dashboard that compares Q2 to Q1 has to hop through `IMPORTRANGE`. Recalc gets slower, not faster, because the cross-workbook pull is on the hot path of the dashboards the team reads every day.
+- The team rule that grew out of this: archive at the *quarter boundary*, not the *month boundary*. Move quarter N to Archive when quarter N+1 closes. The current quarter and the previous quarter live in Live where dashboards can read them locally.
+- The same logic at the yearly level: drop the oldest year out of Archive entirely (export to BigQuery via lesson 4.4) when the Archive itself starts approaching the 10M cell wall.
+
+## Used in the wild
+
+The team's main aggregator runs the pattern below. The numbers are real as of May 2026; the structure has held for fourteen months.
+
+- **Live - 2026 Aggregator.** ~1.4M cells. Carries the current quarter plus the prior quarter. Tabs: `Raw - Taboola`, `Raw - Outbrain`, `Raw - MediaGo`, `Raw - Facebook`, `Raw - TikTok`, `Raw - Google`, `Campaigns` (the union), `_archive_pull` (hidden), `Dashboard - Current`, `Dashboard - QoQ`.
+- **Archive - 2026 Aggregator.** ~6.2M cells. Carries the previous 6 quarters. Tab per quarter (`Campaigns 2024 Q3`, `Campaigns 2024 Q4`, `Campaigns 2025 Q1`, etc.). Owned by `info@flexelent.com`. Editors locked to one shared account by Drive permissions and by protected ranges from lesson 2.18.
+- **Cutover trigger.** A time-driven Apps Script (lesson 3.8) runs on the first business day of each new quarter. It copies the closed quarter's tab from Live into the Archive, runs its own parity check, and only then deletes the rows from Live. The script writes a row to a `_cutover_log` tab in Archive with the timestamp, the row counts, and a Pass/Fail flag the team can audit.
+- **Dashboard - QoQ** reads Live's `Campaigns` for the two warmest quarters and `_archive_pull` for the trailing four. Trailing-12 metrics use a single `SUMIFS` with date bounds spanning both ranges, exactly the structured-range pattern from the easy-traps section above.
+
+The campaign rows reaching the Archive look indistinguishable from the rows in Live — same columns, same vertical names from the canonical list (Car Deals PR, Cruises PR, Solar Systems & Panels PR, and so on), same buyer names, same platforms. The Archive is not a different schema; it's the same data, colder.
+
+<QuickCheck
+  question='You inherited a Live workbook whose dashboard pulls from `=IMPORTRANGE("https://docs.google.com/spreadsheets/d/abc.../edit", "Campaigns Q1!A1:G5000")`. Somebody renamed the Archive workbook from `Archive - 2026 Aggregator` to `Archive 2026 (old)`. The dashboard renders. Two weeks later it goes #REF! anyway. What happened?'
+  options={[
+    {
+      id: "a",
+      label: <>The rename broke the URL — Sheets resolves IMPORTRANGE by file name, not by file ID.</>,
+      correct: false,
+      explanation: "Sheets resolves IMPORTRANGE by the file ID embedded in the URL, not by the file's display name. The URL keeps working through a rename. If the dashboard worked for two weeks after the rename, the rename itself was not the cause.",
+    },
+    {
+      id: "b",
+      label: <>The rename did not break the URL. Something else changed in the two-week window — a permission revoke, a tab rename on the Archive, or the source file was moved to a shared-drive folder that the destination's owner cannot see.</>,
+      correct: true,
+      explanation: "The file-ID-based URL survives renames. When an IMPORTRANGE worked then broke later, the cause is almost always a separate event in the window: permissions, tab rename, or a Drive move that affects visibility. Lesson 4.8 walks the full diagnostic for this case.",
+    },
+    {
+      id: "c",
+      label: <>The 30-minute IMPORTRANGE cache expired and the new lookup couldn't find the file under its new name.</>,
+      correct: false,
+      explanation: "The cache is keyed on the file ID, not the file name. A cache miss does not become a file-not-found error just because the file was renamed.",
+    },
+  ]}
+/>
+
+## Now do it for real
+
+Click **Start lesson** to provision a Live workbook tab seeded with the current quarter's campaigns and a `_archive_pull` placeholder. In a real workflow the placeholder would be an `IMPORTRANGE` against a separate Archive file; in this single-tab test fixture the Archive is simulated on a second region of the same tab so the grader can verify the bridge formula and the parity check. You will write:
+
+- **The archive pull formula** in `J1`, against the example Archive URL the lesson supplies, bounded to the archived range.
+- **The merged total** in `K1` that combines the local Live spend total with the archive pull's spend total — this is the formula a real dashboard would carry.
+- **The parity check** in `L1` that adds Live's row count to the archive pull's row count and verifies the sum matches the original (pre-split) total. The grader checks all three.
+
+## Pro pitfalls
+
+- **The two-source-of-truth bug.** A row exists in both Live and Archive because step 6 was skipped or partially applied. Every dashboard double-counts it. The parity check in step 5 is the only thing that catches this before it ships.
+- **The Archive's own cell limit.** Splitting once doesn't make the Archive immortal. Six quarters of campaign data can pass 6M cells. Plan for the Archive → BigQuery migration (lesson 4.4) before the Archive itself hits the wall.
+- **The Apps Script that "almost works."** The cutover script in step 3.8 territory needs idempotency: running it twice should not double-move data. Test it by triggering it manually before you trust the time-driven schedule. Lesson 4.9 covers the slow-Apps-Script trap that bites a poorly written cutover script.
+- **IMPORTRANGE chains across three files.** Live pulls from Archive, Archive pulls from Old Archive. Each hop adds latency and a failure surface. If you find yourself building this, you are past the split-workbook era — go to Connected Sheets (lesson 4.4).
+- **Dashboards that the rest of the team rebuilt while you were splitting.** A two-week migration is a two-week window where other people may have copied formulas off the Live workbook into their own files, with hard-coded ranges that now point at the wrong data. Tell the team before you start, and rerun the audit from step 1 against the team's other workbooks before you call the migration done.

@@ -11,7 +11,7 @@ const correctCells = {
   },
   B2: { value: "Taboola", formula: '=REGEXEXTRACT(A1, "^([A-Za-z]+)_")' },
   B3: {
-    value: "Taboola_UsedCarsPR_DesktopUS",
+    value: "Taboola_CarDealsPR_DesktopUS",
     formula: '=REGEXREPLACE(A1, "_\\d{4}-\\d{2}$", "")',
   },
 };
@@ -87,7 +87,7 @@ describe("Track 1 Lesson 16: REGEX trio", () => {
         Regex: {
           ...correctCells,
           B3: {
-            value: "Taboola_UsedCarsPR_DesktopUS_",
+            value: "Taboola_CarDealsPR_DesktopUS_",
             formula: '=REGEXREPLACE(A1, "\\d{4}-\\d{2}", "")',
           },
         },
@@ -99,7 +99,7 @@ describe("Track 1 Lesson 16: REGEX trio", () => {
       (c) => c.ruleId === "b3-regexreplace-strip-date",
     );
     expect(b3?.passed).toBe(false);
-    expect(b3?.detail).toContain("Taboola_UsedCarsPR_DesktopUS");
+    expect(b3?.detail).toContain("Taboola_CarDealsPR_DesktopUS");
   });
 
   it("flags an empty input with the type-this-formula nudge", async () => {

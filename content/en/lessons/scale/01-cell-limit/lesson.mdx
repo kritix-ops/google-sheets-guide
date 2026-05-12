@@ -2,13 +2,15 @@ import { CAMPAIGNS_LARGE } from "@/content/datasets/adtech";
 
 # The 10M cell limit and what hits it
 
-Google Sheets caps a workbook at 10,000,000 cells. Not 10 million *filled* cells. Ten million cells, period. The empty ones count. A tab allocated as `A1:ZZ50000` burns 1.7M cells out of your budget before anyone types a digit. This is the limit that quietly kills aggregator workbooks: the team adds a platform, an IMPORTRANGE drags more rows than expected, somebody pastes a 200,000-row export onto an existing tab, and one morning Sheets refuses to insert another row.
+Google Sheets caps a workbook at 10 million cells OR 18,278 columns (column ZZZ), whichever you hit first. Not 10 million *filled* cells. Ten million cells, period. The empty ones count. A tab allocated as `A1:ZZ50000` burns 1.7M cells out of your budget before anyone types a digit. This is the limit that quietly kills aggregator workbooks: the team adds a platform, an IMPORTRANGE drags more rows than expected, somebody pastes a 200,000-row export onto an existing tab, and one morning Sheets refuses to insert another row.
+
+(As of April 2026, an opt-in beta doubles the cap to 20 million cells for participating domains, and across-the-board performance gains have arrived for all users: ~30% faster sheet open at 1M+ cells, ~60% faster filtering, ~60% faster conditional formatting. The column ceiling and the per-tab default grid have not changed. Most teams reading this lesson are still on the 10M cap until an admin opts the domain in, so treat 10M as the planning number and 20M as headroom if and when your domain gets enrolled.)
 
 The rule to internalize: **what counts is not the data, it is the grid.** Sheets bills you for cells you allocated, not cells you used. Until you understand that, every workbook the team owns is one paste away from the wall. The bounded-range discipline from lesson 2.1 (and the `IMPORTRANGE` patterns from lesson 1.27) are the upstream defenses that keep grids from drifting in the first place.
 
 ## How Sheets allocates cells
 
-When you open a new tab, Sheets gives it a default grid (currently 26 columns and 1000 rows = 26,000 cells). When you paste data wider or taller than that grid, Sheets extends the grid to fit. The grid never shrinks on its own. Delete the rows and the grid stays. Hide the columns and the grid stays. The only way to give cells back is to right-click the row or column header and choose **Delete row/column**, which actually removes the allocation rather than just clearing the content.
+When you open a new tab, Sheets gives it a default grid (currently 26 columns and 1000 rows = 26,000 cells). When you paste data wider or taller than that grid, Sheets extends the grid to fit, subject to two hard ceilings: 10 million cells across the workbook (20 million on the April 2026 opt-in beta) AND 18,278 columns (column ZZZ). You hit whichever ceiling comes first. A workbook with one huge wide tab can hit the column ceiling long before the cell ceiling; a workbook with many medium tabs hits the cell ceiling first. The grid never shrinks on its own. Delete the rows and the grid stays. Hide the columns and the grid stays. The only way to give cells back is to right-click the row or column header and choose **Delete row/column**, which actually removes the allocation rather than just clearing the content.
 
 A few patterns drift the budget without anyone noticing:
 
@@ -16,6 +18,13 @@ A few patterns drift the budget without anyone noticing:
 - **The 40-column tab that uses 7.** Wide pivots and wide raw imports leave columns AA through AN allocated and empty. Each one is 1000+ cells (or however tall the tab is) sitting on your budget.
 - **`ARRAYFORMULA` that's wider than expected.** A spilling `ARRAYFORMULA` extends the grid down to its furthest output cell. If the formula spills to row 100,000 because someone wrote `IFERROR(..., "")` over a column, the grid carries that to 100,000.
 - **`IMPORTRANGE` without a bounded range.** `IMPORTRANGE(url, "Sheet1!A:Z")` pulls the full source sheet. If the source has 30,000 rows, your tab now has 30,000 rows too.
+
+<MiniGrid
+  data={CAMPAIGNS_LARGE.slice(0, 6)}
+  highlight={["A1", "B1", "C1", "D1", "E1", "F1", "G1", "A2", "B2", "C2", "D2", "E2", "F2", "G2", "A3", "B3", "C3", "D3", "E3", "F3", "G3", "A4", "B4", "C4", "D4", "E4", "F4", "G4", "A5", "B5", "C5", "D5", "E5", "F5", "G5", "A6", "B6", "C6", "D6", "E6", "F6", "G6"]}
+  highlightTone="primary"
+  caption="Sheets counts the allocated rectangle (1000 × 26 = 26,000 cells) against your 10M-cell quota even when most cells are empty. The highlighted region is the actual data (A1:G50, about 350 filled cells); the unhighlighted columns H through Z and the rows below row 50 are empty but still on the budget. Trim the allocation, not just the data."
+/>
 
 <Compare>
   <ComparePanel label="Looks innocent, costs cells" tone="negative">

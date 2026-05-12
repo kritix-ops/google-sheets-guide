@@ -4,7 +4,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 These four are the bridge between *text data* and *column data*. `SPLIT` turns one cell into many. `JOIN` and `TEXTJOIN` go the other way: many cells into one. `FLATTEN` collapses a 2D grid into a single column so downstream functions like `UNIQUE` and `FILTER` can chew on it.
 
-You will reach for them constantly in adtech. The team's campaign codes pack four or five pieces of metadata into one string (`Taboola_UsedCarsPR_DesktopUS_2026-05`); `SPLIT` parses them out. Buyer-name lists for Slack updates get built with `TEXTJOIN`. And every time you need to dedupe values that live in a wide pivot grid, `FLATTEN` is what makes the data shape compatible with `UNIQUE`.
+You will reach for them constantly in adtech. The team's campaign codes pack four or five pieces of metadata into one string (`Taboola_CarDealsPR_DesktopUS_2026-05`); `SPLIT` parses them out. Buyer-name lists for Slack updates get built with `TEXTJOIN`. And every time you need to dedupe values that live in a wide pivot grid, `FLATTEN` is what makes the data shape compatible with `UNIQUE`.
 
 ## SPLIT: one cell to many
 
@@ -32,7 +32,7 @@ A single packed string. SPLIT in `B1` breaks it apart and spills the four pieces
 The team's campaign codes follow the shape `Platform_Vertical_Audience_Period`. SPLIT unpacks one in a single formula.
 
 <TryIt
-  data={[["Taboola_UsedCarsPR_DesktopUS_2026-05", "", "", "", ""]]}
+  data={[["Taboola_CarDealsPR_DesktopUS_2026-05", "", "", "", ""]]}
   inputCell="B1"
   expectedFormula='=SPLIT(A1,"_")'
   task={<>Split the campaign code in <code>A1</code> by the underscore. The result should spill across <code>B1:E1</code> with the four parts.</>}
@@ -53,15 +53,15 @@ Returns the second piece (the vertical) from the campaign code in `A2`. Combine 
 <TryIt
   data={[
     ["Code", "Vertical"],
-    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
-    ["Outbrain_LingeriePR_MobileEU_2026-05", ""],
-    ["Mediago_SolarPanelsPR_DesktopUS_2026-05", ""],
+    ["Taboola_CarDealsPR_DesktopUS_2026-05", ""],
+    ["Outbrain_CruisesPR_MobileEU_2026-05", ""],
+    ["MediaGo_SolarSystemsPanelsPR_DesktopUS_2026-05", ""],
   ]}
   inputCell="B2"
   expectedFormula='=INDEX(SPLIT(A2,"_"),2)'
   task={<>Extract just the vertical (the second piece) from the campaign code in <code>A2</code> and put it in <code>B2</code>.</>}
   hint={<>SPLIT returns a 4-cell array. <code>INDEX(array, position)</code> picks one cell. The vertical is at position 2.</>}
-  answer={<>The composition <code>INDEX(SPLIT(A2, "_"), 2)</code> gives you "UsedCarsPR". To run this on a whole column, wrap with <code>ARRAYFORMULA</code> and use open-ended ranges: <code>=ARRAYFORMULA(IFERROR(REGEXEXTRACT(A2:A, "^[^_]+_([^_]+)_"), ""))</code> is actually faster on large datasets because INDEX inside ARRAYFORMULA does not broadcast cleanly with SPLIT's spilled output. Lesson 1.16 covers REGEXEXTRACT.</>}
+  answer={<>The composition <code>INDEX(SPLIT(A2, "_"), 2)</code> gives you "CarDealsPR". To run this on a whole column, wrap with <code>ARRAYFORMULA</code> and use open-ended ranges: <code>=ARRAYFORMULA(IFERROR(REGEXEXTRACT(A2:A, "^[^_]+_([^_]+)_"), ""))</code> is actually faster on large datasets because INDEX inside ARRAYFORMULA does not broadcast cleanly with SPLIT's spilled output. Lesson 1.16 covers REGEXEXTRACT.</>}
 />
 
 ### Easy traps: SPLIT
@@ -192,7 +192,7 @@ The composed pattern. FLATTEN a (buyer, vertical) grid and wrap with UNIQUE to g
 </Compare>
 
 <QuickCheck
-  question={"You write =SPLIT(\"Taboola_UsedCarsPR_DesktopUS\", \"_\") and get exactly the three pieces you expected. A teammate adapts it to =SPLIT(\"Yoav, Sarah, David\", \", \") and gets five cells with two empties. What went wrong?"}
+  question={"You write =SPLIT(\"Taboola_CarDealsPR_DesktopUS\", \"_\") and get exactly the three pieces you expected. A teammate adapts it to =SPLIT(\"Yoav, Sarah, David\", \", \") and gets five cells with two empties. What went wrong?"}
   options={[
     {
       id: "a",

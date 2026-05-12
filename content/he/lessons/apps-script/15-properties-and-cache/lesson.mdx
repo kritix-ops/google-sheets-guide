@@ -175,6 +175,44 @@ try {
 
 שני triggers יכולים שניהם לנסות לתפוס את ה-lock; אחד מחכה עד חמש שניות שהשני ישחרר. הקידום עכשיו בטוח. אותו pattern של lock עובד ל-Cache, ל-spreadsheet עצמו, או לכל store משותף אחר.
 
+### `waitLock` מול `tryLock`: לעמוד בתור או לדלג?
+
+`waitLock(ms)` היא אחת משתי צורות. השנייה היא `tryLock(ms)`, שמחזירה boolean במקום לזרוק. הבחירה תלויה במה ה-trigger צריך לעשות כש-instance אחר באמצע ריצה: לעמוד בתור מאחוריו או לדלג על הריצה הזו לגמרי.
+
+<Compare>
+  <ComparePanel label="waitLock(5000): לעמוד בתור ולרוץ" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function incrementRunCount() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000); // זורק אם לא נתפס תוך 5 שניות
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const n = Number(props.getProperty("runCount") || 0);
+    props.setProperty("runCount", String(n + 1));
+  } finally {
+    lock.releaseLock();
+  }
+}`}</code></pre>
+    <p className="mt-2 text-sm">משתמשים כשהפעולה *חייבת* לרוץ בסוף. כל קורא מחכה עד 5 שניות שהקודם ישחרר. counters שמתקדמים-באחד, כתיבות append-to-log, כל מוטציית "כל קריאה נספרת".</p>
+  </ComparePanel>
+  <ComparePanel label="tryLock(0): לדלג אם תפוס" tone="positive">
+    <pre className="font-mono text-xs"><code>{`function nightlyTaboolaPull() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) {
+    console.log("Another pull is mid-flight; skipping.");
+    return;
+  }
+  try {
+    pullAndWriteTaboolaCsv();
+  } finally {
+    lock.releaseLock();
+  }
+}`}</code></pre>
+    <p className="mt-2 text-sm">משתמשים כש"אם instance אחר רץ, פשוט לדלג על זה". Cron תקופתי שניתן גם להפעיל ידנית: לחיצה ידנית כשה-Cron עדיין עובד לא צריכה לעמוד בתור מאחוריו ולעשות timeout ל-UI של התפריט. <code>tryLock(0)</code> מחזיר מיד: <code>true</code> אם נתפס, <code>false</code> אם לא.</p>
+  </ComparePanel>
+</Compare>
+
+ה-"nightly Taboola pull, שגם ניתן להפעלה מתפריט Reports" של הצוות הוא המקרה הבהיר ביותר ל-`tryLock`. ה-Cron יורה ב-02:00 ובדרך כלל מסיים תוך 90 שניות. buyer שלוחץ **Reports then Pull Taboola** ב-02:01 צריך לראות "כבר רץ, נסה שוב בעוד דקה", לא שהלחיצה הידנית שלו תעמוד בתור מאחורי pull תקוע ותעשה timeout ל-UI של התפריט. עם `waitLock`, ה-buyer מחכה; עם `tryLock(0)`, ה-buyer מקבל תשובה מיד.
+
 <QuickCheck
   question="שני משתמשים פותחים את ה-workbook באותו זמן. כל אחד מריץ function שעושה PropertiesService.getScriptProperties().setProperty('runCount', String(Number(props.getProperty('runCount') || 0) + 1)). ה-counter מסיים ב-1 במקום 2. מה לא בסדר?"
   options={[

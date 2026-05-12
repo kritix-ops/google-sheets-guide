@@ -75,7 +75,7 @@ LET(name1, value1, name2, value2, ..., body)
   expectedFormula='=LET(roi,(F2-E2)/E2,IF(roi>0.5,"Scale",IF(roi>0,"Hold",IF(roi>-0.2,"Watch","Kill"))))'
   task={<>חלקו את הקמפיין הראשון ל-Scale / Hold / Watch / Kill על בסיס ROI. הגדירו <code>roi</code> עם LET, אז קננו IFs מולו.</>}
   hint={<>קישורים: <code>roi, (F2-E2)/E2</code>. גוף הוא IF מקונן שמשתמש ב-<code>roi</code>. ספים: 0.5 / 0 / -0.2.</>}
-  answer={<>הפסיקה לשורה 2 (Yoav, Used Cars PR): spend 342.18, revenue 487.30, ROI ≈ 0.424 → <code>Hold</code> (בין 0 ל-0.5). בלי LET אותה לוגיקה משתמשת ב-<code>(F2-E2)/E2</code> שלוש פעמים. עם LET, הוא בעל שם פעם אחת והשאר נקרא כלוגיקת החלטה, לא חשבון.</>}
+  answer={<>הפסיקה לשורה 2 (Yoav, Car Deals PR): spend 342.18, revenue 487.30, ROI ≈ 0.424 → <code>Hold</code> (בין 0 ל-0.5). בלי LET אותה לוגיקה משתמשת ב-<code>(F2-E2)/E2</code> שלוש פעמים. עם LET, הוא בעל שם פעם אחת והשאר נקרא כלוגיקת החלטה, לא חשבון.</>}
 />
 
 ## LET נקשר בסדר: pipelines

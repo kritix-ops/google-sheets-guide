@@ -42,12 +42,11 @@ export function AccountMenu({ name, email, image }: AccountMenuProps) {
     await signOutAction(currentLocale);
   }
 
-  function setDefaultLocale(locale: Locale) {
-    document.cookie = `NEXT_LOCALE=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
-    if (locale !== currentLocale) {
-      router.replace("/", { locale });
-    }
-  }
+  // Cookie writes and navigation are click-time side effects, not values
+  // derived from props. Inlining them into the `onClick` callback (below)
+  // keeps them clearly inside the event handler so the React Compiler
+  // doesn't try to memoize a named function and trip on the
+  // `document.cookie` mutation.
 
   return (
     <DropdownMenu>
@@ -94,7 +93,12 @@ export function AccountMenu({ name, email, image }: AccountMenuProps) {
                 <button
                   key={locale}
                   type="button"
-                  onClick={() => setDefaultLocale(locale)}
+                  onClick={() => {
+                    document.cookie = `NEXT_LOCALE=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+                    if (locale !== currentLocale) {
+                      router.replace("/", { locale });
+                    }
+                  }}
                   className={cn(
                     "rounded-sm border px-2 py-1.5 text-xs transition-colors",
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",

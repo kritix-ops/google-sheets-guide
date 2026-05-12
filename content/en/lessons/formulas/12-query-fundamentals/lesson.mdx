@@ -54,7 +54,7 @@ Combine conditions with `AND` and `OR`: `WHERE B = 'Yoav Cohen' AND F > 400`.
   expectedFormula={"=QUERY(A1:F13,\"SELECT B, C, F WHERE F > 400 ORDER BY F DESC\",1)"}
   task={<>Filter to campaigns with revenue greater than 400 and sort by revenue descending. Show Buyer, Vertical, Revenue.</>}
   hint={<>WHERE comes before ORDER BY in the string. Numeric comparisons don't need quotes around the number.</>}
-  answer={<>The combined query: <code>SELECT B, C, F WHERE F {">"} 400 ORDER BY F DESC</code>. WHERE filters rows; ORDER BY sorts the remaining rows; SELECT projects which columns to show. The order of clauses in the string matches SQL: SELECT → WHERE → ORDER BY → LIMIT. (You can't reorder them: it's strict.) The result here is 7 rows, sorted with David Mizrahi's Solar Panels at the top (1124.6).</>}
+  answer={<>The combined query: <code>SELECT B, C, F WHERE F {">"} 400 ORDER BY F DESC</code>. WHERE filters rows; ORDER BY sorts the remaining rows; SELECT projects which columns to show. The order of clauses in the string matches SQL: SELECT → WHERE → ORDER BY → LIMIT. (You can't reorder them: it's strict.) The result here is 7 rows, sorted with Maya Bar's Cruises PR at the top (1124.6).</>}
 />
 
 ## ORDER BY and LIMIT
@@ -98,12 +98,12 @@ The "headers" argument bites everyone the first time. When the range doesn't inc
 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
-    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT b, c WHERE b = 'Yoav Cohen'", 1)`}</code></pre>
-    <p className="mt-2 text-sm">Lowercase column letters. QUERY's column identifiers are case-sensitive and must be uppercase. The whole query errors with a parse error.</p>
+    <pre className="font-mono text-xs"><code>{`=QUERY(A2:F13, "SELECT B, C WHERE B = 'Yoav Cohen'", 0)`}</code></pre>
+    <p className="mt-2 text-sm">Headerless range (<code>A2:F13</code>) passed with <code>headers=0</code>, but the query still references columns as <code>B</code>, <code>C</code>. When QUERY treats the range as headerless, columns are named <code>Col1</code>, <code>Col2</code>, ... not <code>A</code>, <code>B</code>. Sheets returns <code>#VALUE!</code> with the message "Unable to parse query string." The same trap hits anything piped through <code>IMPORTRANGE</code>, which strips the header context.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=QUERY(A1:F13, "SELECT B, C WHERE B = 'Yoav Cohen'", 1)`}</code></pre>
-    <p className="mt-2 text-sm">Uppercase column letters always. Make this a habit even when you're moving fast: lowercase has caused more last-minute dashboard failures than any other QUERY mistake.</p>
+    <pre className="font-mono text-xs"><code>{`=QUERY(A2:F13, "SELECT Col2, Col3 WHERE Col2 = 'Yoav Cohen'", 0)`}</code></pre>
+    <p className="mt-2 text-sm">Headerless input gets <code>Col1..ColN</code> identifiers per the <a href="https://developers.google.com/chart/interactive/docs/querylanguage">Google Visualization API query language</a>. Either include the header row (<code>A1:F13</code> with <code>1</code>) and use <code>B</code>/<code>C</code>, or keep <code>A2:F13</code> with <code>0</code> and switch to <code>Col2</code>/<code>Col3</code>. Lowercase <code>b</code>/<code>c</code> works fine in either form; column identifiers are case-insensitive.</p>
   </ComparePanel>
 </Compare>
 
@@ -169,7 +169,7 @@ QUERY shows up everywhere in the team's dashboards. The patterns:
 - **Date comparisons need `date 'YYYY-MM-DD'`.** `WHERE A >= '2026-05-01'` treats the string as text and compares lexicographically: sometimes works, often doesn't. Always: `WHERE A >= date '2026-05-01'`.
 - **`SELECT *` plus `GROUP BY` errors.** GROUP BY (lesson 13) requires SELECT to enumerate columns. You can't have both `SELECT *` and aggregation in the same query.
 - **QUERY against IMPORTRANGE'd data needs the header argument explicitly.** Use `QUERY(IMPORTRANGE(...), "SELECT ...", 1)` and double-check the column letters: IMPORTRANGE's columns are positional from the range you imported, not from the source sheet.
-- **Column references in the query are case-sensitive and use uppercase.** `WHERE b = 'Yoav'` errors; `WHERE B = 'Yoav'` works.
+- **Headerless ranges switch column identifiers from `A/B/C` to `Col1/Col2/Col3`.** Pass `A1:F13` with `headers=1` and you can write `WHERE B = 'Yoav'`. Pass `A2:F13` with `headers=0` (or wrap `IMPORTRANGE`, which arrives headerless) and the same query has to say `WHERE Col2 = 'Yoav'`. Mixing the two is the most common QUERY parse error. (Column identifiers themselves are case-insensitive; lowercase `b` works wherever uppercase `B` does.)
 
 ## Now do it for real
 

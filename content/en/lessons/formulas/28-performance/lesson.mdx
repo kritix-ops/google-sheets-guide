@@ -133,11 +133,11 @@ The `IMPORTRANGE` happens once. Without `LET`, you would run it twice (one per `
 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
-    <pre className="font-mono text-xs"><code>=SUM(IMPORTRANGE(url, "A:F")) + AVG(IMPORTRANGE(url, "A:F")) + ...</code></pre>
+    <pre className="font-mono text-xs"><code>=SUM(IMPORTRANGE(url, "A:F")) + AVERAGE(IMPORTRANGE(url, "A:F")) + ...</code></pre>
     <p className="mt-2 text-sm"><strong>Multiple IMPORTRANGEs on the same source.</strong> Each call is its own network round-trip, and Sheets caps the total IMPORTRANGE traffic per workbook. Dashboards with five or more derived metrics often hit the cap and start returning <code>#REF!</code> mid-day.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>=LET(data, IMPORTRANGE(url, "A:F"), SUM(...) + AVG(...) + ...)</code></pre>
+    <pre className="font-mono text-xs"><code>=LET(data, IMPORTRANGE(url, "A:F"), SUM(...) + AVERAGE(...) + ...)</code></pre>
     <p className="mt-2 text-sm"><strong>One IMPORTRANGE, reused via LET.</strong> The import resolves once per formula evaluation; every derived metric reads from the local <code>data</code> binding. Cut network calls by 5x or more on busy dashboards. Lesson 1.27 covers the IMPORTRANGE patterns in depth.</p>
   </ComparePanel>
 </Compare>

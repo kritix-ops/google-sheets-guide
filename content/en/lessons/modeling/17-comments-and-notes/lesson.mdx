@@ -131,7 +131,7 @@ If you find yourself reaching for Suggesting mode for anything beyond that patte
 Click **Start lesson** to provision the campaign log. Then add three notes via Insert → Note (Ctrl+Alt+M):
 
 - **`A1` (Date header)**: a note explaining the timezone. Must include the substring `UTC`. Pattern: "Dates in UTC; convert to GMT+3 for the team office hours view."
-- **`E1` (Spend header)**: a note explaining the data source. Must include the substring `IMPORTRANGE`. Pattern: "Pulled via IMPORTRANGE from Taboola export, refreshes hourly."
+- **`F1` (Spend header)**: a note explaining the data source. Must include the substring `IMPORTRANGE`. Pattern: "Pulled via IMPORTRANGE from Taboola export, refreshes hourly."
 - **`G1` (Revenue header)**: a note explaining the definition. Must include the substring `net`. Pattern: "Net revenue after platform fees."
 
 The grader reads each cell's note via the Sheets API and checks for a case-insensitive substring match. The exact wording is yours; the substrings are the contract.

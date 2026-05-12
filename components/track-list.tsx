@@ -2,7 +2,7 @@
 
 import { CheckCircle2, ChevronDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   LessonStatusIcon,
@@ -64,24 +64,31 @@ export function TrackList({
   const tTracks = useTranslations("tracks");
   const tProgress = useTranslations("progress");
 
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // `expanded` only holds explicit user toggles, persisted to localStorage.
+  // The "auto-open the active track" behavior is derived at render time
+  // (see `isOpen` below) instead of synced into state — that keeps the
+  // effect-free render free of cascading setState and means we don't have
+  // to special-case the active-track toggle (user can still collapse it).
+  // Lazy initializer is SSR-safe via the `typeof window` guard inside
+  // `loadStored`.
+  const [expanded, setExpanded] = useState<Record<string, boolean | undefined>>(
+    () => loadStored(),
+  );
 
-  useEffect(() => {
-    const stored = loadStored();
-    const next = { ...stored };
-    const activeTrack = tracks.find((t) =>
-      t.lessons.some((l) => pathname === `/lesson/${l.assignmentId}`),
-    );
-    if (activeTrack) {
-      next[activeTrack.track] = true;
-    }
-    setExpanded(next);
-  }, [pathname, tracks]);
+  const activeTrack = tracks.find((t) =>
+    t.lessons.some((l) => pathname === `/lesson/${l.assignmentId}`),
+  )?.track;
 
   function toggle(track: Track) {
     setExpanded((prev) => {
-      const next = { ...prev, [track]: !prev[track] };
-      saveStored(next);
+      // If a track is auto-open because it contains the active lesson but
+      // the user hasn't toggled it, `prev[track]` is undefined. The
+      // effective open-state in that case is `true`, so the toggle should
+      // collapse it to `false` rather than re-opening to `true`.
+      const effective =
+        prev[track] !== undefined ? prev[track] : track === activeTrack;
+      const next = { ...prev, [track]: !effective };
+      saveStored(next as Record<string, boolean>);
       return next;
     });
   }
@@ -89,7 +96,9 @@ export function TrackList({
   return (
     <section className="mt-12 space-y-3">
       {tracks.map((t) => {
-        const isOpen = !!expanded[t.track];
+        const explicit = expanded[t.track];
+        const isOpen =
+          explicit !== undefined ? explicit : t.track === activeTrack;
         const panelId = `home-track-panel-${t.track}`;
         const summary = summarizeTrack(t.lessons, progress);
         const hasLessons = t.lessons.length > 0;

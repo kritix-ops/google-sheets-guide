@@ -170,6 +170,12 @@ console.error({
 
 בלי execution IDs, דיבאג של trigger שיורה 100 פעמים ביום הוא ציד אחר מחט אחת בערימה של מחטים.
 
+### פתיחת Cloud Logging מתוך פרויקט Apps Script שלכם
+
+ה-Executions panel מכסה את רוב הדיבאג היומיומי. כשאתם צריכים את Logs Explorer המלא (טווחי זמן ארוכים יותר, סינוני שדה של `jsonPayload`, log-based metrics), פותחים אותו מאותו panel: לוחצים על ריצה ספציפית ועוקבים אחרי הקישור **Cloud project** בלוח הפרטים בצד ימין, שמקפיץ ישר ל-Logs Explorer ממוקד ל-script הזה.
+
+כל פרויקט Apps Script מגיע מחובר ל-**default GCP project**, פרויקט Google Cloud שנוצר אוטומטית ושהעורך מנהל עבורכם. ה-default project עובד לצפייה ב-`console.log` אבל נועל אתכם מחוץ למשטח הסינון הטוב יותר ומגביל שמירה ל-free tier. קישור **standard GCP project** פותח סינוני שדה של `jsonPayload` בממשק Logs Explorer, log-based metrics, ניתוב logs ל-BigQuery, ושמירה של 30 ימים שמכוסה למטה. כדי להחליף: ב-sidebar של העורך **Project Settings** (אייקון גלגל) then **Google Cloud Platform (GCP) Project** then **Change project**, מדביקים את ה-project number של GCP project שכבר בבעלותכם, לוחצים **Set project**. ה-script ממשיך לכתוב לאותו משטח של Cloud Logging; הוא פשוט נוחת בפרויקט שאתם יכולים להגדיר.
+
 ## שמירת logs
 
 Cloud Logging שומר entries ל-**30 ימים** כברירת מחדל ב-project בתשלום, **7 ימים** ב-free tier. bug שמובחן ביום שני ליום שישי כושל כנראה איבד את ההקשר של יום שישי. ה-pattern שהצוות משתמש בו:

@@ -131,7 +131,7 @@ The "top of the leaderboard" pattern. Sort the entire campaign log by revenue, d
   expectedFormula="=SORT(A2:F13,6,FALSE)"
   task={<>Sort the entire campaign log by revenue (column 6 within the range) in descending order. Put the formula in <code>H1</code>.</>}
   hint={<>Three arguments: range, column number within the range, ascending boolean. Column 6 is Revenue (F). Pass FALSE for descending.</>}
-  answer={<>The result is the full 12 × 6 grid, reordered by revenue. Top rows: Solar Panels PR (1124.6), Reverse Mortgage PR (982.7), Dental Implants PR (588.4), and so on. Note that column 6 means the sixth column of the range you passed (<code>A2:F13</code>), which is column F. Pass a smaller range like <code>B2:F13</code> and "6" would be out of bounds (only 5 columns). Always count columns within the range, not the sheet.</>}
+  answer={<>The result is the full 12 × 6 grid, reordered by revenue. Top rows: Cruises PR (1124.6), Reverse Mortgage PR (982.7), Dental Implants PR (588.4), and so on. Note that column 6 means the sixth column of the range you passed (<code>A2:F13</code>), which is column F. Pass a smaller range like <code>B2:F13</code> and "6" would be out of bounds (only 5 columns). Always count columns within the range, not the sheet.</>}
 />
 
 ### Easy traps: SORT
@@ -241,7 +241,7 @@ The dropdown-source pattern. UNIQUE on the vertical column gives you the list th
 ## Used in the wild
 
 - **Live filtered views per buyer.** A dropdown cell holds a buyer name; `FILTER(A2:F, B2:B = dropdown_cell)` pulls just that buyer's campaigns. Change the dropdown, the view updates instantly.
-- **Top-N leaderboards.** `=ARRAY_CONSTRAIN(SORT(A2:F, 6, FALSE), 5, 6)` returns the top 5 rows by revenue. The team rebuilds this pattern on every new campaign sheet.
+- **Top-N leaderboards.** `=QUERY(A2:F, "select * order by F desc limit 5", 1)` returns the top 5 rows by revenue. The `limit 5` clause (lesson 1.12) caps the result without an extra wrapper, and `order by F desc` handles the sort inside the same expression. The team rebuilds this pattern on every new campaign sheet.
 - **Dropdown sources.** `UNIQUE(ARRAYFORMULA(TRIM(C2:C)))` on the vertical column feeds a Data Validation dropdown that auto-extends as new verticals appear.
 - **Per-vertical revenue tables.** Use `UNIQUE` on the vertical column to drive the row labels, then `SUMIFS` against each vertical to build a revenue summary that needs zero maintenance.
 - **Composed views.** `=SORT(FILTER(A2:F, B2:B = "Yoav"), 6, FALSE)` gives Yoav's campaigns sorted by revenue. Two functions, one cell, one line of intent.

@@ -107,7 +107,7 @@ Both ways produce the same dropdown UI. The difference is where the list lives.
 
 **Range-driven list (`ONE_OF_RANGE`)** is the right choice when the list is dynamic: the buyer roster grows, verticals come and go, the country list expands. The list lives in a `Buyers` or `Verticals` tab and the validation reads from there. New entries appear in every dropdown automatically the moment they're added to the source range. This is the team's default for anything pulled from a config tab.
 
-The trap: if you point `ONE_OF_RANGE` at a small fixed range like `Buyers!A2:A9`, then add `Maya Goldberg` to row 10, she won't appear in the dropdown until you extend the validation range. Use a generous bound (`A2:A1000`) or, better, a named range that you can extend in one place.
+The trap: if you point `ONE_OF_RANGE` at a small fixed range like `Buyers!A2:A9`, then add `Maya Bar` to row 10, she won't appear in the dropdown until you extend the validation range. Use a generous bound (`A2:A1000`) or, better, a named range that you can extend in one place.
 
 <Compare>
   <ComparePanel label="Broken: range too tight" tone="negative">
@@ -115,7 +115,7 @@ The trap: if you point `ONE_OF_RANGE` at a small fixed range like `Buyers!A2:A9`
 Range: Buyers!A2:A9
 
 Roster grows to 9 buyers.
-Add Maya Goldberg in A10.
+Add Maya Bar in A10.
 
 She never appears in the dropdown.
 Every cell that needs her name throws

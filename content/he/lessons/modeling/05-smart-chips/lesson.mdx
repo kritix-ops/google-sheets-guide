@@ -1,14 +1,14 @@
 import { BUYERS_DETAIL } from "@/content/datasets/adtech";
 
-# Drop-downs ו-smart chips: people, file, finance, date, place chips
+# Drop-downs ו-smart chips: people, file, finance, date, place, YouTube, dropdown chips
 
 לסון 2.4 כיסה את חצי ה-dropdown של `Data → Data validation`: רשימות סגורות, טווחים, נוסחאות מותאמות. השיעור הזה הוא על החצי השני של סיפור הקלט המבוקר: **smart chips**, ההכנסות העשירות עם `@`-mention שמצמידות אדם, קובץ, מקום, ticker פיננסי, או תאריך calendar לתא יחיד. שם של buyer שמוקלד כטקסט הוא רק מחרוזת. אותו שם כ-person chip הוא לינק לפרופיל שלו, לאימייל שלו, לזמינות שלו: hover ורואים. התא עדיין נראה כתא אחד. מתחת, זה reference מובנה למשהו מחוץ ל-spreadsheet.
 
 חשבו על chip בתור מצב הכוחות העל של התא. התצוגה עדיין זעירה, הסמנטיקה אינסופית עשירה יותר. הצוות משתמש ב-chips בכל מקום שבו פיסת נתונים מצביעה על משהו שחי במקום אחר: אדם ב-Slack, תיקייה ב-Drive, אירוע ב-calendar, ticker מניות של ספק. ה-chip הופך החלפת קונטקסט של 30 שניות (לפתוח Drive, לחפש, ללחוץ) ל-hover בלחיצה אחת.
 
-## חמשת סוגי ה-chips שתשתמשו בהם בפועל
+## סוגי ה-chips שתשתמשו בהם בפועל
 
-Sheets תומך ביותר סוגי chips מאלה, אבל בעבודת אדטק אותם חמישה ממשיכים להופיע:
+Sheets תומך ביותר סוגי chips מאלה, אבל בעבודת אדטק אותה חבילה קטנה ממשיכה להופיע:
 
 | Chip | מה הוא מצמיד | קונטקסט אדטק |
 |---|---|---|
@@ -17,8 +17,16 @@ Sheets תומך ביותר סוגי chips מאלה, אבל בעבודת אדטק
 | Finance | ticker מניות, קרן נאמנות, או צמד מטבעות | אותות מניות מתחרים שמקושרים לשיחות תקציב שבועיות |
 | Place | מיקום Google Maps | הערות סקירת קריאייטיב ממוקדות-גיאוגרפית (העיר שהמודעה רצה בה) |
 | Date / Calendar event | תאריך או אירוע מה-Calendar שלכם | תאריכי השקה, סימני freshness ב-dashboards, אבני דרך media-plan |
+| YouTube video | URL של YouTube עם thumbnail ותצוגה מקדימה ב-hover | הצמדת URL לסקירת קריאייטיב לכל שורה; הצמדת walkthrough של "best practices" של הפלטפורמה ליד tab media-plan |
+| Dropdown | רשימת `Data validation` שמוצגת כ-pill בשורה (שיעור 2.4) | Vertical, country, platform, status, כל רשימה סגורה שבה סגנון ה-chip נקרא נקי יותר מחץ ה-dropdown |
 
-השניים הראשונים נושאים את כמעט כל המשקל ב-workbooks אמיתיים. שיוך אנשים והצמדת קבצים הם הדפוסים שתחזרו עליהם מאות פעמים. השלושה האחרים מופיעים, אבל לעיתים נדירות.
+Person ו-File נושאים את רוב המשקל ב-workbooks אמיתיים. YouTube ו-Dropdown chips הם חדשים יותר (הצגת ה-pill של ה-dropdown יצאה ב-2024) ושווה להכיר אותם כי הם מחליפים דפוסים שהצוות נהג לטפל בהם דרך hyperlinks ותאי validation גלויים.
+
+### YouTube ו-Dropdown chips, יותר לעומק
+
+ה-**YouTube video chip** מוכנס באותה דרך כמו file chip: מקלידים `@` ומדביקים URL של YouTube (או מחפשים לפי כותרת סרטון) ובוחרים את התוצאה. ה-chip מוצג כ-pill קטן עם ה-thumbnail של הסרטון שנראה ב-hover, ולחיצה על ה-pill פותחת את הסרטון ב-side panel בלי לעזוב את ה-workbook. הצוות משתמש בו ב-tracker סקירת הקריאייטיב: תא `Creative URL` של כל שורה מחזיק YouTube chip שמצביע על נכס הוידאו שהפלטפורמה הגישה. סוקרים עושים hover כדי לראות את ה-thumbnail ולוחצים כדי לצפות, הכל בלי לקפוץ ל-tab חדש.
+
+ה-**Dropdown chip** הוא מה שקורה כשכלל `Data validation` מוגדר עם `Display style: chip` (אפשרות ההצגה משנת 2024 בדיאלוג ה-validation, מכוסה בשיעור 2.4). התא כבר לא מראה חץ dropdown בקצה הימני; במקום זאת הערך הנבחר מוצג כ-pill בשורה, לעיתים קרובות עם קוד צבע. פונקציונלית זו עדיין אותה רשימת validation, עם אותו Reject input ועם אותם ערכים תקפים. ויזואלית זה נקרא כמו תג status, ולכן הוא השתלט על validation רגיל ב-dashboards: עמודת `Status: Active`, `Status: Paused`, `Status: Archived` נקראת במבט אחד כשכל ערך הוא chip צבעוני משלו. הפניה חוצה לשיעור 2.4 לחצי ה-validation של ההגדרה; ה-chip הוא רק בחירת הצגה מעליו.
 
 <QuickCheck
   question="ל-dashboard שלכם יש עמודת 'Owner' שצריכה לאפשר לכל חבר/ת צוות ping ל-buyer on-call מכל שורה. מה הולך בתא?"

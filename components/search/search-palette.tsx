@@ -176,10 +176,15 @@ export function SearchPalette({
     currentLocale,
   ]);
 
-  // Reset selection when the row set changes.
-  useEffect(() => {
+  // Reset selection when the row set changes. We compare previous and
+  // current composite-key values during render rather than running an
+  // effect, which keeps highlight in sync without a cascading rerender.
+  const selectionKey = `${rows.length}|${trimmedQ}`;
+  const [prevSelectionKey, setPrevSelectionKey] = useState(selectionKey);
+  if (selectionKey !== prevSelectionKey) {
+    setPrevSelectionKey(selectionKey);
     setActiveIndex(0);
-  }, [rows.length, trimmedQ]);
+  }
 
   // Keep the active row scrolled into view as the user arrows down.
   useEffect(() => {
@@ -204,10 +209,13 @@ export function SearchPalette({
 
   // Reset the query when the palette closes so re-opening lands on a
   // clean empty state. The recent-searches list preserves history; the
-  // input itself shouldn't.
-  useEffect(() => {
+  // input itself shouldn't. Detected with a prev-vs-current compare
+  // during render to avoid the effect-driven setState pattern.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (!open) setQuery("");
-  }, [open]);
+  }
 
   function activate(row: SelectableRow): void {
     if (row.kind === "recent") {

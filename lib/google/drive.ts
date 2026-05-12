@@ -1,10 +1,6 @@
 import type { drive_v3, sheets_v4 } from "googleapis";
 
-import type {
-  AssignmentSpec,
-  SheetSeed,
-  SheetSeedNamedRange,
-} from "@/lib/grading/types";
+import type { AssignmentSpec, SheetSeed } from "@/lib/grading/types";
 
 export type ProvisionedSheet = {
   sheetId: string;

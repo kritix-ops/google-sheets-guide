@@ -190,7 +190,7 @@ custom functions שמורות ב-cache **לפי רשימת הארגומנטים 
  * עם סיומת " PR" נגררת.
  *
  * @param {string} name  שם ה-vertical הגולמי מ-export של פלטפורמה.
- * @return {string} הצורה הקנונית, למשל "Used Cars PR".
+ * @return {string} הצורה הקנונית, למשל "Car Deals PR".
  * @customfunction
  */
 function normalizeVertical(name) {
@@ -214,17 +214,17 @@ function normalizeVertical(name) {
 
 ה-auth context ש-custom functions רצות תחתיו צר בכוונה. הן יכולות:
 
-- לקרוא את ה-spreadsheet הפעיל דרך `SpreadsheetApp.getActiveSpreadsheet()` (קריאה בלבד, sheet נוכחי בלבד)
 - לקרוא ל-`Utilities.*` ל-parsing ופורמט
 - להריץ JS טהור
 
 הן **לא יכולות**:
 
+- לקרוא ל-`SpreadsheetApp.getActiveSpreadsheet()`. custom functions רצות ב-auth context מקוצץ שמחזיר `null` לקריאות active-spreadsheet. כדי לקרוא נתוני sheet, מקבלים אותם כארגומנט של range מהתא הקורא (למשל `=fn(A1:B10)` מגיע כמערך דו-ממדי). שיעור 4 מאשר את זה מצד `SpreadsheetApp`.
 - להציג dialog או sidebar (`showSidebar`, `alert`: אלה דורשים UI context פעיל)
 - לכתוב ל-spreadsheet (`setValue`, `setFormula`)
 - לשלוח מייל, לערוך Calendar, או כל דבר אחר שצריך OAuth scopes שה-cell context לא נושא
 - לקחת יותר מ-30 שניות (timeout של custom function)
-- לקרוא ל-`SpreadsheetApp.openById` (רק ה-spreadsheet הפעיל, לעולם לא קובץ אחר)
+- לקרוא ל-`SpreadsheetApp.openById` (אין גישה לאף קובץ, כולל זה המארח)
 
 אם ה-function שלכם צריכה משהו מאלה, זה macro או handler מופעל-trigger, לא custom function. שיעורים 4 עד 8 ב-Track 3 מכסים את הצד הזה של המשטח.
 
@@ -274,7 +274,7 @@ function normalizeVertical(name) {
 - **`normalizeVertical(name)`**: מסיר whitespace נגרר, מתקן casing, מבטיח את הסיומת ` PR`. רץ על כל שורה נכנסת מ-sheets של export של פלטפורמות.
 - **`countryToRegion(iso2)`**: ממפה `"DE"` ל-`"EU"`, `"US"` ל-`"NA"`, `"BR"` ל-`"LATAM"`. switch statement של 200 שורות ב-Apps Script מנצח טבלת lookup של 200 תאים שצריך לתחזק inline.
 - **`roiBucket(roi)`**: מחלק ROI ל-`"loss"`, `"flat"`, `"profitable"`, `"hero"`. בשימוש ב-dashboards וב-custom formulas של חוקי conditional-formatting.
-- **`parseAdtechCampaignName(name)`**: מפצל את שם הקמפיין המובנה של הצוות (`"YC.UsedCarsPR.US.permax.2026-05-11"`) ל-buyer, vertical, country, type, ותאריך. מחזיר שורה של 5 תאים, כך שקריאה אחת ל-`=parseAdtechCampaignName(A2)` יכולה למלא את B2:F2.
+- **`parseAdtechCampaignName(name)`**: מפצל את שם הקמפיין המובנה של הצוות (`"YC.CarDealsPR.US.permax.2026-05-11"`) ל-buyer, vertical, country, type, ותאריך. מחזיר שורה של 5 תאים, כך שקריאה אחת ל-`=parseAdtechCampaignName(A2)` יכולה למלא את B2:F2.
 
 כל אחת מאלה היא אותה צורה: function טהורה של הארגומנטים שלה, מחזירה ערך יחיד (או שורה קטנה), נקראת מהרבה תאים. הספרייה המשותפת שמארחת אותן היא הפוקוס של שיעור 12.
 
@@ -285,6 +285,6 @@ function normalizeVertical(name) {
 - **ה-function רצה פעם אחת ולא מתעדכנת.** Caching. ה-function רצה עם ה-args המקוריים, ה-args לא השתנו, הערך ב-cache מוחזר. עורכים את אחד מתאי הקלט ועושים recalc; ה-function רצה שוב.
 - **`=usdToILS(F2:F61, $K$1)` מחזיר תא אחד במקום spill.** ה-function לא מטפלת במקרה של מערך. או שכותבים את הגרסה מודעת-מערך למעלה או קוראים פר-שורה (`=usdToILS(F2, $K$1)` ואז fill down).
 - **`function usdToILS` מוגדרת אבל תאים מציגים `#NAME?` ל-`=usdToILS(...)`.** ה-script המקושר לא הורשה אחרי העריכה האחרונה. פותחים Apps Script, לוחצים Run על כל function פעם אחת, מקבלים את ה-auth prompt, והתא מתבצע ב-recalc הבא.
-- **custom function שקוראת ל-`SpreadsheetApp.getActiveSpreadsheet().getRange(...)` מחזירה `#REF!`.** ה-auth של cell-context הוא read-only על ה-sheet הנוכחי. אם רציתם לחפש שורה ב-tab אחר דרך custom function, אורזים את טבלת ה-lookup בנוסחת התא (`=lookup(A2, Buyers!A:B)`) ונותנים ל-function לקבל את הטווח כארגומנט.
+- **custom function שקוראת ל-`SpreadsheetApp.getActiveSpreadsheet().getRange(...)` זורקת או מחזירה `#REF!`.** custom functions מקבלות auth context מקוצץ: `getActiveSpreadsheet()` מחזיר `null` וה-`.getRange(...)` שאחריו קורס על ה-null. אם רציתם לחפש שורה ב-tab אחר דרך custom function, אורזים את טבלת ה-lookup בנוסחת התא (`=lookup(A2, Buyers!A:B)`) ונותנים ל-function לקבל את הטווח כארגומנט.
 - **`String.prototype.replaceAll` לא נמצא.** V8 של Apps Script תומך ב-`replaceAll`, אבל אם ייבאתם ספרייה שנכתבה על runtime legacy, ייתכן שלא. כשמסופקים, השתמשו ב-`replace(/.../g, ...)` (regex גלובלי), שעובד על שניהם.
 - **custom function עם side effects ש"נראתה לא מזיקה".** function שכותבת שורת לוג ל-sheet דרך `appendRow` תיכשל (אין scope של כתיבה מ-custom function) והתא מציג `#REF!` עם שגיאה חסרת תועלת. מעבירים את ה-logging ל-function רגילה שנקראת מ-menu או trigger.

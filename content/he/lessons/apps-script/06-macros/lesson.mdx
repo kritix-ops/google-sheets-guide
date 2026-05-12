@@ -8,7 +8,11 @@ macro ב-Google Sheets היא פשוט function רגילה ב-Apps Script ש**ר
 
 ## מוקלט מול כתוב ביד
 
-ל-Sheets יש תכונת Record Macro (Extensions then Macros then Record macro). הזרימה היא בדיוק איך שזה נשמע: מתחילים להקליט, עושים רצף של עריכות ב-UI, מפסיקים להקליט, ו-Sheets כותב את ה-function של Apps Script שמשחזר את העריכות האלה. זה נראה אטרקטיבי (אין קוד לכתוב) ואז קוראים מה זה הפיק:
+ל-Sheets יש תכונת Record Macro (Extensions then Macros then Record macro). הזרימה היא בדיוק איך שזה נשמע: מתחילים להקליט, עושים רצף של עריכות ב-UI, מפסיקים להקליט, ו-Sheets כותב את ה-function של Apps Script שמשחזר את העריכות האלה. זה נראה אטרקטיבי (אין קוד לכתוב) ואז קוראים מה זה הפיק.
+
+> **איפה ה-recorder גר ב-2026.** פותחים את תפריט Sheets **Extensions then Macros then Record macro**. סרגל footer קטן מופיע בתחתית ה-workbook ("Recording new macro..."), עם toggle של **Absolute** מול **Relative references** וכפתור **Save**. לוחצים סביב ה-sheet כרגיל: כל שינוי בחירה, כל עריכת תא, כל שינוי פורמט נכתב ל-bound Apps Script project. לוחצים **Save** ו-Sheets מקפיץ dialog "Save new macro" שמבקש `menuName` וקיצור מקלדת `Ctrl+Alt+Shift+1..9` (אופציונלי). ה-dialog הזה הוא אותו רישום ב-`appsscript.json` שמכוסה למטה, רק עם עטיפת UI. ה-function המוקלטת נוחתת בקובץ `macros.gs` בתוך ה-bound script.
+
+הנה מה שהוא הפיק:
 
 ```js
 function MyMacro() {

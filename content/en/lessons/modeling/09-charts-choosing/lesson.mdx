@@ -92,11 +92,11 @@ The legend goes where it isn't fighting the data. Default is `BOTTOM_LEGEND`; `R
 
 <Compare>
   <ComparePanel label="Too many series: spaghetti" tone="negative">
-    <pre className="font-mono text-xs"><code>{`Line chart with 8 series:
+    <pre className="font-mono text-xs"><code>{`Line chart with 7 series:
   Taboola, Outbrain, MediaGo, Poppin,
-  Facebook, TikTok, Google, Bing
+  Facebook, TikTok, Google
 
-Result: 8 overlapping lines, legend
+Result: 7 overlapping lines, legend
 crowds the plot, reader can't tell
 which line is Taboola.`}</code></pre>
     <p className="mt-2 text-sm">More than four series and the chart stops communicating. Group into "Top 3 + Other" or split into small multiples (one chart per platform).</p>
@@ -105,7 +105,7 @@ which line is Taboola.`}</code></pre>
     <pre className="font-mono text-xs"><code>{`Line chart with 4 series:
   Taboola, Outbrain, MediaGo, Other
   (Other = Poppin + Facebook + TikTok +
-   Google + Bing summed per day)
+   Google summed per day)
 
 Result: 4 readable lines. Eye locks onto
 the leaders. "Other" provides context

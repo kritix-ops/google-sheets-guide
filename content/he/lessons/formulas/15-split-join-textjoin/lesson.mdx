@@ -4,7 +4,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 
 הארבעה האלה הם הגשר בין *נתוני טקסט* ל*נתוני עמודות*. `SPLIT` הופך תא אחד להרבה. `JOIN` ו-`TEXTJOIN` הולכים בכיוון ההפוך: הרבה תאים לאחד. `FLATTEN` מקפל רשת דו-ממדית לעמודה יחידה כך שפונקציות במורד הזרם כמו `UNIQUE` ו-`FILTER` יכולות ללעוס אותה.
 
-תושיטו אליהם את היד כל הזמן באדטק. קודי הקמפיין של הצוות אורזים ארבעה או חמישה רכיבי מטה-דאטה למחרוזת אחת (`Taboola_UsedCarsPR_DesktopUS_2026-05`); `SPLIT` מפענח אותם. רשימות שמות buyers לעדכוני Slack נבנות עם `TEXTJOIN`. ובכל פעם שצריך להסיר כפילויות מערכים שחיים ב-pivot רחב, `FLATTEN` הוא מה שהופך את צורת הנתונים לתואמת ל-`UNIQUE`.
+תושיטו אליהם את היד כל הזמן באדטק. קודי הקמפיין של הצוות אורזים ארבעה או חמישה רכיבי מטה-דאטה למחרוזת אחת (`Taboola_CarDealsPR_DesktopUS_2026-05`); `SPLIT` מפענח אותם. רשימות שמות buyers לעדכוני Slack נבנות עם `TEXTJOIN`. ובכל פעם שצריך להסיר כפילויות מערכים שחיים ב-pivot רחב, `FLATTEN` הוא מה שהופך את צורת הנתונים לתואמת ל-`UNIQUE`.
 
 ## SPLIT: תא אחד להרבה
 
@@ -32,7 +32,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 קודי הקמפיין של הצוות עוקבים אחר הצורה `Platform_Vertical_Audience_Period`. SPLIT מפענח אחד בנוסחה אחת.
 
 <TryIt
-  data={[["Taboola_UsedCarsPR_DesktopUS_2026-05", "", "", "", ""]]}
+  data={[["Taboola_CarDealsPR_DesktopUS_2026-05", "", "", "", ""]]}
   inputCell="B1"
   expectedFormula='=SPLIT(A1,"_")'
   task={<>פצלו את קוד הקמפיין ב-<code>A1</code> לפי הקו התחתון. התוצאה אמורה לעשות spill על פני <code>B1:E1</code> עם ארבעת החלקים.</>}
@@ -53,15 +53,15 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 <TryIt
   data={[
     ["Code", "Vertical"],
-    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
-    ["Outbrain_LingeriePR_MobileEU_2026-05", ""],
-    ["Mediago_SolarPanelsPR_DesktopUS_2026-05", ""],
+    ["Taboola_CarDealsPR_DesktopUS_2026-05", ""],
+    ["Outbrain_CruisesPR_MobileEU_2026-05", ""],
+    ["MediaGo_SolarSystemsPanelsPR_DesktopUS_2026-05", ""],
   ]}
   inputCell="B2"
   expectedFormula='=INDEX(SPLIT(A2,"_"),2)'
   task={<>שלפו רק את ה-vertical (החתיכה השנייה) מקוד הקמפיין ב-<code>A2</code> ושימו אותו ב-<code>B2</code>.</>}
   hint={<>SPLIT מחזיר מערך של 4 תאים. <code>INDEX(array, position)</code> בוחר תא אחד. ה-vertical נמצא במיקום 2.</>}
-  answer={<>השילוב <code>INDEX(SPLIT(A2, "_"), 2)</code> נותן לכם "UsedCarsPR". להרצה על עמודה שלמה, עוטפים ב-<code>ARRAYFORMULA</code> ומשתמשים בטווחים פתוחים: <code>=ARRAYFORMULA(IFERROR(REGEXEXTRACT(A2:A, "^[^_]+_([^_]+)_"), ""))</code> בעצם מהיר יותר על דאטה-סטים גדולים כי INDEX בתוך ARRAYFORMULA לא משדר נקי עם הפלט של SPLIT שעושה spill. שיעור 1.16 מכסה REGEXEXTRACT.</>}
+  answer={<>השילוב <code>INDEX(SPLIT(A2, "_"), 2)</code> נותן לכם "CarDealsPR". להרצה על עמודה שלמה, עוטפים ב-<code>ARRAYFORMULA</code> ומשתמשים בטווחים פתוחים: <code>=ARRAYFORMULA(IFERROR(REGEXEXTRACT(A2:A, "^[^_]+_([^_]+)_"), ""))</code> בעצם מהיר יותר על דאטה-סטים גדולים כי INDEX בתוך ARRAYFORMULA לא משדר נקי עם הפלט של SPLIT שעושה spill. שיעור 1.16 מכסה REGEXEXTRACT.</>}
 />
 
 ### מלכודות נפוצות: SPLIT
@@ -192,7 +192,7 @@ import { CAMPAIGNS } from "@/content/datasets/adtech";
 </Compare>
 
 <QuickCheck
-  question={"אתם כותבים =SPLIT(\"Taboola_UsedCarsPR_DesktopUS\", \"_\") ומקבלים בדיוק את שלושת החלקים שציפיתם להם. חבר לצוות מתאים את זה ל-=SPLIT(\"Yoav, Sarah, David\", \", \") ומקבל חמישה תאים עם שני ריקים. מה השתבש?"}
+  question={"אתם כותבים =SPLIT(\"Taboola_CarDealsPR_DesktopUS\", \"_\") ומקבלים בדיוק את שלושת החלקים שציפיתם להם. חבר לצוות מתאים את זה ל-=SPLIT(\"Yoav, Sarah, David\", \", \") ומקבל חמישה תאים עם שני ריקים. מה השתבש?"}
   options={[
     {
       id: "a",

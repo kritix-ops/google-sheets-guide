@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { Play, RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -44,9 +44,15 @@ export function RefDemo({
   const fillCells = rangeBetween(formulaCell, fillTo);
   const totalSteps = fillCells.length + 1;
 
-  useEffect(() => {
+  // Reset the scrub position when the demo's identity changes (lesson
+  // re-renders us with a new formula/cell/range). Done during render with
+  // the prev-vs-current compare pattern to avoid an effect-driven setState.
+  const currentKey = `${formula}|${formulaCell}|${fillTo}`;
+  const [prevKey, setPrevKey] = useState(currentKey);
+  if (currentKey !== prevKey) {
+    setPrevKey(currentKey);
     setStep(0);
-  }, [formula, formulaCell, fillTo]);
+  }
 
   const liveData: SheetData = data.map((r) => [...r]);
   const setLiveCell = (a1: string, value: string) => {

@@ -8,7 +8,11 @@ Macros are how a team makes one-shot manual operations repeatable: format the ne
 
 ## Recorded vs hand-written
 
-Sheets has a Record Macro feature (Extensions then Macros then Record macro). The flow is exactly what it sounds like: you start recording, you do a sequence of edits in the UI, you stop recording, and Sheets writes the Apps Script function that reproduces those edits. It looks attractive (no code to write) and then you read what it produced:
+Sheets has a Record Macro feature (Extensions then Macros then Record macro). The flow is exactly what it sounds like: you start recording, you do a sequence of edits in the UI, you stop recording, and Sheets writes the Apps Script function that reproduces those edits. It looks attractive (no code to write) and then you read what it produced.
+
+> **Where the recorder lives in 2026.** Open the Sheets menu **Extensions then Macros then Record macro**. A small footer bar appears at the bottom of the workbook ("Recording new macro..."), with an Absolute vs Relative references toggle and a **Save** button. Click around the sheet as you normally would: every selection change, every cell edit, every format tweak gets written to the bound Apps Script project. Hit **Save** and Sheets pops a "Save new macro" dialog asking for a `menuName` and (optionally) a `Ctrl+Alt+Shift+1..9` keyboard shortcut. That dialog is the same `appsscript.json` registration covered below, just with a UI wrapper. The recorded function lands in a `macros.gs` file inside the bound script.
+
+Here is what it produced:
 
 ```js
 function MyMacro() {

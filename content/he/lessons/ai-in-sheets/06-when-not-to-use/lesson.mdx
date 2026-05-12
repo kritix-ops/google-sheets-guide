@@ -4,7 +4,7 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 חמשת השיעורים הקודמים לימדו מה AI ב-Sheets יודע לעשות. השיעור הזה מלמד מתי לעזוב אותו לבד. שני החצאים חשובים. צוות שמשתמש ב-AI לכל דבר שולח dashboards עם טעויות שקטות ויקרות. צוות שנמנע מ-AI לגמרי מאבד שעה ביום לעבודה ש-AI היה עושה היטב. המיומנות היא אמון מכויל: AI מתאים לכמה סוגים של בעיות ולא מתאים לאחרים. לדעת את ההבדל זה מה שמבדיל שימוש סניור משימוש מתחיל.
 
-השיעור הזה הוא framework להחלטה. ארבע קטגוריות קשות שבהן AI לא שייך, decision tree של ארבעה שלבים לכל השאר, ומסמך המדיניות בפועל של הצוות שיצא מאירוע audit-trail אמיתי. ה-framework מפנה לפונקציות ולדפוסים שכוסו קודם ב-track הזה וב-Track 1: `SUM` (1.5), `SUMIF` / `SUMIFS` (1.11), `SUBSTITUTE` (1.7), `REGEXEXTRACT` (Track 2 שיעור 8), `GOOGLEFINANCE` (Track 1 שיעור 25). אם אתם שולחים יד ל-AI בשביל מי מאלה, אתם שולחים יד לכלי הלא נכון.
+השיעור הזה הוא framework להחלטה. ארבע קטגוריות קשות שבהן AI לא שייך, decision tree של ארבעה שלבים לכל השאר, ומסמך המדיניות בפועל של הצוות שיצא מאירוע audit-trail אמיתי. ה-framework מפנה לפונקציות ולדפוסים שכוסו קודם ב-track הזה וב-Track 1: `SUM` (שיעור 1.3, 03-math-text-date-logical), `SUMIF` / `SUMIFS` (שיעור 1.6, 06-aggregation), `SUBSTITUTE` (שיעור 1.7), `REGEXEXTRACT` (Track 1 שיעור 16, 16-regex), ו-`GOOGLEFINANCE` (ראו את כרטיס הפונקציה ב-registry; lookups של currency חוצי-גיליונות הם הדפוס הסטנדרטי). אם אתם שולחים יד ל-AI בשביל מי מאלה, אתם שולחים יד לכלי הלא נכון.
 
 ## ארבע הקטגוריות הקשות של "לא להשתמש"
 
@@ -12,14 +12,15 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 אם החישוב חייב להיות reproducible על-ידי אדם אחר בזמן אחר, AI הוא הכלי הלא נכון. הפלטים אינם דטרמיניסטיים בין קריאות (שיעורים 5.1 ו-5.2). התא נראה כמו כל תא אחר, אז קורא לא יכול לדעת אם הוא נוצר על-ידי AI או הוקלד ביד. אין formula trace.
 
-דוגמאות איפה זה חשוב: סכומי currency של סוף חודש, דוחות board, הגשות רגולטוריות, כל מה שצריך להתאים לדוח אחר. אם הייתם נבוכים מ-line item של $14,387.22 שהופך ל-$14,401.50 ב-refresh הבא, אל תשתמשו ב-AI בשבילו. משתמשים ב-`SUM`.
+דוגמאות איפה זה חשוב: סכומי currency של סוף חודש, דוחות board, הגשות רגולטוריות, כל מה שצריך להתאים לדוח אחר. אם הייתם נבוכים מ-line item של $14,387.22 שהופך ל-$14,401.50 בפעם הבאה שמישהו לוחץ **Refresh and insert** על התא, אל תשתמשו ב-AI בשבילו. משתמשים ב-`SUM`.
 
 <Compare>
   <ComparePanel label="שבור (AI רגיש audit)" tone="negative">
     <pre className="font-mono text-xs"><code>{`H1: =AI("Total revenue for the month", A2:G61)
 ... תא קורא $14,387.22 ביום שני
+... חבר צוות לוחץ "Refresh and insert" ביום שישי
 ... תא קורא $14,401.50 ביום שישי`}</code></pre>
-    <p className="mt-2 text-sm">AI מחזיר טקסט שנראה כמו מספר. לא דטרמיניסטי. ה-board deck ששלחו בשני וה-board deck ששלחו בשישי חולקים ב-$14.28. החקירה עולה שבוע.</p>
+    <p className="mt-2 text-sm">AI מחזיר טקסט שנראה כמו מספר. לא דטרמיניסטי. לחיצת Refresh-and-insert של חבר צוות משנה את הערך בשקט מכל session עם גישת עריכה; ה-board deck ששלחו בשני וה-board deck ששלחו בשישי חולקים ב-$14.28, ושום דבר בתא לא אומר לכם מי הריץ אותו מחדש או למה. החקירה עולה שבוע.</p>
   </ComparePanel>
   <ComparePanel label="עובד (דטרמיניסטי)" tone="positive">
     <pre className="font-mono text-xs"><code>{`H1: =SUM(G2:G61)
@@ -42,7 +43,7 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 ### 4. טרנספורמציות דטרמיניסטיות
 
-אם נוסחה יכולה לעשות את זה, משתמשים בנוסחה. `SUBSTITUTE("Used Cars PR", " PR", "")` מחלץ את ה-stem של שם vertical באופן reproducible, חינם, באלפיות שנייה. `=AI("Remove the PR suffix from: " & C2)` עושה את אותו דבר לאט יותר, פחות אמין, ובעלות פר-קריאה.
+אם נוסחה יכולה לעשות את זה, משתמשים בנוסחה. `SUBSTITUTE("Car Deals PR", " PR", "")` מחלץ את ה-stem של שם vertical באופן reproducible, חינם, באלפיות שנייה. `=AI("Remove the PR suffix from: " & C2)` עושה את אותו דבר לאט יותר, פחות אמין, ובעלות פר-קריאה.
 
 ארגז הכלים הדטרמיניסטי: `SUBSTITUTE`, `REGEXEXTRACT`, `REGEXREPLACE`, `LEFT`, `RIGHT`, `MID`, `TRIM`, `PROPER`, `UPPER`, `LOWER`, `SPLIT`, `JOIN`. אם הטרנספורמציה שלכם ניתנת לביטוי באלה, AI הוא over-kill.
 
@@ -57,7 +58,7 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
     <pre className="font-mono text-xs"><code>{`=UPPER(REGEXEXTRACT(H2, "^[a-z]{2}-([a-z]{2})-"))
 ... → "MX"
 ... מיידי, חינם, מדויק, לכל שורה`}</code></pre>
-    <p className="mt-2 text-sm">קוד מדינה של שני תווים זו עבודת regex. REGEXEXTRACT ב-Track 2 שיעור 8; הדפוס הוא פורמט שם הקמפיין שכל חבר צוות יודע.</p>
+    <p className="mt-2 text-sm">קוד מדינה של שני תווים זו עבודת regex. REGEXEXTRACT ב-Track 1 שיעור 16; הדפוס הוא פורמט שם הקמפיין שכל חבר צוות יודע.</p>
   </ComparePanel>
 </Compare>
 
@@ -74,7 +75,7 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
       id: "b",
       label: <><code>{`=GOOGLEFINANCE("CURRENCY:USDILS") * F2`}</code></>,
       correct: true,
-      explanation: "שער חליפין חי מ-Google Finance, דטרמיניסטי ברגע ה-refresh, ניתן לעקוב audit. הכלי הנכון. GOOGLEFINANCE ב-Track 1 שיעור 25.",
+      explanation: "שער חליפין חי מ-Google Finance, דטרמיניסטי ברגע ה-refresh, ניתן לעקוב audit. הכלי הנכון. ראו את כרטיס הפונקציה של `GOOGLEFINANCE` ב-registry; lookups של currency חוצי-גיליונות הם הדפוס הסטנדרטי.",
     },
     {
       id: "c",
@@ -87,7 +88,63 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 ## Decision tree לכל השאר
 
-לכל מה שלא נופל בארבע קטגוריות ה"לא" הקשות, שואלים בסדר:
+עוברים על ארבע השאלות בסדר. ה-"כן" הראשון אומר לכם את התשובה; עוצרים שם. אם כל הארבעה חוזרים "לא", AI על השולחן.
+
+<StepThrough
+  frames={[
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Q1: האם התשובה חייבת להיות reproducible
+    בין ריצות?
+
+   כן → אל תשתמשו ב-AI (נוסחה או הקפאה
+        עם paste-as-values).
+    לא → ממשיכים ל-Q2.`}</code></pre>
+      ),
+      caption: <>Reproducibility היא השער הראשון כי אי-דטרמיניזם הוא התכונה ששוברת audits, reconciliations, ואמון. "כן" כאן מסיים את ההחלטה; שום דבר נוסף לא משנה.</>,
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Q2: האם הנתונים נתונים לאילוצי פרטיות?
+    (PII, נתוני צרכן ב-scope GDPR,
+    emails של לקוחות, user IDs מזוהים)
+
+   כן → בודקים את תנאי הטיפול בנתונים של
+        ה-Workspace plan לפני שימוש ב-AI;
+        בספק, אל.
+    לא → ממשיכים ל-Q3.`}</code></pre>
+      ),
+      caption: <>שער הפרטיות יושב לפני שאלת היכולת כי עלות הזלגת PII ל-context של training של מודל היא בלתי הפיכה. שואלים את ה-admin, לא את הנוסחה.</>,
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Q3: האם נוסחה דטרמיניסטית יכולה לעשות
+    את העבודה?
+    (SUBSTITUTE, REGEXEXTRACT, REGEXREPLACE,
+    LEFT/RIGHT/MID, TRIM, PROPER, SPLIT, JOIN,
+    SUMIF, GOOGLEFINANCE...)
+
+   כן → משתמשים בנוסחה (מהיר, חינם, מדויק).
+    לא → ממשיכים ל-Q4.`}</code></pre>
+      ),
+      caption: <>אם הטרנספורמציה ניתנת לביטוי בארגז הכלים הדטרמיניסטי, AI הוא overkill. הכלל הוא לא "AI עובד"; הכלל הוא "AI הוא הכלי הנכון הזול ביותר". לטרנספורמציות דטרמיניסטיות הוא לא.</>,
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Q4: האם הנפח גבוה (אלפי שורות)?
+
+   כן → מעריכים את עלות ה-AI קודם. AI
+        פר-שורה ב-scale הופך יקר מהר
+        ומוגבל ל-350 תאים ל-generate
+        batch (שיעור 5.2).
+    לא → AI הוא הכלי הנכון. ממשיכים.`}</code></pre>
+      ),
+      caption: <>אם מגיעים ל-Q4 והנפח קטן, המשימה היא סיווג מטושטש, sentiment, סיכום, או חקירה. זה בדיוק איפה ש-AI מצדיק את עצמו. באלפי שורות, מריצים את חשבון העלות לפני שגוררים למטה.</>,
+    },
+  ]}
+/>
+
+אותן ארבע שאלות בצורה ליניארית, להפניה מהירה:
 
 1. **האם התשובה חייבת להיות reproducible בין ריצות?** אם כן, אל תשתמשו ב-AI.
 2. **האם הנתונים נתונים לאילוצי פרטיות?** אם כן, בודקים את ה-Workspace plan לפני שימוש ב-AI.
@@ -162,6 +219,45 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 - **כל דבר שנוגע ב-board deck: כלל שתי העיניים.** אפילו פרוזה שניסחה AI מקבלת סוקר שני.
 
 הצוות למד את זה בדרך הקשה. היה אירוע audit-trail ב-2025-Q4: `AI()` בתא "Total this month" סחף בין שני דוחות שהוגשו ביומיים הפרש, ב-$14 בכיוונים מנוגדים. החקירה לקחה שבועיים. התא נכתב מחדש כ-`SUM`. מסמך המדיניות נכתב שבוע אחר כך.
+
+## כשצריך פלט בצורת טקסט וגם auditability: Apps Script + Vertex AI
+
+ארבע קטגוריות ה"לא" הקשות למעלה משאירות קטגוריה אחת לא נוחה: משימה שהיא **בצורת טקסט** (אז נוסחה לא יכולה לעשות אותה) אבל גם דורשת **auditability** (אז `=AI()` גם לא יכול). תיוג themes של משוב לקוחות לדוח רגולטורי. חילוץ שדות מובנים מתיאורים של טקסט חופשי כשרגולטור עשוי לבקש לראות את הריצה.
+
+הפתח להימלטות הוא לעזוב את `=AI()` ולקרוא ל-Gemini API מ-Apps Script. Track 3 שיעור 17 מכסה את **Vertex AI advanced service** שמגיע ב-Apps Script (יצא ב-12 בינואר 2026); החלקים הרלוונטיים לשיעור הזה:
+
+- **`temperature: 0`** ל-reproducibility. אותו prompt מול אותו מודל מחזיר אותה תשובה (בגבולות יציבות גרסת המודל). אי-הדטרמיניזם שפוסל את `=AI()` לעבודה רגישת audit ניתן לכיוון כאן.
+- **פלט מובנה דרך JSON schema.** מצמצמים את התגובה לצורה קבועה (`{ "label": "low" | "medium" | "high", "rationale": "string" }`), כך שנוסחה במורד הזרם יכולה לקרוא אותו בלי validator sidecar.
+- **לוג audit עם timestamp שנכתב מהסקריפט.** כל קריאה כותבת את ה-prompt, התגובה, גרסת המודל, וה-timestamp לטאב `_AILog`. ה-audit trail עכשיו הוא שורה literal ב-workbook, לא vibe.
+- **ערכים literal לתוך הגיליון.** הסקריפט כותב ערכים, לא נוסחאות `=AI()`. התאים מתנהגים כמו כל תא אחר שהוקלד מאותו רגע; reproducibility נשמרת כי התאים כבר לא חיים.
+
+צורה מינימלית (הדפוס המלא יושב ב-Track 3 שיעור 17):
+
+```js
+function classifyRisk_(spend, revenue) {
+  const request = {
+    contents: [{ role: "user", parts: [{ text:
+      `Risk: low, medium, or high. Spend ${spend}, Revenue ${revenue}.` }] }],
+    generationConfig: {
+      temperature: 0,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: { label: { type: "STRING", enum: ["low", "medium", "high"] } },
+        required: ["label"],
+      },
+    },
+  };
+  const res = VertexAI.Projects.Locations.Publishers.Models.generateContent(
+    request, "projects/PROJECT_ID/locations/us-central1/publishers/google/models/gemini-2.5-flash");
+  const label = JSON.parse(res.candidates[0].content.parts[0].text).label;
+  SpreadsheetApp.getActive().getSheetByName("_AILog")
+    .appendRow([new Date(), "classifyRisk", spend, revenue, label, "gemini-2.5-flash", 0]);
+  return label;
+}
+```
+
+זה לא חינם. זה עולה credits של API, תקציב script-quota, והקמה חד-פעמית של GCP project. הנקודה היא שפתח ההימלטות קיים: לחיתוך הצר של "בצורת טקסט וגם רגיש audit", התשובה היא לא "להשתמש ב-AI ב-Sheets בזהירות"; התשובה היא "לעזוב את `=AI()` ולקרוא ל-API עם פרמטרים דטרמיניסטיים מתוך סקריפט". Track 3 שיעור 17 מכסה לעומק את הפעלת השירות, OAuth scopes, וההשלכות של quota.
 
 ## מלכודות מקצועיות
 

@@ -133,11 +133,11 @@ Sheets המודרני חכם מספיק לדלג על תאים ריקים בהר
 
 <Compare>
   <ComparePanel label="שבור" tone="negative">
-    <pre className="font-mono text-xs"><code>=SUM(IMPORTRANGE(url, "A:F")) + AVG(IMPORTRANGE(url, "A:F")) + ...</code></pre>
+    <pre className="font-mono text-xs"><code>=SUM(IMPORTRANGE(url, "A:F")) + AVERAGE(IMPORTRANGE(url, "A:F")) + ...</code></pre>
     <p className="mt-2 text-sm"><strong>IMPORTRANGEs מרובים על אותו מקור.</strong> כל קריאה היא מסע רשת משלה, ו-Sheets חוסם את התעבורה הכוללת של IMPORTRANGE בחוברת. דאשבורדים עם חמש מטריקות נגזרות או יותר לרוב מגיעים למכסה ומתחילים להחזיר <code>#REF!</code> באמצע היום.</p>
   </ComparePanel>
   <ComparePanel label="עובד" tone="positive">
-    <pre className="font-mono text-xs"><code>=LET(data, IMPORTRANGE(url, "A:F"), SUM(...) + AVG(...) + ...)</code></pre>
+    <pre className="font-mono text-xs"><code>=LET(data, IMPORTRANGE(url, "A:F"), SUM(...) + AVERAGE(...) + ...)</code></pre>
     <p className="mt-2 text-sm"><strong>IMPORTRANGE אחד, בשימוש חוזר דרך LET.</strong> הייבוא מתבצע פעם אחת לכל הערכת נוסחה; כל מטריקה נגזרת קוראת מהקישור המקומי <code>data</code>. חתכו קריאות רשת ב-5x או יותר בדאשבורדים עמוסים. שיעור 1.27 מכסה את דפוסי ה-IMPORTRANGE לעומק.</p>
   </ComparePanel>
 </Compare>

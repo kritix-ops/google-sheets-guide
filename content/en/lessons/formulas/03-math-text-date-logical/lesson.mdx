@@ -59,6 +59,10 @@ Layer the named-range / `$`-locking pattern from lesson 1 with `SUM` to produce 
   answer={<>Without the <code>$</code>, copying the formula down to row 3 would shift the denominator to <code>E3:E14</code>: a different total every row, all wrong. Locking with <code>$E$2:$E$13</code> keeps the denominator stable. Result for row 2: <code>0.087</code> (~8.7%). Same pattern works for "share of revenue", "share of clicks", "share of profit". In the team's actual workbooks this column lives on every per-buyer view.</>}
 />
 
+<FunctionRef name="AVERAGE" />
+
+`AVERAGE` returns the arithmetic mean of numeric values. Skips text and blanks inside a range (does not count them as zero), so a partially-filled column gives the mean of the populated cells, not a deflated number. Use it for per-row averages where COUNTIFS/SUMIFS would be overkill.
+
 <FunctionRef name="ROUND" />
 
 `ROUND` rounds to a given number of decimal places. `ROUND(91.234, 1)` is `91.2`. `ROUND(91.234, 0)` is `91`. Negative `places` rounds to tens, hundreds, etc. Used everywhere in adtech: revenue numbers presented to two decimals, ROI shown as a percentage, CPC bucketed to whole cents.
@@ -145,6 +149,12 @@ The shaping functions are `UPPER`, `LOWER`, `PROPER` (case), `LEN` (length), `TR
   hint={<>Wrap <code>B2</code> in <code>UPPER(...)</code>.</>}
   answer={<>UPPER returns its argument with every letter forced uppercase. LOWER does the opposite. PROPER capitalizes the first letter of each word ("yoav cohen" becomes "Yoav Cohen"). All three leave non-letter characters alone, so they're safe to run on names with apostrophes, hyphens, or numbers. In production data work, normalizing case before joining is one of the cheapest ways to prevent silent #N/A from <code>XLOOKUP</code> (lesson 4) and <code>QUERY</code>'s <code>WHERE</code> matches (lesson 12).</>}
 />
+
+<FunctionRef name="LOWER" />
+
+<FunctionRef name="PROPER" />
+
+`LOWER` is the mirror of `UPPER`; `PROPER` is the title-case sibling. The three together cover every casing chore: feeds in `ALL CAPS`, in `all lowercase`, or with `inconsistent Casing`. In adtech work, `LOWER` is the case-folding side of every join key (paired with `TRIM` below); `PROPER` is the cleanup pass for display columns shown in dashboards or emailed reports.
 
 <FunctionRef name="TRIM" />
 
@@ -416,14 +426,14 @@ In the team's actual workbooks, these basic functions show up like this:
 
 - **`SUM` at the top of every column.** Total spend, total revenue, total clicks. Often wrapped in `ROUND` for a clean dashboard view. Often a `SUMIFS` (lesson 6) when you need to filter by buyer or platform first.
 - **`TRIM` and `LOWER` on every join column.** Anywhere data crosses sheets (especially via `IMPORTRANGE`), normalize first or accept silent #N/A in your lookups. Lesson 4 shows the lookup-side version; lesson 27 covers `IMPORTRANGE` end-to-end.
-- **`TODAY()` in date math for "days since" columns.** Combined with date columns from the source, gives you live-updating "campaign age" numbers. Watch out: `TODAY` recalculates daily, so values change every morning, and on a 50,000-row sheet it can hurt performance noticeably.
+- **`TODAY()` in date math for "days since" columns.** Combined with date columns from the source, gives you live-updating "campaign age" numbers. Watch out: `TODAY()` is volatile, so it recomputes on every workbook edit (not just once per day) along with the recalc-on-open and any explicit recalc trigger. On a 50,000-row sheet where thousands of cells reference it indirectly, every edit re-runs the whole dependency graph; track 4 lesson 2 (`why-its-slow`) covers the performance impact.
 - **`IF` as the entry point to every conditional column.** "Is profitable?", "Above target ROI?", "Past end of period?". Lesson 5 covers when `IF` stops being enough and `IFS` takes over.
 
 ## Pro pitfalls
 
 - **Don't include the header row in SUM/AVERAGE if the header could ever become numeric.** `SUM(E1:E13)` works only if E1 stays text. If someone renames the header to a number, you silently double-count.
 - **`TRIM` doesn't fix inconsistent casing, and it doesn't strip non-breaking spaces.** If one source has "yoav cohen" and another has "Yoav Cohen", `TRIM` won't help; you need `LOWER` or `PROPER` on both sides. Non-breaking spaces (U+00A0) from Windows exports need a `SUBSTITUTE(text, CHAR(160), " ")` first.
-- **`TODAY()` makes a sheet recalculate every day.** Fine for dashboards; expensive for a sheet with 50,000 rows that all reference `TODAY` indirectly. Lesson 28 (performance) covers the recalc cost in detail.
+- **`TODAY()` is volatile and recomputes on every workbook edit.** Not once a day: every edit, every recalc trigger, every open. Fine for a dashboard with a handful of references; expensive for a 50,000-row sheet that pipes `TODAY()` through thousands of cells, because the entire dependency graph re-runs on each change. Track 4 lesson 2 (`why-its-slow`) covers the recalc cost in detail.
 - **`=B2 + C2` errors silently if either cell is text.** Sheets returns `#VALUE!` or coerces unpredictably. Use `IFERROR` (covered in lesson 9) to catch.
 - **`IF` with a non-boolean condition is a silent footgun.** Always make the comparison operator visible (`>`, `=`, `<`). Never rely on truthy-coercion.
 

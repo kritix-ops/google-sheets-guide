@@ -4,7 +4,7 @@ import { CAMPAIGNS_LARGE, CAMPAIGNS } from "@/content/datasets/adtech";
 
 The previous five lessons taught what AI in Sheets can do. This one teaches when to leave it alone. Both halves matter. A team that uses AI for everything ships dashboards with quiet, expensive errors. A team that avoids AI entirely loses an hour a day to work AI would have done well. The skill is calibrated trust: AI is appropriate for some classes of problem and inappropriate for others. Knowing the difference is what separates senior use from rookie use.
 
-This lesson is a decision framework. Four hard categories where AI does not belong, a four-step decision tree for everything else, and the team's actual policy doc that came out of a real audit-trail incident. The framework references functions and patterns covered earlier in this track and in Track 1: `SUM` (1.5), `SUMIF` / `SUMIFS` (1.11), `SUBSTITUTE` (1.7), `REGEXEXTRACT` (Track 2 lesson 8), `GOOGLEFINANCE` (Track 1 lesson 25). If you reach for AI for any of these, you reach for the wrong tool.
+This lesson is a decision framework. Four hard categories where AI does not belong, a four-step decision tree for everything else, and the team's actual policy doc that came out of a real audit-trail incident. The framework references functions and patterns covered earlier in this track and in Track 1: `SUM` (lesson 1.3), `SUMIF` / `SUMIFS` (lesson 1.6), `SUBSTITUTE` (lesson 1.7), `REGEXEXTRACT` (lesson 1.16), and `GOOGLEFINANCE` (see the function card in the registry; cross-sheet currency lookups are the standard pattern). If you reach for AI for any of these, you reach for the wrong tool.
 
 ## The four hard "don't use" categories
 
@@ -12,14 +12,15 @@ This lesson is a decision framework. Four hard categories where AI does not belo
 
 If the calculation must be reproducible by another person at another time, AI is the wrong tool. Outputs are non-deterministic between calls (lesson 5.1 and 5.2). The cell looks like any other cell, so a reader can't tell whether it was AI-generated or hand-typed. There is no formula trace.
 
-Examples where this matters: month-end currency totals, board reports, regulatory filings, anything that has to match another report. If you'd be embarrassed to have a $14,387.22 line item turn into $14,401.50 on the next refresh, don't use AI for it. Use a `SUM`.
+Examples where this matters: month-end currency totals, board reports, regulatory filings, anything that has to match another report. If you'd be embarrassed to have a $14,387.22 line item turn into $14,401.50 the next time someone clicks **Refresh and insert** on the cell, don't use AI for it. Use a `SUM`.
 
 <Compare>
   <ComparePanel label="Broken (audit-sensitive AI)" tone="negative">
     <pre className="font-mono text-xs"><code>{`H1: =AI("Total revenue for the month", A2:G61)
 ... cell reads $14,387.22 on Monday
+... a teammate clicks "Refresh and insert" on Friday
 ... cell reads $14,401.50 on Friday`}</code></pre>
-    <p className="mt-2 text-sm">AI returns text that looks like a number. Non-deterministic. The board deck sent Monday and the board deck sent Friday disagree by $14.28. The investigation costs a week.</p>
+    <p className="mt-2 text-sm">AI returns text that looks like a number. Non-deterministic. A teammate's Refresh-and-insert click silently changes the value from any session with edit access; the board deck sent Monday and the board deck sent Friday disagree by $14.28, and nothing in the cell tells you who re-ran it or why. The investigation costs a week.</p>
   </ComparePanel>
   <ComparePanel label="Working (deterministic)" tone="positive">
     <pre className="font-mono text-xs"><code>{`H1: =SUM(G2:G61)
@@ -42,7 +43,7 @@ What counts as PII in adtech: customer email addresses, user IDs that link back 
 
 ### 4. Deterministic transforms
 
-If a formula can do it, use the formula. `SUBSTITUTE("Used Cars PR", " PR", "")` extracts the stem of a vertical name reproducibly, for free, in microseconds. `=AI("Remove the PR suffix from: " & C2)` does the same thing more slowly, less reliably, and at a cost per call.
+If a formula can do it, use the formula. `SUBSTITUTE("Car Deals PR", " PR", "")` extracts the stem of a vertical name reproducibly, for free, in microseconds. `=AI("Remove the PR suffix from: " & C2)` does the same thing more slowly, less reliably, and at a cost per call.
 
 The deterministic toolbox: `SUBSTITUTE`, `REGEXEXTRACT`, `REGEXREPLACE`, `LEFT`, `RIGHT`, `MID`, `TRIM`, `PROPER`, `UPPER`, `LOWER`, `SPLIT`, `JOIN`. If your transformation can be expressed in these, AI is overkill.
 
@@ -57,7 +58,7 @@ The deterministic toolbox: `SUBSTITUTE`, `REGEXEXTRACT`, `REGEXREPLACE`, `LEFT`,
     <pre className="font-mono text-xs"><code>{`=UPPER(REGEXEXTRACT(H2, "^[a-z]{2}-([a-z]{2})-"))
 ... → "MX"
 ... instant, free, exact, every row`}</code></pre>
-    <p className="mt-2 text-sm">A two-character country code is a regex job. REGEXEXTRACT is in Track 2 lesson 8; the pattern is the campaign-name format every team member knows.</p>
+    <p className="mt-2 text-sm">A two-character country code is a regex job. REGEXEXTRACT is in Track 1 lesson 16; the pattern is the campaign-name format every team member knows.</p>
   </ComparePanel>
 </Compare>
 
@@ -74,7 +75,7 @@ The deterministic toolbox: `SUBSTITUTE`, `REGEXEXTRACT`, `REGEXREPLACE`, `LEFT`,
       id: "b",
       label: <><code>=GOOGLEFINANCE("CURRENCY:USDILS") * F2</code></>,
       correct: true,
-      explanation: "Live exchange rate from Google Finance, deterministic at the moment of refresh, audit-traceable. The right tool. GOOGLEFINANCE is in Track 1 lesson 25.",
+      explanation: "Live exchange rate from Google Finance, deterministic at the moment of refresh, audit-traceable. The right tool. See the `GOOGLEFINANCE` function card in the registry; cross-sheet currency lookups are the standard pattern.",
     },
     {
       id: "c",
@@ -87,7 +88,60 @@ The deterministic toolbox: `SUBSTITUTE`, `REGEXEXTRACT`, `REGEXREPLACE`, `LEFT`,
 
 ## A decision tree for the rest
 
-For everything that doesn't fall into the four hard "don't" categories, ask in order:
+Walk the four questions in order. The first "yes" tells you the answer; stop there. If all four come back "no", AI is on the table.
+
+<StepThrough
+  frames={[
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Q1: Is the answer required to be reproducible
+    across runs?
+
+   Yes → don't use AI (use a formula or freeze
+         with paste-as-values).
+    No → continue to Q2.`}</code></pre>
+      ),
+      caption: <>Reproducibility is the first gate because non-determinism is the property that breaks audits, reconciliations, and trust. A "yes" here ends the decision; nothing further matters.</>,
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Q2: Is the data subject to privacy constraints?
+    (PII, GDPR-scoped consumer data,
+    customer emails, identifiable user IDs)
+
+   Yes → check your Workspace plan's data-handling
+         terms before using AI; if in doubt, don't.
+    No → continue to Q3.`}</code></pre>
+      ),
+      caption: <>The privacy gate sits before the capability question because the cost of leaking PII into a model's training context is irreversible. Ask your admin, not the formula.</>,
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Q3: Can a deterministic formula do the job?
+    (SUBSTITUTE, REGEXEXTRACT, REGEXREPLACE,
+    LEFT/RIGHT/MID, TRIM, PROPER, SPLIT, JOIN,
+    SUMIF, GOOGLEFINANCE...)
+
+   Yes → use the formula (faster, free, exact).
+    No → continue to Q4.`}</code></pre>
+      ),
+      caption: <>If the transformation can be expressed in the deterministic toolbox, AI is overkill. The rule is not "AI works"; the rule is "AI is the cheapest correct tool". For deterministic transforms it isn't.</>,
+    },
+    {
+      body: (
+        <pre className="font-mono text-xs"><code>{`Q4: Is the volume high (thousands of rows)?
+
+   Yes → estimate the AI cost first. AI per row
+         at scale gets expensive fast and is capped
+         at 350 cells per generate batch (lesson 5.2).
+    No → AI is the right tool. Proceed.`}</code></pre>
+      ),
+      caption: <>If you reach Q4 and the volume is small, the task is fuzzy classification, sentiment, summary, or exploration. That is exactly where AI earns its keep. At thousands of rows, run the cost math before you drag down.</>,
+    },
+  ]}
+/>
+
+The same four questions in linear form, for quick reference:
 
 1. **Is the answer required to be reproducible across runs?** If yes, don't use AI.
 2. **Is the data subject to privacy constraints?** If yes, check the Workspace plan before using AI.
@@ -162,6 +216,45 @@ The team's actual policy doc, condensed:
 - **Anything that touches a board deck: two-eye rule.** Even AI-drafted prose gets a second reviewer.
 
 The team learned this the hard way. There was an audit-trail incident in 2025-Q4: an `AI()` in a "Total this month" cell drifted between two reports filed two days apart, by $14 in opposite directions. The investigation took two weeks. The cell was rewritten as a `SUM`. The policy doc was written the week after.
+
+## When you need text-shaped output AND auditability: Apps Script + Vertex AI
+
+The four hard "don't" categories above leave one category awkward: a task that is **text-shaped** (so a formula can't do it) but also needs **auditability** (so `=AI()` can't either). Tagging customer feedback themes for a regulated report. Extracting structured fields from free-text descriptions where a regulator may ask to see the run.
+
+The escape hatch is to leave `=AI()` behind and call the Gemini API from Apps Script. Track 3 lesson 17 covers the **Vertex AI advanced service** that ships in Apps Script (released January 12, 2026); the relevant pieces for this lesson are:
+
+- **`temperature: 0`** for reproducibility. The same prompt against the same model returns the same answer (within model-version stability). The non-determinism that disqualifies `=AI()` for audit-sensitive work is configurable away here.
+- **Structured output via JSON schema.** Constrain the response to a fixed shape (`{ "label": "low" | "medium" | "high", "rationale": "string" }`), so a downstream formula can read it without a sidecar validator.
+- **A timestamped audit log written from the script.** Every call writes the prompt, the response, the model version, and the timestamp to an `_AILog` tab. The audit trail is now a literal row in the workbook, not a vibe.
+- **Literal values into the sheet.** The script writes values, not `=AI()` formulas. The cells behave like any other typed cell from then on; reproducibility is preserved because the cells are no longer live.
+
+A minimal shape (the full pattern lives in Track 3 lesson 17):
+
+```js
+function classifyRisk_(spend, revenue) {
+  const request = {
+    contents: [{ role: "user", parts: [{ text:
+      `Risk: low, medium, or high. Spend ${spend}, Revenue ${revenue}.` }] }],
+    generationConfig: {
+      temperature: 0,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: { label: { type: "STRING", enum: ["low", "medium", "high"] } },
+        required: ["label"],
+      },
+    },
+  };
+  const res = VertexAI.Projects.Locations.Publishers.Models.generateContent(
+    request, "projects/PROJECT_ID/locations/us-central1/publishers/google/models/gemini-2.5-flash");
+  const label = JSON.parse(res.candidates[0].content.parts[0].text).label;
+  SpreadsheetApp.getActive().getSheetByName("_AILog")
+    .appendRow([new Date(), "classifyRisk", spend, revenue, label, "gemini-2.5-flash", 0]);
+  return label;
+}
+```
+
+This is not free. It costs API credits, a script-quota budget, and a one-time setup of a GCP project. The point is that the escape hatch exists: for the narrow "text-shaped and audit-sensitive" intersection, the answer is not "use AI in Sheets carefully"; the answer is "leave `=AI()` behind and call the API with deterministic parameters from a script". Track 3 lesson 17 covers the service enablement, OAuth scopes, and the quota implications in depth.
 
 ## Pro pitfalls
 

@@ -49,13 +49,13 @@ Validate that a campaign code matches the team's `Platform_VerticalPR_Audience_Y
 <TryIt
   data={[
     ["Code", "Valid?"],
-    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
+    ["Taboola_CarDealsPR_DesktopUS_2026-05", ""],
   ]}
   inputCell="B2"
   expectedFormula='=REGEXMATCH(A2,"^[A-Za-z]+_[A-Za-z]+PR_[A-Za-z]+_\\d{4}-\\d{2}$")'
   task={<>Validate that the campaign code in <code>A2</code> matches the standard format. Return TRUE in <code>B2</code> if it does.</>}
   hint={<>The pattern: starts with letters, then "_", then letters ending in "PR", then "_", then letters, then "_", then YYYY-MM date. Anchor with <code>^</code> and <code>$</code>.</>}
-  answer={<>Anchors are critical. <code>^</code> matches start, <code>$</code> matches end. Without them, the pattern can match a substring inside garbage text. <code>[A-Za-z]+</code> is one or more letters. <code>\\d{`{4}`}</code> is exactly 4 digits (the backslash is doubled because Sheets' string parsing eats one). Without anchors, "garbageTaboola_UsedCarsPR_DesktopUS_2026-05garbage" would also match: usually not what you want.</>}
+  answer={<>Anchors are critical. <code>^</code> matches start, <code>$</code> matches end. Without them, the pattern can match a substring inside garbage text. <code>[A-Za-z]+</code> is one or more letters. <code>\\d{`{4}`}</code> is exactly 4 digits (the backslash is doubled because Sheets' string parsing eats one). Without anchors, "garbageTaboola_CarDealsPR_DesktopUS_2026-05garbage" would also match: usually not what you want.</>}
 />
 
 ### Combined example: REGEXMATCH + FILTER
@@ -73,7 +73,7 @@ The validator pattern at scale. Filter the campaign log down to *only* rows whos
 <Compare>
   <ComparePanel label="Broken" tone="negative">
     <pre className="font-mono text-xs"><code>{`=REGEXMATCH(A2, "[A-Z]+_[A-Z]+PR")`}</code></pre>
-    <p className="mt-2 text-sm"><strong>No anchors.</strong> Matches the pattern <em>anywhere</em> in the cell. <code>"garbage_TABOOLA_USEDCARSPR_more_garbage"</code> passes, even though it is not a valid campaign code. Validators without anchors lie.</p>
+    <p className="mt-2 text-sm"><strong>No anchors.</strong> Matches the pattern <em>anywhere</em> in the cell. <code>"garbage_TABOOLA_CARDEALSPR_more_garbage"</code> passes, even though it is not a valid campaign code. Validators without anchors lie.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
     <pre className="font-mono text-xs"><code>{`=REGEXMATCH(A2, "^[A-Z]+_[A-Z]+PR$")`}</code></pre>
@@ -114,7 +114,7 @@ Extract the platform name from a campaign code. The platform is whatever comes b
 <TryIt
   data={[
     ["Code", "Platform"],
-    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
+    ["Taboola_CarDealsPR_DesktopUS_2026-05", ""],
   ]}
   inputCell="B2"
   expectedFormula='=REGEXEXTRACT(A2,"^([A-Za-z]+)_")'
@@ -138,7 +138,7 @@ The pattern that replaces hand-typed parsing columns. Extract the platform from 
 <Compare>
   <ComparePanel label="Broken" tone="negative">
     <pre className="font-mono text-xs"><code>{`=REGEXEXTRACT(A2, "^.+_(.+)_")`}</code></pre>
-    <p className="mt-2 text-sm"><strong>Greedy quantifier on the outer match.</strong> <code>.+</code> grabs as much as possible. On <code>"Taboola_UsedCarsPR_DesktopUS_2026-05"</code> the first <code>.+</code> swallows everything up to the last underscore, so the capture group catches just <code>"DesktopUS"</code>, not the intended "UsedCarsPR." The wrong piece, silently.</p>
+    <p className="mt-2 text-sm"><strong>Greedy quantifier on the outer match.</strong> <code>.+</code> grabs as much as possible. On <code>"Taboola_CarDealsPR_DesktopUS_2026-05"</code> the first <code>.+</code> swallows everything up to the last underscore, so the capture group catches just <code>"DesktopUS"</code>, not the intended "CarDealsPR." The wrong piece, silently.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
     <pre className="font-mono text-xs"><code>{`=REGEXEXTRACT(A2, "^[^_]+_([^_]+)_")`}</code></pre>
@@ -179,18 +179,18 @@ The team's de-versioning workflow. Strip the trailing `_YYYY-MM` from a campaign
 <TryIt
   data={[
     ["Code", "Without date"],
-    ["Taboola_UsedCarsPR_DesktopUS_2026-05", ""],
+    ["Taboola_CarDealsPR_DesktopUS_2026-05", ""],
   ]}
   inputCell="B2"
   expectedFormula='=REGEXREPLACE(A2,"_\\d{4}-\\d{2}$","")'
-  task={<>Strip the trailing "_YYYY-MM" date from the campaign code in <code>A2</code>. The result should be <code>Taboola_UsedCarsPR_DesktopUS</code>.</>}
+  task={<>Strip the trailing "_YYYY-MM" date from the campaign code in <code>A2</code>. The result should be <code>Taboola_CarDealsPR_DesktopUS</code>.</>}
   hint={<>Pattern: an underscore, four digits, a dash, two digits, end-of-string. Replace with the empty string.</>}
   answer={<>The <code>$</code> anchor at the end ensures we only match the trailing date, not a date in the middle of the string. Without it, REGEXREPLACE would also strip dates from any "_YYYY-MM" sequence earlier in the string. <code>\\d{`{4}`}</code> is exactly 4 digits; <code>\\d{`{2}`}</code> exactly 2. The replacement is the empty string, so the matched substring is removed entirely.</>}
 />
 
 ### Combined example: REGEXREPLACE for the " PR" suffix normalization
 
-The team's verticals all end in " PR" by convention (Used Cars PR, Lingerie PR, Mortgage Refinance PR). When a downstream report wants the bare vertical name without the suffix, `REGEXREPLACE` is more robust than `LEFT(text, LEN(text)-3)` because it gracefully no-ops on rows that already lost the suffix.
+The team's verticals all end in " PR" by convention (Car Deals PR, Cruises PR, Reverse Mortgage PR). When a downstream report wants the bare vertical name without the suffix, `REGEXREPLACE` is more robust than `LEFT(text, LEN(text)-3)` because it gracefully no-ops on rows that already lost the suffix.
 
 ```
 =ARRAYFORMULA(IFERROR(REGEXREPLACE(C2:C, " PR$", ""), ""))
@@ -223,7 +223,7 @@ Sheets uses Google's RE2 engine, which is fast and safe but deliberately lacks s
 For typical adtech work (validation, extraction, normalization), RE2 is more than enough. The few cases where you genuinely need PCRE features usually have a workaround using multiple captures or a follow-up formula.
 
 <QuickCheck
-  question={"You write =REGEXEXTRACT(A2, \".+_(.+)_\") to pull the second segment from a campaign code like \"Taboola_UsedCarsPR_DesktopUS_2026-05\". You expect \"UsedCarsPR\". You get \"DesktopUS\". Why?"}
+  question={"You write =REGEXEXTRACT(A2, \".+_(.+)_\") to pull the second segment from a campaign code like \"Taboola_CarDealsPR_DesktopUS_2026-05\". You expect \"CarDealsPR\". You get \"DesktopUS\". Why?"}
   options={[
     {
       id: "a",

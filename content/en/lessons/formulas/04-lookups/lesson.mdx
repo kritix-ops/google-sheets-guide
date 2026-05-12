@@ -124,6 +124,36 @@ The biggest VLOOKUP trap: it can **only** read columns to the right of the looku
   ]}
 />
 
+<QuickCheck
+  question="Your Verticals lookup table has rows in this order: Car Deals PR, Cruises PR, Dental Implants PR, Online MBA PR, Reverse Mortgage PR, Roofing Services PR, SUV Deals PR, Lingerie PR, Prefabricated Homes PR, Mortgage Refinance PR. The campaign sheet has =VLOOKUP(\"SUV Deals PR\", I2:K11, 2) (no fourth argument). You expect 'Autos & Vehicles' (the category for SUV Deals PR). Instead you get 'Education' (the Online MBA PR category). Why?"
+  options={[
+    {
+      id: "a",
+      label: "VLOOKUP found 'SUV Deals PR' but read the wrong column.",
+      correct: false,
+      explanation: "The column index is 2, which is correct. The wrong-row problem isn't a column-index bug; it's a match-mode bug.",
+    },
+    {
+      id: "b",
+      label: "Without the fourth argument, is_sorted defaulted to TRUE. VLOOKUP did a binary search assuming the first column was sorted ascending, walked past the actual match, and returned the largest entry it found that was <= the search key. On unsorted data the 'binary search' picks a plausible-but-wrong row and never errors.",
+      correct: true,
+      explanation: "This is the silent footgun: is_sorted=TRUE doesn't just enable approximate matching; it switches VLOOKUP to a binary-search algorithm that assumes sorted data. On unsorted lookup columns (which is most real lookup tables), the binary search lands on whichever row its bisection happens to find, returns it without error, and you trust the number. Always pass FALSE as the fourth argument unless your lookup column is genuinely sorted ascending AND you actually want bucket-style approximate matching.",
+    },
+    {
+      id: "c",
+      label: "The lookup table needs to be sorted alphabetically before VLOOKUP can find anything.",
+      correct: false,
+      explanation: "VLOOKUP with is_sorted=FALSE does a linear exact-match scan and doesn't care about sort order. The fix isn't sorting the source; it's passing FALSE.",
+    },
+    {
+      id: "d",
+      label: "VLOOKUP can't handle vertical names that contain spaces.",
+      correct: false,
+      explanation: "Spaces in the search key are fine. The issue is the default match mode.",
+    },
+  ]}
+/>
+
 ## HLOOKUP: VLOOKUP rotated 90 degrees
 
 `HLOOKUP` scans the **first row** of a range and returns a value from another row in the same column. Same argument layout as VLOOKUP, but oriented horizontally. You'll rarely need it because tables are almost always vertical. The one place it shows up in adtech: quarterly summary boards where months sit across columns and you want to look up a metric by month name. Even there, `INDEX/MATCH` or `XLOOKUP` (with the transposed data shape) usually wins.

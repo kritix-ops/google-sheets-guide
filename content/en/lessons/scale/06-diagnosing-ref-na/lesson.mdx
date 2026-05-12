@@ -17,6 +17,30 @@ The Sheets engine raises `#REF!` whenever a formula references a cell, range, co
 
 The fix is always the same shape: rebuild the reference. There is no `IFERROR` workaround that helps. Wrapping a broken reference in `IFERROR("source unavailable")` masks the symptom and guarantees you will not notice when the same thing happens to the next column. `#REF!` is structural; it deserves a structural fix.
 
+<QuickCheck
+  question="A `SUMIFS` formula reads `=SUMIFS(#REF!:F100, B2:B100, \"Yoav Cohen\")`. Yesterday it returned a number; today it returns `#REF!`. What is the most likely cause and the right fix?"
+  options={[
+    {
+      id: "a",
+      label: <>A buyer named "Yoav Cohen" no longer exists in column B. Wrap in `IFNA`.</>,
+      correct: false,
+      explanation: "A missing match returns `#N/A`, not `#REF!`. The token `#REF!` inside the formula text itself tells you a reference was destroyed, not that a lookup missed. `IFNA` would not fire here anyway.",
+    },
+    {
+      id: "b",
+      label: <>The column that used to be the sum_range was deleted. Rebuild the reference to point at the correct column.</>,
+      correct: true,
+      explanation: "The literal `#REF!` token inside the formula is the engine's way of saying \"this argument used to point somewhere that is gone.\" Wrapping it does not bring the column back. The fix is structural: find the column that should hold the values, type its reference back in.",
+    },
+    {
+      id: "c",
+      label: <>Turn on Iterative calculation under Settings.</>,
+      correct: false,
+      explanation: "Iterative calc has nothing to do with broken references. It is a setting for cyclic formulas and is the wrong tool here.",
+    },
+  ]}
+/>
+
 ## #N/A means "I looked, I didn't find"
 
 `#N/A` is raised by lookup functions when no match exists. `VLOOKUP("MissingBuyer", B:C, 2, FALSE)` runs cleanly, walks the column, finds nothing, and returns `#N/A`. The formula is correct. The data does not contain what you asked for. The fix is one of three:
@@ -69,6 +93,8 @@ The reason this matters: `IFERROR` is the bigger hammer. Used everywhere, it sil
 </Compare>
 
 ## Why `XLOOKUP` makes this easier
+
+<FunctionRef name="XLOOKUP" />
 
 `XLOOKUP` was added to Sheets specifically to consolidate the lookup ecosystem and to make the "no match" case sit inside the function call. Compared to `VLOOKUP`:
 

@@ -20,7 +20,7 @@ function nightlyNaive() {
 }
 ```
 
-That is 200 round-trips: 100 reads, 100 writes. Each one is a few tens of milliseconds. Total: ~6 seconds. Now imagine the same code on the 5,000-row monthly aggregator: 10,000 round-trips, ~5 minutes. On the 50,000-row yearly archive: way past the 6-minute consumer quota, and the script aborts mid-loop with the rows it did not reach still empty.
+That is 200 round-trips: 100 reads, 100 writes. Each one is a few tens of milliseconds. Total: ~6 seconds. Now imagine the same code on the 5,000-row monthly aggregator: 10,000 round-trips, ~5 minutes. On the 50,000-row yearly archive: way past the 6-minute execution quota (same on consumer and Workspace), and the script aborts mid-loop with the rows it did not reach still empty.
 
 The batched shape:
 
@@ -160,7 +160,7 @@ Apps Script's docs list the hard quotas. The ones that bite the team:
 
 | Quota | Consumer (gmail.com) | Workspace |
 |---|---|---|
-| Execution time per run | 6 min | 30 min |
+| Execution time per run | 6 min | 6 min |
 | URL Fetch calls per day | 20,000 | 100,000 |
 | URL Fetch payload size | 50 MB | 50 MB |
 | Email recipients per day | 100 | 1,500 |
@@ -169,7 +169,7 @@ Apps Script's docs list the hard quotas. The ones that bite the team:
 
 The two that bite first:
 
-- **6-minute execution timeout (consumer accounts).** The per-cell pattern hits this on anything above ~5,000 rows. The batched pattern does not.
+- **6-minute execution timeout.** Both consumer and Workspace caps are 6 minutes per run (the older 30-minute Workspace tier was retired). The per-cell pattern hits this on anything above ~5,000 rows; the batched pattern does not. Because the ceiling is the same on every account, the chunk-and-re-trigger recipe below is the universal pattern, not a consumer-account workaround.
 - **20,000 UrlFetchApp calls/day on consumer.** A trigger that pulls per-campaign data with one call per row, run hourly, blows past this on a normal day. Use `fetchAll` and batch the requests upstream.
 
 A subtle one: there is no documented quota on `SpreadsheetApp.getRange().getValue()` per minute, but in practice the round-trip layer throttles around 600-1,000 calls/minute. Past that, calls start blocking, and the execution timer keeps ticking against the 6-minute budget.
@@ -179,7 +179,7 @@ A subtle one: there is no documented quota on `SpreadsheetApp.getRange().getValu
 A few primitives that pair with the batch pattern:
 
 - **`SpreadsheetApp.flush()`** forces any queued writes to commit immediately. Useful when a downstream read should see the writes (`setValues(...); flush(); getValues(...);`). Apps Script normally batches writes opportunistically; `flush` makes the seam explicit.
-- **`Utilities.sleep(ms)`** for inserting deliberate pauses between bursts. UrlFetchApp throttles at ~600/min; a `sleep(100)` between batches of 10 keeps you under the rate limit on long pulls.
+- **`Utilities.sleep(ms)`** for inserting deliberate pauses between bursts. `UrlFetchApp` has a documented daily call limit (20,000/day consumer, 100,000/day Workspace) but no documented per-minute throttle; community reports suggest a soft throttle around a few hundred per minute under sustained load. A `sleep(100)` between batches of 10 keeps you below ~300/min, the safe target on long pulls.
 - **`LockService.getScriptLock()`** when two triggers might run at the same time and race on the same range. The lock serializes them so the batched writes do not interleave.
 - **`fetchAll([{url, method, headers}, ...])`** for parallel UrlFetch calls. The whole array fires concurrently; the response array preserves order.
 
@@ -235,6 +235,6 @@ Delete the loop entirely. The point is the comparison: 120 round-trips to 2.
 - **`SpreadsheetApp.flush()` is sometimes load-bearing.** A trigger that writes then immediately reads the same range can see the OLD values because the write is still queued. `flush()` between them makes the read see the write. Usually unnecessary; when it matters, the symptom is a "this cannot be possible" intermittent bug.
 - **Mixing batch and per-cell calls negates the savings.** One `getValues` then a `for` loop with `setValue` per row is the same 60-round-trip cost as the original. Either fully batched on both sides or not at all.
 - **Triggers timing out mid-write leave partial data.** When a 5,000-row write times out at the 6-minute mark, the rows that were committed before the timeout stay; the rest do not. A subsequent run sees an inconsistent sheet. Wrap big batches in a try/catch and write a "last completed row" marker so re-runs can resume.
-- **`UrlFetchApp.fetch` in a loop hits the 600/min throttle.** Use `fetchAll` for parallel requests, or `Utilities.sleep(100)` between bursts to stay under the rate limit on long pulls. The throttle error is silent; the call just blocks longer and longer until the execution timer kills the run.
+- **`UrlFetchApp.fetch` in a loop hits an undocumented soft throttle.** Google's quotas page lists daily call limits (20,000/day consumer, 100,000/day Workspace) but no per-minute number; in practice sustained rates above a few hundred per minute start blocking. Use `fetchAll` for parallel requests, or `Utilities.sleep(100)` between bursts to stay under the soft rate limit on long pulls. The throttle is silent; the call just blocks longer and longer until the execution timer kills the run.
 - **Memory pressure on huge `getValues` reads.** A read of 100,000 rows by 20 columns is 2 million cells, ~50 MB of JS memory. Apps Script does not document a hard limit but in practice scripts can OOM. For very large datasets, chunk the read into 10,000-row blocks and process each in turn.
 - **`setValues` on read-only protected ranges fails silently** (lesson 2.7 covers range vs sheet protection). If part of the destination range is protected, `setValues` either throws or skips the protected cells depending on the protection's "warning only" setting. Always confirm the protection on the destination tab before a big write.

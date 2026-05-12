@@ -186,11 +186,11 @@ Same idea with IFS: bucket every row by ROI in one formula. (Note: IFS inside AR
 <Compare>
   <ComparePanel label="Broken" tone="negative">
     <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", VLOOKUP(C2:C, X:Y, 2, FALSE), 0))`}</code></pre>
-    <p className="mt-2 text-sm">VLOOKUP doesn't broadcast inside ARRAYFORMULA. You get the lookup of the first cell repeated, not a row-aware result. The "wrong values across the whole column" bug.</p>
+    <p className="mt-2 text-sm">Neither <code>VLOOKUP</code> nor <code>XLOOKUP</code> reliably broadcasts a vector search key inside <code>ARRAYFORMULA</code> in Sheets: you get the lookup of the first cell repeated down every row, not a row-aware result. The "wrong values across the whole column" bug, and one of the most common reasons a column of XLOOKUPs returns one value cloned twelve times.</p>
   </ComparePanel>
   <ComparePanel label="Working" tone="positive">
-    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", XLOOKUP(C2:C, X:X, Y:Y, 0), 0))`}</code></pre>
-    <p className="mt-2 text-sm">XLOOKUP broadcasts cleanly. Either that or use MAP + a LAMBDA wrapping the VLOOKUP (lesson 19) for per-row lookups when XLOOKUP isn't an option.</p>
+    <pre className="font-mono text-xs"><code>{`=ARRAYFORMULA(IF(B2:B="Yoav", INDEX(Y:Y, MATCH(C2:C, X:X, 0)), 0))`}</code></pre>
+    <p className="mt-2 text-sm"><code>INDEX</code> + <code>MATCH</code> broadcasts cleanly under <code>ARRAYFORMULA</code>: <code>MATCH</code> returns one position per search-key row, and <code>INDEX</code> reads the matching value out of the return column for each. When you need per-row lookups that <code>INDEX/MATCH</code> can't handle (multi-criteria, conditional return, anything fancier), reach for <code>MAP</code> with a <code>LAMBDA</code> wrapping the lookup, covered in lesson 1.18.</p>
   </ComparePanel>
 </Compare>
 

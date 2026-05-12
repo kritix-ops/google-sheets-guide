@@ -9,7 +9,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 import { InlineMarkdown } from "@/components/markdown";
@@ -26,6 +26,44 @@ type AttemptState = {
   sidebarScriptId?: string | null;
   sidebarError?: string | null;
 };
+
+// Used so that `mounted` flips from `false` (server) to `true` (client) after
+// hydration, without writing to state inside an effect. The hydration gate
+// keeps the SSR markup stable; we only show "open sheet / grade my work"
+// once we know we have a real client-side `attempt`.
+function useMounted(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
+
+function readStoredAttempt(assignmentId: string): AttemptState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + assignmentId);
+    return raw ? (JSON.parse(raw) as AttemptState) : null;
+  } catch {
+    return null;
+  }
+}
+
+// `useSyncExternalStore` requires `getSnapshot` to return a stable reference
+// while nothing has changed. JSON.parse returns a fresh object each call,
+// which would loop the render — so we cache per assignmentId and invalidate
+// on `storage` events.
+const storedSnapshotCache = new Map<string, AttemptState | null>();
+
+function getStoredSnapshot(assignmentId: string): AttemptState | null {
+  if (!storedSnapshotCache.has(assignmentId)) {
+    storedSnapshotCache.set(assignmentId, readStoredAttempt(assignmentId));
+  }
+  return storedSnapshotCache.get(assignmentId) ?? null;
+}
+
+function invalidateStoredSnapshot(assignmentId: string): void {
+  storedSnapshotCache.delete(assignmentId);
+}
 
 type CheckOutcome = {
   ruleId: string;
@@ -45,22 +83,44 @@ type GradeResult = {
 };
 
 export function AssignmentPanel({ assignmentId }: { assignmentId: string }) {
-  const [hydrated, setHydrated] = useState(false);
-  const [attempt, setAttempt] = useState<AttemptState | null>(null);
+  const hydrated = useMounted();
+  // `stored` mirrors localStorage via `useSyncExternalStore`, so it updates
+  // on cross-tab `storage` events automatically. Same-tab writes go through
+  // `commitAttempt`, which sets `override` for immediate reactivity (the
+  // `storage` event doesn't fire in the tab that wrote the value).
+  const stored = useSyncExternalStore(
+    (cb) => {
+      function onStorage(e: StorageEvent) {
+        if (e.key === STORAGE_PREFIX + assignmentId) {
+          invalidateStoredSnapshot(assignmentId);
+          cb();
+        }
+      }
+      window.addEventListener("storage", onStorage);
+      return () => window.removeEventListener("storage", onStorage);
+    },
+    () => getStoredSnapshot(assignmentId),
+    () => null,
+  );
+  const [override, setOverride] = useState<AttemptState | null>(null);
+  const attempt = override ?? stored;
   const [grade, setGrade] = useState<GradeResult | null>(null);
   const [busy, setBusy] = useState<"idle" | "starting" | "grading">("idle");
   const locale = useLocale();
   const t = useTranslations("assignmentPanel");
 
-  useEffect(() => {
-    setHydrated(true);
+  function commitAttempt(next: AttemptState | null) {
     try {
-      const stored = localStorage.getItem(STORAGE_PREFIX + assignmentId);
-      if (stored) setAttempt(JSON.parse(stored) as AttemptState);
+      if (next === null) {
+        localStorage.removeItem(STORAGE_PREFIX + assignmentId);
+      } else {
+        localStorage.setItem(STORAGE_PREFIX + assignmentId, JSON.stringify(next));
+      }
     } catch {
-      // ignore parse errors
+      // ignore storage errors (quota / incognito)
     }
-  }, [assignmentId]);
+    setOverride(next);
+  }
 
   async function start() {
     if (attempt && !confirm(t("confirmFreshStart"))) {
@@ -83,13 +143,8 @@ export function AssignmentPanel({ assignmentId }: { assignmentId: string }) {
       );
       if (!r.ok) throw new Error(await r.text());
       const data = (await r.json()) as AttemptState;
-      setAttempt(data);
+      commitAttempt(data);
       setGrade(null);
-      try {
-        localStorage.setItem(STORAGE_PREFIX + assignmentId, JSON.stringify(data));
-      } catch {
-        // ignore storage errors
-      }
       if (newTab && !newTab.closed) {
         newTab.location.href = data.sheetUrl;
       }

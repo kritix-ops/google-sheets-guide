@@ -1,0 +1,242 @@
+# פיצול workbook לפני שהוא פוגע בקיר
+
+workbooks של aggregator מתים בשתי דרכים. הראשונה פתאומית: מישהו מדביק 200,000 שורות ב-tab הלא נכון, ו-Sheets מסרב להוסיף את השורה הבאה עם "would exceed the workbook limit". השנייה איטית: ה-recalc הופך לאיטי, אחר כך לכואב, ובסוף אף אחד לא פותח את ה-dashboard לפני הקפה הראשון. הפתרון לשתיהן הוא אותו מהלך ארכיטקטוני: מפסיקים לסחוב כל קמפיין שאי פעם הרצנו בקובץ אחד. מפצלים את ה-workbook. מעבירים את הנתונים הקרים ל-workbook של Archive, משאירים את ה-workbook של Live רזה, ותופרים אותם בחזרה עם `IMPORTRANGE` כדי שה-dashboards ימשיכו לעבוד לאורך ההגירה.
+
+השיעור הזה הוא המתכון. שיעור 4.1 הסביר את תקרת 10M התאים (20M ב-beta של אפריל 2026) ולמה אפילו רשתות ריקות שורפות תאים; שיעור 4.3 קודד את דפוסי ה-`IMPORTRANGE` שגורמים ל-references בין workbooks לשרוד ב-production. השיעור הזה יושב ביניהם בכוונה: זה המהלך שעושים *לפני* שהצוות צריך להגר ל-Connected Sheets ול-BigQuery (שיעור 4.4). לרוב ה-aggregators ב-adtech, פיצול קונה שמונה-עשר עד עשרים-וארבעה חודשים של מסלול. חלק מהצוותים אף פעם לא צריכים ללכת רחוק יותר.
+
+## מתי באמת צריך לפצל
+
+פיצול workbook הוא לא בחינם. כל reference בין workbooks הוא מצב כשל חדש (ראו את קטלוג הכשלים של `IMPORTRANGE` בשיעור 4.3 ואת תהליך האבחון בשיעור 4.8). עושים את זה כשהאותות אמיתיים, לא כי הקובץ מרגיש כבד.
+
+שלושת האותות שאומרים "פצל עכשיו":
+
+1. **ספירת תאים מעל ~7M.** רחוקים שלושת רבעי מיליון תאים מהקיר על ה-cap הרגיל, או 13M מהקיר על ה-cap של ה-beta. תוסיפו את כמות השורות של export חודשי אחד גדול וזה יכול להפיל אתכם בהדבקה הבאה. הביקורת משיעור 4.1 (`=COLUMNS(A:Z)*ROWS(A1:A1000)` לכל tab, מסוכם) היא המספר שבודקים קודם.
+2. **זמן פתיחה מעל 20 שניות, recalc מעל 5.** workbook שלוקח לו 25 שניות להיפתח ו-8 שניות ל-recalc על עריכה של נוסחה לא ישתפר עם עוד tab של platform. שיפורי ה-platform של אפריל 2026 עוזרים, אבל הם לא הופכים את העקומה: workbook של 9M תאים הוא עדיין workbook של 9M תאים.
+3. **אשכול tabs רב-תכליתי.** קובץ אחד עושה ארבע עבודות: מעקב חודש נוכחי, ניתוח רבעון קודם, dashboards של 12 חודשים אחורה, ופולים אד-הוקיים של cohorts. כל עבודה חדשה ערמת tabs על הקובץ. השבר הטבעי הוא בין "דברים שהצוות עורך כל יום" לבין "דברים שאנחנו קוראים אבל לעולם לא נוגעים".
+
+אם רק אות אחד מופעל, בדרך כלל אפשר לקנות זמן על ידי גיזום ההקצאות (המהלכים של כיווץ הרשת משיעור 4.1) או מעבר ל-`IMPORTRANGE` חסום (שיעור 4.3). כששני אותות מופעלים יחד, מפצלים.
+
+<QuickCheck
+  question="איזה מהבאים הוא האות הכי חזק שזה הזמן לפצל את ה-aggregator?"
+  options={[
+    {
+      id: "a",
+      label: <>tab בודד גדל ל-80,000 שורות אבל שאר ה-workbook קטן וה-recalc עדיין מהיר.</>,
+      correct: false,
+      explanation: "tab שמן אחד הוא בעיה של רשת, לא של workbook. טווחים חסומים וגיזום רשת משיעור 4.1 מטפלים בזה בלי ה-overhead של references בין workbooks.",
+    },
+    {
+      id: "b",
+      label: <>ה-workbook ב-7.4M תאים, נפתח ב-28 שניות, ועכשיו סוחב שלושה רבעונים של נתוני קמפיינים היסטוריים בנוסף לחודש הנוכחי.</>,
+      correct: true,
+      explanation: "שני אותות — ספירת תאים קרוב ל-cap וזמן פתיחה איטי — בשילוב עם שכבת נתונים קרה ברורה (הרבעונים ההיסטוריים) הם רגע הפיצול הקנוני. ה-workbook של Archive סופג את השכבות הקרות; ה-workbook של Live שומר על החודש הנוכחי תגובתי.",
+    },
+    {
+      id: "c",
+      label: <>ל-workbook יש 47 קריאות IMPORTRANGE ואחת מהן נשברה אתמול.</>,
+      correct: false,
+      explanation: "IMPORTRANGE שבור הוא בעיה משיעור 4.8 (לאבחן את המקור), לא בעיה של פיצול. פיצול היה מוסיף IMPORTRANGEs, לא מוריד אותם.",
+    },
+  ]}
+/>
+
+## דפוס ה-archive-and-link
+
+המבנה הקנוני הוא שני workbooks שמשחקים תפקידים שונים:
+
+- **Live workbook.** רק רבעון נוכחי או חודש נוכחי. עורכים כותבים פה. טריגרים של Apps Script (שיעור 3.8) מופעלים פה. ה-dashboards שהצוות בודק לפני 9 בבוקר קוראים בעיקר מהקובץ הזה. רזה מספיק כדי להיפתח מהר.
+- **Archive workbook.** כל תקופה סגורה לפני נקודת החיתוך של Live. read-only במוסכמת הצוות (לא בהרשאות Sheets — protected ranges משיעור 2.18 אוכפים את זה). ה-Apps Script שמזיז נתונים בסוף החודש (יותר על זה ב"בשטח") הוא הכותב היחיד.
+
+הגשר הוא `IMPORTRANGE`. ה-tabs של ה-dashboard ב-Live מושכים aggregates היסטוריים מה-Archive דרך קריאות `IMPORTRANGE` חסומות, בדיוק כמו ששיעור 4.3 מקודד. ה-Archive לא מפנה ל-Live workbook — חץ התלות הולך לכיוון אחד, אז אין סיכון של IMPORTRANGE מעגלי (המלכודת משיעור 4.7).
+
+<MiniGrid
+  data={[
+    ["File", "Role", "Tabs", "Writers", "Reads from"],
+    ["Live - 2026 Aggregator", "Current month", "Raw - Taboola, Raw - Outbrain, Raw - MediaGo, Campaigns, Dashboard", "Media buyers, month-end script", "Archive (via IMPORTRANGE)"],
+    ["Archive - 2026 Aggregator", "Closed months", "Campaigns 2025, Campaigns Q1, Campaigns Q2, Campaigns Q3", "Month-end script only", "(nothing)"],
+    ["Dashboard Q-over-Q", "Reads both", "Current, Trailing, Compare", "(read-only)", "Live + Archive"],
+  ]}
+  highlight={["A1", "B1", "C1", "D1", "E1"]}
+  highlightTone="primary"
+  caption="הפריסה של שני ה-workbooks. ה-Live workbook הוא הקובץ הכותב והמהיר שהצוות עורך כל יום. ה-Archive workbook מחזיק תקופות סגורות ומקבל כתיבות רק מטריגר ה-Apps Script של סוף החודש. חץ התלות הולך מ-Live ל-Archive, לא הפוך."
+/>
+
+מוסכמת השמות חשובה יותר ממה שאנשים מצפים. `Live - 2026 Aggregator` ו-`Archive - 2026 Aggregator` הופכים את התפקיד לברור מה-Drive picker. שמות כמו `Aggregator` ו-`Aggregator (old)` הם איך שהצוות מוצא את עצמו קורא מהקובץ הלא נכון ב-11 בלילה.
+
+## ה-playbook של ההגירה
+
+ההגירה רצה בשישה שלבים, לפי הסדר. דילוג על אחד מהם יוביל לאחת משתי תוצאות: dashboards שבורים באמצע, או שני קבצים שמפנים לאותן השורות (בדיקת ההתאמה בשלב 5 היא המלכודת שתופסת את זה).
+
+<StepThrough
+  frames={[
+    {
+      caption: "שלב 1: ביקורת ה-workbook הנוכחי",
+      body: (
+        <>
+          מריצים את ספירת הרשת משיעור 4.1 על כל tab. מזהים את השכבה הקרה
+          שמתכוונים להזיז (בדרך כלל: כל מה שמבוגר מהרבעון הנוכחי). גם מפרטים
+          כל מקום מחוץ ל-workbook הזה שקורא ממנו — dashboards אחרים,
+          aggregators אחרים, טריגרים של Apps Script. הביקורת הופכת ל-checklist
+          של ה-cutover בשלב 4.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 2: בניית ה-Archive workbook (העתק וגזום)",
+      body: (
+        <>
+          קליק ימני על קובץ המקור ב-Drive ← <em>Make a copy</em>. משנים את השם
+          ל-<code>Archive - 2026 Aggregator</code>. מוחקים את ה-tabs שמשתייכים
+          ל-Live (חודש נוכחי, dashboards). מה שנשאר הוא השכבה הקרה. מאמתים
+          שספירת השורות בכל tab שנשמר תואמת למקור — זה מספר ה"לפני" שלך
+          לבדיקת ההתאמה.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 3: הוספת הגשר של IMPORTRANGE",
+      body: (
+        <>
+          ב-Live workbook, בונים tab מוסתר בשם <code>_archive_pull</code>.
+          מוסיפים קריאות <code>IMPORTRANGE</code> חסומות מול ה-Archive — אחת
+          לכל tab שיש בו צורך ב-dashboards. משתמשים ב-wrapper
+          <code>IFERROR(IMPORTRANGE(...), "data unavailable")</code> משיעור 4.3.
+          מאשרים גישה פעם אחת; מאמתים שהמשיכות מתמלאות. ה-dashboards לא
+          קוראים מ-<code>_archive_pull</code> עדיין — זה שלב 4.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 4: עדכון dashboards לקריאת התצוגה הממוזגת",
+      body: (
+        <>
+          לכל נוסחת dashboard ש-aggregated על פני כל הנתונים (Live + קרים),
+          כותבים מחדש לשלב את הטווח המקומי של Live עם הטווח של
+          <code>_archive_pull</code>. <code>SUMIFS</code> של 12 חודשים אחורה
+          הופך לסכום של שתי קריאות <code>SUMIFS</code> — אחת על המקומי, אחת
+          על משיכת ה-archive. מבצעים commit ל-dashboard אחד בכל פעם ובוחנים
+          את הסכומים.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 5: בדיקת התאמה",
+      body: (
+        <>
+          לכל מדד שלא אמור להשתנות בגלל הפיצול (spend של 12 חודשים אחורה,
+          revenue של 12 חודשים אחורה, סך השורות לכל buyer לאורך החיים),
+          לוכדים את המספר מה-workbook המקורי ואת המספר מההגדרה החדשה
+          Live + Archive. הם חייבים להתאים בדיוק. סטייה פה אומרת או ששלב 2
+          השמיט שורות או ששלב 4 ספר אותן פעמיים.
+        </>
+      ),
+    },
+    {
+      caption: "שלב 6: השמטת הנתונים הקרים מ-Live",
+      body: (
+        <>
+          רק אחרי שבדיקת ההתאמה עוברת. מוחקים את ה-tabs המאוחסנים מ-Live
+          workbook. אחר כך <em>מוחקים את השורות</em> (לא רק מנקים) כדי
+          שהקצאת הרשת תתכווץ — ניקוי משאיר את התאים על ה-cap שלך, ראו שיעור
+          4.1. ביקורת אחרונה: מריצים שוב את ספירת הרשת משיעור 4.1.
+          ה-Live workbook צריך עכשיו להיות חלק קטן מהגודל הקודם. אם לא, שלב
+          6 לא הושלם.
+        </>
+      ),
+    },
+  ]}
+/>
+
+ה-tab המוסתר `_archive_pull` בשלב 3 הוא המשמעת שמונעת את המלכודת שבה כל נוסחת dashboard סוחבת `IMPORTRANGE` משלה. tab משיכה אחד, קוראים רבים. אותו דפוס כמו ה-fan-out משיעור 4.3: `IMPORTRANGE` אחד, references רבים.
+
+## מלכודות נפוצות
+
+שלושה מצבי כשל שאחראים לכמעט כל פיצול לקוי שהצוות אי פעם שלח.
+
+<Compare>
+  <ComparePanel label="IMPORTRANGE לפי URL עם שם שניתן לראות ב-Drive" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=IMPORTRANGE(
+  "https://docs.google.com/spreadsheets/d/abc.../edit",
+  "Campaigns Q1!A1:G5000"
+)`}</code></pre>
+    <p className="mt-2 text-sm">נראה בסדר. המלכודת היא מה שקורה כשמישהו משנה את שם ה-Archive workbook מ-<code>Archive - 2026 Aggregator</code> ל-<code>Archive 2026 (old)</code>. ה-URL ממשיך לעבוד כי Drive משתמש ב-file ID, לא בשם. אבל האדם הבא שעושה debug ל-dashboard לא מעודכן לא יכול להבין לאיזה קובץ ה-URL מצביע בלי לפתוח אותו. חצי מהאירועים של IMPORTRANGE של הצוות מתחילים ב"שיניתי את השם, לא חשבתי שזה משנה".</p>
+  </ComparePanel>
+  <ComparePanel label="IMPORTRANGE לפי URL עם תא שם מתועד" tone="positive">
+    <pre className="font-mono text-xs"><code>{`A1: =IMPORTRANGE(SOURCE_URL, "Campaigns Q1!A1:G5000")
+B1: "Source: Archive - 2026 Aggregator"
+C1: SOURCE_URL  (named range)`}</code></pre>
+    <p className="mt-2 text-sm">אותה משיכה מבוססת URL (צורת ה-URL היא הבחירה הנכונה — Sheets ממפתח לפי ה-file ID בתוך ה-URL, אז הקישור שורד שינויי שם). ההבדל הוא האות האנושי: named range ל-URL ותא תווית סמוך שמתעד את השם הנוכחי של המקור ב-Drive. כשמישהו משנה את שם המקור, ה-named range עדיין עובד; מעדכנים את תא התווית במקום אחד.</p>
+  </ComparePanel>
+</Compare>
+
+<Compare>
+  <ComparePanel label="Dashboard מפנה לשורות מפורשות" tone="negative">
+    <pre className="font-mono text-xs"><code>{`=SUM(_archive_pull!F100:F500)`}</code></pre>
+    <p className="mt-2 text-sm">ה-dashboard מקודד hard-coded מספרי שורות מ-tab המשיכה. כשה-Archive גדל בחודש ו-ה-IMPORTRANGE מזיז מה שנופל בשורות 100–500, ה-dashboard בשקט מסכם פרוסה אחרת. אין שגיאה, רק מספר לא נכון.</p>
+  </ComparePanel>
+  <ComparePanel label="Dashboard מפנה לטווחים מובנים" tone="positive">
+    <pre className="font-mono text-xs"><code>{`=SUMIFS(
+  _archive_pull!F:F,
+  _archive_pull!A:A, ">="&DATE(2025,1,1),
+  _archive_pull!A:A, "<"&DATE(2026,1,1)
+)`}</code></pre>
+    <p className="mt-2 text-sm">הסינון הוא לפי תאריך, לא לפי מספר שורה. כשה-Archive גדל, ה-dashboard אוטומטית קולט את השורות החדשות שנופלות בחלון התאריך. ה-trade-off הוא סריקות עמודה מלאות, שזה בסדר ב-tab המשיכה (חסום על ידי ה-IMPORTRANGE עצמו) אבל היה בעיה על raw imports.</p>
+  </ComparePanel>
+</Compare>
+
+המלכודת השלישית עדינה יותר: **פיצול אגרסיבי מדי.**
+
+- פיצול ברגע שמתחיל Q2 (יצירת Archive ל-Q1 בזמן ש-Q2 עדיין חמים) אומר שכל dashboard שמשווה את Q2 ל-Q1 חייב לקפוץ דרך `IMPORTRANGE`. ה-recalc הופך לאיטי יותר, לא מהר יותר, כי המשיכה בין workbooks נמצאת בנתיב החם של ה-dashboards שהצוות קורא כל יום.
+- כלל הצוות שצמח מזה: ארכוב בגבול ה*רבעון*, לא בגבול ה*חודש*. מעבירים את רבעון N ל-Archive כשרבעון N+1 נסגר. הרבעון הנוכחי והרבעון הקודם חיים ב-Live שם ה-dashboards יכולים לקרוא אותם מקומית.
+- אותה לוגיקה ברמה השנתית: משמיטים את השנה הוותיקה ביותר לחלוטין מה-Archive (export ל-BigQuery דרך שיעור 4.4) כשה-Archive עצמו מתחיל להתקרב לקיר של 10M תאים.
+
+## בשטח
+
+ה-aggregator הראשי של הצוות מריץ את הדפוס למטה. המספרים אמיתיים נכון למאי 2026; המבנה החזיק 14 חודשים.
+
+- **Live - 2026 Aggregator.** ~1.4M תאים. סוחב את הרבעון הנוכחי ואת הרבעון הקודם. Tabs: `Raw - Taboola`, `Raw - Outbrain`, `Raw - MediaGo`, `Raw - Facebook`, `Raw - TikTok`, `Raw - Google`, `Campaigns` (האיחוד), `_archive_pull` (מוסתר), `Dashboard - Current`, `Dashboard - QoQ`.
+- **Archive - 2026 Aggregator.** ~6.2M תאים. סוחב את 6 הרבעונים הקודמים. tab לכל רבעון (`Campaigns 2024 Q3`, `Campaigns 2024 Q4`, `Campaigns 2025 Q1`, וכן הלאה). בבעלות `info@flexelent.com`. עורכים נעולים לחשבון משותף אחד דרך הרשאות Drive ודרך protected ranges משיעור 2.18.
+- **טריגר ה-cutover.** Apps Script מבוסס זמן (שיעור 3.8) רץ ביום העסקים הראשון של כל רבעון חדש. הוא מעתיק את ה-tab של הרבעון הסגור מ-Live ל-Archive, מריץ בדיקת התאמה משלו, ורק אז מוחק את השורות מ-Live. ה-script כותב שורה ל-tab בשם `_cutover_log` ב-Archive עם ה-timestamp, ספירות השורות, ודגל Pass/Fail שהצוות יכול לבקר.
+- **Dashboard - QoQ** קורא מ-`Campaigns` של Live עבור שני הרבעונים הכי חמים ומ-`_archive_pull` עבור ארבעת הקודמים. מדדים של 12 חודשים אחורה משתמשים ב-`SUMIFS` יחיד עם חסמי תאריך שמתפרסים על שני הטווחים, בדיוק דפוס הטווחים המובנים מסעיף המלכודות למעלה.
+
+שורות הקמפיינים שמגיעות ל-Archive נראות בלתי-ניתנות-להבחנה משורות ב-Live — אותן עמודות, אותם שמות verticals מהרשימה הקנונית (Car Deals PR, Cruises PR, Solar Systems & Panels PR, וכן הלאה), אותם שמות buyers, אותם platforms. ה-Archive הוא לא schema אחר; אלה אותם נתונים, קרים יותר.
+
+<QuickCheck
+  question='ירשתם Live workbook שה-dashboard שלו מושך מ-`=IMPORTRANGE("https://docs.google.com/spreadsheets/d/abc.../edit", "Campaigns Q1!A1:G5000")`. מישהו שינה את שם ה-Archive workbook מ-`Archive - 2026 Aggregator` ל-`Archive 2026 (old)`. ה-dashboard עובד. שבועיים אחר כך הוא הופך ל-#REF! בכל זאת. מה קרה?'
+  options={[
+    {
+      id: "a",
+      label: <>שינוי השם שבר את ה-URL — Sheets מחלץ IMPORTRANGE לפי שם הקובץ, לא לפי file ID.</>,
+      correct: false,
+      explanation: "Sheets מחלץ IMPORTRANGE לפי ה-file ID המוטמע ב-URL, לא לפי שם התצוגה של הקובץ. ה-URL ממשיך לעבוד דרך שינוי שם. אם ה-dashboard עבד שבועיים אחרי שינוי השם, שינוי השם עצמו לא היה הסיבה.",
+    },
+    {
+      id: "b",
+      label: <>שינוי השם לא שבר את ה-URL. משהו אחר השתנה בחלון של השבועיים — שלילת הרשאה, שינוי שם של tab ב-Archive, או שקובץ המקור הועבר לתיקיית shared-drive שהבעלים של היעד לא יכול לראות.</>,
+      correct: true,
+      explanation: "ה-URL מבוסס file ID שורד שינויי שם. כש-IMPORTRANGE עבד ואז נשבר מאוחר יותר, הסיבה כמעט תמיד אירוע נפרד בחלון: הרשאות, שינוי שם של tab, או מהלך ב-Drive שמשפיע על נראות. שיעור 4.8 הולך על האבחון המלא למקרה הזה.",
+    },
+    {
+      id: "c",
+      label: <>cache של IMPORTRANGE של 30 דקות פג והחיפוש החדש לא יכול היה למצוא את הקובץ תחת השם החדש.</>,
+      correct: false,
+      explanation: "ה-cache ממופתח על file ID, לא על שם קובץ. cache miss לא הופך לשגיאת file-not-found רק בגלל שינוי שם של הקובץ.",
+    },
+  ]}
+/>
+
+## עכשיו עושים את זה באמת
+
+לוחצים **Start lesson** כדי לקבל tab של Live workbook עם קמפיינים של הרבעון הנוכחי ו-placeholder של `_archive_pull`. ב-workflow אמיתי ה-placeholder היה `IMPORTRANGE` מול קובץ Archive נפרד; ב-fixture של ה-test הזה (tab בודד) ה-Archive מדומה באזור שני באותו tab כדי שה-grader יוכל לאמת את נוסחת הגשר ואת בדיקת ההתאמה. תכתבו:
+
+- **נוסחת משיכת ה-archive** ב-`J1`, מול ה-URL לדוגמה של ה-Archive שהשיעור מספק, חסומה לטווח המאוחסן.
+- **הסכום הממוזג** ב-`K1` שמשלב את סכום ה-spend המקומי של Live עם סכום ה-spend ממשיכת ה-archive — זו הנוסחה ש-dashboard אמיתי היה סוחב.
+- **בדיקת ההתאמה** ב-`L1` שמחברת את ספירת השורות של Live לספירת השורות ממשיכת ה-archive ומאמתת שהסכום תואם לסך המקורי (לפני הפיצול). ה-grader בודק את כל השלושה.
+
+## מלכודות מקצועניות
+
+- **באג של שני מקורות אמת.** שורה קיימת גם ב-Live וגם ב-Archive כי שלב 6 דולג או יושם חלקית. כל dashboard סופר אותה פעמיים. בדיקת ההתאמה בשלב 5 היא הדבר היחיד שתופס את זה לפני שזה נשלח.
+- **תקרת התאים של ה-Archive עצמו.** פיצול אחד לא הופך את ה-Archive לבן-אלמוות. שישה רבעונים של נתוני קמפיינים יכולים לעבור 6M תאים. תכננו את ההגירה של Archive → BigQuery (שיעור 4.4) לפני שה-Archive עצמו פוגע בקיר.
+- **ה-Apps Script ש"כמעט עובד".** ה-script של ה-cutover באזור 3.8 צריך idempotency: הרצה פעמיים לא צריכה להזיז נתונים פעמיים. בודקים אותו על ידי הפעלה ידנית לפני שסומכים על הלוח הזמנים המבוסס-זמן. שיעור 4.9 מכסה את מלכודת ה-Apps-Script-האיטי שנושכת script של cutover שנכתב גרוע.
+- **שרשרות IMPORTRANGE על פני שלושה קבצים.** Live מושך מ-Archive, Archive מושך מ-Old Archive. כל קפיצה מוסיפה latency ומשטח כשל. אם אתם מוצאים את עצמכם בונים את זה, אתם אחרי עידן פיצול ה-workbook — לכו ל-Connected Sheets (שיעור 4.4).
+- **Dashboards ששאר הצוות בנה מחדש בזמן שפיצלתם.** הגירה של שבועיים היא חלון של שבועיים שבו אנשים אחרים אולי העתיקו נוסחאות מ-Live workbook לקבצים שלהם, עם טווחים hard-coded שעכשיו מצביעים על הנתונים הלא נכונים. דברו עם הצוות לפני שאתם מתחילים, והריצו מחדש את הביקורת משלב 1 מול ה-workbooks האחרים של הצוות לפני שאתם קוראים להגירה בוצעה.

@@ -8,36 +8,36 @@ import { CAMPAIGNS, VERTICALS_LOOKUP } from "@/content/datasets/adtech";
 
 ## Lookups דו-כיווניים: INDEX(MATCH, MATCH)
 
-ל-pivot יש buyers במורד השורות ו-verticals לרוחב העמודות. כדי למצוא את "ה-spend של Yoav Cohen על Used Cars PR" צריך לחפש *גם* את השורה (לפי שם buyer) *וגם* את העמודה (לפי שם vertical) ולהחזיר את התא בחיתוך שלהם.
+ל-pivot יש buyers במורד השורות ו-verticals לרוחב העמודות. כדי למצוא את "ה-spend של Yoav Cohen על Car Deals PR" צריך לחפש *גם* את השורה (לפי שם buyer) *וגם* את העמודה (לפי שם vertical) ולהחזיר את התא בחיתוך שלהם.
 
 ```
-=INDEX($B$2:$F$10, MATCH("Yoav Cohen", $A$2:$A$10, 0), MATCH("Used Cars PR", $B$1:$F$1, 0))
+=INDEX($B$2:$F$10, MATCH("Yoav Cohen", $A$2:$A$10, 0), MATCH("Car Deals PR", $B$1:$F$1, 0))
 ```
 
 שלושה חלקים:
 
 1. **מערך הנתונים**: `$B$2:$F$10` (גוף ה-pivot, בלי כותרות).
 2. **אינדקס שורה**: `MATCH("Yoav Cohen", $A$2:$A$10, 0)` מוצא את השורה של Yoav בעמודת ה-buyer.
-3. **אינדקס עמודה**: `MATCH("Used Cars PR", $B$1:$F$1, 0)` מוצא את העמודה של ה-vertical בשורת הכותרת.
+3. **אינדקס עמודה**: `MATCH("Car Deals PR", $B$1:$F$1, 0)` מוצא את העמודה של ה-vertical בשורת הכותרת.
 
 `INDEX` מחזיר את התא בחיתוך הזה. ה-`0` בכל `MATCH` משמעו התאמה מדויקת (מכוסה בשיעור 1.4). הדפוס הזה הוא סוס העבודה של כל דוח השוואת pivots בצוות.
 
 ### דוגמה: lookup דו-כיווני על pivot
 
-Pivot קטן של buyer × vertical revenue. בחרו את התא של Solar Panels PR של David Mizrahi.
+Pivot קטן של buyer × vertical revenue. בחרו את התא של Solar Systems & Panels PR של Maya Bar.
 
 <TryIt
   data={[
-    ["Buyer / Vertical", "Used Cars PR", "Solar Panels PR", "Pet Insurance PR"],
+    ["Buyer / Vertical", "Car Deals PR", "Solar Systems & Panels PR", "Pet Insurance PR"],
     ["Yoav Cohen", 660, 0, 0],
-    ["Sarah Levi", 0, 0, 0],
-    ["David Mizrahi", 0, 1124.6, 0],
-    ["Maya Goldberg", 0, 0, 245.8],
+    ["Dina Dayan", 0, 0, 0],
+    ["Maya Bar", 0, 1124.6, 0],
+    ["Ben Nahum", 0, 0, 245.8],
   ]}
   inputCell="F1"
-  expectedFormula='=INDEX(B2:D5,MATCH("David Mizrahi",A2:A5,0),MATCH("Solar Panels PR",B1:D1,0))'
-  task={<>חפשו את ה-revenue של Solar Panels PR של David Mizrahi מתוך ה-pivot. השתמשו ב-INDEX עם שני MATCHes (אחד לשורה, אחד לעמודה).</>}
-  hint={<>INDEX(array, row_num, col_num). מצאו את David בעמודה A, מצאו את Solar Panels PR בשורה 1.</>}
+  expectedFormula='=INDEX(B2:D5,MATCH("Maya Bar",A2:A5,0),MATCH("Solar Systems & Panels PR",B1:D1,0))'
+  task={<>חפשו את ה-revenue של Solar Systems & Panels PR של Maya Bar מתוך ה-pivot. השתמשו ב-INDEX עם שני MATCHes (אחד לשורה, אחד לעמודה).</>}
+  hint={<>INDEX(array, row_num, col_num). מצאו את Maya Bar בעמודה A, מצאו את Solar Systems & Panels PR בשורה 1.</>}
   answer={<>התוצאה היא 1124.6. INDEX/MATCH/MATCH הוא ה-lookup הדו-כיווני הקנוני. אותה השפעה עם XLOOKUP-של-XLOOKUP קצרה בתו אחד וקצת יותר ברורה לקריאה; שתיהן בסדר. הישארו עם מה שהצוות שלכם משתמש באופן עקבי.</>}
 />
 
@@ -46,10 +46,10 @@ Pivot קטן של buyer × vertical revenue. בחרו את התא של Solar Pan
 `XLOOKUP` יכול להחזיר שורה או עמודה שלמה, לא רק תא אחד. שלבו שני `XLOOKUP`s כדי לקבל lookup דו-כיווני שנקרא כמו אנגלית:
 
 ```
-=XLOOKUP("Used Cars PR", $B$1:$F$1, XLOOKUP("Yoav Cohen", $A$2:$A$10, $B$2:$F$10))
+=XLOOKUP("Car Deals PR", $B$1:$F$1, XLOOKUP("Yoav Cohen", $A$2:$A$10, $B$2:$F$10))
 ```
 
-ה-`XLOOKUP` הפנימי מוצא את השורה של Yoav ומחזיר את כל השורה כמערך. ה-`XLOOKUP` החיצוני מחפש את "Used Cars PR" בכותרות העמודות ובוחר את הערך מאותה שורה.
+ה-`XLOOKUP` הפנימי מוצא את השורה של Yoav ומחזיר את כל השורה כמערך. ה-`XLOOKUP` החיצוני מחפש את "Car Deals PR" בכותרות העמודות ובוחר את הערך מאותה שורה.
 
 זהה פונקציונלית ל-`INDEX/MATCH/MATCH`. קצת יותר קריא כי כל שלב הוא "חיפוש" ולא חשבון של מיקומים. הצוות לרוב משתמש ב-XLOOKUP-של-XLOOKUP בגיליונות חדשים ושומר על INDEX/MATCH/MATCH בישנים.
 

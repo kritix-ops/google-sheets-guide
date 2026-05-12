@@ -43,6 +43,10 @@ export function useSearch(opts: {
   useEffect(() => {
     if (!opts.enabled || index.kind !== "idle") return;
     let cancelled = false;
+    // State-machine pattern: the "loading" phase must commit before the
+    // async fetch resolves so the UI can render a skeleton. This is the
+    // legitimate effect use of setState, not a derived-state shortcut.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIndex({ kind: "loading" });
     void (async () => {
       try {
@@ -99,6 +103,10 @@ export function useSearch(opts: {
   // so we don't fan out a request per keystroke.
   useEffect(() => {
     if (!opts.adminEnabled || !opts.enabled) {
+      // Effect-driven cleanup when adminEnabled flips off or the palette
+      // closes; the empty state needs to commit immediately so stale rows
+      // don't briefly render before the next query.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAdminResults({ users: [], drafts: [], audit: [] });
       setAdminError(null);
       return;

@@ -40,7 +40,6 @@ export function TryIt({
   inputCell,
   initialFormula = "",
   expectedFormula,
-  expectedValue,
   hint,
   answer,
   highlight,

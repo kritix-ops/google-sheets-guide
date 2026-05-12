@@ -4,16 +4,16 @@ Apps Script נראה כמו JavaScript ורובו גם כן. מה ששונה ז�
 
 המודל המנטלי שכדאי להחזיק בראש מההתחלה: כשאתם לוחצים Run בעורך, הקוד לא מתבצע בדפדפן שלכם. הוא נשלח ל-data center של Google, מתבצע שם על ידי runtime של Apps Script, והתוצאה נשלחת בחזרה. כל קריאה לשירות Sheets, Drive, Gmail, או כל שירות Workspace אחר היא קפיצה נוספת ברשת **בתוך** ה-data center הזה, אבל עדיין קפיצה. שתי ההשלכות (latency ומכסה) מעצבות את הדרך שבה כל function ריאליסטית של Apps Script נכתבת. שיעור 16 מבוסס על זה עם ה-playbook המלא של batching; השיעור הזה הוא על למה batching חשוב מלכתחילה.
 
-## V8 vs Rhino
+## V8 הוא ה-runtime (Rhino כבר לא קיים)
 
-ל-Apps Script יש שני מנועים:
+Apps Script רץ על שני מנועים לאורך חייו:
 
 | Runtime | תקופה | מה מקבלים |
 |---|---|---|
-| Rhino | 2009-2020 | ניב ישן של ECMAScript 5.x. בלי `let`/`const`, בלי arrow functions, בלי template literals, בלי destructuring, בלי `async`/`await`. |
-| V8 | 2020-היום | אותו מנוע שמריץ את Chrome. ECMAScript מודרני עם כל מה ששאר ה-ecosystem של JavaScript מניח. |
+| Rhino | 2009-2026 | ניב ישן של ECMAScript 5.x. בלי `let`/`const`, בלי arrow functions, בלי template literals, בלי destructuring, בלי `async`/`await`. הוכרז כ-deprecated ב-20 בפברואר 2025; **scripts על Rhino הפסיקו לרוץ ב-31 בינואר 2026** ([מדריך migration](https://developers.google.com/apps-script/guides/v8-runtime/migration)). |
+| V8 | 2020-היום | אותו מנוע שמריץ את Chrome. ECMAScript מודרני עם כל מה ששאר ה-ecosystem של JavaScript מניח. ה-runtime היחיד שנשאר. |
 
-השדה `runtimeVersion` ב-manifest בוחר. **V8 הוא ברירת המחדל והבחירה הנכונה היחידה ל-projects חדשים.** הסיבה ש-Rhino עדיין קיים היא תאימות לאחור עם workbooks שיש להם triggers בני עשור שעדיין רצים. אם ירשתם project Rhino, המעבר הוא עריכה אחת ב-manifest (`"runtimeVersion": "V8"`) ובדיקה: אי-התאימות הנדירה היא סביב binding של `this` בתוך callbacks וכמה סמלים גלובליים מורשתיים ש-Rhino חשף (`importPackage`, וכו').
+השדה `runtimeVersion` ב-manifest מציג `"V8"` בכל פרויקט חי. **V8 הוא הבחירה היחידה, נקודה.** אם תפתחו workbook ישן שב-manifest שלו עדיין כתוב `"DEPRECATED_ES5"`, ה-triggers האלה לא יורים יותר החל מ-31 בינואר 2026: העורך מקבל את הערך אבל ה-runtime מסרב להריץ. המעבר הוא עריכה אחת ב-manifest (`"runtimeVersion": "V8"`) ובדיקה: אי-התאימות הנדירה היא סביב binding של `this` בתוך callbacks וכמה סמלים גלובליים מורשתיים ש-Rhino חשף (`importPackage`, וכו').
 
 בפועל, V8 אומר שאתם כותבים Apps Script באותו JavaScript שאתם כותבים בכל מקום אחר:
 
@@ -41,7 +41,7 @@ function summarize(campaign) {
 | Nullish coalescing `x ?? y` | `(x === null \|\| x === undefined) ? y : x` |
 | `async/await` | שרשרות callback |
 
-הקטע המעשי של השיעור הזה מאלץ אתכם להשתמש ב-template literal מפורש: זו תכונת V8-only שהכי סביר שתעקוץ אתכם אם תיפלו ב-project Rhino בטעות.
+הקטע המעשי של השיעור הזה מאלץ אתכם להשתמש ב-template literal מפורש: זו תכונת syntax מודרני שהכי סביר שתעקוץ אתכם אם תירשו פרויקט מעידן Rhino שב-manifest שלו עדיין כתוב `DEPRECATED_ES5` (ה-triggers האלה כבר לא רצים אחרי 31 בינואר 2026, אבל הערך ב-manifest נשאר ומועתק).
 
 ## שירותים
 
@@ -104,9 +104,9 @@ Apps Script אוכף שלושה סוגי מגבלות:
 | סוג חשבון | זמן ריצה מקסימלי |
 |---|---|
 | Consumer (gmail.com) | 6 דקות |
-| Workspace | 30 דקות |
+| Workspace | 6 דקות |
 
-script שמגיע לזה נהרג באמצע כתיבה. התיקון הוא לשבור משרות ארוכות לחתיכות ולהפעיל מחדש דרך `ScriptApp.newTrigger(...).timeBased().at(...)` (מכוסה בשיעור 8): המתכון לעיבוד 200,000 שורות קמפיין הוא חתיכה של 50,000 שורות על trigger שמחמש את עצמו מחדש.
+שכבת ה-30 דקות הישנה של Workspace, שמופיעה במדריכים ישנים, פוטרה; דף ה-quotas הנוכחי של Google מציג 6 דקות לכל ריצה לשני סוגי החשבונות. script שמגיע לזה נהרג באמצע כתיבה. התיקון הוא לשבור משרות ארוכות לחתיכות ולהפעיל מחדש דרך `ScriptApp.newTrigger(...).timeBased().at(...)` (מכוסה בשיעור 8): המתכון לעיבוד 200,000 שורות קמפיין הוא חתיכה של 20,000 שורות על trigger שמחמש את עצמו מחדש, כך שכל ריצה נשארת מתחת לתקרת 6 הדקות.
 
 **מכסות יומיות פר-שירות.** לכל שירות יש cap יומי משלו. אלה שהכי כואבות:
 
@@ -122,7 +122,7 @@ script שמגיע לזה נהרג באמצע כתיבה. התיקון הוא ל�
 - **trigger לילי אחד שעושה 20,000 קריאות UrlFetchApp רווה את המכסה החינמית.** אם אתם צריכים יותר, מקבילים בין כמה projects של Apps Script (לכל אחד יש דלי מכסה משלו) או עוברים לחשבון Workspace בתשלום.
 - **המגבלה של MailApp של 100/יום היא פר-script, לא פר-משתמש.** script יחיד ששולח לכל חבר צוות יומית על הקמפיינים שלהם רווה מהר. משתמשים ב-`GmailApp.sendEmail` (1,500/יום בחינם, 10,000 ב-Workspace) ל-mailing בנפח גבוה יותר.
 
-**מגבלות קצב פר-דקה.** לרוב השירותים יש גם מגבלת burst פר-דקה: `UrlFetchApp` מאפשר בערך 600/דקה. נוגעים בזה ומקבלים exception `Service invoked too many times in a short time`. החוכמה של Apps Script היא `Utilities.sleep(100)` בין קריאות ב-batch: ביטוח זול.
+**מגבלות קצב פר-דקה.** ל-`UrlFetchApp` יש מגבלת קריאות יומית מתועדת (20,000/יום ב-consumer, 100,000/יום ב-Workspace) אבל אין מגבלת קצב פר-דקה מתועדת. דיווחי קהילה מצביעים על throttle רך סביב כמה מאות לדקה בעומס מתמשך; כדאי להתייחס לקצב מעל ~300/דקה כסיכון ולהעדיף `fetchAll` עם payloads ב-batch. נוגעים ב-throttle ומקבלים exception `Service invoked too many times in a short time`. החוכמה של Apps Script היא `Utilities.sleep(100)` בין קריאות ב-batch: ביטוח זול.
 
 <StepThrough
   frames={[
@@ -140,9 +140,10 @@ script שמגיע לזה נהרג באמצע כתיבה. התיקון הוא ל�
       body: (
         <>
           ה-handler פוגע ב-endpoint של דוחות Taboola פעם אחת לקמפיין: ~1,200
-          קריאות. המגבלה פר-דקה היא 600. Apps Script throttles אחרי קריאה 600,
-          ישן, ממשיך אחרי קריאה 601. ה-handler עדיין מסיים, אבל זה לקח 2 דקות
-          במקום 30 שניות.
+          קריאות. ה-cap היומי (20,000 ב-consumer / 100,000 ב-Workspace) רחוק,
+          אבל throttle רך פר-דקה נכנס ברגע שהקצב נשאר גבוה לאורך זמן. Apps
+          Script מתחיל לחסום קריאות לחלונות קצרים; ה-handler עדיין מסיים, אבל
+          זה לקח 2 דקות במקום 30 שניות.
         </>
       ),
     },
@@ -221,25 +222,25 @@ script שמגיע לזה נהרג באמצע כתיבה. התיקון הוא ל�
 </Compare>
 
 <QuickCheck
-  question="ה-script שלכם קורא ל-UrlFetchApp.fetch בלולאה 1,000 פעמים ב-30 שניות. אתם לא רואים שגיאת מכסה ב-Executions panel, אבל ה-function לוקחת 90 שניות במקום 30 שציפיתם. מה הכי סביר שקורה?"
+  question="אתם מתכננים pull לילי של UrlFetchApp על חשבון consumer gmail.com. ה-pull יפגע ב-endpoint אחד לכל שורת קמפיין. מהי תקרת הקריאות היומית המתועדת שאתם חייבים להישאר מתחתיה, ומהי אותה תקרה בחשבון Workspace?"
   options={[
     {
       id: "a",
-      label: "מכסת UrlFetchApp היומית של 20,000 קריאות נפגעת.",
-      correct: false,
-      explanation: "1,000 קריאות זה הרבה מתחת ל-20,000 היומיות. הייתם רואים שגיאת מכסה קשה אם הייתם פוגעים בה, לא האטה שקטה.",
+      label: "20,000/יום ב-consumer, 100,000/יום ב-Workspace.",
+      correct: true,
+      explanation: "אלה המספרים ש-Google מפרסמת בדף ה-quotas של Apps Script. אין throttle פר-דקה מתועד; דיווחי קהילה מצביעים על מגבלה רכה סביב כמה מאות לדקה בעומס מתמשך, וזה דאגה נפרדת מה-cap היומי.",
     },
     {
       id: "b",
-      label: "מגבלת הקצב פר-דקה (~600/דקה) משלת אתכם. Apps Script ישן בשקט כדי להשאיר אתכם מתחת למגבלה.",
-      correct: true,
-      explanation: "מגבלת הקצב פר-דקה נכנסת סביב 600/דקה ומופיעה כ-latency שקט, לא כ-exception נזרק. השתמשו ב-UrlFetchApp.fetchAll לקריאות מקביליות או Utilities.sleep(100) בין קריאות ב-batch.",
+      label: "600/דקה בשני סוגי החשבונות; ה-cap היומי מובלע.",
+      correct: false,
+      explanation: "אין throttle פר-דקה מתועד ל-UrlFetchApp. המגבלות המתועדות הן סכומי קריאות יומיים: 20,000/יום ב-consumer, 100,000/יום ב-Workspace.",
     },
     {
       id: "c",
-      label: "הקוד שלכם פוגע ב-timeout של 6 דקות.",
+      label: "בלתי מוגבל ב-Workspace; 1,000/יום ב-consumer.",
       correct: false,
-      explanation: "90 שניות זה הרבה מתחת ל-timeout של 6 דקות. timeout היה הורג את הריצה באמצע הלולאה, לא נותן לה להסתיים לאט.",
+      explanation: "Workspace מקבל 100,000/יום, לא בלתי מוגבל. Consumer הוא 20,000/יום, לא 1,000.",
     },
   ]}
 />
@@ -249,7 +250,7 @@ script שמגיע לזה נהרג באמצע כתיבה. התיקון הוא ל�
 ל-project המקושר של השיעור הזה יש קובץ `Lesson.gs` עם stub של `quotaSummary(perDay, perMinute)`. שתי משימות:
 
 1. עורכים את ה-body כדי להחזיר את ה-template literal `` `${perDay} per day, ${perMinute} per minute` ``. Template literals הם V8-only: זה ה-hook של השיעור.
-2. בתא **A1**, קוראים ל-`=quotaSummary(20000, 600)`. אלה המכסה הצרכנית של UrlFetchApp והקצב פר-דקה, אז התא מציג בסוף "20000 per day, 600 per minute": המגבלות בפועל שתתכננו סביבן כשתכתבו pulls לילים בשיעור 11.
+2. בתא **A1**, קוראים ל-`=quotaSummary(20000, 300)`. המספר הראשון הוא המכסה היומית המתועדת של UrlFetchApp בחשבון consumer; השני הוא יעד הקצב פר-דקה הבטוח שהצוות מתכנן סביבו pulls לילים (Google לא מפרסמת מספר פר-דקה, אז הצוות מתייחס ל-~300/דקה כתקרה ומשתמש ב-`fetchAll` מעבר לזה).
 
 ## נפוץ בשטח
 
@@ -269,5 +270,5 @@ projects אמיתיים של Apps Script ב-workbooks של הצוות:
 - **custom function שצורכת מכסת UrlFetchApp.** שיעור 3 מכסה caching מצד התא; הנה הצד של המכסה. כל tuple ארגומנטים שונה ל-`=fetchSomething(x, y)` הוא קריאה אחת. spreadsheet עם 50,000 תאים שקורא ל-custom function מבוססת `UrlFetchApp` ירווה את המכסה היומית בפתיחה אחת.
 - **triggers מרובים מתחרים על אותם נתונים.** trigger A לליל ראשון רץ שוב כי הריצה הקודמת קרסה; ריצה ידנית B נורית ביום שני בבוקר ל-backfill. שניהם כותבים ל-Aggregator במקביל. השתמשו ב-`LockService.getScriptLock().tryLock(30 * 1000)` בראש כל trigger שמשנה state משותף.
 - **Timeout פר-execution שמתערב עם `fetchAll`.** batch של `fetchAll` של 100 requests חוסם על האיטי ביותר. אם endpoint אחד עובר דקה רעה, כל ה-batch מחכה. מפצלים ל-batches פר-שירות; כך שירות איטי אחד לא חוסם מהירים.
-- **קוד בסגנון Rhino שנשלח בטעות ל-project V8.** חבר צוות מדביק תשובה מ-Stack Overflow מ-2014 עם `var` ו-`Array.prototype.forEach.call(...)`. זה רץ, אבל מתנהג מוזר סביב `this` binding ומפריע ל-patterns שניתן לחפש שאר ה-codebase משתמש בהם. סטנדרטיזציה על `const`/`let`, callbacks של arrow, ו-array methods מודרניות.
+- **קוד בסגנון Rhino שנדבק בטעות ל-project V8.** חבר צוות מדביק תשובה מ-Stack Overflow מ-2014 עם `var` ו-`Array.prototype.forEach.call(...)`. עכשיו כש-Rhino עצמו פוטר ב-31 בינואר 2026, הקטעים האלה עדיין רצים תחת V8, אבל מתנהגים מוזר סביב `this` binding ומפריעים ל-patterns שניתן לחפש ששאר ה-codebase משתמש בהם. סטנדרטיזציה על `const`/`let`, callbacks של arrow, ו-array methods מודרניות.
 - **התרחבות scope אוטומטית כשובר שקט.** הוספת `GmailApp.search` ל-script שהיה מורשה בעבר רק ל-`spreadsheets.currentonly` לא זורקת; היא מרחיבה את סט ה-scopes וההרצה הבאה מציגה auth prompt חדש. חבר הצוות שמריץ אותו לפני שמייל ה-rollout מגיע רואה prompt לא מוסבר ונעשה עצבני.
