@@ -96,7 +96,7 @@ J2 = 0                  (the adjustment cell)`}</code></pre>
 
 ## The Apps Script onEdit cycle
 
-A specifically nasty cycle the Sheets engine cannot detect: an `onEdit` trigger that writes to the cell whose edit fired it.
+A specifically nasty cycle the Sheets engine cannot detect: an `onEdit` trigger (lesson 3.7) that writes to the cell whose edit fired it.
 
 ```javascript
 function onEdit(e) {
